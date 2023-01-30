@@ -1,5 +1,7 @@
 ﻿using Sandbox.Game.GameSystems;
 using Sandbox.ModAPI.Ingame;
+using Sandbox.ModAPI.Interfaces;
+using SpaceEngineers.Game.ModAPI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,9 +9,9 @@ using System.Text;
 using System.Threading.Tasks;
 using VRageMath;
 
-namespace TEST
+namespace bot
 {
-    internal class Class4
+    public sealed class Program : MyGridProgram
     {
 
         int TickCount;
@@ -157,9 +159,6 @@ namespace TEST
                 Timer.GetActionWithName("TriggerNow").Apply(Timer);
             }
         }
-
-
-
 
         public class MyDriller
         {
