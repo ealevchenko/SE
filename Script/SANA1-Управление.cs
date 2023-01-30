@@ -12,9 +12,9 @@ using VRageMath;
 
 namespace SANA1_UPR
 {
+
     public sealed class Program : MyGridProgram
     {
-
         // Название 
         string NameObj = "SANA1";
         // Дверь левая выход в космос
@@ -129,36 +129,110 @@ namespace SANA1_UPR
         int count_engine_room = 0;  // Кол лудей в помещениии
 
         static Program _scr;
-
-        //public void OffOfGroup<IMyTerminalBlock>(this List<IMyTerminalBlock> list, string group){
-        //    foreach (IMyTerminalBlock obj in list)
-        //    {
-        //        if (((IMyTerminalBlock)obj).CustomName.Contains(group))
-        //        {
-        //            obj.ApplyAction("OnOff_Off");
-        //        }
-        //    }
-        //}
-
-        static public string GetPersent(double perse, int scale)
+        public class PText
         {
-            string prog = "[";
-            for (int i = 0; i < Math.Round((perse * scale), 0); i++)
+            static public string GetPersent(double perse, int scale)
             {
-                prog += "|";
+                string prog = "[";
+                for (int i = 0; i < Math.Round((perse * scale), 0); i++)
+                {
+                    prog += "|";
+                }
+                for (int i = 0; i < scale - Math.Round((perse * scale), 0); i++)
+                {
+                    prog += ".";
+                }
+                prog += "] - " + Math.Round((perse * 100), 1) + "%";
+                return prog;
             }
-            for (int i = 0; i < scale - Math.Round((perse * scale), 0); i++)
+            static public string GetCapacityTanks(double perse, float capacity)
             {
-                prog += ".";
+                return "[ " + ((perse * capacity) / 1000000) + "МЛ / " + (capacity / 1000000) + "МЛ ]";
             }
-            prog += "] - " + Math.Round((perse * 100), 1) + "%";
-            return prog;
         }
-        static public string GetCapacityTanks(double perse, float capacity)
+        public class FLib
         {
-            return "[ " + ((perse * capacity) / 1000000) + "МЛ / " + (capacity / 1000000) + "МЛ ]";
+            static public void Off<T>(List<T> list)
+            {
+                foreach (IMyTerminalBlock obj in list)
+                {
+                    obj.ApplyAction("OnOff_Off");
+                }
+            }
+            static public void OffOfGroup<T>(List<T> list, string group)
+            {
+                foreach (IMyTerminalBlock obj in list)
+                {
+                    if (obj.CustomName.Contains(group))
+                    {
+                        obj.ApplyAction("OnOff_Off");
+                    }
+                }
+            }
+            static public void On<T>(List<T> list)
+            {
+                foreach (IMyTerminalBlock obj in list)
+                {
+                    obj.ApplyAction("OnOff_On");
+                }
+            }
+            static public void OnOfGroup<T>(List<T> list, string group)
+            {
+                foreach (IMyTerminalBlock obj in list)
+                {
+                    if (obj.CustomName.Contains(group))
+                    {
+                        obj.ApplyAction("OnOff_On");
+                    }
+                }
+            }
         }
-
+        public class BaseListTerminalBlock<T> where T : class
+        {
+            public List<T> list_obj = new List<T>();
+            public string name = "TerminalBlock";
+            public int Count { get { return list_obj.Count(); } }
+            public BaseListTerminalBlock(string name_obj)
+            {
+                _scr.GridTerminalSystem.GetBlocksOfType<T>(list_obj, r => ((IMyTerminalBlock)r).CustomName.Contains(name_obj));
+                _scr.Echo(name + "[" + name_obj + "]" + ((list_obj != null && list_obj.Count() > 0) ? ("Ок") : ("not found")));
+            }
+            // Команды включения\выключения
+            public void Off(List<T> list)
+            {
+                foreach (IMyTerminalBlock obj in list)
+                {
+                    obj.ApplyAction("OnOff_Off");
+                }
+            }
+            public void OffOfGroup(List<T> list, string group)
+            {
+                foreach (IMyTerminalBlock obj in list)
+                {
+                    if (obj.CustomName.Contains(group))
+                    {
+                        obj.ApplyAction("OnOff_Off");
+                    }
+                }
+            }
+            public void On(List<T> list)
+            {
+                foreach (IMyTerminalBlock obj in list)
+                {
+                    obj.ApplyAction("OnOff_On");
+                }
+            }
+            public void OnOfGroup(List<T> list, string group)
+            {
+                foreach (IMyTerminalBlock obj in list)
+                {
+                    if (obj.CustomName.Contains(group))
+                    {
+                        obj.ApplyAction("OnOff_On");
+                    }
+                }
+            }
+        }
         public Program()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
@@ -536,57 +610,108 @@ namespace SANA1_UPR
                 return result;
             }
         }
-        public class GasTank
+        //public class GasTank
+        //{
+        //    List<IMyGasTank> list_obj = new List<IMyGasTank>();
+        //    public int Count { get { return list_obj.Count(); } }
+        //    public GasTank(string name_obj)
+        //    {
+        //        _scr.GridTerminalSystem.GetBlocksOfType<IMyGasTank>(list_obj, r => r.CustomName.Contains(name_obj));
+        //        _scr.Echo("GasTank[" + name_obj + "]" + ((list_obj != null && list_obj.Count() > 0) ? ("Ок") : ("not found")));
+        //    }
+        //    public void On()
+        //    {
+        //        //foreach (IMyGasGenerator obj in list_obj)
+        //        //{
+        //        //    obj.ApplyAction("OnOff_On");
+        //        //}
+        //        FLib.On(list_obj);
+        //    }
+        //    public void OnOfGroup(string group)
+        //    {
+        //        //foreach (IMyGasGenerator obj in list_obj)
+        //        //{
+        //        //    if (obj.CustomName.Contains(group))
+        //        //    {
+        //        //        obj.ApplyAction("OnOff_On");
+        //        //    }
+        //        //}
+        //        FLib.OnOfGroup(list_obj, group);
+        //    }
+        //    public void Off()
+        //    {
+        //        //foreach (IMyGasGenerator obj in list_obj)
+        //        //{
+        //        //    obj.ApplyAction("OnOff_Off");
+        //        //}
+        //        FLib.Off(list_obj);
+        //    }
+        //    public void OffOfGroup(string group)
+        //    {
+        //        //foreach (IMyGasGenerator obj in list_obj)
+        //        //{
+        //        //    if (obj.CustomName.Contains(group))
+        //        //    {
+        //        //        obj.ApplyAction("OnOff_Off");
+        //        //    }
+        //        //}
+        //        FLib.OffOfGroup(list_obj, group);
+
+        //    }
+        //    public string GetStatusOfText()
+        //    {
+        //        string tdh2 = "";
+        //        string tdo2 = "";
+        //        double fr_h2 = 0;
+        //        float cap_h2 = 0;
+        //        int count_th2 = 0;
+        //        double fr_o2 = 0;
+        //        float cap_o2 = 0;
+        //        int count_to2 = 0;
+        //        foreach (IMyGasTank obj in list_obj)
+        //        {
+        //            switch (obj.DefinitionDisplayNameText)
+        //            {
+        //                case "Водородный бак":
+        //                    {
+        //                        fr_h2 += obj.FilledRatio;
+        //                        cap_h2 += obj.Capacity;
+        //                        count_th2++;
+        //                        tdh2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "] - " + (obj.FilledRatio * 100) + "% " + PText.GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
+        //                        break;
+        //                    }
+        //                case "Кислородный бак":
+        //                    {
+        //                        fr_o2 += obj.FilledRatio;
+        //                        cap_o2 += obj.Capacity;
+        //                        count_to2++;
+        //                        tdo2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "] - " + (obj.FilledRatio * 100) + "% " + PText.GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
+        //                        break;
+        //                    }
+        //            }
+        //        }
+        //        string result = "";
+        //        result += "|    H2:" + PText.GetCapacityTanks((fr_h2 / count_th2), cap_h2) + "\n";
+        //        result += "|-+" + PText.GetPersent((fr_h2 / count_th2), 50) + "\n";
+        //        result += tdh2;
+        //        result += "|\n";
+        //        result += "|    O2:" + PText.GetCapacityTanks((fr_o2 / count_to2), cap_o2) + "\n";
+        //        result += "|-+" + PText.GetPersent((fr_o2 / count_to2), 50) + "\n";
+        //        result += tdo2;
+        //        result += "|\n";
+        //        return result;
+        //    }
+        //}
+        public class GasTank : BaseListTerminalBlock<IMyGasTank>
         {
-            List<IMyGasTank> list_obj = new List<IMyGasTank>();
-            public int Count { get { return list_obj.Count(); } }
-            public GasTank(string name_obj)
+            public string name = "GasTank";
+            public GasTank(string name_obj) : base(name_obj)
             {
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyGasTank>(list_obj, r => r.CustomName.Contains(name_obj));
-                _scr.Echo("GasTank[" + name_obj + "]" + ((list_obj != null && list_obj.Count() > 0) ? ("Ок") : ("not found")));
-            }
-            public void On()
-            {
-                foreach (IMyGasGenerator obj in list_obj)
-                {
-                    obj.ApplyAction("OnOff_On");
-                }
-            }
-            public void OnOfGroup(string group)
-            {
-                foreach (IMyGasGenerator obj in list_obj)
-                {
-                    if (obj.CustomName.Contains(group))
-                    {
-                        obj.ApplyAction("OnOff_On");
-                    }
-
-
-                }
-            }
-            public void Off()
-            {
-                foreach (IMyGasGenerator obj in list_obj)
-                {
-                    obj.ApplyAction("OnOff_Off");
-                }
-            }
-            public void OffOfGroup(string group)
-            {
-                foreach (IMyGasGenerator obj in list_obj)
-                {
-                    if (obj.CustomName.Contains(group))
-                    {
-                        obj.ApplyAction("OnOff_Off");
-                    }
-                }
+               
             }
             public string GetStatusOfText()
             {
-
-                //string th2 = "|-+ H2:";
                 string tdh2 = "";
-                //string to2 = "|-+БАКИ O2:";
                 string tdo2 = "";
                 double fr_h2 = 0;
                 float cap_h2 = 0;
@@ -603,8 +728,7 @@ namespace SANA1_UPR
                                 fr_h2 += obj.FilledRatio;
                                 cap_h2 += obj.Capacity;
                                 count_th2++;
-                                //tdh2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "] - " + (obj.FilledRatio * 100) + "% " + ((obj.FilledRatio * obj.Capacity) / 1000000) + "/" + (obj.Capacity / 1000000) + "МЛ\n";
-                                 tdh2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "] - " + (obj.FilledRatio * 100) + "% " + GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
+                                tdh2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "] - " + (obj.FilledRatio * 100) + "% " + PText.GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
                                 break;
                             }
                         case "Кислородный бак":
@@ -612,73 +736,48 @@ namespace SANA1_UPR
                                 fr_o2 += obj.FilledRatio;
                                 cap_o2 += obj.Capacity;
                                 count_to2++;
-                                //tdo2 += "|  |-БАК O2:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "] - " + (obj.FilledRatio * 100) + "% " + ((obj.FilledRatio * obj.Capacity) / 1000000) + "/" + (obj.Capacity / 1000000) + "МЛ\n";
-                                 tdo2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "] - " + (obj.FilledRatio * 100) + "% " + GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
+                                tdo2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "] - " + (obj.FilledRatio * 100) + "% " + PText.GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
                                 break;
                             }
                     }
                 }
-
                 string result = "";
-                result += "|    H2:" + GetCapacityTanks((fr_h2 / count_th2), cap_h2) + "\n";
-                result += "|-+" + GetPersent((fr_h2 / count_th2), 50) + "\n";
+                result += "|    H2:" + PText.GetCapacityTanks((fr_h2 / count_th2), cap_h2) + "\n";
+                result += "|-+" + PText.GetPersent((fr_h2 / count_th2), 50) + "\n";
                 result += tdh2;
                 result += "|\n";
-                result += "|    O2:" + GetCapacityTanks((fr_o2 / count_to2), cap_o2) + "\n";
-                result += "|-+" + GetPersent((fr_o2 / count_to2), 50) + "\n";
+                result += "|    O2:" + PText.GetCapacityTanks((fr_o2 / count_to2), cap_o2) + "\n";
+                result += "|-+" + PText.GetPersent((fr_o2 / count_to2), 50) + "\n";
                 result += tdo2;
                 result += "|\n";
-
-                //to2 += Math.Round(((fr_o2 / count_to2) * 100), 1) + "% [ " + (((fr_o2 / count_to2) * cap_o2) / 1000000) + "МЛ / " + (cap_o2 / 1000000) + "МЛ ]\n";
                 return result;
             }
         }
         public class Thrust
         {
             List<IMyThrust> list_obj = new List<IMyThrust>();
-            public int Count { get { return list_obj.Count(); } }
-            public Thrust(string name_group)
-            {
 
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyThrust>(list_obj, r => r.CustomName.Contains(name_group));
-                _scr.Echo("list_obj: " + ((list_obj != null && list_obj.Count() > 0) ? ("Ок") : ("not list_obj")));
-                //_scr.Echo(list_obj[0].DefinitionDisplayNameText);
+            public Thrust(string name_obj)
+            {
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyThrust>(list_obj, r => r.CustomName.Contains(name_obj));
+                _scr.Echo("Thrust[" + name_obj + "]" + ((list_obj != null && list_obj.Count() > 0) ? ("Ок") : ("not found")));
             }
+            public int Count { get { return list_obj.Count(); } }
             public void On()
             {
-                foreach (IMyThrust thrust in list_obj)
-                {
-                    thrust.ApplyAction("OnOff_On");
-                }
+                FLib.On(list_obj);
             }
             public void OnOfGroup(string group)
             {
-                foreach (IMyThrust obj in list_obj)
-                {
-                    if (obj.CustomName.Contains(group))
-                    {
-                        obj.ApplyAction("OnOff_On");
-                    }
-
-
-                }
+                FLib.OnOfGroup(list_obj, group);
             }
             public void Off()
             {
-                foreach (IMyThrust thrust in list_obj)
-                {
-                    thrust.ApplyAction("OnOff_Off");
-                }
+                FLib.Off(list_obj);
             }
             public void OffOfGroup(string group)
             {
-                foreach (IMyThrust obj in list_obj)
-                {
-                    if (obj.CustomName.Contains(group))
-                    {
-                        obj.ApplyAction("OnOff_Off");
-                    }
-                }
+                FLib.OffOfGroup(list_obj, group);
             }
         }
     }
