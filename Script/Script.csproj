@@ -68,11 +68,17 @@
     <Reference Include="VRage.Game">
       <HintPath>..\LIB\VRage.Game.dll</HintPath>
     </Reference>
+    <Reference Include="VRage.Game.XmlSerializers">
+      <HintPath>..\LIB\VRage.Game.XmlSerializers.dll</HintPath>
+    </Reference>
     <Reference Include="VRage.Library">
       <HintPath>..\LIB\VRage.Library.dll</HintPath>
     </Reference>
     <Reference Include="VRage.Math">
       <HintPath>..\LIB\VRage.Math.dll</HintPath>
+    </Reference>
+    <Reference Include="VRage.XmlSerializers">
+      <HintPath>..\LIB\VRage.XmlSerializers.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>

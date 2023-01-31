@@ -6,8 +6,10 @@ using SpaceEngineers.Game.ModAPI.Ingame;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
+using VRage.Game.Components;
 using VRageMath;
 
 namespace SANA1_UPR
@@ -17,6 +19,9 @@ namespace SANA1_UPR
     {
         // Название 
         string NameObj = "SANA1";
+
+        string NameCockpit = "SANA1-Кресло пилота";
+        Cockpit cockpit;
         // Дверь левая выход в космос
         string NameDoorExt_left = "SANA1-Разд. дв. вых. левая external";
         string NameDoorInt_left = "SANA1-Разд. дв. вых. левая internal";
@@ -120,7 +125,7 @@ namespace SANA1_UPR
         // Баки
         GasTank gas_tank;
         // Трапстеры
-        Thrust tanks;
+        Thrust thrust;
 
         IMyTextPanel test_lcd;
         IMyInteriorLight ltest;
@@ -131,7 +136,11 @@ namespace SANA1_UPR
         static Program _scr;
         public class PText
         {
-            static public string GetPersent(double perse, int scale)
+            static public string GetPersent(double perse)
+            {
+                return " - " + Math.Round((perse * 100), 1) + "%";
+            }
+            static public string GetScalePersent(double perse, int scale)
             {
                 string prog = "[";
                 for (int i = 0; i < Math.Round((perse * scale), 0); i++)
@@ -142,13 +151,24 @@ namespace SANA1_UPR
                 {
                     prog += ".";
                 }
-                prog += "] - " + Math.Round((perse * 100), 1) + "%";
+                prog += "]" + GetPersent(perse);
                 return prog;
             }
             static public string GetCapacityTanks(double perse, float capacity)
             {
-                return "[ " + ((perse * capacity) / 1000000) + "МЛ / " + (capacity / 1000000) + "МЛ ]";
+                return "[ " + Math.Round(((perse * capacity) / 1000000), 1) + "МЛ / " + Math.Round((capacity / 1000000), 1) + "МЛ ]";
             }
+            static public string GetThrust(float value)
+            {
+                return Math.Round(value / 1000000, 1) + "МН";
+            }
+            static public string GetCurrentThrust(float to, float cur, float max)
+            {
+                return "[ " + GetThrust(to) + " / " + GetThrust(cur) + " / " + GetThrust(max) + " ]";
+            }
+
+
+
         }
         public class FLib
         {
@@ -190,22 +210,25 @@ namespace SANA1_UPR
         public class BaseListTerminalBlock<T> where T : class
         {
             public List<T> list_obj = new List<T>();
-            public string name = "TerminalBlock";
             public int Count { get { return list_obj.Count(); } }
             public BaseListTerminalBlock(string name_obj)
             {
                 _scr.GridTerminalSystem.GetBlocksOfType<T>(list_obj, r => ((IMyTerminalBlock)r).CustomName.Contains(name_obj));
-                _scr.Echo(name + "[" + name_obj + "]" + ((list_obj != null && list_obj.Count() > 0) ? ("Ок") : ("not found")));
+                _scr.Echo(typeof(T).Name + "[" + name_obj + "]" + ((list_obj != null && list_obj.Count() > 0) ? ("Ок") : ("not found"))); ;
             }
             // Команды включения\выключения
-            public void Off(List<T> list)
+            private void Off(List<T> list)
             {
                 foreach (IMyTerminalBlock obj in list)
                 {
                     obj.ApplyAction("OnOff_Off");
                 }
             }
-            public void OffOfGroup(List<T> list, string group)
+            public void Off()
+            {
+                Off(list_obj);
+            }
+            private void OffOfGroup(List<T> list, string group)
             {
                 foreach (IMyTerminalBlock obj in list)
                 {
@@ -215,14 +238,22 @@ namespace SANA1_UPR
                     }
                 }
             }
-            public void On(List<T> list)
+            public void OffOfGroup(string group)
+            {
+                OffOfGroup(list_obj, group);
+            }
+            private void On(List<T> list)
             {
                 foreach (IMyTerminalBlock obj in list)
                 {
                     obj.ApplyAction("OnOff_On");
                 }
             }
-            public void OnOfGroup(List<T> list, string group)
+            public void On()
+            {
+                On(list_obj);
+            }
+            private void OnOfGroup(List<T> list, string group)
             {
                 foreach (IMyTerminalBlock obj in list)
                 {
@@ -231,6 +262,10 @@ namespace SANA1_UPR
                         obj.ApplyAction("OnOff_On");
                     }
                 }
+            }
+            public void OnOfGroup(string group)
+            {
+                OnOfGroup(list_obj, group);
             }
         }
         public Program()
@@ -243,6 +278,7 @@ namespace SANA1_UPR
             ltest = GridTerminalSystem.GetBlockWithName("test_lampa") as IMyInteriorLight;
             Echo("ltest: " + ((ltest != null) ? ("Ок") : ("not found")));
 
+            cockpit = new Cockpit(NameCockpit);
             door_gataway_left = new DoorGateway(sensor_option_ext_left, sensor_option_int_left, NameDoorExt_left, NameDoorInt_left);
             door_gataway_right = new DoorGateway(sensor_option_ext_right, sensor_option_int_right, NameDoorExt_right, NameDoorInt_right);
             door_gataway_engine_room = new DoorGateway(sensor_option_ext_engine_room, sensor_option_int_engine_room, NameDoorExt_engine_room, NameDoorInt_engine_room);
@@ -252,8 +288,9 @@ namespace SANA1_UPR
             gas_generators = new GasGenerator(NameObj);
             gas_generators.Off();
             gas_tank = new GasTank(NameObj);
-            tanks = new Thrust(NameObj);
-            tanks.Off();
+            gas_tank.On();
+            thrust = new Thrust(NameObj);
+            thrust.Off();
         }
         public void Save()
         {
@@ -286,6 +323,7 @@ namespace SANA1_UPR
                 test_lcd.WriteText("count_engine_room=" + count_engine_room + "\n", true);
                 test_lcd.WriteText(gas_generators.GetStatusOfText(), true);
                 test_lcd.WriteText(gas_tank.GetStatusOfText(), true);
+                test_lcd.WriteText(thrust.GetStatusOfText(cockpit.IsUnderControl), true);
 
                 if (count_operator_room > 0)
                 {
@@ -308,6 +346,31 @@ namespace SANA1_UPR
 
             }
 
+        }
+        public class Cockpit
+        {
+            IMyShipController obj;
+            public bool IsUnderControl { get { return obj.IsUnderControl; } }
+            public Cockpit(string name)
+            {
+                obj = _scr.GridTerminalSystem.GetBlockWithName(name) as IMyShipController;
+                _scr.Echo("cockpit: " + ((obj != null) ? ("Ок") : ("not found")));
+            }
+            public void Dampeners(bool on)
+            {
+                obj.DampenersOverride = on;
+            }
+            // Получить axis горизонта
+            public Vector3D GetAxisHorizon()
+            {
+                Vector3D grav = Vector3D.Normalize(obj.GetNaturalGravity());
+                Vector3D axis = grav.Cross(obj.WorldMatrix.Down);
+                if (grav.Dot(obj.WorldMatrix.Down) < 0)
+                {
+                    axis = Vector3D.Normalize(axis);
+                }
+                return axis;
+            }
         }
         //------------------------------------------------------------
         public class sensor_option
@@ -507,51 +570,11 @@ namespace SANA1_UPR
             }
 
         }
-        //-----------
-        public class InteriorLight
+        public class InteriorLight : BaseListTerminalBlock<IMyInteriorLight>
         {
-            List<IMyInteriorLight> list_obj = new List<IMyInteriorLight>();
-            public int Count { get { return list_obj.Count(); } }
-            public InteriorLight(string name_obj)
+            public InteriorLight(string name_obj) : base(name_obj)
             {
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyInteriorLight>(list_obj, r => r.CustomName.Contains(name_obj));
-                _scr.Echo("InteriorLight[" + name_obj + "]" + ((list_obj != null && list_obj.Count() > 0) ? ("Ок") : ("not found")));
-            }
-            public void On()
-            {
-                foreach (IMyInteriorLight obj in list_obj)
-                {
-                    obj.ApplyAction("OnOff_On");
-                }
-            }
-            public void OnOfGroup(string group)
-            {
-                foreach (IMyInteriorLight obj in list_obj)
-                {
-                    if (obj.CustomName.Contains(group))
-                    {
-                        obj.ApplyAction("OnOff_On");
-                    }
 
-
-                }
-            }
-            public void Off()
-            {
-                foreach (IMyInteriorLight obj in list_obj)
-                {
-                    obj.ApplyAction("OnOff_Off");
-                }
-            }
-            public void OffOfGroup(string group)
-            {
-                foreach (IMyInteriorLight obj in list_obj)
-                {
-                    if (obj.CustomName.Contains(group))
-                    {
-                        obj.ApplyAction("OnOff_Off");
-                    }
-                }
             }
         }
         public class GasGenerator
@@ -610,104 +633,11 @@ namespace SANA1_UPR
                 return result;
             }
         }
-        //public class GasTank
-        //{
-        //    List<IMyGasTank> list_obj = new List<IMyGasTank>();
-        //    public int Count { get { return list_obj.Count(); } }
-        //    public GasTank(string name_obj)
-        //    {
-        //        _scr.GridTerminalSystem.GetBlocksOfType<IMyGasTank>(list_obj, r => r.CustomName.Contains(name_obj));
-        //        _scr.Echo("GasTank[" + name_obj + "]" + ((list_obj != null && list_obj.Count() > 0) ? ("Ок") : ("not found")));
-        //    }
-        //    public void On()
-        //    {
-        //        //foreach (IMyGasGenerator obj in list_obj)
-        //        //{
-        //        //    obj.ApplyAction("OnOff_On");
-        //        //}
-        //        FLib.On(list_obj);
-        //    }
-        //    public void OnOfGroup(string group)
-        //    {
-        //        //foreach (IMyGasGenerator obj in list_obj)
-        //        //{
-        //        //    if (obj.CustomName.Contains(group))
-        //        //    {
-        //        //        obj.ApplyAction("OnOff_On");
-        //        //    }
-        //        //}
-        //        FLib.OnOfGroup(list_obj, group);
-        //    }
-        //    public void Off()
-        //    {
-        //        //foreach (IMyGasGenerator obj in list_obj)
-        //        //{
-        //        //    obj.ApplyAction("OnOff_Off");
-        //        //}
-        //        FLib.Off(list_obj);
-        //    }
-        //    public void OffOfGroup(string group)
-        //    {
-        //        //foreach (IMyGasGenerator obj in list_obj)
-        //        //{
-        //        //    if (obj.CustomName.Contains(group))
-        //        //    {
-        //        //        obj.ApplyAction("OnOff_Off");
-        //        //    }
-        //        //}
-        //        FLib.OffOfGroup(list_obj, group);
-
-        //    }
-        //    public string GetStatusOfText()
-        //    {
-        //        string tdh2 = "";
-        //        string tdo2 = "";
-        //        double fr_h2 = 0;
-        //        float cap_h2 = 0;
-        //        int count_th2 = 0;
-        //        double fr_o2 = 0;
-        //        float cap_o2 = 0;
-        //        int count_to2 = 0;
-        //        foreach (IMyGasTank obj in list_obj)
-        //        {
-        //            switch (obj.DefinitionDisplayNameText)
-        //            {
-        //                case "Водородный бак":
-        //                    {
-        //                        fr_h2 += obj.FilledRatio;
-        //                        cap_h2 += obj.Capacity;
-        //                        count_th2++;
-        //                        tdh2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "] - " + (obj.FilledRatio * 100) + "% " + PText.GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
-        //                        break;
-        //                    }
-        //                case "Кислородный бак":
-        //                    {
-        //                        fr_o2 += obj.FilledRatio;
-        //                        cap_o2 += obj.Capacity;
-        //                        count_to2++;
-        //                        tdo2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "] - " + (obj.FilledRatio * 100) + "% " + PText.GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
-        //                        break;
-        //                    }
-        //            }
-        //        }
-        //        string result = "";
-        //        result += "|    H2:" + PText.GetCapacityTanks((fr_h2 / count_th2), cap_h2) + "\n";
-        //        result += "|-+" + PText.GetPersent((fr_h2 / count_th2), 50) + "\n";
-        //        result += tdh2;
-        //        result += "|\n";
-        //        result += "|    O2:" + PText.GetCapacityTanks((fr_o2 / count_to2), cap_o2) + "\n";
-        //        result += "|-+" + PText.GetPersent((fr_o2 / count_to2), 50) + "\n";
-        //        result += tdo2;
-        //        result += "|\n";
-        //        return result;
-        //    }
-        //}
         public class GasTank : BaseListTerminalBlock<IMyGasTank>
         {
-            public string name = "GasTank";
             public GasTank(string name_obj) : base(name_obj)
             {
-               
+
             }
             public string GetStatusOfText()
             {
@@ -728,7 +658,7 @@ namespace SANA1_UPR
                                 fr_h2 += obj.FilledRatio;
                                 cap_h2 += obj.Capacity;
                                 count_th2++;
-                                tdh2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "] - " + (obj.FilledRatio * 100) + "% " + PText.GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
+                                tdh2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "]" + PText.GetPersent(obj.FilledRatio) + PText.GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
                                 break;
                             }
                         case "Кислородный бак":
@@ -736,48 +666,222 @@ namespace SANA1_UPR
                                 fr_o2 += obj.FilledRatio;
                                 cap_o2 += obj.Capacity;
                                 count_to2++;
-                                tdo2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "] - " + (obj.FilledRatio * 100) + "% " + PText.GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
+                                tdo2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "]" + PText.GetPersent(obj.FilledRatio) + PText.GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
                                 break;
                             }
                     }
                 }
                 string result = "";
                 result += "|    H2:" + PText.GetCapacityTanks((fr_h2 / count_th2), cap_h2) + "\n";
-                result += "|-+" + PText.GetPersent((fr_h2 / count_th2), 50) + "\n";
+                result += "|-+" + PText.GetScalePersent((fr_h2 / count_th2), 50) + "\n";
                 result += tdh2;
                 result += "|\n";
                 result += "|    O2:" + PText.GetCapacityTanks((fr_o2 / count_to2), cap_o2) + "\n";
-                result += "|-+" + PText.GetPersent((fr_o2 / count_to2), 50) + "\n";
+                result += "|-+" + PText.GetScalePersent((fr_o2 / count_to2), 50) + "\n";
                 result += tdo2;
                 result += "|\n";
                 return result;
             }
         }
-        public class Thrust
+        public class Thrust : BaseListTerminalBlock<IMyThrust>
         {
-            List<IMyThrust> list_obj = new List<IMyThrust>();
+            public enum ThrustSubtypeName : int
+            {
+                none = 0,
+                LargeBlockSmallAtmosphericThrust = 10,
+                LargeBlockSmallAtmosphericThrustSciFi = 11,
+                LargeBlockSmallHydrogenThrust = 20,
+                LargeBlockSmallHydrogenThrustSciFi = 21,
+                LargeBlockSmallThrust = 30,
+                LargeBlockSmallThrustSciFi = 31,
+                LargeBlockLargeAtmosphericThrust = 110,
+                LargeBlockLargeAtmosphericThrustSciFi = 111,
+                LargeBlockLargeHydrogenThrust = 120,
+                LargeBlockLargeHydrogenThrustSciFi = 121,
+                LargeBlockLargeThrust = 130,
+                LargeBlockLargeThrustSciFi = 131,
+            }
+            public enum location : int
+            {
+                none =0,
+                up = 1,
+                down = 2,
+                right = 3,
+                left = 4,
+                forward = 5,
+                backward = 6,
+            }
+            public class value_thrust
+            {
+                public location location = location.none;
+                public ThrustSubtypeName thrust_subtype_name = ThrustSubtypeName.none;
+                public string definition_display_name_text = null;
+                public int count = 0;                  // кол
+                public float sum_to = 0;               // перехват тяги тяга МН
+                public float sum_to_percent = 0;       // процент от макс перехват тяги тяга %
+                public float sum_max_thrust = 0;       // Макс тяга МН
+                public float sum_max_eff_thrust = 0;   // Макс эфектив тяга МН
+                public float sum_cur_thrust = 0;       // Текущая тяга МН
+            }
+            public Thrust(string name_obj) : base(name_obj)
+            {
 
-            public Thrust(string name_obj)
-            {
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyThrust>(list_obj, r => r.CustomName.Contains(name_obj));
-                _scr.Echo("Thrust[" + name_obj + "]" + ((list_obj != null && list_obj.Count() > 0) ? ("Ок") : ("not found")));
             }
-            public int Count { get { return list_obj.Count(); } }
-            public void On()
+            public value_thrust GetStatusThrustOfText(List<IMyThrust> list, location location, ThrustSubtypeName subtype_name)
             {
-                FLib.On(list_obj);
+                value_thrust result = new value_thrust()
+                {
+                    location = location,
+                    definition_display_name_text = null,
+                    thrust_subtype_name = subtype_name,
+                    count = 0,
+                    sum_to = 0,
+                    sum_to_percent = 0,
+                    sum_max_thrust = 0,
+                    sum_max_eff_thrust = 0,
+                    sum_cur_thrust = 0,
+                };
+                foreach (IMyThrust obj in list.ToList().Where(d => d.BlockDefinition.SubtypeName == subtype_name.ToString()).ToList())
+                {
+                    result.count++;
+                    result.definition_display_name_text = obj.DefinitionDisplayNameText;
+                    result.sum_to += obj.ThrustOverride;
+                    result.sum_to_percent += obj.ThrustOverridePercentage;
+                    result.sum_max_thrust += obj.MaxThrust;
+                    result.sum_max_eff_thrust += obj.MaxEffectiveThrust;
+                    result.sum_cur_thrust += obj.CurrentThrust;
+                }
+                return result;
             }
-            public void OnOfGroup(string group)
+            public string GetStatusOfText(bool is_control)
             {
-                FLib.OnOfGroup(list_obj, group);
-            }
-            public void Off()
-            {
-                FLib.Off(list_obj);
-            }
-            public void OffOfGroup(string group)
-            {
-                FLib.OffOfGroup(list_obj, group);
+                string result = "";
+                // стоит сзади (уск ввперед)
+                result += "Ускорителей:" + list_obj.Count() + "\n";
+                //foreach (IMyThrust obj in list_obj)
+                //{
+                //    VRage.ObjectBuilders.SerializableDefinitionId id = obj.BlockDefinition;
+                //    result += "id.SubtypeName " + id.SubtypeName + "\n";
+                //}
+
+                List<IMyThrust> list_Forward = new List<IMyThrust>();
+                List<IMyThrust> list_Backward = new List<IMyThrust>();
+                // Под управлением с контроллера 
+                if (is_control)
+                {
+                    list_Forward = list_obj.Where(t => t.GridThrustDirection == Vector3I.Forward).ToList();
+                    list_Backward = list_obj.Where(t => t.GridThrustDirection == Vector3I.Backward).ToList();
+                }
+                else
+                {
+                    list_Forward = list_obj.Where(t => t.CustomName.Contains(location.forward.ToString())).ToList();
+                    list_Backward = list_obj.Where(t => t.CustomName.Contains(location.backward.ToString())).ToList();
+                }
+                result += "Ускорителей_Forward :" + list_Forward.Count() + "\n";
+                result += "Ускорителей_Backward :" + list_Backward.Count() + "\n";
+
+                //float sum_to = 0;               // перехват тяги тяга МН
+                //float sum_to_percent = 0;       // процент от макс перехват тяги тяга %
+                //float sum_max_thrust = 0;       // Макс тяга МН
+                //float sum_max_eff_thrust = 0;   // Макс эфектив тяга МН
+                //float sum_cur_thrust = 0;       // Текущая тяга МН
+                //int count = 0;
+
+                //result += "CustomData " + list_Backward[0].CustomData + "\n";
+                //result += "CustomInfo " + list_Backward[0].CustomInfo+ "\n";
+                //result += "CustomName " + list_Backward[0].CustomName+ "\n";
+                //result += "CustomNameWithFaction " + list_Backward[0].CustomNameWithFaction+ "\n";
+                //result += "DetailedInfo " + list_Backward[0].DetailedInfo + "\n";
+                //result += "DisplayName " + list_Backward[0].DisplayName+ "\n";
+                //result += "DisplayNameText " + list_Backward[0].DisplayNameText+ "\n";
+                //result += "EntityId " + list_Backward[0].EntityId+ "\n";
+                //result += "Name " + list_Backward[0].Name+ "\n";
+                //result += "ToString " + list_Backward[0].ToString()+ "\n";
+
+                //VRage.ObjectBuilders.SerializableDefinitionId id = list_Backward[0].BlockDefinition;
+                //result += "id.ToString " + id.ToString() + "\n";
+                //result += "id.SubtypeName " + id.SubtypeName + "\n";
+                //result += "id.SubtypeId " + id.SubtypeId + "\n";
+                //result += "id.SubtypeIdAttribute " + id.SubtypeIdAttribute + "\n";
+                //result += "id.TypeIdString " + id.TypeIdString + "\n";
+                //result += "id.TypeIdStringAttribute " + id.TypeIdStringAttribute + "\n";
+
+                //IMyCameraBlock
+
+                //foreach (IMyThrust obj in list_Backward)
+                //{
+                //    count++;
+                //    sum_to += obj.ThrustOverride;
+                //    sum_to_percent += obj.ThrustOverridePercentage;
+                //    sum_max_thrust += obj.MaxThrust;
+                //    sum_max_eff_thrust += obj.MaxEffectiveThrust;
+                //    sum_cur_thrust += obj.CurrentThrust;
+                //}
+                //result += "БВУ:" + count + "\n";
+                //result += "TO :" + PText.GetThrust(sum_to) + "\n";
+                //result += "TOP :" + PText.GetPersent(sum_to_percent / count) + "\n";
+                //result += "MT :" + PText.GetThrust(sum_max_thrust) + "\n";
+
+                //result += "MET :" + PText.GetThrust(sum_max_eff_thrust) + "\n";
+                //result += "CT :" + PText.GetThrust(sum_cur_thrust) + "\n";
+                result += "ВПЕРЕД: [" + list_Backward.Count() + "]" + "\n";
+
+                value_thrust result_backward_lha = GetStatusThrustOfText(list_Backward, location.backward, ThrustSubtypeName.LargeBlockLargeHydrogenThrust);
+                result += "БВУ:" + result_backward_lha.count + " " + PText.GetCurrentThrust(result_backward_lha.sum_to, result_backward_lha.sum_cur_thrust, result_backward_lha.sum_max_thrust) + "\n";
+                result += "" + PText.GetScalePersent((result_backward_lha.sum_cur_thrust / result_backward_lha.sum_max_thrust), 50) + "\n";
+
+                //value_thrust result_backward_lia = GetStatusThrustOfText(list_Backward.ToList().Where(d => d.DefinitionDisplayNameText == "Большой ионный НФ-ускоритель").ToList(), "backward", "Большой ионный НФ-ускоритель");
+                //result += "БИУ:" + result_backward_lia.count + " " + PText.GetCurrentThrust(result_backward_lia.sum_to, result_backward_lia.sum_cur_thrust, result_backward_lia.sum_max_thrust) + "\n";
+                //result += "" + PText.GetScalePersent((result_backward_lia.sum_cur_thrust / result_backward_lia.sum_max_thrust), 50) + "\n";
+
+                //foreach (IMyThrust obj in list_obj)
+                //{
+                //    switch (obj.DefinitionDisplayNameText)
+                //    {
+                //        case "Большой водородный ускоритель":
+                //            {
+                //                result += obj.DefinitionDisplayNameText + "\n";
+                //                float TO = obj.ThrustOverride;
+                //                float TOP = obj.ThrustOverridePercentage;
+                //                float MT = obj.MaxThrust;
+                //                float MET = obj.MaxEffectiveThrust;
+                //                float CT = obj.CurrentThrust;
+                //                result += "TO :" + PText.GetThrust(TO) + "\n";
+                //                result += "TOP :" + TOP + PText.GetPersent(TOP) + "\n";
+                //                result += "MT :" + PText.GetThrust(MT) + "\n";
+                //                result += "MET :" + PText.GetThrust(MET) + "\n";
+                //                result += "CT :" + PText.GetThrust(CT) + "\n";
+                //                //result += "GTD :" + obj.GridThrustDirection =  + "\n";
+
+                //                if (obj.GridThrustDirection == Vector3I.Forward) { }
+                //                //fr_h2 += obj.FilledRatio;
+                //                //cap_h2 += obj.Capacity;
+                //                //count_th2++;
+                //                //tdh2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "] - " + (obj.FilledRatio * 100) + "% " + PText.GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
+                //                return result;
+                //                //break;
+                //            }
+                //            //case "Кислородный бак":
+                //            //    {
+                //            //        fr_o2 += obj.FilledRatio;
+                //            //        cap_o2 += obj.Capacity;
+                //            //        count_to2++;
+                //            //        tdo2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "] - " + (obj.FilledRatio * 100) + "% " + PText.GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
+                //            //        break;
+                //            //    }
+                //    }
+
+                //}
+                //string result = "";
+                //result += "|    H2:" + PText.GetCapacityTanks((fr_h2 / count_th2), cap_h2) + "\n";
+                //result += "|-+" + PText.GetPersent((fr_h2 / count_th2), 50) + "\n";
+                //result += tdh2;
+                //result += "|\n";
+                //result += "|    O2:" + PText.GetCapacityTanks((fr_o2 / count_to2), cap_o2) + "\n";
+                //result += "|-+" + PText.GetPersent((fr_o2 / count_to2), 50) + "\n";
+                //result += tdo2;
+                //result += "|\n";
+                return result;
             }
         }
     }
@@ -788,3 +892,5 @@ namespace SANA1_UPR
 //  |- БАК H2: [З][.][-][+][A]
 //    |- Генератор: [+][-]
 //    |- Вод уск: [+][-]
+
+// ВПЕРЕД:6[{A-0|10},{В-5|10},{И-0|10}] Пер:10МН [10МН/50МН]
