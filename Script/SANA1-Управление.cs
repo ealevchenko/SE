@@ -209,6 +209,36 @@ namespace SANA1_UPR
         }
         public class BaseListTerminalBlock<T> where T : class
         {
+            public enum MySubtypeName : int
+            {
+                none = 0,
+                LargeBlockSmallAtmosphericThrust = 10,
+                LargeBlockSmallAtmosphericThrustSciFi = 11,
+                LargeBlockLargeAtmosphericThrust = 110,
+                LargeBlockLargeAtmosphericThrustSciFi = 111,
+
+                LargeBlockSmallHydrogenThrust = 20,
+                LargeBlockSmallHydrogenThrustSciFi = 21,
+                LargeBlockLargeHydrogenThrust = 120,
+                LargeBlockLargeHydrogenThrustSciFi = 121,
+
+                LargeBlockSmallThrust = 30,
+                LargeBlockSmallThrustSciFi = 31,
+                LargeBlockLargeThrust = 130,
+                LargeBlockLargeThrustSciFi = 131,
+            }
+
+            public class MyGroupBlock
+            {
+                public int id { get; set; }
+                public string Name { get; set; }
+                public string FullName { get; set; }
+
+                public List<MySubtypeName> list_subtype_name = new List<MySubtypeName>();
+            }
+
+            public List<MyGroupBlock> list_group = new List<MyGroupBlock>();
+
             public List<T> list_obj = new List<T>();
             public int Count { get { return list_obj.Count(); } }
             public BaseListTerminalBlock(string name_obj)
@@ -685,25 +715,9 @@ namespace SANA1_UPR
         }
         public class Thrust : BaseListTerminalBlock<IMyThrust>
         {
-            public enum ThrustSubtypeName : int
-            {
-                none = 0,
-                LargeBlockSmallAtmosphericThrust = 10,
-                LargeBlockSmallAtmosphericThrustSciFi = 11,
-                LargeBlockSmallHydrogenThrust = 20,
-                LargeBlockSmallHydrogenThrustSciFi = 21,
-                LargeBlockSmallThrust = 30,
-                LargeBlockSmallThrustSciFi = 31,
-                LargeBlockLargeAtmosphericThrust = 110,
-                LargeBlockLargeAtmosphericThrustSciFi = 111,
-                LargeBlockLargeHydrogenThrust = 120,
-                LargeBlockLargeHydrogenThrustSciFi = 121,
-                LargeBlockLargeThrust = 130,
-                LargeBlockLargeThrustSciFi = 131,
-            }
             public enum location : int
             {
-                none =0,
+                none = 0,
                 up = 1,
                 down = 2,
                 right = 3,
@@ -711,12 +725,16 @@ namespace SANA1_UPR
                 forward = 5,
                 backward = 6,
             }
-            public class value_thrust
+
+            public List<valus_thrust> list_value_thrusts = new List<valus_thrust>();
+            public class valus_thrust
             {
                 public location location = location.none;
-                public ThrustSubtypeName thrust_subtype_name = ThrustSubtypeName.none;
+                public int id_group = 0;
+                public MySubtypeName subtype_name = MySubtypeName.none;
                 public string definition_display_name_text = null;
                 public int count = 0;                  // кол
+                public int count_on = 0;               // кол вкл
                 public float sum_to = 0;               // перехват тяги тяга МН
                 public float sum_to_percent = 0;       // процент от макс перехват тяги тяга %
                 public float sum_max_thrust = 0;       // Макс тяга МН
@@ -725,16 +743,157 @@ namespace SANA1_UPR
             }
             public Thrust(string name_obj) : base(name_obj)
             {
-
+                list_group.Add(new MyGroupBlock()
+                {
+                    id = 1,
+                    Name = "АУ",
+                    FullName = "",
+                    list_subtype_name = new List<MySubtypeName>()
+                    {
+                        MySubtypeName.LargeBlockSmallAtmosphericThrust,
+                        MySubtypeName.LargeBlockSmallAtmosphericThrustSciFi,
+                        MySubtypeName.LargeBlockLargeAtmosphericThrust,
+                        MySubtypeName.LargeBlockLargeAtmosphericThrustSciFi,
+                    }
+                });
+                list_group.Add(new MyGroupBlock()
+                {
+                    id = 1,
+                    Name = "ВУ",
+                    FullName = "",
+                    list_subtype_name = new List<MySubtypeName>()
+                    {
+                        MySubtypeName.LargeBlockSmallHydrogenThrust,
+                        MySubtypeName.LargeBlockSmallHydrogenThrustSciFi,
+                        MySubtypeName.LargeBlockLargeHydrogenThrust,
+                        MySubtypeName.LargeBlockLargeHydrogenThrustSciFi,
+                    }
+                });
+                list_group.Add(new MyGroupBlock()
+                {
+                    id = 1,
+                    Name = "ИУ",
+                    FullName = "",
+                    list_subtype_name = new List<MySubtypeName>()
+                    {
+                        MySubtypeName.LargeBlockSmallThrust,
+                        MySubtypeName.LargeBlockSmallThrustSciFi,
+                        MySubtypeName.LargeBlockLargeThrust,
+                        MySubtypeName.LargeBlockLargeThrustSciFi,
+                    }
+                });
             }
-            public value_thrust GetStatusThrustOfText(List<IMyThrust> list, location location, ThrustSubtypeName subtype_name)
+            public void GetValueThrusts1(bool is_control)
             {
-                value_thrust result = new value_thrust()
+                List<IMyThrust> list_Up;
+                List<IMyThrust> list_Down;
+                List<IMyThrust> list_Right;
+                List<IMyThrust> list_Left;
+                List<IMyThrust> list_Forward;
+                List<IMyThrust> list_Backward;
+
+                list_value_thrusts.Clear();
+                // Под управлением с контроллера 
+                if (is_control)
+                {
+                    list_Up = list_obj.Where(t => t.GridThrustDirection == Vector3I.Up).ToList();
+                    list_Down = list_obj.Where(t => t.GridThrustDirection == Vector3I.Down).ToList();
+                    list_Right = list_obj.Where(t => t.GridThrustDirection == Vector3I.Right).ToList();
+                    list_Left = list_obj.Where(t => t.GridThrustDirection == Vector3I.Left).ToList();
+                    list_Forward = list_obj.Where(t => t.GridThrustDirection == Vector3I.Forward).ToList();
+                    list_Backward = list_obj.Where(t => t.GridThrustDirection == Vector3I.Backward).ToList();
+                }
+                else
+                {
+                    list_Up = list_obj.Where(t => t.CustomName.Contains(location.up.ToString())).ToList();
+                    list_Down = list_obj.Where(t => t.CustomName.Contains(location.down.ToString())).ToList();
+                    list_Right = list_obj.Where(t => t.CustomName.Contains(location.right.ToString())).ToList();
+                    list_Left = list_obj.Where(t => t.CustomName.Contains(location.left.ToString())).ToList();
+                    list_Forward = list_obj.Where(t => t.CustomName.Contains(location.forward.ToString())).ToList();
+                    list_Backward = list_obj.Where(t => t.CustomName.Contains(location.backward.ToString())).ToList();
+                }
+                foreach (MyGroupBlock obj in list_group)
+                {
+                    foreach (MySubtypeName sub_num in obj.list_subtype_name)
+                    {
+                        if (list_Up.Count() > 0) { list_value_thrusts.Add(GetOptionThrust(list_Up, location.up, obj.id, sub_num)); }
+                        if (list_Down.Count() > 0) { list_value_thrusts.Add(GetOptionThrust(list_Down, location.down, obj.id, sub_num)); }
+                        if (list_Right.Count() > 0) { list_value_thrusts.Add(GetOptionThrust(list_Right, location.right, obj.id, sub_num)); }
+                        if (list_Left.Count() > 0) { list_value_thrusts.Add(GetOptionThrust(list_Left, location.left, obj.id, sub_num)); }
+                        if (list_Forward.Count() > 0) { list_value_thrusts.Add(GetOptionThrust(list_Forward, location.forward, obj.id, sub_num)); }
+                        if (list_Backward.Count() > 0) { list_value_thrusts.Add(GetOptionThrust(list_Backward, location.backward, obj.id, sub_num)); }
+                    }
+                }
+            }
+            public location getLocation(IMyThrust obj, bool is_control)
+            {
+                if (is_control)
+                {
+                    if (obj.GridThrustDirection == Vector3I.Up) return location.up;
+                    if (obj.GridThrustDirection == Vector3I.Down) return location.down;
+                    if (obj.GridThrustDirection == Vector3I.Right) return location.right;
+                    if (obj.GridThrustDirection == Vector3I.Left) return location.left;
+                    if (obj.GridThrustDirection == Vector3I.Forward) return location.forward;
+                    if (obj.GridThrustDirection == Vector3I.Backward) return location.backward;
+                }
+                else
+                {
+                    if (obj.CustomName.Contains(location.up.ToString()) == true) return location.up;
+                    if (obj.CustomName.Contains(location.down.ToString()) == true) return location.down;
+                    if (obj.CustomName.Contains(location.right.ToString()) == true) return location.right;
+                    if (obj.CustomName.Contains(location.left.ToString()) == true) return location.left;
+                    if (obj.CustomName.Contains(location.forward.ToString()) == true) return location.forward;
+                    if (obj.CustomName.Contains(location.backward.ToString()) == true) return location.backward;
+                }
+                return location.none;
+            }
+
+            public void GetValueThrusts(bool is_control)
+            {
+                list_value_thrusts.Clear();
+                foreach (IMyThrust obj in list_obj)
+                {
+                    valus_thrust val_thrust = list_value_thrusts.Where(o => o.location == getLocation(obj, is_control) && o.subtype_name.ToString() == obj.BlockDefinition.SubtypeName).FirstOrDefault();
+                    if (val_thrust == null)
+                    {
+                        val_thrust = new valus_thrust()
+                        {
+                            location = getLocation(obj, is_control),
+                            id_group = 0,
+                            definition_display_name_text = null,
+                            subtype_name = (MySubtypeName)Enum.Parse(typeof(MySubtypeName), obj.BlockDefinition.SubtypeName.ToString()),
+                            count = 1,
+                            count_on = obj.Enabled ? 1 : 0,
+                            sum_to = obj.ThrustOverride,
+                            sum_to_percent = obj.ThrustOverridePercentage,
+                            sum_max_thrust = obj.MaxThrust,
+                            sum_max_eff_thrust = obj.MaxEffectiveThrust,
+                            sum_cur_thrust = obj.CurrentThrust,
+                        };
+                        list_value_thrusts.Add(val_thrust);
+                    }
+                    else
+                    {
+                        val_thrust.count++;
+                        if (obj.Enabled) val_thrust.count_on++;
+                        val_thrust.sum_to += obj.ThrustOverride;
+                        val_thrust.sum_to_percent += obj.ThrustOverridePercentage;
+                        val_thrust.sum_max_thrust += obj.MaxThrust;
+                        val_thrust.sum_max_eff_thrust += obj.MaxEffectiveThrust;
+                        val_thrust.sum_cur_thrust += obj.CurrentThrust;
+                    }
+                }
+            }
+            public valus_thrust GetOptionThrust(List<IMyThrust> list, location location, int id_group, MySubtypeName subtype_name)
+            {
+                valus_thrust result = new valus_thrust()
                 {
                     location = location,
+                    id_group = id_group,
                     definition_display_name_text = null,
-                    thrust_subtype_name = subtype_name,
+                    subtype_name = subtype_name,
                     count = 0,
+                    count_on = 0,
                     sum_to = 0,
                     sum_to_percent = 0,
                     sum_max_thrust = 0,
@@ -744,6 +903,7 @@ namespace SANA1_UPR
                 foreach (IMyThrust obj in list.ToList().Where(d => d.BlockDefinition.SubtypeName == subtype_name.ToString()).ToList())
                 {
                     result.count++;
+                    if (obj.Enabled) result.count_on++;
                     result.definition_display_name_text = obj.DefinitionDisplayNameText;
                     result.sum_to += obj.ThrustOverride;
                     result.sum_to_percent += obj.ThrustOverridePercentage;
@@ -753,32 +913,49 @@ namespace SANA1_UPR
                 }
                 return result;
             }
+
+            public int count_all_thrust { get { return list_value_thrusts.Count(); } }
+            public int count_on_all_thrust { get { return list_value_thrusts.Select(c => c.count_on).Sum(); } }
+
             public string GetStatusOfText(bool is_control)
             {
+                GetValueThrusts(is_control);
                 string result = "";
+                result += "Ускорителей:" + count_on_all_thrust + "|" + count_all_thrust + "\n";
                 // стоит сзади (уск ввперед)
-                result += "Ускорителей:" + list_obj.Count() + "\n";
+                result += "ВПЕРЕД:" + list_value_thrusts.Where(c => c.location == location.backward).Select(c => c.count).Sum() + "\n";
+
+
+
+
+                //foreach (int el in location.){ 
+
+                //}
                 //foreach (IMyThrust obj in list_obj)
                 //{
                 //    VRage.ObjectBuilders.SerializableDefinitionId id = obj.BlockDefinition;
                 //    result += "id.SubtypeName " + id.SubtypeName + "\n";
                 //}
 
-                List<IMyThrust> list_Forward = new List<IMyThrust>();
-                List<IMyThrust> list_Backward = new List<IMyThrust>();
-                // Под управлением с контроллера 
-                if (is_control)
-                {
-                    list_Forward = list_obj.Where(t => t.GridThrustDirection == Vector3I.Forward).ToList();
-                    list_Backward = list_obj.Where(t => t.GridThrustDirection == Vector3I.Backward).ToList();
-                }
-                else
-                {
-                    list_Forward = list_obj.Where(t => t.CustomName.Contains(location.forward.ToString())).ToList();
-                    list_Backward = list_obj.Where(t => t.CustomName.Contains(location.backward.ToString())).ToList();
-                }
-                result += "Ускорителей_Forward :" + list_Forward.Count() + "\n";
-                result += "Ускорителей_Backward :" + list_Backward.Count() + "\n";
+                //List<IMyThrust> list_Forward = new List<IMyThrust>();
+                //List<IMyThrust> list_Backward = new List<IMyThrust>();
+                //// Под управлением с контроллера 
+                //if (is_control)
+                //{
+                //    list_Forward = list_obj.Where(t => t.GridThrustDirection == Vector3I.Forward).ToList();
+                //    list_Backward = list_obj.Where(t => t.GridThrustDirection == Vector3I.Backward).ToList();
+                //}
+                //else
+                //{
+                //    list_Forward = list_obj.Where(t => t.CustomName.Contains(location.forward.ToString())).ToList();
+                //    list_Backward = list_obj.Where(t => t.CustomName.Contains(location.backward.ToString())).ToList();
+                //}
+
+                //result += "ВПЕРЕД :" + list_Forward.Count() + "\n";
+
+
+                //result += "Ускорителей_Forward :" + list_Forward.Count() + "\n";
+                //result += "Ускорителей_Backward :" + list_Backward.Count() + "\n";
 
                 //float sum_to = 0;               // перехват тяги тяга МН
                 //float sum_to_percent = 0;       // процент от макс перехват тяги тяга %
@@ -824,11 +1001,11 @@ namespace SANA1_UPR
 
                 //result += "MET :" + PText.GetThrust(sum_max_eff_thrust) + "\n";
                 //result += "CT :" + PText.GetThrust(sum_cur_thrust) + "\n";
-                result += "ВПЕРЕД: [" + list_Backward.Count() + "]" + "\n";
+                //result += "ВПЕРЕД: [" + list_Backward.Count() + "]" + "\n";
 
-                value_thrust result_backward_lha = GetStatusThrustOfText(list_Backward, location.backward, ThrustSubtypeName.LargeBlockLargeHydrogenThrust);
-                result += "БВУ:" + result_backward_lha.count + " " + PText.GetCurrentThrust(result_backward_lha.sum_to, result_backward_lha.sum_cur_thrust, result_backward_lha.sum_max_thrust) + "\n";
-                result += "" + PText.GetScalePersent((result_backward_lha.sum_cur_thrust / result_backward_lha.sum_max_thrust), 50) + "\n";
+                //valus_thrust result_backward_lha = GetOptionThrust(list_Backward, location.backward, ThrustSubtypeName.LargeBlockLargeHydrogenThrust);
+                //result += "БВУ:" + result_backward_lha.count + " " + PText.GetCurrentThrust(result_backward_lha.sum_to, result_backward_lha.sum_cur_thrust, result_backward_lha.sum_max_thrust) + "\n";
+                //result += "" + PText.GetScalePersent((result_backward_lha.sum_cur_thrust / result_backward_lha.sum_max_thrust), 50) + "\n";
 
                 //value_thrust result_backward_lia = GetStatusThrustOfText(list_Backward.ToList().Where(d => d.DefinitionDisplayNameText == "Большой ионный НФ-ускоритель").ToList(), "backward", "Большой ионный НФ-ускоритель");
                 //result += "БИУ:" + result_backward_lia.count + " " + PText.GetCurrentThrust(result_backward_lia.sum_to, result_backward_lia.sum_cur_thrust, result_backward_lia.sum_max_thrust) + "\n";
@@ -883,6 +1060,7 @@ namespace SANA1_UPR
                 //result += "|\n";
                 return result;
             }
+
         }
     }
 }
@@ -893,4 +1071,12 @@ namespace SANA1_UPR
 //    |- Генератор: [+][-]
 //    |- Вод уск: [+][-]
 
-// ВПЕРЕД:6[{A-0|10},{В-5|10},{И-0|10}] Пер:10МН [10МН/50МН]
+//|-ВПЕРЕД: 5|30 [{A-0|10},{В-5|10},{И-0|10}] Пер:10МН [10МН/50МН]
+//  | [....................................] - 100%
+//  |-ВД: 10|10 Пер:10МН [10МН/50МН]
+//  | [....................................] - 100%
+//  |-ИД: 10|20 Пер:10МН [10МН/50МН]
+//    [....................................] - 100%
+
+
+
