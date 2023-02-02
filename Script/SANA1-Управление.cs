@@ -15,7 +15,6 @@ using static SANA1_UPR.Program.Thrust;
 
 namespace SANA1_UPR
 {
-
     public sealed class Program : MyGridProgram
     {
         // Название 
