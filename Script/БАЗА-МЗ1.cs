@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static Sandbox.Definitions.MyOxygenGeneratorDefinition;
 
 // БАЗА-МЗ1
 namespace БАЗА_МЗ1
@@ -230,8 +231,8 @@ namespace БАЗА_МЗ1
                 test_lcd.WriteText("IsInputDoor=" + door_gataway.IsInputDoor + "\n", false);
                 test_lcd.WriteText("IsOutputDoor=" + door_gataway.IsOutputDoor + "\n", true);
                 test_lcd.WriteText("count_operator_room=" + count_operator_room + "\n", true);
+                test_lcd.WriteText(gas_generators.GetStatusOfText(), true);
                 test_lcd.WriteText(gas_tank.GetStatusOfText(), true);
-
                 // контроль освещения
                 if (count_operator_room > 0)
                 {
@@ -502,7 +503,7 @@ namespace БАЗА_МЗ1
                 return result;
             }
         }
-
+        // Класс генераторы
         public class GasGenerator : BaseListTerminalBlock<IMyGasGenerator>
         {
             public GasGenerator(string name_obj) : base(name_obj)
@@ -514,7 +515,9 @@ namespace БАЗА_МЗ1
                 string result = "ГЕН.H2/O2: ";
                 foreach (IMyGasGenerator obj in list_obj)
                 {
-                    result += "max "+ obj.GetProperty("max");
+                    result += "MaxCapacity " + obj.GetProperty("MaxCapacity").TypeName + "\n";
+                    result += obj.BlockDefinition.ToString()+ "\n";
+                    List<MyGasGeneratorResourceInfo> list = obj.BlockDefinition.ProducedGases();
 
                     result += "[" + (obj.Enabled ? "+" : "-") + "]";
                 }
