@@ -130,8 +130,8 @@ namespace SANA1_UPR
         IMyTextPanel test_lcd, test_lcd1;
         IMyInteriorLight ltest;
 
-        int count_operator_room = 0; // Кол лудей в помещениии
-        int count_engine_room = 0;  // Кол лудей в помещениии
+        int count_operator_room = 0; // Кол людей в помещениии
+        int count_engine_room = 0;  // Кол людей в помещениии
 
         static Program _scr;
         public class PText

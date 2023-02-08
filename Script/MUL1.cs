@@ -113,7 +113,7 @@ namespace MUL1
                     {
                         giros.GyroOver(false);
                         enable_horizont = false;
-                        enable_backward = true;
+                        enable_backward = false;
                     }
                     else
                     {
