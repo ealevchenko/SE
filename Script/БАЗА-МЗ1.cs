@@ -19,8 +19,10 @@ namespace БАЗА_МЗ1
 {
     public sealed class Program : MyGridProgram
     {
-        IMyTextPanel test_lcd;//, test_lcd1;
+        IMyTextPanel test_lcd, test_lcd1;
 
+        string test_name = "БАЗА-МЗ1-Водородный генератор 1";
+        IMyTerminalBlock test;
 
         string NameObj = "БАЗА-МЗ1";
         // Дверь левая выход в космос
@@ -720,18 +722,19 @@ namespace БАЗА_МЗ1
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
             _scr = this;
-            // тест LCD
-            test_lcd = GridTerminalSystem.GetBlockWithName("test_lcd") as IMyTextPanel;
-            Echo("test_lcd: " + ((test_lcd != null) ? ("Ок") : ("not found")));
 
+            test = GridTerminalSystem.GetBlockWithName(test_name) as IMyTerminalBlock;
+            // тест LCD
+            test_lcd = GridTerminalSystem.GetBlockWithName("БАЗА-МЗ1-test_lcd") as IMyTextPanel;
+            Echo("test_lcd: " + ((test_lcd != null) ? ("Ок") : ("not found")));
+            test_lcd1 = GridTerminalSystem.GetBlockWithName("БАЗА-МЗ1-test_lcd1") as IMyTextPanel;
+            Echo("test_lcd: " + ((test_lcd != null) ? ("Ок") : ("not found")));
             door_gataway = new DoorGateway(sensor_option_ext, sensor_option_int, NameDoorExt, NameDoorInt);
             light_room = new InteriorLight(NameObj);    // Освещение
             light_room.Off();
             gas_tank = new GasTank(NameObj);            // БАКИ
             gas_tank.On();
             gas_generators = new GasGenerator(NameObj); // ГЕНЕРАТОРЫ
-
-
 
         }
         public void Save()
@@ -755,6 +758,10 @@ namespace БАЗА_МЗ1
             }
             if (updateSource == UpdateType.Update10)
             {
+                StringBuilder values = new StringBuilder();
+                DisplayBlockInfo(ref values, test);
+                test_lcd1.WriteText(values, false);                
+                
                 test_lcd.WriteText("IsInputDoor=" + door_gataway.IsInputDoor + "\n", false);
                 test_lcd.WriteText("IsOutputDoor=" + door_gataway.IsOutputDoor + "\n", true);
                 test_lcd.WriteText("count_operator_room=" + count_operator_room + "\n", true);
@@ -771,7 +778,6 @@ namespace БАЗА_МЗ1
                     count_operator_room = 0;
                 }
             }
-
         }
         //------------------------------------------------------------
         public class sensor_option
@@ -1040,12 +1046,6 @@ namespace БАЗА_МЗ1
             public string GetStatusOfText()
             {
                 string result = "ГЕН.H2/O2: ";
-
-                StringBuilder values = new StringBuilder();
-
-                IMyTerminalBlock bl = list_obj[0];
-
-                DisplayBlockInfo(ref values, bl);
                 foreach (IMyGasGenerator obj in list_obj)
                 {
                     //result += "MaxCapacity " + obj.GetProperty("MaxCapacity").TypeName + "\n";
@@ -1064,31 +1064,31 @@ namespace БАЗА_МЗ1
                     //SerializableDefinitionId dd = obj.BlockDefinition;
 
 
-                    MyResourceSinkComponent sink;
-                    obj.Components.TryGet<MyResourceSinkComponent>(out sink);
-                    if (sink != null)
-                    {
-                        VRage.Collections.ListReader<VRage.Game.MyDefinitionId> list = sink.AcceptedResources;
-                        for (int j = 0; j < list.Count; ++j)
-                        {
-                            result += ("\n " + list[j].SubtypeId.ToString() + " (" + list[j].SubtypeName + ")");
-                            //Echo(list[j].SubtypeId.ToString() + " (" + list[j].SubtypeName + ")");
+                    //MyResourceSinkComponent sink;
+                    //obj.Components.TryGet<MyResourceSinkComponent>(out sink);
+                    //if (sink != null)
+                    //{
+                    //    VRage.Collections.ListReader<VRage.Game.MyDefinitionId> list = sink.AcceptedResources;
+                    //    for (int j = 0; j < list.Count; ++j)
+                    //    {
+                    //        result += ("\n " + list[j].SubtypeId.ToString() + " (" + list[j].SubtypeName + ")");
+                    //        //Echo(list[j].SubtypeId.ToString() + " (" + list[j].SubtypeName + ")");
 
-                            float currentInput = 0;
-                            float maxRequiredInput = 0;
-                            bool isPoweredBy = false;
+                    //        float currentInput = 0;
+                    //        float maxRequiredInput = 0;
+                    //        bool isPoweredBy = false;
 
-                            currentInput = sink.CurrentInputByType(list[j]);
-                            isPoweredBy = sink.IsPoweredByType(list[j]);
-                            maxRequiredInput = sink.MaxRequiredInputByType(list[j]);
-                            //            float available = sink.ResourceAvailableByType(list[j]); // Prohibited
+                    //        currentInput = sink.CurrentInputByType(list[j]);
+                    //        isPoweredBy = sink.IsPoweredByType(list[j]);
+                    //        maxRequiredInput = sink.MaxRequiredInputByType(list[j]);
+                    //        //            float available = sink.ResourceAvailableByType(list[j]); // Prohibited
 
 
-                            result += ("\n Current=" + currentInput.ToString() + " Max=" + maxRequiredInput.ToString() + " PoweredBy=" + isPoweredBy.ToString()
-                                );
+                    //        result += ("\n Current=" + currentInput.ToString() + " Max=" + maxRequiredInput.ToString() + " PoweredBy=" + isPoweredBy.ToString()
+                    //            );
 
-                        }
-                    }
+                    //    }
+                    //}
 
 
                     result += "[" + (obj.Enabled ? "+" : "-") + "]";
