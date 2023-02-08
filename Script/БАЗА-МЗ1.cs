@@ -1,5 +1,6 @@
 ﻿using Sandbox.Common.ObjectBuilders.Definitions;
 using Sandbox.Game.Entities;
+using Sandbox.Game.EntityComponents;
 using Sandbox.ModAPI.Ingame;
 using Sandbox.ModAPI.Interfaces;
 using SpaceEngineers.Game.ModAPI.Ingame;
@@ -8,6 +9,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using VRage.ObjectBuilders;
+using VRage.Utils;
 using static Sandbox.Definitions.MyOxygenGeneratorDefinition;
 
 // БАЗА-МЗ1
@@ -521,12 +524,45 @@ namespace БАЗА_МЗ1
                     //result += obj.BlockDefinition.ToString()+ "\n";
                     //((MyObjectBuilder_OxygenGeneratorDefinition)obj).
                     //List<MyGasGeneratorResourceInfo> list = obj.BlockDefinition.;
-                   List<ITerminalProperty> list = new List<ITerminalProperty>();
-                    obj.GetProperties(list);
-                    foreach (ITerminalProperty x in list)
+                   //List<ITerminalProperty> list = new List<ITerminalProperty>();
+                    //obj.GetProperties(list);
+
+                    //MyValueFormatter.AppendWorkInBestUnit(ResourceSink.MaxRequiredInputByType(MyResourceDistributorComponent.ElectricityId), DetailedInfo)
+
+                    //foreach (ITerminalProperty x in list)
+                    //{
+                    //    result += " - " + (x.Id) + "\n";
+                    //}
+                    //SerializableDefinitionId dd = obj.BlockDefinition;
+
+
+                    MyResourceSinkComponent sink;
+                    obj.Components.TryGet<MyResourceSinkComponent>(out sink);
+                    if (sink != null)
                     {
-                        result += " - " + (x.Id) + "\n";
+                        VRage.Collections.ListReader<VRage.Game.MyDefinitionId> list = sink.AcceptedResources;
+                        for (int j = 0; j < list.Count; ++j)
+                        {
+                            result += ("\n " + list[j].SubtypeId.ToString() + " (" + list[j].SubtypeName + ")");
+                            //Echo(list[j].SubtypeId.ToString() + " (" + list[j].SubtypeName + ")");
+
+                            float currentInput = 0;
+                            float maxRequiredInput = 0;
+                            bool isPoweredBy = false;
+
+                            currentInput = sink.CurrentInputByType(list[j]);
+                            isPoweredBy = sink.IsPoweredByType(list[j]);
+                            maxRequiredInput = sink.MaxRequiredInputByType(list[j]);
+                            //            float available = sink.ResourceAvailableByType(list[j]); // Prohibited
+
+
+                            result += ("\n Current=" + currentInput.ToString() + " Max=" + maxRequiredInput.ToString() + " PoweredBy=" + isPoweredBy.ToString()
+                                );
+
+                        }
                     }
+
+
                     result += "[" + (obj.Enabled ? "+" : "-") + "]";
                 }
                 result += "\n";
