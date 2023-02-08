@@ -1,5 +1,7 @@
-﻿using Sandbox.Game.Entities;
+﻿using Sandbox.Common.ObjectBuilders.Definitions;
+using Sandbox.Game.Entities;
 using Sandbox.ModAPI.Ingame;
+using Sandbox.ModAPI.Interfaces;
 using SpaceEngineers.Game.ModAPI.Ingame;
 using System;
 using System.Collections.Generic;
@@ -515,10 +517,16 @@ namespace БАЗА_МЗ1
                 string result = "ГЕН.H2/O2: ";
                 foreach (IMyGasGenerator obj in list_obj)
                 {
-                    result += "MaxCapacity " + obj.GetProperty("MaxCapacity").TypeName + "\n";
-                    result += obj.BlockDefinition.ToString()+ "\n";
-                    List<MyGasGeneratorResourceInfo> list = obj.BlockDefinition.ProducedGases();
-
+                    //result += "MaxCapacity " + obj.GetProperty("MaxCapacity").TypeName + "\n";
+                    //result += obj.BlockDefinition.ToString()+ "\n";
+                    //((MyObjectBuilder_OxygenGeneratorDefinition)obj).
+                    //List<MyGasGeneratorResourceInfo> list = obj.BlockDefinition.;
+                   List<ITerminalProperty> list = new List<ITerminalProperty>();
+                    obj.GetProperties(list);
+                    foreach (ITerminalProperty x in list)
+                    {
+                        result += " - " + (x.Id) + "\n";
+                    }
                     result += "[" + (obj.Enabled ? "+" : "-") + "]";
                 }
                 result += "\n";
