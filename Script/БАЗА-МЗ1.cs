@@ -763,12 +763,13 @@ namespace БАЗА_МЗ1
                 StringBuilder values = new StringBuilder();
                 //DisplayBlockInfo(ref values, test);
                 //test_lcd1.WriteText(values, false);                
+                gas_generators.GetValueGasGenerator();
 
-                test_lcd.WriteText("IsInputDoor=" + door_gataway.IsInputDoor + "\n", false);
-                test_lcd.WriteText("IsOutputDoor=" + door_gataway.IsOutputDoor + "\n", true);
-                test_lcd.WriteText("count_operator_room=" + count_operator_room + "\n", true);
-                test_lcd.WriteText(gas_generators.GetStatusOfText(), true);
-                test_lcd.WriteText(gas_tank.GetStatusOfText(), true);
+                //test_lcd.WriteText("IsInputDoor=" + door_gataway.IsInputDoor + "\n", false);
+                //test_lcd.WriteText("IsOutputDoor=" + door_gataway.IsOutputDoor + "\n", true);
+                //test_lcd.WriteText("count_operator_room=" + count_operator_room + "\n", true);
+                //test_lcd.WriteText(gas_generators.GetStatusOfText(), true);
+                //test_lcd.WriteText(gas_tank.GetStatusOfText(), true);
                 // контроль освещения
                 if (count_operator_room > 0)
                 {
@@ -1078,6 +1079,11 @@ namespace БАЗА_МЗ1
                     if (val_obj == null)
                     {
                         _scr.test_lcd1.WriteText("val_obj=" + obj.BlockDefinition.SubtypeName.ToString() + "\n", true);
+                        _scr.test_lcd1.WriteText("val_obj=" + obj.BlockDefinition.TypeIdString + "\n", true);
+                        _scr.test_lcd1.WriteText("val_obj=" + obj.BlockDefinition.TypeIdStringAttribute + "\n", true);
+                        _scr.test_lcd1.WriteText("val_obj=" + obj.BlockDefinition.SubtypeId + "\n", true);
+                        _scr.test_lcd1.WriteText("val_obj=" + obj.BlockDefinition.SubtypeIdAttribute + "\n", true);
+                        _scr.test_lcd1.WriteText("val_obj=" + obj.BlockDefinition.ToString() + "\n", true);
                         // Инвентарь
                         if (obj.HasInventory)
                         {
@@ -1136,7 +1142,7 @@ namespace БАЗА_МЗ1
                         {
                             id_group = 0,
                             definition_display_name_text = obj.DefinitionDisplayNameText,
-                            subtype_name = (MySubtypeName)Enum.Parse(typeof(MySubtypeName), obj.BlockDefinition.SubtypeName.ToString()),
+                            //subtype_name = (MySubtypeName)Enum.Parse(typeof(MySubtypeName), obj.BlockDefinition.SubtypeName.ToString()),
                             count = 1,
                             count_on = obj.Enabled ? 1 : 0,
 

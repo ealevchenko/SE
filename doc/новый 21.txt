@@ -116,6 +116,19 @@ DetailedInfo:
       [''''''''''''''''''']-0% 
 
 
+val_obj=
+val_obj=MyObjectBuilder_OxygenGenerator
+val_obj=MyObjectBuilder_OxygenGenerator
+val_obj=
+val_obj=
+val_obj=MyObjectBuilder_OxygenGenerator/
+curr_mass=5156.792КГ curr_vol=1.908012Л curr_max_vol=40Л
+Current=0.5 Max=0.5 PoweredBy=True
+Oxygen Current=0 Max=250Л
+Hydrogen Current=500Л Max=500Л
+
+
+
 CustomInfo=
 CustomName=БАЗА-МЗ1-Генератор O2/H2 (балоны)
 CustomData=
