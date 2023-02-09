@@ -657,6 +657,8 @@ namespace БАЗА_МЗ1
                 LargeBlockSmallThrustSciFi = 31,
                 LargeBlockLargeThrust = 130,
                 LargeBlockLargeThrustSciFi = 131,
+
+                LargeHydrogenEngine = 40,
             }
             public List<T> list_obj = new List<T>();
             public int Count { get { return list_obj.Count(); } }
@@ -759,9 +761,9 @@ namespace БАЗА_МЗ1
             if (updateSource == UpdateType.Update10)
             {
                 StringBuilder values = new StringBuilder();
-                DisplayBlockInfo(ref values, test);
-                test_lcd1.WriteText(values, false);                
-                
+                //DisplayBlockInfo(ref values, test);
+                //test_lcd1.WriteText(values, false);                
+
                 test_lcd.WriteText("IsInputDoor=" + door_gataway.IsInputDoor + "\n", false);
                 test_lcd.WriteText("IsOutputDoor=" + door_gataway.IsOutputDoor + "\n", true);
                 test_lcd.WriteText("count_operator_room=" + count_operator_room + "\n", true);
@@ -1039,10 +1041,116 @@ namespace БАЗА_МЗ1
         // Класс генераторы
         public class GasGenerator : BaseListTerminalBlock<IMyGasGenerator>
         {
+            public class valus_gas_generator
+            {
+                public int id_group = 0;
+                public MySubtypeName subtype_name = MySubtypeName.none;
+                public string definition_display_name_text = null;
+                public int count = 0;                       // кол
+                public int count_on = 0;                    // кол вкл
+                public int count_auto_refill = 0;           // кол авто заполнения
+                public int count_use_conveyor_system = 0;   // кол авто заполнения
+
+                public float sum_to = 0;                    // перехват тяги тяга МН
+                public float sum_to_percent = 0;            // процент от макс перехват тяги тяга %
+                public float sum_max_thrust = 0;            // Макс тяга МН
+                public float sum_max_eff_thrust = 0;        // Макс эфектив тяга МН
+                public float sum_cur_thrust = 0;            // Текущая тяга МН
+            }
+
+            public List<valus_gas_generator> list_gas_generator = new List<valus_gas_generator>();
+
             public GasGenerator(string name_obj) : base(name_obj)
             {
 
             }
+
+            public void GetValueGasGenerator()
+            {
+                list_gas_generator.Clear();
+
+                _scr.test_lcd1.WriteText("Старт" + "\n", false);
+
+                foreach (IMyGasGenerator obj in list_obj)
+                {
+                    valus_gas_generator val_obj = list_gas_generator.Where(o => o.subtype_name.ToString() == obj.BlockDefinition.SubtypeName).FirstOrDefault();
+                    //_scr.test_lcd1.WriteText("location=" + getLocation(obj, is_control) + "\n", true);
+                    if (val_obj == null)
+                    {
+                        _scr.test_lcd1.WriteText("val_obj=" + obj.BlockDefinition.SubtypeName.ToString() + "\n", true);
+                        // Инвентарь
+                        if (obj.HasInventory)
+                        {
+                            for (int i = 0; i < obj.InventoryCount; i++)
+                            {
+                                IMyInventory inv = obj.GetInventory(i);
+                                if (inv != null)
+                                {
+                                    float curr_mass = ((float)inv.CurrentMass);
+                                    float curr_vol = ((float)inv.CurrentVolume);
+                                    float curr_max_vol = ((float)inv.MaxVolume);
+                                    _scr.test_lcd1.WriteText("curr_mass=" + curr_mass + "curr_vol=" + curr_vol + "curr_max_vol=" + curr_max_vol + "\n", true);
+                                }
+                            }
+                        }
+                        //
+                        MyResourceSinkComponent sink;
+                        obj.Components.TryGet<MyResourceSinkComponent>(out sink);
+                        if (sink != null)
+                        {
+                            var list = sink.AcceptedResources;
+                            for (int j = 0; j < list.Count; ++j)
+                            {
+                                float currentInput = 0;
+                                float maxRequiredInput = 0;
+                                bool isPoweredBy = false;
+
+                                currentInput = sink.CurrentInputByType(list[j]);
+                                isPoweredBy = sink.IsPoweredByType(list[j]);
+                                maxRequiredInput = sink.MaxRequiredInputByType(list[j]);
+                                //            float available = sink.ResourceAvailableByType(list[j]); // Prohibited
+                                _scr.test_lcd1.WriteText("Current=" + currentInput.ToString() + " Max=" + maxRequiredInput.ToString() + " PoweredBy=" + isPoweredBy.ToString() + "\n", true);
+                            }
+                        }
+                        MyResourceSourceComponent source;
+                        obj.Components.TryGet<MyResourceSourceComponent>(out source);
+
+                        if (source != null)
+                        {
+                            /*
+                            float currentOutput = 0;
+                            float maxOutput = 0;
+                            currentOutput = source.CurrentOutput;
+                            maxOutput = source.MaxOutput;
+                            values.Append("\n Current=" + currentOutput.ToString() + " Max=" + maxOutput.ToString());
+                            */
+                            var list = source.ResourceTypes;
+                            for (int j = 0; j < list.Count; ++j)
+                            {
+                                float maxoutput = source.DefinedOutputByType(list[j]);
+                                float currentoutput = source.CurrentOutputByType(list[j]);
+                                _scr.test_lcd1.WriteText(list[j].SubtypeId.ToString() + " Current=" + currentoutput + " Max=" + maxoutput + "\n", true);
+                            }
+                        }
+                        val_obj = new valus_gas_generator()
+                        {
+                            id_group = 0,
+                            definition_display_name_text = obj.DefinitionDisplayNameText,
+                            subtype_name = (MySubtypeName)Enum.Parse(typeof(MySubtypeName), obj.BlockDefinition.SubtypeName.ToString()),
+                            count = 1,
+                            count_on = obj.Enabled ? 1 : 0,
+
+                        };
+                        list_gas_generator.Add(val_obj);
+                    }
+                    else
+                    {
+                        val_obj.count++;
+                        if (obj.Enabled) val_obj.count_on++;
+                    }
+                }
+            }
+
             public string GetStatusOfText()
             {
                 string result = "ГЕН.H2/O2: ";
@@ -1052,7 +1160,7 @@ namespace БАЗА_МЗ1
                     //result += obj.BlockDefinition.ToString()+ "\n";
                     //((MyObjectBuilder_OxygenGeneratorDefinition)obj).
                     //List<MyGasGeneratorResourceInfo> list = obj.BlockDefinition.;
-                   //List<ITerminalProperty> list = new List<ITerminalProperty>();
+                    //List<ITerminalProperty> list = new List<ITerminalProperty>();
                     //obj.GetProperties(list);
 
                     //MyValueFormatter.AppendWorkInBestUnit(ResourceSink.MaxRequiredInputByType(MyResourceDistributorComponent.ElectricityId), DetailedInfo)
