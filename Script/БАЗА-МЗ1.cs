@@ -21,7 +21,7 @@ namespace БАЗА_МЗ1
     {
         IMyTextPanel test_lcd, test_lcd1;
 
-        string test_name = "БАЗА-МЗ1-Водородный генератор 1";
+        string test_name = "БАЗА-МЗ1-Промышленный водородный бак";
         IMyTerminalBlock test;
 
         string NameObj = "БАЗА-МЗ1";
@@ -773,8 +773,8 @@ namespace БАЗА_МЗ1
             if (updateSource == UpdateType.Update10)
             {
                 StringBuilder values = new StringBuilder();
-                //DisplayBlockInfo(ref values, test);
-                //test_lcd1.WriteText(values, false);                
+                DisplayBlockInfo(ref values, test);
+                test_lcd1.WriteText(values, false);                
                 gas_generators.GetValueGasGenerator();
                 test_lcd.WriteText("", false);
                 //test_lcd.WriteText("IsInputDoor=" + door_gataway.IsInputDoor + "\n", false);
@@ -1098,7 +1098,7 @@ namespace БАЗА_МЗ1
             {
                 list_gas_generator.Clear();
 
-                _scr.test_lcd1.WriteText("Старт" + "\n", false);
+                //_scr.test_lcd1.WriteText("Старт" + "\n", false);
 
                 foreach (IMyGasGenerator obj in list_obj)
                 {

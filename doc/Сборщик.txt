@@ -1,0 +1,111 @@
+БАЗА-МЗ1-Сборщик 2
+MyAssembler {1FEC248DE0F22F7} БАЗА-МЗ1-Сборщик 2
+143765856341402359
+TyepID=MyObjectBuilder_Assembler
+SubtyepID=LargeAssembler
+Mass=4092
+IsBeingHacked =False
+IsWorking =True
+IsFunctional =True
+DisassembleRatio =1
+DisplayNameText =БАЗА-МЗ1-Сборщик 2
+
+Actions:
+OnOff:Переключить блок Вкл/Выкл(Вкл)
+OnOff_On:Переключить блок Вкл(Вкл)
+OnOff_Off:Переключить блок Выкл(Вкл)
+ShowOnHUD:Отображать на экране Вкл/Выкл(Выкл)
+ShowOnHUD_On:Отображать на экране Вкл(Выкл)
+ShowOnHUD_Off:Отображать на экране Выкл(Выкл)
+IncreaseFontSize:Увеличить Размер шрифта()
+DecreaseFontSize:Уменьшить Размер шрифта()
+IncreaseTextPaddingSlider:Увеличить Отступ текста()
+DecreaseTextPaddingSlider:Уменьшить Отступ текста()
+IncreaseChangeIntervalSlider:Увеличить Интервал переключения()
+DecreaseChangeIntervalSlider:Уменьшить Интервал переключения()
+PreserveAspectRatio:Сохранять соотношение сторон Вкл/Выкл()
+UseConveyor:Использовать систему конвейеров Вкл/Выкл(Вкл)
+slaveMode:Совместный режим Вкл/Выкл(Выкл)
+
+Properties:
+OnOff:Boolean (True)
+ShowInTerminal:Boolean (False)
+ShowInInventory:Boolean (True)
+ShowInToolbarConfig:Boolean (True)
+Name:StringBuilder (БАЗА-МЗ1-Сборщик 2)
+ShowOnHUD:Boolean (False)
+Content:Int64 (0) Valid Range: 0->3
+ScriptForegroundColor:Color
+ScriptBackgroundColor:Color
+Font:Int64 (0) Valid Range: 151057691->1147350002
+FontSize:Single (1) Valid Range: 0.1->10
+FontColor:Color
+alignment:Int64 (0) Valid Range: 0->2
+TextPaddingSlider:Single (0) Valid Range: 0->50
+BackgroundColor:Color
+ChangeIntervalSlider:Single (0) Valid Range: 0->30
+PreserveAspectRatio:Boolean (False)
+UseConveyor:Boolean (True)
+slaveMode:Boolean (False)
+
+DetailedInfo:
+Тип: Сборщик
+Макс. потребление: 2.80 MW
+Требуемое потребление: 1.00 kW
+
+Продуктивность: 500%
+Энергоэффективность: 100%
+
+Использовано слотов улучшения: 8 / 8
+Прикрепленные модули: 4
+ - БАЗА-МЗ1-Модуль продуктивности 22
+ - БАЗА-МЗ1-Модуль продуктивности 24
+ - БАЗА-МЗ1-Модуль продуктивности 23
+ - БАЗА-МЗ1-Модуль продуктивности 21
+
+
+----------
+
+CustomInfo=
+CustomName=БАЗА-МЗ1-Сборщик 2
+CustomData=
+CustomNameWithFaction=
+ShowOnHUD=False
+
+IMyFunctionalBlock
+ Enabled=True
+
+IMyTextSurfaceProvider
+ SurfaceCount=0
+
+IMyAssembler
+ Mode=Assembly
+ CoopMode=False
+ CurrentProgress=0
+
+IMyProductionBlock
+ IsProducing=False
+ IsQueueEmpty=False
+ NextItemId=163
+ UseConveyorSystem=True
+
+HasInventory
+ InventoryCount=2
+
+IMyInventory[0]
+ CurrentMass=2065.02
+ CurrentVolume=0.253405
+ IsFull=False
+ MaxVolume=40
+
+IMyInventory[1]
+ CurrentMass=0
+ CurrentVolume=0
+ IsFull=False
+ MaxVolume=40
+
+Accepted resources:
+ Electricity (Electricity)
+ Current=0.001 Max=0.56 PoweredBy=True
+Provided resources:
+ No Resources
