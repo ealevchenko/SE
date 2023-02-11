@@ -599,6 +599,22 @@ namespace БАЗА_МЗ1
                 prog += "]" + GetPersent(perse);
                 return prog;
             }
+            static public string GetCurrentOfMax(float cur, float max, string units)
+            {
+                return "[ " + cur + units + " / " + max + units + " ]";
+            }
+            static public string GetSign(int x, int y)
+            {
+                if (x == y) { return "="; }
+                if (x > y) { return ">"; }
+                if (x < y) { return "<"; }
+                return "";
+            }
+            static public string GetCountObj(int count, int count_on)
+            {
+                return count_on + GetSign(count_on, count) + count;
+            }
+            //------------------------------------------------------------------------
             static public string GetCapacityTanks(double perse, float capacity)
             {
                 return "[ " + Math.Round(((perse * capacity) / 1000000), 1) + "МЛ / " + Math.Round((capacity / 1000000), 1) + "МЛ ]";
@@ -614,21 +630,6 @@ namespace БАЗА_МЗ1
             static public string GetCurrentThrust(float cur, float max)
             {
                 return "[ " + GetThrust(cur) + " / " + GetThrust(max) + " ]";
-            }
-            static public string GetCurrentOfMax(float cur, float max, string units)
-            {
-                return "[ " + cur + units + " / " + max + units + " ]";
-            }
-            static public string GetSign(int x, int y)
-            {
-                if (x == y) { return "="; }
-                if (x > y) { return ">"; }
-                if (x < y) { return "<"; }
-                return "";
-            }
-            static public string GetCountObj(int count, int count_on)
-            {
-                return count_on + GetSign(count_on, count) + count;
             }
             static public string GetCountDetaliThrust(int count_a, int count_h, int count_i, int count_on_a, int count_on_h, int count_on_i)
             {
@@ -775,11 +776,11 @@ namespace БАЗА_МЗ1
                 //DisplayBlockInfo(ref values, test);
                 //test_lcd1.WriteText(values, false);                
                 gas_generators.GetValueGasGenerator();
-
+                test_lcd.WriteText("", false);
                 //test_lcd.WriteText("IsInputDoor=" + door_gataway.IsInputDoor + "\n", false);
                 //test_lcd.WriteText("IsOutputDoor=" + door_gataway.IsOutputDoor + "\n", true);
                 //test_lcd.WriteText("count_operator_room=" + count_operator_room + "\n", true);
-                //test_lcd.WriteText(gas_generators.GetStatusOfText(), true);
+                test_lcd.WriteText(gas_generators.GetStatusOfText(), true);
                 //test_lcd.WriteText(gas_tank.GetStatusOfText(), true);
                 // контроль освещения
                 if (count_operator_room > 0)
@@ -1089,6 +1090,10 @@ namespace БАЗА_МЗ1
             public int count_powered { get { return list_gas_generator.Select(c => c.count_powered).Sum(); } }
             public float max_power { get { return list_gas_generator.Select(c => c.sum_max_power).Sum(); } }
             public float curr_power { get { return list_gas_generator.Select(c => c.sum_curr_power).Sum(); } }
+            public float curr_mass { get { return list_gas_generator.Select(c => c.sum_curr_mass).Sum(); } }
+            public float curr_vol { get { return list_gas_generator.Select(c => c.sum_curr_vol).Sum(); } }
+            public float curr_max_vol { get { return list_gas_generator.Select(c => c.sum_curr_max_vol).Sum(); } }
+
             public void GetValueGasGenerator()
             {
                 list_gas_generator.Clear();
@@ -1145,12 +1150,12 @@ namespace БАЗА_МЗ1
                             var list = source.ResourceTypes;
                             for (int j = 0; j < list.Count; ++j)
                             {
-                                if (list[j].SubtypeId.String == "Oxygen")
+                                if (list[j].SubtypeId.ToString() == "Oxygen")
                                 {
                                     sum_o2_curr_out = source.CurrentOutputByType(list[j]);
                                     sum_o2_max_out = source.DefinedOutputByType(list[j]);
                                 }
-                                if (list[j].SubtypeId.String == "Hydrogen")
+                                if (list[j].SubtypeId.ToString() == "Hydrogen")
                                 {
                                     sum_h2_curr_out = source.CurrentOutputByType(list[j]);
                                     sum_h2_max_out = source.DefinedOutputByType(list[j]);
@@ -1203,7 +1208,10 @@ namespace БАЗА_МЗ1
             {
                 StringBuilder result = new StringBuilder();
                 result.Append("ГЕНЕРАТОРЫ O2/H2: " + PText.GetCountObj(count_all, count_on_all) + " А[" + count_auto_refill + "]" + " К[" + count_count_use_conveyor_system + "]" + "\n");
-                result.Append(" |- ПОТРЕБЛЕНИЕ: " + "[" + count_powered + "]" + PText.GetCurrentOfMax(curr_power, max_power, "W"));
+                result.Append(" |- ПОТРЕБЛЕНИЕ: " + "[" + count_powered + "]" + PText.GetCurrentOfMax(curr_power, max_power, "кW") + "\n");
+                result.Append(" |  " + PText.GetScalePersent(curr_power / max_power, 40)+ "\n");
+                result.Append(" |- ИНВЕНТАРЬ: " + PText.GetCurrentOfMax(curr_vol, curr_max_vol, "l")+ " -" + curr_mass +"кг"+ "\n");
+                result.Append(" |  " + PText.GetScalePersent(curr_vol / curr_max_vol, 40)+ "\n");
                 return result.ToString();
             }
         }
