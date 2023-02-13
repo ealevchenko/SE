@@ -25,34 +25,21 @@ namespace БАЗА_МЗ1
         IMyTerminalBlock test;
 
         string NameObj = "БАЗА-МЗ1";
-        // Дверь левая выход в космос
-        string NameDoorExt = "БАЗА-МЗ1-Раздвижная дверь external";
-        string NameDoorInt = "БАЗА-МЗ1-Раздвижная дверь internal";
-        sensor_option sensor_option_ext = new sensor_option()
+
+        door_gateway_option dg_option = new door_gateway_option()
         {
-            name = "БАЗА-МЗ1-Сенсор вх.дверь external",
-            lf = 1.0f,
-            rg = 1.0f,
-            bt = 3.0f,
-            tp = 1.0f,
-            bc = 0.0f,
-            fr = 2.5f
+            ext_door_name = "БАЗА-МЗ1-Раздвижная дверь external",
+            ext_sn_name = "БАЗА-МЗ1-Сенсор вх.дверь external",
+            ext_sn = new float[] { 1.0f, 1.0f, 3.0f, 1.0f, 0.0f, 2.5f }, // lf, rg, bt, tp, bc, fr
+            int_door_name = "БАЗА-МЗ1-Раздвижная дверь internal",
+            int_sn_name = "БАЗА-МЗ1-Сенсор вх.дверь internal",
+            int_sn = new float[] { 1.0f, 1.0f, 3.0f, 1.0f, 0.0f, 2.5f }, // lf, rg, bt, tp, bc, fr
         };
-        sensor_option sensor_option_int = new sensor_option()
-        {
-            name = "БАЗА-МЗ1-Сенсор вх.дверь internal",
-            lf = 1.0f,
-            rg = 1.0f,
-            bt = 3.0f,
-            tp = 1.0f,
-            bc = 0.0f,
-            fr = 2.5f
-        };
+
         DoorGateway door_gataway;
         InteriorLight light_room;       // Освещение
         GasTank gas_tank;               // Баки
         GasGenerator gas_generators;    // Генераторы газов
-
 
         int count_operator_room = 0; // Кол людей в помещениии
 
@@ -679,6 +666,205 @@ namespace БАЗА_МЗ1
                 _scr.GridTerminalSystem.GetBlocksOfType<T>(list_obj, r => ((IMyTerminalBlock)r).CustomName.Contains(name_obj));
                 _scr.Echo(typeof(T).Name + "[" + name_obj + "]" + ((list_obj != null && list_obj.Count() > 0) ? ("Ок") : ("not found"))); ;
             }
+            public class values_obj
+            {
+                public int id_group = 0;
+                public string TyepID = null;
+                public string SubtyepID = null;
+                public string definition_display_name_text = null;
+                public int count = 0;                       // кол
+                public int count_on = 0;                    // кол вкл
+                //public int count_auto_refill_bottles = 0;   // кол авто заполнения балонов
+                //public int count_stockpile = 0;             // кол авто заполнения балонов
+
+                //public float max = 0;                       // Вместимость баков
+                //public float cur = 0;                       // Вместимость баков
+                //public float cur_persent = 0;               // % заполнения баков
+
+                public float curr_mass = 0;
+                public float curr_vol = 0;
+                public float curr_max_vol = 0;
+
+                public float inp_curr_power = 0;
+                public float inp_max_power = 0;
+                public int count_inp_power = 0;
+
+                public float inp_curr_hydrogen = 0;
+                public float inp_max_hydrogen = 0;
+                public int count_inp_hydrogen = 0;
+
+                public float inp_curr_oxygen = 0;
+                public float inp_max_oxygen = 0;
+                public int count_inp_oxygen = 0;
+
+                public float out_curr_power = 0;
+                public float out_max_power = 0;
+
+                public float out_curr_hydrogen = 0;
+                public float out_max_hydrogen = 0;
+
+                public float out_curr_oxygen = 0;
+                public float out_max_oxygen = 0;
+            }
+            //
+            public List<values_obj> list_values = new List<values_obj>();
+
+            public void GetValues()
+            {
+                list_values.Clear();
+                //_scr.test_lcd1.WriteText("Старт" + "\n", false);
+                foreach (IMyTerminalBlock obj in list_obj)
+                {
+                    float curr_mass = 0;
+                    float curr_vol = 0;
+                    float curr_max_vol = 0;
+
+                    float inp_curr_power = 0;
+                    float inp_max_power = 0;
+                    bool is_inp_power = false;
+
+                    float inp_curr_hydrogen = 0;
+                    float inp_max_hydrogen = 0;
+                    bool is_inp_hydrogen = false;
+
+                    float inp_curr_oxygen = 0;
+                    float inp_max_oxygen = 0;
+                    bool is_inp_oxygen = false;
+
+                    float out_curr_power = 0;
+                    float out_max_power = 0;
+
+                    float out_curr_hydrogen = 0;
+                    float out_max_hydrogen = 0;
+
+                    float out_curr_oxygen = 0;
+                    float out_max_oxygen = 0;
+
+                    // Инвентарь
+                    if (((IMyTerminalBlock)obj).HasInventory)
+                    {
+                        for (int i = 0; i < ((IMyTerminalBlock)obj).InventoryCount; i++)
+                        {
+                            IMyInventory inv = ((IMyTerminalBlock)obj).GetInventory(i);
+                            if (inv != null)
+                            {
+                                curr_mass += ((float)inv.CurrentMass);
+                                curr_vol += ((float)inv.CurrentVolume);
+                                curr_max_vol += ((float)inv.MaxVolume);
+                            }
+                        }
+                    }
+                    //
+                    MyResourceSinkComponent sink;
+                    ((IMyTerminalBlock)obj).Components.TryGet<MyResourceSinkComponent>(out sink);
+                    if (sink != null)
+                    {
+                        var list = sink.AcceptedResources;
+                        for (int j = 0; j < list.Count; ++j)
+                        {
+                            if (list[j].SubtypeId.ToString() == "Electricity")
+                            {
+                                inp_curr_power += sink.CurrentInputByType(list[j]);
+                                inp_max_power += sink.MaxRequiredInputByType(list[j]);
+                                is_inp_power = sink.IsPoweredByType(list[j]);
+                            }
+                            if (list[j].SubtypeId.ToString() == "Hydrogen")
+                            {
+                                inp_curr_hydrogen += sink.CurrentInputByType(list[j]);
+                                inp_max_hydrogen += sink.MaxRequiredInputByType(list[j]);
+                                is_inp_hydrogen = sink.IsPoweredByType(list[j]);
+                            }
+                            if (list[j].SubtypeId.ToString() == "Oxygen")
+                            {
+                                inp_curr_oxygen += sink.CurrentInputByType(list[j]);
+                                inp_max_oxygen += sink.MaxRequiredInputByType(list[j]);
+                                is_inp_oxygen = sink.IsPoweredByType(list[j]);
+                            }
+                        }
+                    }
+                    MyResourceSourceComponent source;
+                    ((IMyTerminalBlock)obj).Components.TryGet<MyResourceSourceComponent>(out source);
+                    if (source != null)
+                    {
+                        var list = source.ResourceTypes;
+                        for (int j = 0; j < list.Count; ++j)
+                        {
+                            if (list[j].SubtypeId.ToString() == "Electricity")
+                            {
+                                out_curr_power = source.CurrentOutputByType(list[j]);
+                                out_max_power = source.DefinedOutputByType(list[j]);
+                            }
+                            if (list[j].SubtypeId.ToString() == "Oxygen")
+                            {
+                                out_curr_oxygen = source.CurrentOutputByType(list[j]);
+                                out_max_oxygen = source.DefinedOutputByType(list[j]);
+                            }
+                            if (list[j].SubtypeId.ToString() == "Hydrogen")
+                            {
+                                out_curr_hydrogen = source.CurrentOutputByType(list[j]);
+                                out_max_hydrogen = source.DefinedOutputByType(list[j]);
+                            }
+                        }
+                    }
+
+                    values_obj val_obj = list_values.Where(o => ((values_obj)o).TyepID == obj.BlockDefinition.TypeId.ToString() && ((values_obj)o).SubtyepID == obj.BlockDefinition.SubtypeId).FirstOrDefault();
+                    if (val_obj == null)
+                    {
+                        val_obj = new values_obj()
+                        {
+                            id_group = 0,
+                            definition_display_name_text = obj.DefinitionDisplayNameText,
+                            TyepID = obj.BlockDefinition.TypeId.ToString(),
+                            SubtyepID = obj.BlockDefinition.SubtypeId,
+                            count = 1,
+                            count_on = ((IMyFunctionalBlock)obj).Enabled ? 1 : 0,
+                            curr_mass = curr_mass,
+                            curr_vol = curr_vol,
+                            curr_max_vol = curr_max_vol,
+                            inp_curr_power = inp_curr_power,
+                            inp_max_power = inp_max_power,
+                            count_inp_power = is_inp_power ? 1 : 0,
+                            inp_curr_hydrogen = inp_curr_hydrogen,
+                            inp_max_hydrogen = inp_max_hydrogen,
+                            count_inp_hydrogen = is_inp_hydrogen ? 1 : 0,
+                            inp_curr_oxygen = inp_curr_oxygen,
+                            inp_max_oxygen = inp_max_oxygen,
+                            count_inp_oxygen = is_inp_oxygen ? 1 : 0,
+                            out_curr_power = out_curr_power,
+                            out_max_power = out_max_power,
+                            out_curr_hydrogen = out_curr_hydrogen,
+                            out_max_hydrogen = out_max_hydrogen,
+                            out_curr_oxygen = out_curr_oxygen,
+                            out_max_oxygen = out_max_oxygen,
+
+                        };
+                        list_values.Add(val_obj);
+                    }
+                    else
+                    {
+                        val_obj.count++;
+                        if (((IMyFunctionalBlock)obj).Enabled) val_obj.count_on++;
+                        val_obj.curr_mass = curr_mass;
+                        val_obj.curr_vol = curr_vol;
+                        val_obj.curr_max_vol = curr_max_vol;
+                        val_obj.inp_curr_power = inp_curr_power;
+                        val_obj.inp_max_power = inp_max_power;
+                        if (is_inp_power) val_obj.count_inp_power++;
+                        val_obj.inp_curr_hydrogen = inp_curr_hydrogen;
+                        val_obj.inp_max_hydrogen = inp_max_hydrogen;
+                        if (is_inp_hydrogen) val_obj.count_inp_hydrogen++;
+                        val_obj.inp_curr_oxygen = inp_curr_oxygen;
+                        val_obj.inp_max_oxygen = inp_max_oxygen;
+                        if (is_inp_oxygen) val_obj.count_inp_oxygen++;
+                        val_obj.out_curr_power = out_curr_power;
+                        val_obj.out_max_power = out_max_power;
+                        val_obj.out_curr_hydrogen = out_curr_hydrogen;
+                        val_obj.out_max_hydrogen = out_max_hydrogen;
+                        val_obj.out_curr_oxygen = out_curr_oxygen;
+                        val_obj.out_max_oxygen = out_max_oxygen;
+                    }
+                }
+            }
             // Команды включения\выключения
             private void Off(List<T> list)
             {
@@ -743,7 +929,7 @@ namespace БАЗА_МЗ1
             Echo("test_lcd: " + ((test_lcd != null) ? ("Ок") : ("not found")));
             test_lcd1 = GridTerminalSystem.GetBlockWithName("БАЗА-МЗ1-test_lcd1") as IMyTextPanel;
             Echo("test_lcd: " + ((test_lcd != null) ? ("Ок") : ("not found")));
-            door_gataway = new DoorGateway(sensor_option_ext, sensor_option_int, NameDoorExt, NameDoorInt);
+            door_gataway = new DoorGateway(dg_option);
             light_room = new InteriorLight(NameObj);    // Освещение
             light_room.Off();
             gas_tank = new GasTank(NameObj);            // БАКИ
@@ -774,14 +960,15 @@ namespace БАЗА_МЗ1
             {
                 StringBuilder values = new StringBuilder();
                 DisplayBlockInfo(ref values, test);
-                test_lcd1.WriteText(values, false);                
-                gas_generators.GetValueGasGenerator();
+                test_lcd1.WriteText(values, false);
+                // Получим данные
+                gas_generators.GetValues();
                 test_lcd.WriteText("", false);
                 //test_lcd.WriteText("IsInputDoor=" + door_gataway.IsInputDoor + "\n", false);
                 //test_lcd.WriteText("IsOutputDoor=" + door_gataway.IsOutputDoor + "\n", true);
                 //test_lcd.WriteText("count_operator_room=" + count_operator_room + "\n", true);
                 test_lcd.WriteText(gas_generators.GetStatusOfText(), true);
-                //test_lcd.WriteText(gas_tank.GetStatusOfText(), true);
+                test_lcd.WriteText(gas_tank.GetStatusOfText(), true);
                 // контроль освещения
                 if (count_operator_room > 0)
                 {
@@ -795,16 +982,6 @@ namespace БАЗА_МЗ1
             }
         }
         //------------------------------------------------------------
-        public class sensor_option
-        {
-            public string name { get; set; }
-            public float lf { get; set; }   //Left - Охват слева
-            public float rg { get; set; }   //Right - Охват справа
-            public float bt { get; set; }   //Bottom - Охват снизу
-            public float tp { get; set; }   //Top - Охват сверху
-            public float bc { get; set; }   //Back - Охват сзади
-            public float fr { get; set; }   //Front - Охват спереди
-        }
         public class Sensor
         {
             IMySensorBlock sensor;
@@ -828,15 +1005,21 @@ namespace БАЗА_МЗ1
                 SetExtend(lf, rg, bt, tp, bc, fr);
                 SetDetect(true, false, false, false, false, false, false, true, false, false, false);
             }
-            public Sensor(sensor_option setup)
+            public Sensor(string name, float[] sn_option)
             {
-                sensor = _scr.GridTerminalSystem.GetBlockWithName(setup.name) as IMySensorBlock;
-                _scr.Echo("sensor[" + setup.name + "]: " + ((sensor != null) ? ("Ок") : ("not found")));
-
-                SetExtend(setup.lf, setup.rg, setup.bt, setup.tp, setup.bc, setup.fr);
+                sensor = _scr.GridTerminalSystem.GetBlockWithName(name) as IMySensorBlock;
+                _scr.Echo("sensor[" + name + "]: " + ((sensor != null) ? ("Ок") : ("not found")));
+                if (sn_option != null && sn_option.Count() >= 6)
+                {
+                    SetExtend(sn_option[0], sn_option[1], sn_option[2], sn_option[3], sn_option[4], sn_option[5]);
+                }
+                else
+                {
+                    SetExtend(0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f);
+                    _scr.Echo("sensor[" + name + "].sn_option: null");
+                }
                 SetDetect(true, false, false, false, false, false, false, true, false, false, false);
             }
-
             public void SetExtend(float lf, float rg, float bt, float tp, float bc, float fr)
             {
                 sensor.LeftExtend = lf;//Left - Охват слева
@@ -861,7 +1044,6 @@ namespace БАЗА_МЗ1
                 sensor.DetectNeutral = Neutral;           // Нитральные игроки
                 sensor.DetectEnemy = Enemy;             // Враги
             }
-
         }
         public class Door
         {
@@ -885,6 +1067,16 @@ namespace БАЗА_МЗ1
 
         }
         // Класс Шлюзовая дверь
+        public class door_gateway_option
+        {
+
+            public string ext_door_name { get; set; }
+            public string ext_sn_name { get; set; }
+            public float[] ext_sn { get; set; }
+            public string int_door_name { get; set; }
+            public string int_sn_name { get; set; }
+            public float[] int_sn { get; set; }
+        };
         public class DoorGateway
         {
 
@@ -903,14 +1095,21 @@ namespace БАЗА_МЗ1
 
             public bool IsInputDoor { get { return input_door; } set { input_door = value; } }  // Вошол 
             public bool IsOutputDoor { get { return output_door; } set { output_door = value; } } // Вышел 
-            public DoorGateway(sensor_option sensor_option_ext, sensor_option sensor_option_int, string NameDoorExt, string NameDoorInt)
-            {
-                // Создадим объекты 
-                sn_door_external = new Sensor(sensor_option_ext);
-                sn_door_internal = new Sensor(sensor_option_int);
-                door_external = new Door(NameDoorExt);
-                door_internal = new Door(NameDoorInt);
+            //public DoorGateway(sensor_option sensor_option_ext, sensor_option sensor_option_int, string NameDoorExt, string NameDoorInt)
+            //{
+            //    // Создадим объекты 
+            //    sn_door_external = new Sensor(sensor_option_ext);
+            //    sn_door_internal = new Sensor(sensor_option_int);
+            //    door_external = new Door(NameDoorExt);
+            //    door_internal = new Door(NameDoorInt);
 
+            //}
+            public DoorGateway(door_gateway_option option)
+            {
+                sn_door_external = new Sensor(option.ext_sn_name, option.ext_sn);
+                sn_door_internal = new Sensor(option.int_sn_name, option.int_sn);
+                door_external = new Door(option.ext_door_name);
+                door_internal = new Door(option.int_door_name);
             }
             public void Logic(string argument, UpdateType updateSource, ref int count_input, ref int count_output)
             {
@@ -1003,52 +1202,88 @@ namespace БАЗА_МЗ1
         // Класс Баки
         public class GasTank : BaseListTerminalBlock<IMyGasTank>
         {
+            public class valus_gas_tank : values_obj
+            {
+                // кол вкл
+                public int count_auto_refill_bottles = 0;   // кол авто заполнения балонов
+                public int count_stockpile = 0;   // кол авто заполнения балонов
+                public float capacity = 0;              // Вместимость баков
+                public float filled_ratio = 0;              // % заполнения баков
+            }
+
+            List<valus_gas_tank> list_values_tanks = new List<valus_gas_tank>();
+            //
+            public List<valus_gas_tank> list_gas_tanks = new List<valus_gas_tank>();
             public GasTank(string name_obj) : base(name_obj)
             {
 
             }
+
+            public void GetValues()
+            {
+                list_values_tanks.Clear();
+                base.GetValues();
+                foreach (values_obj v_obj in list_values) { 
+                
+                }
+            }
             public string GetStatusOfText()
             {
-                string tdh2 = "";
-                string tdo2 = "";
-                double fr_h2 = 0;
-                float cap_h2 = 0;
-                int count_th2 = 0;
-                double fr_o2 = 0;
-                float cap_o2 = 0;
-                int count_to2 = 0;
-                foreach (IMyGasTank obj in list_obj)
-                {
-                    switch (obj.DefinitionDisplayNameText)
-                    {
-                        case "Водородный бак":
-                            {
-                                fr_h2 += obj.FilledRatio;
-                                cap_h2 += obj.Capacity;
-                                count_th2++;
-                                tdh2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "]" + PText.GetPersent(obj.FilledRatio) + PText.GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
-                                break;
-                            }
-                        case "Кислородный бак":
-                            {
-                                fr_o2 += obj.FilledRatio;
-                                cap_o2 += obj.Capacity;
-                                count_to2++;
-                                tdo2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "]" + PText.GetPersent(obj.FilledRatio) + PText.GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
-                                break;
-                            }
-                    }
-                }
-                string result = "";
-                result += "|    H2:" + PText.GetCapacityTanks((fr_h2 / count_th2), cap_h2) + "\n";
-                result += "|-+" + PText.GetScalePersent((fr_h2 / count_th2), 50) + "\n";
-                result += tdh2;
-                result += "|\n";
-                result += "|    O2:" + PText.GetCapacityTanks((fr_o2 / count_to2), cap_o2) + "\n";
-                result += "|-+" + PText.GetScalePersent((fr_o2 / count_to2), 50) + "\n";
-                result += tdo2;
-                result += "|\n";
-                return result;
+                StringBuilder result = new StringBuilder();
+
+
+                //result.Append("ГЕНЕРАТОРЫ O2/H2: " + PText.GetCountObj(count_all, count_on_all) + " А[" + count_auto_refill + "]" + " К[" + count_count_use_conveyor_system + "]" + "\n");
+                //result.Append(" |- ПОТРЕБЛЕНИЕ: " + "[" + count_powered + "]" + PText.GetCurrentOfMax(curr_power, max_power, "кW") + "\n");
+                //result.Append(" |  " + PText.GetScalePersent(curr_power / max_power, 40) + "\n");
+                //result.Append(" |- ИНВЕНТАРЬ: " + PText.GetCurrentOfMax(curr_vol, curr_max_vol, "l") + " - " + curr_mass + "kg" + "\n");
+                //result.Append(" |  " + PText.GetScalePersent(curr_vol / curr_max_vol, 40) + "\n");
+                //result.Append(" |- ВЫРАБОТАННО:" + "\n");
+                //result.Append("    |- H2: " + PText.GetCurrentOfMax(h2_curr_out, h2_max_out, "l") + "\n");
+                //result.Append("    | " + PText.GetScalePersent(h2_curr_out / h2_max_out, 30) + "\n");
+                //result.Append("    |- O2: " + PText.GetCurrentOfMax(o2_curr_out, o2_max_out, "l") + "\n");
+                //result.Append("    | " + PText.GetScalePersent(o2_curr_out / o2_max_out, 30) + "\n");
+                return result.ToString();
+
+                //string tdh2 = "";
+                //string tdo2 = "";
+                //double fr_h2 = 0;
+                //float cap_h2 = 0;
+                //int count_th2 = 0;
+                //double fr_o2 = 0;
+                //float cap_o2 = 0;
+                //int count_to2 = 0;
+                //foreach (IMyGasTank obj in list_obj)
+                //{
+                //    switch (obj.DefinitionDisplayNameText)
+                //    {
+                //        case "Водородный бак":
+                //            {
+                //                fr_h2 += obj.FilledRatio;
+                //                cap_h2 += obj.Capacity;
+                //                count_th2++;
+                //                tdh2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "]" + PText.GetPersent(obj.FilledRatio) + PText.GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
+                //                break;
+                //            }
+                //        case "Кислородный бак":
+                //            {
+                //                fr_o2 += obj.FilledRatio;
+                //                cap_o2 += obj.Capacity;
+                //                count_to2++;
+                //                tdo2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "]" + PText.GetPersent(obj.FilledRatio) + PText.GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
+                //                break;
+                //            }
+                //    }
+                //}
+                //string result = "";
+                //result += "|    H2:" + PText.GetCapacityTanks((fr_h2 / count_th2), cap_h2) + "\n";
+                //result += "|-+" + PText.GetScalePersent((fr_h2 / count_th2), 50) + "\n";
+                //result += tdh2;
+                //result += "|\n";
+                //result += "|    O2:" + PText.GetCapacityTanks((fr_o2 / count_to2), cap_o2) + "\n";
+                //result += "|-+" + PText.GetScalePersent((fr_o2 / count_to2), 50) + "\n";
+                //result += tdo2;
+                //result += "|\n";
+                //return result;
             }
         }
         // Класс генераторы
@@ -1093,8 +1328,11 @@ namespace БАЗА_МЗ1
             public float curr_mass { get { return list_gas_generator.Select(c => c.sum_curr_mass).Sum(); } }
             public float curr_vol { get { return list_gas_generator.Select(c => c.sum_curr_vol).Sum(); } }
             public float curr_max_vol { get { return list_gas_generator.Select(c => c.sum_curr_max_vol).Sum(); } }
-
-            public void GetValueGasGenerator()
+            public float h2_curr_out { get { return list_gas_generator.Select(c => c.sum_h2_curr_out).Sum(); } }
+            public float h2_max_out { get { return list_gas_generator.Select(c => c.sum_h2_max_out).Sum(); } }
+            public float o2_curr_out { get { return list_gas_generator.Select(c => c.sum_o2_curr_out).Sum(); } }
+            public float o2_max_out { get { return list_gas_generator.Select(c => c.sum_o2_max_out).Sum(); } }
+            public void GetValues()
             {
                 list_gas_generator.Clear();
 
@@ -1209,9 +1447,14 @@ namespace БАЗА_МЗ1
                 StringBuilder result = new StringBuilder();
                 result.Append("ГЕНЕРАТОРЫ O2/H2: " + PText.GetCountObj(count_all, count_on_all) + " А[" + count_auto_refill + "]" + " К[" + count_count_use_conveyor_system + "]" + "\n");
                 result.Append(" |- ПОТРЕБЛЕНИЕ: " + "[" + count_powered + "]" + PText.GetCurrentOfMax(curr_power, max_power, "кW") + "\n");
-                result.Append(" |  " + PText.GetScalePersent(curr_power / max_power, 40)+ "\n");
-                result.Append(" |- ИНВЕНТАРЬ: " + PText.GetCurrentOfMax(curr_vol, curr_max_vol, "l")+ " -" + curr_mass +"кг"+ "\n");
-                result.Append(" |  " + PText.GetScalePersent(curr_vol / curr_max_vol, 40)+ "\n");
+                result.Append(" |  " + PText.GetScalePersent(curr_power / max_power, 40) + "\n");
+                result.Append(" |- ИНВЕНТАРЬ: " + PText.GetCurrentOfMax(curr_vol, curr_max_vol, "l") + " - " + curr_mass + "kg" + "\n");
+                result.Append(" |  " + PText.GetScalePersent(curr_vol / curr_max_vol, 40) + "\n");
+                result.Append(" |- ВЫРАБОТАННО:" + "\n");
+                result.Append("    |- H2: " + PText.GetCurrentOfMax(h2_curr_out, h2_max_out, "l") + "\n");
+                result.Append("    | " + PText.GetScalePersent(h2_curr_out / h2_max_out, 30) + "\n");
+                result.Append("    |- O2: " + PText.GetCurrentOfMax(o2_curr_out, o2_max_out, "l") + "\n");
+                result.Append("    | " + PText.GetScalePersent(o2_curr_out / o2_max_out, 30) + "\n");
                 return result.ToString();
             }
         }
