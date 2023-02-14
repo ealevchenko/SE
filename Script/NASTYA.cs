@@ -8,12 +8,53 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
+using VRageMath;
 
 namespace NASTYA_LOGIC_DOORS
 {
     public sealed class Program : MyGridProgram
     {
         IMyTextPanel test_lcd, test_lcd1;
+        public enum room : int
+        {
+            none = 0,
+            basement = 1,           // подвал
+            factory = 2,            // завод
+            hangar = 3,             // ангар
+            habitation = 4,         // жилой модуль ()
+            medical = 5,            // медицинский модуль
+            captain = 6,            // капитанская каюта
+            assistant = 7,          // каюта помошника
+            cryo_left = 8,          // крео-камера
+            cryo_right = 9,         // крео-камера
+            canteen = 10,           // столовая
+            cabin = 11,             // кабина
+            operators = 12,         // операторская
+            hydrogen_left_1 = 13,   // водородный склад
+            energy_left_1 = 14,     // энергетический модуль
+            hydrogen_right_1 = 15,  // водородный склад
+            energy_right_1 = 16,    // энергетический модуль
+            reactor = 17,           // реактор
+            technical_1 = 18,       // технический этаж
+            hydrogen_left_2 = 19,   // водородный склад
+            energy_left_2 = 20,     // энергетический модуль
+            hydrogen_right_2 = 21,  // водородный склад
+            energy_right_2 = 22,    // энергетический модуль
+            technical_2 = 23,       // технический этаж
+            technical_3 = 24,       // технический этаж
+            training_left = 25,     // тренеровочный зал
+            cabins_left = 26,       // каюты тех персонала
+            training_right = 27,    // тренеровочный зал
+            cabins_right = 28,      // каюты тех персонала
+            gateway = 29,           // шлюзовая
+        };
+        public static string[] name_room = { "", "Подвал", "Завод", "Ангар", "Жилой модуль", "Мед-блок", "Капитан", "Помошник", "КРЕО-камеры", "КРЕО-камеры", "Столовая",
+            "Кабина", "Операторская", "Водородный склад", "Энерго-модуль", "Водородный склад", "Энерго-модуль", "Реакторная", "Тех-этаж №1",
+            "Водородный склад", "Энерго-модуль", "Водородный склад", "Энерго-модуль", "Тех-этаж №2", "Тех-этаж №3", "Тренеровочный зал", "Каюты", "Тренеровочный зал", "Каюты", "Шлюз"};
+
+        string tag_info_tablo = "[display-info]";
+
+        AirInfo air_info;
 
         string NameObj = "NASTYA1";
         door_gateway_option dg_option_hangar_factory = new door_gateway_option()
@@ -26,7 +67,10 @@ namespace NASTYA_LOGIC_DOORS
             int_sn = new float[] { 1.0f, 1.0f, 4.0f, 0.1f, 3.0f, 0.1f }, // lf, rg, bt, tp, bc, fr
         };
 
+
+
         DoorGateway door_gataway_hangar_factory;
+
 
         int count_factory_room = 0;
         int count_hangar_room = 0;
@@ -364,10 +408,13 @@ namespace NASTYA_LOGIC_DOORS
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
             _scr = this;
             // тест LCD
-            test_lcd = GridTerminalSystem.GetBlockWithName("NASTYA1--test_lcd") as IMyTextPanel;
+            test_lcd = GridTerminalSystem.GetBlockWithName("NASTYA1-test_lcd") as IMyTextPanel;
             Echo("test_lcd: " + ((test_lcd != null) ? ("Ок") : ("not found")));
-            test_lcd1 = GridTerminalSystem.GetBlockWithName("NASTYA1--test_lcd1") as IMyTextPanel;
+            test_lcd1 = GridTerminalSystem.GetBlockWithName("NASTYA1-test_lcd1") as IMyTextPanel;
             Echo("test_lcd: " + ((test_lcd != null) ? ("Ок") : ("not found")));
+
+            AirInfo air_info = new AirInfo(NameObj, tag_info_tablo);
+
             door_gataway_hangar_factory = new DoorGateway(dg_option_hangar_factory);
         }
         public void Save()
@@ -396,6 +443,9 @@ namespace NASTYA_LOGIC_DOORS
                 //test_lcd.WriteText("IsInputDoor=" + door_gataway.IsInputDoor + "\n", false);
                 //test_lcd.WriteText("IsOutputDoor=" + door_gataway.IsOutputDoor + "\n", true);
                 //test_lcd.WriteText("count_operator_room=" + count_operator_room + "\n", true);
+                // Логика отображения подписей двирей с учетом кислорода в помещении
+                air_info.Logic(argument, updateSource);
+
             }
         }
         //------------------------------------------------------------
@@ -598,6 +648,93 @@ namespace NASTYA_LOGIC_DOORS
                 external_active = false;   // датчик выхода
             }
 
+        }
+        //
+        public class InfoTablo : BaseListTerminalBlock<IMyTextPanel>
+        {
+            public Color red = new Color(255, 0, 0);
+            public Color yellow = new Color(255, 255, 0);
+            public Color green = new Color(0, 128, 0);
+            string tag;
+            List<IMyTextPanel> list = new List<IMyTextPanel>();
+            public InfoTablo(string name_obj, string tag) : base(name_obj)
+            {
+                this.tag = tag;
+                list = list_obj.Where(x => x.CustomName.Contains(this.tag)).ToList();
+            }
+            public void InitPanel()
+            {
+                // Пройдемся по помещениям и настроим панели
+                foreach (room group in Enum.GetValues(typeof(room)))
+                {
+                    List<IMyTextPanel> objs = list.Where(x => x.CustomName.Contains(group.ToString())).ToList();
+                    foreach (IMyTextPanel obj in objs)
+                    {
+                        obj.SetValueColor("FontColor", green);
+                        obj.WriteText(name_room[(int)group].ToUpper(), false);
+                    }
+                }
+            }
+        }
+        public class AirVent : BaseListTerminalBlock<IMyAirVent>
+        {
+            public AirVent(string name_obj) : base(name_obj)
+            {
+
+            }
+            public VentStatus? getStatus(string tag)
+            {
+                IMyAirVent obj = list_obj.Where(x => x.CustomName.Contains(tag)).FirstOrDefault();
+                return obj != null ? (VentStatus?)obj.Status : null;
+            }
+            public float? GetOxygenLevel(string tag)
+            {
+                IMyAirVent obj = list_obj.Where(x => x.CustomName.Contains(tag)).FirstOrDefault();
+                return obj != null ? (float?)obj.GetOxygenLevel() : null;
+            }
+        }
+
+        public class AirInfo
+        {
+            InfoTablo info_tablo;
+            AirVent air_vant;
+            public AirInfo(string name_obj, string tag)
+            {
+                info_tablo = new InfoTablo(name_obj, tag);
+                info_tablo.InitPanel();
+                air_vant = new AirVent(name_obj);
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    //case "connected_on":
+                    //    break;
+                    default:
+                        break;
+                }
+
+                if (updateSource == UpdateType.Update10)
+                {
+                    _scr.test_lcd.WriteText("Старт" + "\n", false);
+                    foreach (room group in Enum.GetValues(typeof(room)))
+                    {
+                        VentStatus? vstatus = air_vant.getStatus(group.ToString());
+                    _scr.test_lcd.WriteText("Вентилятор:" + group + " статус : "+ vstatus + "\n", true);
+                        if (vstatus != null) { 
+                        
+                        }
+
+                        //List<IMyTextPanel> objs = list.Where(x => x.CustomName.Contains(group.ToString())).ToList();
+                        //foreach (IMyTextPanel obj in objs)
+                        //{
+                        //    obj.SetValueColor("FontColor", green);
+                        //    obj.WriteText(name_room[(int)group].ToUpper(), false);
+                        //}
+                    }
+                }
+
+            }
         }
     }
 }
