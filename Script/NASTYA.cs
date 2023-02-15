@@ -55,10 +55,13 @@ namespace NASTYA_LOGIC_DOORS
             training_right = 27,    // тренеровочный зал
             cabins_right = 28,      // каюты тех персонала
             gateway = 29,           // шлюзовая
+            gateway_left = 30,      // шлюз левый		           
+            gateway_right = 31,     // шлюз правый
+            gateway_stern = 32,     // шлюз корма	
         };
         public static string[] name_room = { "", "Подвал", "Завод", "Ангар", "Жилой модуль", "Мед-блок", "Капитан", "Помошник", "КРЕО-камеры", "КРЕО-камеры", "Столовая",
             "Кабина", "Операторская", "Водородный склад", "Энерго-модуль", "Водородный склад", "Энерго-модуль", "Реакторная", "Тех-этаж 1",
-            "Водородный склад", "Энерго-модуль", "Водородный склад", "Энерго-модуль", "Тех-этаж 2", "Тех-этаж 3", "Тренеровочный зал", "Каюты", "Тренеровочный зал", "Каюты", "Шлюз"};
+            "Водородный склад", "Энерго-модуль", "Водородный склад", "Энерго-модуль", "Тех-этаж 2", "Тех-этаж 3", "Тренеровочный зал", "Каюты", "Тренеровочный зал", "Каюты", "Шлюз", "Шлюз левый", "Шлюз правый", "Шлюз корма"};
         public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, };
 
         public enum doors_gareways : int
@@ -1249,7 +1252,7 @@ namespace NASTYA_LOGIC_DOORS
             }
             public void SetText(room rm, Color color)
             {
-                List<IMyTextPanel> objs = list.Where(x => x.CustomName.Contains(rm.ToString())).ToList();
+                List<IMyTextPanel> objs = list.Where(x => x.CustomName.Contains("["+rm.ToString()+"]")).ToList();
                 foreach (IMyTextPanel obj in objs)
                 {
                     obj.SetValue("Content", (Int64)1);
