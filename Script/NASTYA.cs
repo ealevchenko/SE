@@ -59,12 +59,27 @@ namespace NASTYA_LOGIC_DOORS
         public static string[] name_room = { "", "Подвал", "Завод", "Ангар", "Жилой модуль", "Мед-блок", "Капитан", "Помошник", "КРЕО-камеры", "КРЕО-камеры", "Столовая",
             "Кабина", "Операторская", "Водородный склад", "Энерго-модуль", "Водородный склад", "Энерго-модуль", "Реакторная", "Тех-этаж 1",
             "Водородный склад", "Энерго-модуль", "Водородный склад", "Энерго-модуль", "Тех-этаж 2", "Тех-этаж 3", "Тренеровочный зал", "Каюты", "Тренеровочный зал", "Каюты", "Шлюз"};
+        public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, };
+
+        public enum doors_gareways : int
+        {
+            hangar_factory = 0,
+            hangar_technical_1 = 1,
+        }
 
         string tag_info_tablo = "[door-info]";
+        string tag_door_gateway = "[door-gateway]";
 
         AirInfo air_info;
+        Gateways gateways_doors;
+
 
         string NameObj = "NASTYA1";
+
+        // door:    [door-gateway] [hangar-factory] [hangar]
+        // sn:      [door-gateway] [hangar_factory] [hangar]
+        // door:    [door-gateway] [hangar-factory] [factory]
+        // sn:      [door-gateway] [hangar_factory] [factory]
         door_gateway_option dg_option_hangar_factory = new door_gateway_option()
         {
             ext_door_name = "NASTYA1-Door_hangar_factory [external]",
@@ -76,6 +91,8 @@ namespace NASTYA_LOGIC_DOORS
         };
 
         DoorGateway door_gataway_hangar_factory;
+
+
 
         int count_factory_room = 0;
         int count_hangar_room = 0;
@@ -928,7 +945,6 @@ namespace NASTYA_LOGIC_DOORS
                 OnOfGroup(list_obj, group);
             }
         }
-
         public Program()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
@@ -979,7 +995,6 @@ namespace NASTYA_LOGIC_DOORS
 
             }
         }
-        //------------------------------------------------------------
         //------------------------------------------------------------
         public class Sensor
         {
@@ -1180,7 +1195,41 @@ namespace NASTYA_LOGIC_DOORS
             }
 
         }
-        //
+
+        public class Gateway {
+            public Gateway() { 
+            
+            }
+        }
+
+        // Класс управления шлюзовыми дверями дверями 
+        public class Gateways
+        {
+            List<IMyDoor> doors = new List<IMyDoor>();
+            List<IMySensorBlock> sensors = new List<IMySensorBlock>();
+            public Gateways(string name_obj, string tag)
+            {
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
+                _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
+
+                foreach (doors_gareways gw in Enum.GetValues(typeof(doors_gareways)))
+                {
+                    List<IMyDoor> l_drs = doors.Where(d => d.CustomName.Contains(gw.ToString())).ToList();
+                    List<IMySensorBlock> l_sns = sensors.Where(d => d.CustomName.Contains(gw.ToString())).ToList();
+                    if (l_drs != null && l_drs.Count() == 2 && l_sns != null && l_sns.Count() == 2)
+                        foreach (room rm in Enum.GetValues(typeof(room)))
+                        {
+                            IMyDoor dr = l_drs.Where(d => d.CustomName.Contains("[" + rm.ToString() + "]")).FirstOrDefault();
+                            IMySensorBlock sn = l_sns.Where(d => d.CustomName.Contains("[" + rm.ToString() + "]")).FirstOrDefault();
+                            if (dr != null && sn != null) { 
+                            
+                            }
+                        }
+                }
+            }
+        }
+
+        // Информационые табло дверей
         public class InfoTablo : BaseListTerminalBlock<IMyTextPanel>
         {
             string tag;
@@ -1203,7 +1252,7 @@ namespace NASTYA_LOGIC_DOORS
                 List<IMyTextPanel> objs = list.Where(x => x.CustomName.Contains(rm.ToString())).ToList();
                 foreach (IMyTextPanel obj in objs)
                 {
-                    obj.SetValue("Content", (Int64)1);                    
+                    obj.SetValue("Content", (Int64)1);
                     obj.SetValueColor("FontColor", color);
                     obj.SetValueFloat("FontSize", 7.0f);
                     obj.SetValue("alignment", (Int64)2);
@@ -1211,6 +1260,7 @@ namespace NASTYA_LOGIC_DOORS
                 }
             }
         }
+        // Вентиляторы
         public class AirVent : BaseListTerminalBlock<IMyAirVent>
         {
             public AirVent(string name_obj) : base(name_obj)
@@ -1228,6 +1278,7 @@ namespace NASTYA_LOGIC_DOORS
                 return obj != null ? (float?)obj.GetOxygenLevel() : null;
             }
         }
+        // Класс формирования подписей над дверями с учетом кислорода в помещении
         public class AirInfo
         {
             InfoTablo info_tablo;
