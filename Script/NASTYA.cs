@@ -57,20 +57,21 @@ namespace NASTYA_LOGIC_DOORS
             gateway = 29,           // шлюзовая
             gateway_left = 30,      // шлюз левый		           
             gateway_right = 31,     // шлюз правый
-            gateway_stern = 32,     // шлюз корма	
+            gateway_stern = 32,     // шлюз корма
+            out_space = 33,         // Космос
+
+
         };
         public static string[] name_room = { "", "Подвал", "Завод", "Ангар", "Жилой модуль", "Мед-блок", "Капитан", "Помошник", "КРЕО-камеры", "КРЕО-камеры", "Столовая",
             "Кабина", "Операторская", "Водородный склад", "Энерго-модуль", "Водородный склад", "Энерго-модуль", "Реакторная", "Тех-этаж 1",
-            "Водородный склад", "Энерго-модуль", "Водородный склад", "Энерго-модуль", "Тех-этаж 2", "Тех-этаж 3", "Тренеровочный зал", "Каюты", "Тренеровочный зал", "Каюты", "Шлюз", "Шлюз левый", "Шлюз правый", "Шлюз корма"};
+            "Водородный склад", "Энерго-модуль", "Водородный склад", "Энерго-модуль", "Тех-этаж 2", "Тех-этаж 3", "Тренеровочный зал", "Каюты", "Тренеровочный зал", "Каюты", "Шлюз", "Шлюз левый", "Шлюз правый", "Шлюз корма", "Выход в космос"};
         public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, };
 
         public enum doors_gareways : int
         {
             hangar_factory = 0,
-            hangar_technical_1 = 1,
+            technical_1_hangar = 1,
         }
-        public static float[] sn1 = { 
-        };
 
         string tag_info_tablo = "[door-info]";
         string tag_door_gateway = "[door-gateway]";
@@ -81,24 +82,14 @@ namespace NASTYA_LOGIC_DOORS
 
         string NameObj = "NASTYA1";
 
-        // door:    [door-gateway] [hangar-factory] [hangar]
-        // sn:      [door-gateway] [hangar_factory] [hangar]
-        // door:    [door-gateway] [hangar-factory] [factory]
-        // sn:      [door-gateway] [hangar_factory] [factory]
-        door_gateway_option dg_option_hangar_factory = new door_gateway_option()
-        {
-            ext_door_name = "NASTYA1-Door_hangar_factory [external]",
-            ext_sn_name = "NASTYA1-sn_hangar_factory [external]",
-            ext_sn = new float[] { 1.0f, 1.0f, 2.5f, 1.0f, 0.1f, 2.5f }, // lf, rg, bt, tp, bc, fr
-            int_door_name = "NASTYA1-Door_hangar_factory [internal]",
-            int_sn_name = "NASTYA1-sn_hangar_factory [internal]",
-            int_sn = new float[] { 1.0f, 1.0f, 4.0f, 0.1f, 3.0f, 0.1f }, // lf, rg, bt, tp, bc, fr
-        };
-
-        DoorGateway door_gataway_hangar_factory;
-
-        int count_factory_room = 0;
-        int count_hangar_room = 0;
+        // door [door-gateway] [hangar_factory] [hangar]
+        // sn [door-gateway] [hangar_factory] [hangar]
+        // door [door-gateway] [hangar_factory] [factory]
+        // sn [door-gateway] [hangar_factory] [factory]
+        // door:    [door-gateway] [technical_1-hangar] [technical_1]
+        // sn:      [door-gateway] [technical_1-hangar] [technical_1]
+        // door:    [door-gateway] [technical_1-hangar] [hangar]
+        // sn:      [door-gateway] [technical_1-hangar] [hangar]
 
         static Program _scr;
 
@@ -971,7 +962,6 @@ namespace NASTYA_LOGIC_DOORS
                 if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_On");
             }
         }
-
         public Program()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
@@ -984,8 +974,9 @@ namespace NASTYA_LOGIC_DOORS
             Echo("test_lcd: " + ((test_lcd != null) ? ("Ок") : ("not found")));
             //test_lcd1 = GridTerminalSystem.GetBlockWithName("NASTYA1-test_lcd1") as IMyTextPanel;
             //Echo("test_lcd: " + ((test_lcd != null) ? ("Ок") : ("not found")));
-            door_gataway_hangar_factory = new DoorGateway(dg_option_hangar_factory);
+            //door_gataway_hangar_factory = new DoorGateway(dg_option_hangar_factory);
             air_info = new AirInfo(NameObj, tag_info_tablo);
+            gateways_doors = new Gateways(NameObj, tag_door_gateway);
         }
         public void Save()
         {
@@ -1005,155 +996,170 @@ namespace NASTYA_LOGIC_DOORS
             }
             if (updateSource == UpdateType.Update10)
             {
-                StringBuilder values = new StringBuilder();
-                DisplayBlockInfo(ref values, test);
-                test_lcd.WriteText(values, false);
+                //StringBuilder values = new StringBuilder();
+                //DisplayBlockInfo(ref values, test);
+                //test_lcd.WriteText(values, false);
                 // Получим данные
-                //test_lcd.WriteText("", false);
-                //test_lcd.WriteText("IsInputDoor=" + door_gataway.IsInputDoor + "\n", false);
-                //test_lcd.WriteText("IsOutputDoor=" + door_gataway.IsOutputDoor + "\n", true);
-                //test_lcd.WriteText("count_operator_room=" + count_operator_room + "\n", true);
-                // Проверим логику
-                //int x = 0;
-                // Шлюзовая дверь
-                door_gataway_hangar_factory.Logic(argument, updateSource, ref count_factory_room, ref count_hangar_room);
+                test_lcd.WriteText("" + "\n", false);
                 // Логика отображения подписей двирей с учетом кислорода в помещении
                 air_info.Logic(argument, updateSource);
-
+                // Логика отработки шлюзовых дверей
+                gateways_doors.Logic(argument, updateSource);
+                test_lcd.WriteText("" + "\n", false);
+                test_lcd.WriteText("hangar:" + count_room[(int)room.hangar] + "\n", true);
+                test_lcd.WriteText("factory:" + count_room[(int)room.factory] + "\n", true);
+                test_lcd.WriteText("technical_1:" + count_room[(int)room.technical_1] + "\n", true);
             }
         }
-        //------------------------------------------------------------
-        public class Sensor : BaseTerminalBlock<IMySensorBlock>
+        public class Gateway
         {
-            //IMySensorBlock sensor;
-            public bool PlayProximitySound { get { return obj.PlayProximitySound; } set { obj.PlayProximitySound = value; } }
-            public bool IsActive { get { return obj.IsActive; } }
-            // Сенсор
-            public Sensor(IMySensorBlock obj) : base(obj)
+            doors_gareways door_gtw;
+            IMySensorBlock sn1;
+            IMySensorBlock sn2;
+            room rm1;
+            IMyDoor door1;
+            IMyDoor door2;
+            room rm2;
+            //bool input_door = false;
+            //bool output_door = false;
+            bool sn1_active = false;    // датчик входа
+            bool sn2_active = false;   // датчик выхода
+            public Gateway(doors_gareways dg, IMyDoor door1, IMySensorBlock sn1, room rm1, IMyDoor door2, IMySensorBlock sn2, room rm2)
             {
-                SetExtend(0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f);
-                obj.PlayProximitySound = true;       // звук
-                SetDetect(true, false, false, false, false, false, false, true, false, false, false);
+                this.door_gtw = dg;
+                this.rm1 = rm1;
+                this.rm2 = rm2;
+                this.sn1 = sn1;
+                string sn1_cd = sn1.CustomData; // 1.0f, 1.0f, 2.5f, 1.0f, 0.1f, 2.5f
+                this.sn2 = sn2;
+                this.door1 = door1;
+                this.door2 = door2;
+                this.door1.CloseDoor();
+                this.door2.CloseDoor();
             }
-            public Sensor(IMySensorBlock obj, float[] sn_option) : base(obj)
+
+            public void Logic()
             {
-                if (sn_option != null && sn_option.Count() >= 6)
+                if (!sn1.IsActive && door1.Status == DoorStatus.Open)
                 {
-                    SetExtend(sn_option[0], sn_option[1], sn_option[2], sn_option[3], sn_option[4], sn_option[5]);
+                    // Игрок не найден возле внутр двери
+                    door1.CloseDoor();
                 }
-                else
+                if (sn1.IsActive && door1.Status == DoorStatus.Closed && door2.Status == DoorStatus.Closed)
                 {
-                    SetExtend(0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f);
-                    _scr.Echo("sensor[" + obj.CustomName + "].sn_option: null");
+                    // Игрокнайден возле внутр дверь закрыта и внешняя закрыта
+                    door1.OpenDoor();
                 }
-                SetDetect(true, false, false, false, false, false, false, true, false, false, false);
-            }
-            public Sensor(string name) : base(name)
-            {
-                SetExtend(0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f);
-                obj.PlayProximitySound = true;       // звук
-                SetDetect(true, false, false, false, false, false, false, true, false, false, false);
-            }
-            public Sensor(string name, float lf, float rg, float bt, float tp, float bc, float fr) : base(name)
-            {
-                SetExtend(lf, rg, bt, tp, bc, fr);
-                SetDetect(true, false, false, false, false, false, false, true, false, false, false);
-            }
-            public Sensor(string name, float[] sn_option) : base(name)
-            {
-                if (sn_option != null && sn_option.Count() >= 6)
+                if (!sn2.IsActive && door2.Status == DoorStatus.Open)
                 {
-                    SetExtend(sn_option[0], sn_option[1], sn_option[2], sn_option[3], sn_option[4], sn_option[5]);
+                    // Игрок не найден возле внутр двери
+                    door2.CloseDoor();
                 }
-                else
+                if (sn2.IsActive && door2.Status == DoorStatus.Closed && door1.Status == DoorStatus.Closed)
                 {
-                    SetExtend(0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f);
-                    _scr.Echo("sensor[" + name + "].sn_option: null");
+                    // Игрокнайден возле внутр дверь закрыта и внешняя закрыта
+                    door2.OpenDoor();
                 }
-                SetDetect(true, false, false, false, false, false, false, true, false, false, false);
-            }
-            public void SetExtend(float lf, float rg, float bt, float tp, float bc, float fr)
-            {
-                obj.LeftExtend = lf;//Left - Охват слева
-                obj.RightExtend = rg;//Right - Охват справа
-                obj.BottomExtend = bt;//Bottom - Охват снизу
-                obj.TopExtend = tp;//Top - Охват сверху
-                obj.BackExtend = bc;//Back - Охват сзади
-                obj.FrontExtend = fr;//Front - Охват спереди
-            }
-            public void SetDetect(bool Players, bool FloatingObjects, bool SmallShips, bool LargeShips, bool Stations, bool Subgrids,
-                bool Asteroids, bool Owner, bool Friendly, bool Neutral, bool Enemy)
-            {
-                obj.DetectPlayers = Players;            // Играки
-                obj.DetectFloatingObjects = FloatingObjects;   // Обнаруживать плавающие объекты
-                obj.DetectSmallShips = SmallShips;        // Малые корабли
-                obj.DetectLargeShips = LargeShips;        // Большие корабли
-                obj.DetectStations = Stations;          // Большие станции
-                obj.DetectSubgrids = Subgrids;          // Подсетки
-                obj.DetectAsteroids = Asteroids;         // Астероиды планеты
-                obj.DetectOwner = Owner;              // Владельцы блоков
-                obj.DetectFriendly = Friendly;          // Дружественные игроки
-                obj.DetectNeutral = Neutral;           // Нитральные игроки
-                obj.DetectEnemy = Enemy;             // Враги
+                // Логика направдения движения
+                if (sn1_active && !sn2_active && sn2.IsActive)
+                {
+                    // Выход
+                    //sn1_active = false;
+                    sn2_active = true;
+                    //input_door = false;
+                    //output_door = true;
+                    count_room[(int)rm1]--;
+                    count_room[(int)rm2]++;
+                }
+                if (sn2_active && !sn1_active && sn1.IsActive)
+                {
+                    // Вход
+                    sn1_active = true;
+                    //sn2_active = false;
+                    //input_door = true;
+                    //output_door = false;
+                    count_room[(int)rm1]++;
+                    count_room[(int)rm2]--;
+                }
+                if (sn2_active && sn1_active && !sn2.IsActive && !sn1.IsActive)
+                {
+                    // Вход
+                    sn1_active = false;
+                    sn2_active = false;
+                    //input_door = false;
+                    //output_door = false;
+                }
+
+                if (!sn1_active && !sn2_active)
+                {
+                    // Выход
+                    sn1_active = sn1.IsActive;
+                    sn2_active = sn2.IsActive;
+                }
+                if (count_room[(int)rm1] < 0) count_room[(int)rm1] = 0;
+                if (count_room[(int)rm2] < 0) count_room[(int)rm2] = 0;
             }
         }
-        public class Door
+        // Класс управления шлюзовыми дверями дверями 
+        public class Gateways
         {
-            IMyDoor door;
-            public DoorStatus Status { get { return door.Status; } }
-            public Door(string name)
+            private List<IMyDoor> doors = new List<IMyDoor>();
+            private List<IMySensorBlock> sensors = new List<IMySensorBlock>();
+            List<Gateway> list_gtw = new List<Gateway>();
+            public Gateways(string name_obj, string tag)
             {
-                door = _scr.GridTerminalSystem.GetBlockWithName(name) as IMyDoor;
-                _scr.Echo("door[" + name + "]: " + ((door != null) ? ("Ок") : ("not door")));
+                //test_lcd.WriteText("Start" + "\n", false);
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
+                _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
+                //test_lcd.WriteText("doors:" + doors.Count() + "\n", true);
+                //test_lcd.WriteText("sensors:" + doors.Count() + "\n", true);
+                IMyDoor door1;
+                IMySensorBlock sensor1;
+                room room1;
+                IMyDoor door2;
+                IMySensorBlock sensor2;
+                room room2;
+                //test_lcd.WriteText("Cikl" + "\n", false);
+                foreach (doors_gareways gw in Enum.GetValues(typeof(doors_gareways)))
+                {
+                    door1 = null;
+                    sensor1 = null;
+                    room1 = room.none;
+                    door2 = null;
+                    sensor2 = null;
+                    room2 = room.none;
+
+                    List<IMyDoor> l_drs = doors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).ToList();
+                    List<IMySensorBlock> l_sns = sensors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).ToList();
+                    if (l_drs != null && l_drs.Count() == 2 && l_sns != null && l_sns.Count() == 2)
+                    {
+                        foreach (room rm in Enum.GetValues(typeof(room)))
+                        {
+                            //test_lcd.WriteText("room:" + rm + "\n", true);
+                            IMyDoor dr = l_drs.Where(d => d.CustomName.Contains("[" + rm.ToString() + "]")).FirstOrDefault();
+                            IMySensorBlock sn = l_sns.Where(d => d.CustomName.Contains("[" + rm.ToString() + "]")).FirstOrDefault();
+                            if (dr != null && sn != null)
+                            {
+                                if (door1 != null && door2 == null) { door2 = dr; room2 = rm; }
+                                if (door1 == null) { door1 = dr; room1 = rm; }
+                                if (sensor1 != null && sensor2 == null) { sensor2 = sn; }
+                                if (sensor1 == null) { sensor1 = sn; }
+                            }
+                        }
+                        if (door1 != null && door2 != null && sensor1 != null && sensor2 != null)
+                        {
+                            //test_lcd.WriteText("door1:"+ door1.CustomName + "\n", true);
+                            //test_lcd.WriteText("door2:"+ door2.CustomName + "\n", true);
+                            //test_lcd.WriteText("sensor1:" + sensor1.CustomName + "\n", true);
+                            //test_lcd.WriteText("sensor2:" + sensor2.CustomName + "\n", true);
+                            list_gtw.Add(new Gateway(gw, door1, sensor1, room1, door2, sensor2, room2));
+                        }
+                    }
+
+                }
             }
 
-            public void Open()
-            {
-                door.OpenDoor();
-            }
-            public void Close()
-            {
-                door.CloseDoor();
-            }
-
-
-        }
-        // Класс Шлюзовая дверь
-        public class door_gateway_option
-        {
-            public string ext_door_name { get; set; }
-            public string ext_sn_name { get; set; }
-            public float[] ext_sn { get; set; }
-            public string int_door_name { get; set; }
-            public string int_sn_name { get; set; }
-            public float[] int_sn { get; set; }
-        };
-        public class DoorGateway
-        {
-
-            Sensor sn_door_external;
-            Sensor sn_door_internal;
-            Door door_external;
-            Door door_internal;
-
-            bool input_door = false;
-            bool output_door = false;
-            bool internal_active = false;    // датчик входа
-            bool external_active = false;   // датчик выхода
-
-            public bool IsActiveSensorInternal { get { return sn_door_internal.IsActive; } }
-            public bool IsActiveSensorExternal { get { return sn_door_internal.IsActive; } }
-
-            public bool IsInputDoor { get { return input_door; } set { input_door = value; } }  // Вошол 
-            public bool IsOutputDoor { get { return output_door; } set { output_door = value; } } // Вышел 
-            public DoorGateway(door_gateway_option option)
-            {
-                sn_door_external = new Sensor(option.ext_sn_name, option.ext_sn);
-                sn_door_internal = new Sensor(option.int_sn_name, option.int_sn);
-                door_external = new Door(option.ext_door_name);
-                door_internal = new Door(option.int_door_name);
-            }
-            public void Logic(string argument, UpdateType updateSource, ref int count_input, ref int count_output)
+            public void Logic(string argument, UpdateType updateSource)
             {
                 switch (argument)
                 {
@@ -1165,158 +1171,14 @@ namespace NASTYA_LOGIC_DOORS
 
                 if (updateSource == UpdateType.Update10)
                 {
-                    if (!sn_door_internal.IsActive && door_internal.Status == DoorStatus.Open)
+                    foreach (Gateway gateway in list_gtw)
                     {
-                        // Игрок не найден возле внутр двери
-                        door_internal.Close();
-                    }
-                    if (sn_door_internal.IsActive && door_internal.Status == DoorStatus.Closed && door_external.Status == DoorStatus.Closed)
-                    {
-                        // Игрокнайден возле внутр дверь закрыта и внешняя закрыта
-                        door_internal.Open();
-                    }
-                    if (!sn_door_external.IsActive && door_external.Status == DoorStatus.Open)
-                    {
-                        // Игрок не найден возле внутр двери
-                        door_external.Close();
-                    }
-                    if (sn_door_external.IsActive && door_external.Status == DoorStatus.Closed && door_internal.Status == DoorStatus.Closed)
-                    {
-                        // Игрокнайден возле внутр дверь закрыта и внешняя закрыта
-                        door_external.Open();
-                    }
-                    // Логика направдения движения
-                    if (internal_active && !external_active && sn_door_external.IsActive)
-                    {
-                        // Выход
-                        //internal_active = false;
-                        external_active = true;
-                        input_door = false;
-                        output_door = true;
-                        count_input--;
-                        count_output++;
-                    }
-                    if (external_active && !internal_active && sn_door_internal.IsActive)
-                    {
-                        // Вход
-                        internal_active = true;
-                        //external_active = false;
-                        input_door = true;
-                        output_door = false;
-                        count_input++;
-                        count_output--;
-                    }
-                    if (external_active && internal_active && !sn_door_external.IsActive && !sn_door_internal.IsActive)
-                    {
-                        // Вход
-                        internal_active = false;
-                        external_active = false;
-                        input_door = false;
-                        output_door = false;
-                    }
-
-                    if (!internal_active && !external_active)
-                    {
-                        // Выход
-                        internal_active = sn_door_internal.IsActive;
-                        external_active = sn_door_external.IsActive;
+                        gateway.Logic();
                     }
                 }
 
             }
-            public void ClearMoveDoor()
-            {
-                input_door = false;
-                output_door = false;
-                internal_active = false;    // датчик входа
-                external_active = false;   // датчик выхода
-            }
-
         }
-        public class Gateway
-        {
-            doors_gareways door_gtw;
-            IMySensorBlock sn1;
-            IMySensorBlock sn2;
-            room rm1;
-            IMyDoor door1;
-            IMyDoor door2;
-            room rm2;
-            bool input_door = false;
-            bool output_door = false;
-            bool internal_active = false;    // датчик входа
-            bool external_active = false;   // датчик выхода
-            public Gateway(doors_gareways dg, IMyDoor door1, IMySensorBlock sn1, room rm1, IMyDoor door2, IMySensorBlock sn2, room rm2)
-            {
-                this.door_gtw = dg;
-                this.rm1 = rm1;
-                this.rm2 = rm2;
-                this.sn1 = sn1;
-                string sn1_cd = sn1.CustomData; // 1.0f, 1.0f, 2.5f, 1.0f, 0.1f, 2.5f
-                this.sn2 = sn2;
-                this.door1 = door1;
-                this.door2 = door2;
-            }
-
-            public void Logic()
-            {
-    
-            }
-        }
-
-        // Класс управления шлюзовыми дверями дверями 
-        public class Gateways
-        {
-            private List<IMyDoor> doors = new List<IMyDoor>();
-            private List<IMySensorBlock> sensors = new List<IMySensorBlock>();
-            List<Gateway> list_gtw = new List<Gateway>();
-            public Gateways(string name_obj, string tag)
-            {
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
-                _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
-
-                IMyDoor door1;
-                IMySensorBlock sensor1;
-                room room1;
-                IMyDoor door2;
-                IMySensorBlock sensor2;
-                room room2;
-
-                foreach (doors_gareways gw in Enum.GetValues(typeof(doors_gareways)))
-                {
-                    door1 = null;
-                    sensor1 = null;
-                    room1 = room.none;
-                    door2 = null;
-                    sensor2 = null;
-                    room2 = room.none;
-
-                    List<IMyDoor> l_drs = doors.Where(d => d.CustomName.Contains(gw.ToString())).ToList();
-                    List<IMySensorBlock> l_sns = sensors.Where(d => d.CustomName.Contains(gw.ToString())).ToList();
-                    if (l_drs != null && l_drs.Count() == 2 && l_sns != null && l_sns.Count() == 2)
-                    {
-                        foreach (room rm in Enum.GetValues(typeof(room)))
-                        {
-                            IMyDoor dr = l_drs.Where(d => d.CustomName.Contains("[" + rm.ToString() + "]")).FirstOrDefault();
-                            IMySensorBlock sn = l_sns.Where(d => d.CustomName.Contains("[" + rm.ToString() + "]")).FirstOrDefault();
-                            if (dr != null && sn != null)
-                            {
-                                if (door1 == null) { door1 = dr; room1 = rm; }
-                                if (door1 != null && door2 == null) { door2 = dr; room2 = rm; }
-                                if (sensor1 == null) { sensor1 = sn; }
-                                if (sensor1 != null && sensor2 == null) { sensor2 = sn; }
-                            }
-                        }
-                        if (door1 != null && door2 != null && sensor1 != null && sensor2 != null)
-                        {
-                            list_gtw.Add(new Gateway(gw, door1, sensor1, room1, door2, sensor2, room2));
-                        }
-                    }
-
-                }
-            }
-        }
-
         // Информационые табло дверей
         public class InfoTablo : BaseListTerminalBlock<IMyTextPanel>
         {
