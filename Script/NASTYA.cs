@@ -69,6 +69,8 @@ namespace NASTYA_LOGIC_DOORS
             hangar_factory = 0,
             hangar_technical_1 = 1,
         }
+        public static float[] sn1 = { 
+        };
 
         string tag_info_tablo = "[door-info]";
         string tag_door_gateway = "[door-gateway]";
@@ -94,8 +96,6 @@ namespace NASTYA_LOGIC_DOORS
         };
 
         DoorGateway door_gataway_hangar_factory;
-
-
 
         int count_factory_room = 0;
         int count_hangar_room = 0;
@@ -948,6 +948,30 @@ namespace NASTYA_LOGIC_DOORS
                 OnOfGroup(list_obj, group);
             }
         }
+        public class BaseTerminalBlock<T> where T : class
+        {
+            public T obj;
+            public BaseTerminalBlock(string name)
+            {
+                obj = _scr.GridTerminalSystem.GetBlockWithName(name) as T;
+                _scr.Echo("block:[" + name + "]: " + ((obj != null) ? ("Ок") : ("not Block")));
+            }
+            public BaseTerminalBlock(T myobj)
+            {
+                obj = myobj;
+                _scr.Echo("block:[" + obj.ToString() + "]: " + ((obj != null) ? ("Ок") : ("not Block")));
+            }
+            // Команды включения\выключения
+            public void Off()
+            {
+                if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_Off");
+            }
+            public void On()
+            {
+                if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_On");
+            }
+        }
+
         public Program()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
@@ -999,33 +1023,44 @@ namespace NASTYA_LOGIC_DOORS
             }
         }
         //------------------------------------------------------------
-        public class Sensor
+        public class Sensor : BaseTerminalBlock<IMySensorBlock>
         {
-            IMySensorBlock sensor;
-            public bool PlayProximitySound { get { return sensor.PlayProximitySound; } set { sensor.PlayProximitySound = value; } }
-            public bool IsActive { get { return sensor.IsActive; } }
+            //IMySensorBlock sensor;
+            public bool PlayProximitySound { get { return obj.PlayProximitySound; } set { obj.PlayProximitySound = value; } }
+            public bool IsActive { get { return obj.IsActive; } }
             // Сенсор
-            public Sensor(string name)
+            public Sensor(IMySensorBlock obj) : base(obj)
             {
-                sensor = _scr.GridTerminalSystem.GetBlockWithName(name) as IMySensorBlock;
-                _scr.Echo("sensor[" + name + "]: " + ((sensor != null) ? ("Ок") : ("not found")));
-
                 SetExtend(0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f);
-                sensor.PlayProximitySound = true;       // звук
+                obj.PlayProximitySound = true;       // звук
                 SetDetect(true, false, false, false, false, false, false, true, false, false, false);
             }
-            public Sensor(string name, float lf, float rg, float bt, float tp, float bc, float fr)
+            public Sensor(IMySensorBlock obj, float[] sn_option) : base(obj)
             {
-                sensor = _scr.GridTerminalSystem.GetBlockWithName(name) as IMySensorBlock;
-                _scr.Echo("sensor[" + name + "]: " + ((sensor != null) ? ("Ок") : ("not found")));
-
+                if (sn_option != null && sn_option.Count() >= 6)
+                {
+                    SetExtend(sn_option[0], sn_option[1], sn_option[2], sn_option[3], sn_option[4], sn_option[5]);
+                }
+                else
+                {
+                    SetExtend(0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f);
+                    _scr.Echo("sensor[" + obj.CustomName + "].sn_option: null");
+                }
+                SetDetect(true, false, false, false, false, false, false, true, false, false, false);
+            }
+            public Sensor(string name) : base(name)
+            {
+                SetExtend(0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f);
+                obj.PlayProximitySound = true;       // звук
+                SetDetect(true, false, false, false, false, false, false, true, false, false, false);
+            }
+            public Sensor(string name, float lf, float rg, float bt, float tp, float bc, float fr) : base(name)
+            {
                 SetExtend(lf, rg, bt, tp, bc, fr);
                 SetDetect(true, false, false, false, false, false, false, true, false, false, false);
             }
-            public Sensor(string name, float[] sn_option)
+            public Sensor(string name, float[] sn_option) : base(name)
             {
-                sensor = _scr.GridTerminalSystem.GetBlockWithName(name) as IMySensorBlock;
-                _scr.Echo("sensor[" + name + "]: " + ((sensor != null) ? ("Ок") : ("not found")));
                 if (sn_option != null && sn_option.Count() >= 6)
                 {
                     SetExtend(sn_option[0], sn_option[1], sn_option[2], sn_option[3], sn_option[4], sn_option[5]);
@@ -1039,27 +1074,27 @@ namespace NASTYA_LOGIC_DOORS
             }
             public void SetExtend(float lf, float rg, float bt, float tp, float bc, float fr)
             {
-                sensor.LeftExtend = lf;//Left - Охват слева
-                sensor.RightExtend = rg;//Right - Охват справа
-                sensor.BottomExtend = bt;//Bottom - Охват снизу
-                sensor.TopExtend = tp;//Top - Охват сверху
-                sensor.BackExtend = bc;//Back - Охват сзади
-                sensor.FrontExtend = fr;//Front - Охват спереди
+                obj.LeftExtend = lf;//Left - Охват слева
+                obj.RightExtend = rg;//Right - Охват справа
+                obj.BottomExtend = bt;//Bottom - Охват снизу
+                obj.TopExtend = tp;//Top - Охват сверху
+                obj.BackExtend = bc;//Back - Охват сзади
+                obj.FrontExtend = fr;//Front - Охват спереди
             }
             public void SetDetect(bool Players, bool FloatingObjects, bool SmallShips, bool LargeShips, bool Stations, bool Subgrids,
                 bool Asteroids, bool Owner, bool Friendly, bool Neutral, bool Enemy)
             {
-                sensor.DetectPlayers = Players;            // Играки
-                sensor.DetectFloatingObjects = FloatingObjects;   // Обнаруживать плавающие объекты
-                sensor.DetectSmallShips = SmallShips;        // Малые корабли
-                sensor.DetectLargeShips = LargeShips;        // Большие корабли
-                sensor.DetectStations = Stations;          // Большие станции
-                sensor.DetectSubgrids = Subgrids;          // Подсетки
-                sensor.DetectAsteroids = Asteroids;         // Астероиды планеты
-                sensor.DetectOwner = Owner;              // Владельцы блоков
-                sensor.DetectFriendly = Friendly;          // Дружественные игроки
-                sensor.DetectNeutral = Neutral;           // Нитральные игроки
-                sensor.DetectEnemy = Enemy;             // Враги
+                obj.DetectPlayers = Players;            // Играки
+                obj.DetectFloatingObjects = FloatingObjects;   // Обнаруживать плавающие объекты
+                obj.DetectSmallShips = SmallShips;        // Малые корабли
+                obj.DetectLargeShips = LargeShips;        // Большие корабли
+                obj.DetectStations = Stations;          // Большие станции
+                obj.DetectSubgrids = Subgrids;          // Подсетки
+                obj.DetectAsteroids = Asteroids;         // Астероиды планеты
+                obj.DetectOwner = Owner;              // Владельцы блоков
+                obj.DetectFriendly = Friendly;          // Дружественные игроки
+                obj.DetectNeutral = Neutral;           // Нитральные игроки
+                obj.DetectEnemy = Enemy;             // Враги
             }
         }
         public class Door
@@ -1198,36 +1233,86 @@ namespace NASTYA_LOGIC_DOORS
             }
 
         }
+        public class Gateway
+        {
+            doors_gareways door_gtw;
+            IMySensorBlock sn1;
+            IMySensorBlock sn2;
+            room rm1;
+            IMyDoor door1;
+            IMyDoor door2;
+            room rm2;
+            bool input_door = false;
+            bool output_door = false;
+            bool internal_active = false;    // датчик входа
+            bool external_active = false;   // датчик выхода
+            public Gateway(doors_gareways dg, IMyDoor door1, IMySensorBlock sn1, room rm1, IMyDoor door2, IMySensorBlock sn2, room rm2)
+            {
+                this.door_gtw = dg;
+                this.rm1 = rm1;
+                this.rm2 = rm2;
+                this.sn1 = sn1;
+                string sn1_cd = sn1.CustomData; // 1.0f, 1.0f, 2.5f, 1.0f, 0.1f, 2.5f
+                this.sn2 = sn2;
+                this.door1 = door1;
+                this.door2 = door2;
+            }
 
-        public class Gateway {
-            public Gateway() { 
-            
+            public void Logic()
+            {
+    
             }
         }
 
         // Класс управления шлюзовыми дверями дверями 
         public class Gateways
         {
-            List<IMyDoor> doors = new List<IMyDoor>();
-            List<IMySensorBlock> sensors = new List<IMySensorBlock>();
+            private List<IMyDoor> doors = new List<IMyDoor>();
+            private List<IMySensorBlock> sensors = new List<IMySensorBlock>();
+            List<Gateway> list_gtw = new List<Gateway>();
             public Gateways(string name_obj, string tag)
             {
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
                 _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
 
+                IMyDoor door1;
+                IMySensorBlock sensor1;
+                room room1;
+                IMyDoor door2;
+                IMySensorBlock sensor2;
+                room room2;
+
                 foreach (doors_gareways gw in Enum.GetValues(typeof(doors_gareways)))
                 {
+                    door1 = null;
+                    sensor1 = null;
+                    room1 = room.none;
+                    door2 = null;
+                    sensor2 = null;
+                    room2 = room.none;
+
                     List<IMyDoor> l_drs = doors.Where(d => d.CustomName.Contains(gw.ToString())).ToList();
                     List<IMySensorBlock> l_sns = sensors.Where(d => d.CustomName.Contains(gw.ToString())).ToList();
                     if (l_drs != null && l_drs.Count() == 2 && l_sns != null && l_sns.Count() == 2)
+                    {
                         foreach (room rm in Enum.GetValues(typeof(room)))
                         {
                             IMyDoor dr = l_drs.Where(d => d.CustomName.Contains("[" + rm.ToString() + "]")).FirstOrDefault();
                             IMySensorBlock sn = l_sns.Where(d => d.CustomName.Contains("[" + rm.ToString() + "]")).FirstOrDefault();
-                            if (dr != null && sn != null) { 
-                            
+                            if (dr != null && sn != null)
+                            {
+                                if (door1 == null) { door1 = dr; room1 = rm; }
+                                if (door1 != null && door2 == null) { door2 = dr; room2 = rm; }
+                                if (sensor1 == null) { sensor1 = sn; }
+                                if (sensor1 != null && sensor2 == null) { sensor2 = sn; }
                             }
                         }
+                        if (door1 != null && door2 != null && sensor1 != null && sensor2 != null)
+                        {
+                            list_gtw.Add(new Gateway(gw, door1, sensor1, room1, door2, sensor2, room2));
+                        }
+                    }
+
                 }
             }
         }
@@ -1252,7 +1337,7 @@ namespace NASTYA_LOGIC_DOORS
             }
             public void SetText(room rm, Color color)
             {
-                List<IMyTextPanel> objs = list.Where(x => x.CustomName.Contains("["+rm.ToString()+"]")).ToList();
+                List<IMyTextPanel> objs = list.Where(x => x.CustomName.Contains("[" + rm.ToString() + "]")).ToList();
                 foreach (IMyTextPanel obj in objs)
                 {
                     obj.SetValue("Content", (Int64)1);
