@@ -60,21 +60,55 @@ namespace NASTYA_LOGIC_DOORS
         public static string[] name_room = { "", "Подвал", "Завод", "Ангар", "Жилой модуль", "Мед-блок", "Капитан", "Помошник", "КРЕО-камеры", "КРЕО-камеры", "Столовая",
             "Кабина", "Операторская", "Водородный склад", "Энерго-модуль", "Водородный склад", "Энерго-модуль", "Реакторная", "Тех-этаж 1",
             "Водородный склад", "Энерго-модуль", "Водородный склад", "Энерго-модуль", "Тренеровочный зал", "Каюты", "Тренеровочный зал", "Каюты", "Шлюз", "Шлюз левый", "Шлюз правый", "Шлюз корма", "Выход в космос"};
-        public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, };
+        public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
         public enum doors_gareways : int
         {
             hangar_factory = 0,
             technical_1_hangar = 1,
+            technical_1_factory = 2,
+            hydrogen_gateway_left = 3,
+            hydrogen_gateway_right = 4,
+            gateway_stern_left = 5,
+            gateway_stern_right = 6,
+            factory_habitation = 7,
+            operators_gateway_left1 = 8,
+            operators_gateway_left2 = 9,
+            operators_gateway_right1 = 10,
+            operators_gateway_right2 = 11,
+            operators_cabin1 = 12,
+            operators_cabin2 = 13,
+            technical_1_basement = 14
         }
-
+        public enum door_transition : int
+        {
+            operators_habitation = 0,
+            operators_technical_1 = 1,
+            technical_1_training_left = 2,
+            technical_1_training_right = 3,
+            training_cabins_left = 4,
+            training_cabins_right = 5,
+            technical_1_gateway = 6,
+            technical_hydrogen_left_1 = 7,
+            technical_energy_left_1 = 8,
+            technical_hydrogen_right_1 = 9,
+            technical_energy_right_1 = 10,
+            technical_hydrogen_left_2 = 11,
+            technical_energy_left_2 = 12,
+            technical_hydrogen_right_2 = 13,
+            technical_energy_right_2 = 14,
+            technical_habitation_1 = 15,
+            technical_habitation_2 = 16,
+        }
         string tag_info_tablo = "[door-info]";
+        string tag_door_transition = "[door_transition]";
         string tag_door_gateway = "[door-gateway]";
         string tag_lighting_room = "[lighting_room]";
 
         AirInfo air_info;
         AirVent air_vent;
         Gateways gateways_doors;
+        Transitions transition_door;
         Lightings room_light;
 
         string NameObj = "NASTYA1";
@@ -448,6 +482,7 @@ namespace NASTYA_LOGIC_DOORS
             air_vent = new AirVent(NameObj);
             air_info = new AirInfo(NameObj, tag_info_tablo);
             gateways_doors = new Gateways(NameObj, tag_door_gateway);
+            transition_door = new Transitions(NameObj, tag_door_transition);
             room_light = new Lightings(NameObj, tag_lighting_room); // Освещение
             room_light.Off();
         }
@@ -471,11 +506,12 @@ namespace NASTYA_LOGIC_DOORS
             {
                 StringBuilder values = new StringBuilder();
                 // Получим данные
-                test_lcd.WriteText("" + "\n", false);
+                //test_lcd.WriteText("" + "\n", false);
                 // Логика отображения подписей двирей с учетом кислорода в помещении
                 air_info.Logic(argument, updateSource);
                 // Логика отработки шлюзовых дверей
                 gateways_doors.Logic(argument, updateSource);
+                transition_door.Logic(argument, updateSource);
                 // В космосе людей не считаем
                 count_room[(int)room.gateway_left] = 0;
                 count_room[(int)room.gateway_right] = 0;
@@ -483,12 +519,167 @@ namespace NASTYA_LOGIC_DOORS
                 count_room[(int)room.out_space] = 0;
                 // Логика отработки включения и выключения освещения
                 room_light.Logic(argument, updateSource);
+                //test_lcd.WriteText("" + "\n", false);
+                //test_lcd.WriteText("hangar:" + count_room[(int)room.hangar] + "\n", true);
+                //test_lcd.WriteText("factory:" + count_room[(int)room.factory] + "\n", true);
+                //test_lcd.WriteText("technical_1:" + count_room[(int)room.technical_1] + "\n", true);
+            }
+        }
+        // Переходная дверь
+        public class Transition
+        {
+            door_transition door_tr;
+            IMySensorBlock sn1;
+            IMySensorBlock sn2;
+            room rm1;
+            room rm2;
+            IMyDoor door1;
+            bool sn1_active = false;    // датчик входа
+            bool sn2_active = false;   // датчик выхода
+            public Transition(door_transition dg, IMyDoor door1, IMySensorBlock sn1, room rm1, IMySensorBlock sn2, room rm2)
+            {
+                this.door_tr = dg;
+                this.rm1 = rm1;
+                this.rm2 = rm2;
+                this.sn1 = sn1;
+                string sn1_cd = sn1.CustomData; // 1.0f, 1.0f, 2.5f, 1.0f, 0.1f, 2.5f
+                this.sn2 = sn2;
+                this.door1 = door1;
+                this.door1.CloseDoor();
+            }
+            public void Logic()
+            {
+                if (!sn1.IsActive && !sn2.IsActive && door1.Status == DoorStatus.Open)
+                {
+                    // Игрок не найден возле внутр двери
+                    door1.CloseDoor();
+                }
+                if ((sn1.IsActive || sn2.IsActive) && door1.Status == DoorStatus.Closed)
+                {
+                    // Игрокнайден возле внутр дверь закрыта и внешняя закрыта
+                    door1.OpenDoor();
+                }
+                // Логика направдения движения
+                if (sn1_active && !sn2_active && sn2.IsActive)
+                {
+                    // Выход
+                    //sn1_active = false;
+                    sn2_active = true;
+                    //count_room[(int)rm1]--;
+                    //count_room[(int)rm2]++;
+                }
+                if (sn2_active && !sn1_active && sn1.IsActive)
+                {
+                    // Вход
+                    sn1_active = true;
+                    //sn2_active = false;
+                    //count_room[(int)rm1]++;
+                    //count_room[(int)rm2]--;
+                }
+                if (sn1_active && sn2_active && !sn1.IsActive && sn2.IsActive)
+                {
+                    // Выход
+                    sn1_active = false;
+                    //sn2_active = true;
+                    count_room[(int)rm1]--;
+                    count_room[(int)rm2]++;
+                }
+                if (sn1_active && sn2_active && sn1.IsActive && !sn2.IsActive)
+                {
+                    // Выход
+                    sn2_active = false;
+                    //sn1_active = true;
+                    count_room[(int)rm1]++;
+                    count_room[(int)rm2]--;
+                }
+                if (sn2_active && sn1_active && !sn2.IsActive && !sn1.IsActive)
+                {
+                    // Вход
+                    sn1_active = false;
+                    sn2_active = false;
+                }
 
+                if (!sn1_active && !sn2_active)
+                {
+                    // Выход
+                    sn1_active = sn1.IsActive;
+                    sn2_active = sn2.IsActive;
+                }
+                if (count_room[(int)rm1] < 0) count_room[(int)rm1] = 0;
+                if (count_room[(int)rm2] < 0) count_room[(int)rm2] = 0;
+            }
+        }
+        // Класс управления переходными дверями
+        public class Transitions
+        {
+            private List<IMyDoor> doors = new List<IMyDoor>();
+            private List<IMySensorBlock> sensors = new List<IMySensorBlock>();
+            List<Transition> list_tr = new List<Transition>();
+            public Transitions(string name_obj, string tag)
+            {
+                //test_lcd.WriteText("Start" + "\n", false);
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
+                _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
+                //test_lcd.WriteText("doors:" + doors.Count() + "\n", true);
+                //test_lcd.WriteText("sensors:" + doors.Count() + "\n", true);
+                IMyDoor door1;
+                IMySensorBlock sensor1;
+                IMySensorBlock sensor2;
+                room room1;
+                room room2;
+                test_lcd.WriteText("Поиск дверей:" + "\n", false);
+                foreach (door_transition gw in Enum.GetValues(typeof(door_transition)))
+                {
+                    door1 = null;
+                    sensor1 = null;
+                    sensor2 = null;
+                    room1 = room.none;
+                    room2 = room.none;
+                    IMyDoor l_drs = doors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).FirstOrDefault();
+                    List<IMySensorBlock> l_sns = sensors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).ToList();
+                    if (l_drs != null && l_sns != null && l_sns.Count() == 2)
+                    {
+                        foreach (room rm in Enum.GetValues(typeof(room)))
+                        {
+                            //test_lcd.WriteText("room:" + rm + "\n", true);
+                            IMySensorBlock sn = l_sns.Where(d => d.CustomName.Contains("[" + rm.ToString() + "]")).FirstOrDefault();
+                            if (l_drs != null && sn != null)
+                            {
+                                door1 = l_drs;
+                                if (sensor1 != null && sensor2 == null) { sensor2 = sn; room2 = rm; }
+                                if (sensor1 == null) { sensor1 = sn; room1 = rm; }
+                            }
+                        }
+                        if (door1 != null && sensor1 != null && sensor2 != null)
+                        {
+                            test_lcd.WriteText("door1:" + door1.CustomName + "\n", true);
+                            test_lcd.WriteText("sensor1:" + sensor1.CustomName + "\n", true);
+                            test_lcd.WriteText("sensor2:" + sensor2.CustomName + "\n", true);
+                            list_tr.Add(new Transition(gw, door1, sensor1, room1, sensor2, room2));
+                        }
+                    }
 
-                test_lcd.WriteText("" + "\n", false);
-                test_lcd.WriteText("hangar:" + count_room[(int)room.hangar] + "\n", true);
-                test_lcd.WriteText("factory:" + count_room[(int)room.factory] + "\n", true);
-                test_lcd.WriteText("technical_1:" + count_room[(int)room.technical_1] + "\n", true);
+                }
+            }
+
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    //case "connected_on":
+                    //    break;
+                    default:
+                        break;
+                }
+
+                if (updateSource == UpdateType.Update10)
+                {
+                    foreach (Transition tr in list_tr)
+                    {
+                        tr.Logic();
+                    }
+                }
+
             }
         }
         // Раздвежная дверь
@@ -581,7 +772,7 @@ namespace NASTYA_LOGIC_DOORS
                 if (count_room[(int)rm2] < 0) count_room[(int)rm2] = 0;
             }
         }
-        // Класс управления шлюзовыми дверями дверями 
+        // Класс управления шлюзовыми дверями
         public class Gateways
         {
             private List<IMyDoor> doors = new List<IMyDoor>();
@@ -600,7 +791,7 @@ namespace NASTYA_LOGIC_DOORS
                 IMyDoor door2;
                 IMySensorBlock sensor2;
                 room room2;
-                //test_lcd.WriteText("Cikl" + "\n", false);
+                //test_lcd.WriteText("Поиск дверей:" + "\n", false);
                 foreach (doors_gareways gw in Enum.GetValues(typeof(doors_gareways)))
                 {
                     door1 = null;
@@ -639,7 +830,6 @@ namespace NASTYA_LOGIC_DOORS
 
                 }
             }
-
             public void Logic(string argument, UpdateType updateSource)
             {
                 switch (argument)
@@ -715,8 +905,10 @@ namespace NASTYA_LOGIC_DOORS
             }
             public bool isOxygenLevelNull(string[] tags)
             {
-                foreach (string tag in tags) {
-                    if (isOxygenLevelNull(tag)) {
+                foreach (string tag in tags)
+                {
+                    if (isOxygenLevelNull(tag))
+                    {
                         return true;
                     }
                 }
@@ -753,7 +945,7 @@ namespace NASTYA_LOGIC_DOORS
                         float? o2 = air_vant.GetOxygenLevel("[" + group.ToString() + "]");
                         if (o2 != null)
                         {
-                            if (o2 == 1)
+                            if (o2 > 0.9)
                             {
                                 info_tablo.SetText(group, green);
                             }
