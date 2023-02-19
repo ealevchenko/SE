@@ -99,6 +99,9 @@ namespace NASTYA_LOGIC_DOORS
             technical_energy_right_2 = 14,
             technical_habitation_1 = 15,
             technical_habitation_2 = 16,
+            habitation_assistant = 17,
+            habitation_captain = 18,
+            habitation_medical = 19,
         }
         string tag_info_tablo = "[door-info]";
         string tag_door_transition = "[door_transition]";
