@@ -103,16 +103,27 @@ namespace NASTYA_LOGIC_DOORS
             habitation_captain = 18,
             habitation_medical = 19,
         }
+        public enum door_slide : int
+        {
+            hangar_left_1 = 0,
+            hangar_right_1 = 1,
+            hangar_left_2 = 2,
+            hangar_right_2 = 3,
+        }
+
         string tag_info_tablo = "[door-info]";
         string tag_door_transition = "[door_transition]";
         string tag_door_gateway = "[door-gateway]";
         string tag_lighting_room = "[lighting_room]";
+        string tag_ref_room_hangar = "[ref_room]";
 
         AirInfo air_info;
         AirVent air_vent;
         Gateways gateways_doors;
         Transitions transition_door;
         Lightings room_light;
+        ReflectorLight ref_light;
+        AirtightSlideDoor slide_door;
 
         string NameObj = "NASTYA1";
 
@@ -449,6 +460,59 @@ namespace NASTYA_LOGIC_DOORS
                 OnOfTag(list_obj, tag);
             }
         }
+        public class BaseDoor<T> : BaseListTerminalBlock<T> where T : class
+        {
+            public BaseDoor(string name_obj) : base(name_obj)
+            {
+
+            }
+            public float? OpenRatio(string tag)
+            {
+                float? open_ratio = base.list_obj.Where(d => ((IMyTerminalBlock)d).CustomName.Contains("[" + tag + "]")).Select(f => ((IMyDoor)f).OpenRatio).Sum();
+                int? count = base.list_obj.Where(d => ((IMyTerminalBlock)d).CustomName.Contains("[" + tag + "]")).Count();
+                return open_ratio != null && count != null ? open_ratio / count : null;
+            }
+            public bool IsOpen(string tag)
+            {
+                bool result = true;
+
+                foreach (IMyDoor obj in base.list_obj.Where(d => ((IMyTerminalBlock)d).CustomName.Contains("[" + tag + "]")))
+                {
+                    if (obj.Status != DoorStatus.Open)
+                    {
+                        result = false; break;
+                    }
+                }
+                return result;
+            }
+            public bool IsClosed(string tag)
+            {
+                bool result = true;
+
+                foreach (IMyDoor obj in base.list_obj.Where(d => ((IMyTerminalBlock)d).CustomName.Contains("[" + tag + "]")))
+                {
+                    if (obj.Status != DoorStatus.Closed)
+                    {
+                        result = false; break;
+                    }
+                }
+                return result;
+            }
+            public void Open(string tag)
+            {
+                foreach (IMyDoor obj in base.list_obj.Where(d => ((IMyTerminalBlock)d).CustomName.Contains("[" + tag + "]")))
+                {
+                    obj.OpenDoor();
+                }
+            }
+            public void Close(string tag)
+            {
+                foreach (IMyDoor obj in base.list_obj.Where(d => ((IMyTerminalBlock)d).CustomName.Contains("[" + tag + "]")))
+                {
+                    obj.CloseDoor();
+                }
+            }
+        }
         public class BaseTerminalBlock<T> where T : class
         {
             public T obj;
@@ -488,6 +552,10 @@ namespace NASTYA_LOGIC_DOORS
             transition_door = new Transitions(NameObj, tag_door_transition);
             room_light = new Lightings(NameObj, tag_lighting_room); // Освещение
             room_light.Off();
+            ref_light = new ReflectorLight(NameObj, null);
+            ref_light.Off();
+            slide_door = new AirtightSlideDoor(NameObj, null);
+            slide_door.Off();
         }
         public void Save()
         {
@@ -500,8 +568,46 @@ namespace NASTYA_LOGIC_DOORS
 
             switch (argument)
             {
-                //case "connected_on":
-                //    break;
+                case "open_hl1":
+                    {
+                        slide_door.Open(door_slide.hangar_left_1.ToString());
+                        break;
+                    }
+                case "close_hl1":
+                    {
+                        slide_door.Close(door_slide.hangar_left_1.ToString());
+                        break;
+                    }
+                case "open_hl2":
+                    {
+                        slide_door.Open(door_slide.hangar_left_2.ToString());
+                        break;
+                    }
+                case "close_hl2":
+                    {
+                        slide_door.Close(door_slide.hangar_left_2.ToString());
+                        break;
+                    }
+                case "open_hr1":
+                    {
+                        slide_door.Open(door_slide.hangar_right_1.ToString());
+                        break;
+                    }
+                case "close_hr1":
+                    {
+                        slide_door.Close(door_slide.hangar_right_1.ToString());
+                        break;
+                    }
+                case "open_hr2":
+                    {
+                        slide_door.Open(door_slide.hangar_right_2.ToString());
+                        break;
+                    }
+                case "close_hr2":
+                    {
+                        slide_door.Close(door_slide.hangar_right_2.ToString());
+                        break;
+                    }
                 default:
                     break;
             }
@@ -522,6 +628,15 @@ namespace NASTYA_LOGIC_DOORS
                 count_room[(int)room.out_space] = 0;
                 // Логика отработки включения и выключения освещения
                 room_light.Logic(argument, updateSource);
+                // логика подсветки ангара прожекторами
+                if (count_room[(int)room.hangar] > 0)
+                {
+                    ref_light.OnOfTag(tag_ref_room_hangar);
+                }
+                else
+                {
+                    ref_light.OffOfTag(tag_ref_room_hangar);
+                }
                 //test_lcd.WriteText("" + "\n", false);
                 //test_lcd.WriteText("hangar:" + count_room[(int)room.hangar] + "\n", true);
                 //test_lcd.WriteText("factory:" + count_room[(int)room.factory] + "\n", true);
@@ -663,6 +778,7 @@ namespace NASTYA_LOGIC_DOORS
                     }
 
                 }
+                _scr.Echo("Найдено Transitions:[" + tag + "]: " + list_tr.Count());
             }
 
             public void Logic(string argument, UpdateType updateSource)
@@ -830,8 +946,8 @@ namespace NASTYA_LOGIC_DOORS
                             list_gtw.Add(new Gateway(gw, door1, sensor1, room1, door2, sensor2, room2));
                         }
                     }
-
                 }
+                _scr.Echo("Найдено Gateways:[" + tag + "]: " + list_gtw.Count());
             }
             public void Logic(string argument, UpdateType updateSource)
             {
@@ -857,11 +973,16 @@ namespace NASTYA_LOGIC_DOORS
         public class InfoTablo : BaseListTerminalBlock<IMyTextPanel>
         {
             string tag;
-            List<IMyTextPanel> list = new List<IMyTextPanel>();
+            //List<IMyTextPanel> list = new List<IMyTextPanel>();
             public InfoTablo(string name_obj, string tag) : base(name_obj)
             {
                 this.tag = tag;
-                list = list_obj.Where(x => x.CustomName.Contains(this.tag)).ToList();
+                if (!String.IsNullOrWhiteSpace(tag))
+                {
+                    base.list_obj = list_obj.Where(x => x.CustomName.Contains(this.tag)).ToList();
+                }
+                _scr.Echo("Найдено TextPanel:[" + tag + "]: " + base.list_obj.Count());
+                //list = list_obj.Where(x => x.CustomName.Contains(this.tag)).ToList();
             }
             public void InitPanel()
             {
@@ -873,7 +994,7 @@ namespace NASTYA_LOGIC_DOORS
             }
             public void SetText(room rm, Color color)
             {
-                List<IMyTextPanel> objs = list.Where(x => x.CustomName.Contains("[" + rm.ToString() + "]")).ToList();
+                List<IMyTextPanel> objs = base.list_obj.Where(x => x.CustomName.Contains("[" + rm.ToString() + "]")).ToList();
                 foreach (IMyTextPanel obj in objs)
                 {
                     obj.SetValue("Content", (Int64)1);
@@ -978,13 +1099,14 @@ namespace NASTYA_LOGIC_DOORS
         // освещение помещения
         public class Lightings : BaseListTerminalBlock<IMyInteriorLight>
         {
-            //private List<IMyInteriorLight> lightings = new List<IMyInteriorLight>();
             public Lightings(string name_obj, string tag) : base(name_obj)
             {
-                list_obj = list_obj.Where(n => n.CustomName.Contains(tag)).ToList();
+                if (!String.IsNullOrWhiteSpace(tag))
+                {
+                    list_obj = list_obj.Where(n => n.CustomName.Contains(tag)).ToList();
+                }
                 _scr.Echo("Найдено Lighting:[" + tag + "]: " + list_obj.Count());
             }
-
             public void Logic(string argument, UpdateType updateSource)
             {
                 switch (argument)
@@ -1012,5 +1134,31 @@ namespace NASTYA_LOGIC_DOORS
 
             }
         }
+        // прожекторы
+        public class ReflectorLight : BaseListTerminalBlock<IMyReflectorLight>
+        {
+            public ReflectorLight(string name_obj, string tag) : base(name_obj)
+            {
+                if (!String.IsNullOrWhiteSpace(tag))
+                {
+                    list_obj = list_obj.Where(n => n.CustomName.Contains(tag)).ToList();
+                }
+                _scr.Echo("Найдено ReflectorLight:[" + tag + "]: " + list_obj.Count());
+            }
+        }
+        // гермитичная раздвижная дверь
+        public class AirtightSlideDoor : BaseDoor<IMyAirtightSlideDoor>
+        {
+            public AirtightSlideDoor(string name_obj, string tag) : base(name_obj)
+            {
+                if (!String.IsNullOrWhiteSpace(tag))
+                {
+                    list_obj = list_obj.Where(n => n.CustomName.Contains(tag)).ToList();
+                }
+                _scr.Echo("Найдено AirtightSlideDoor:[" + tag + "]: " + list_obj.Count());
+            }
+
+        }
+
     }
 }
