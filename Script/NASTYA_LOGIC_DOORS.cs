@@ -555,7 +555,10 @@ namespace NASTYA_LOGIC_DOORS
             ref_light = new ReflectorLight(NameObj, null);
             ref_light.Off();
             slide_door = new AirtightSlideDoor(NameObj, null);
-            slide_door.Off();
+            slide_door.Close(door_slide.hangar_left_1.ToString());
+            slide_door.Close(door_slide.hangar_left_2.ToString());
+            slide_door.Close(door_slide.hangar_right_1.ToString());
+            slide_door.Close(door_slide.hangar_right_2.ToString());
         }
         public void Save()
         {
@@ -745,7 +748,7 @@ namespace NASTYA_LOGIC_DOORS
                 IMySensorBlock sensor2;
                 room room1;
                 room room2;
-                test_lcd.WriteText("Поиск дверей:" + "\n", false);
+                //test_lcd.WriteText("Поиск дверей:" + "\n", false);
                 foreach (door_transition gw in Enum.GetValues(typeof(door_transition)))
                 {
                     door1 = null;
@@ -770,9 +773,9 @@ namespace NASTYA_LOGIC_DOORS
                         }
                         if (door1 != null && sensor1 != null && sensor2 != null)
                         {
-                            test_lcd.WriteText("door1:" + door1.CustomName + "\n", true);
-                            test_lcd.WriteText("sensor1:" + sensor1.CustomName + "\n", true);
-                            test_lcd.WriteText("sensor2:" + sensor2.CustomName + "\n", true);
+                            //test_lcd.WriteText("door1:" + door1.CustomName + "\n", true);
+                            //test_lcd.WriteText("sensor1:" + sensor1.CustomName + "\n", true);
+                            //test_lcd.WriteText("sensor2:" + sensor2.CustomName + "\n", true);
                             list_tr.Add(new Transition(gw, door1, sensor1, room1, sensor2, room2));
                         }
                     }
@@ -1147,7 +1150,7 @@ namespace NASTYA_LOGIC_DOORS
             }
         }
         // гермитичная раздвижная дверь
-        public class AirtightSlideDoor : BaseDoor<IMyAirtightSlideDoor>
+        public class AirtightSlideDoor : BaseDoor<IMyDoor>
         {
             public AirtightSlideDoor(string name_obj, string tag) : base(name_obj)
             {
@@ -1156,6 +1159,12 @@ namespace NASTYA_LOGIC_DOORS
                     list_obj = list_obj.Where(n => n.CustomName.Contains(tag)).ToList();
                 }
                 _scr.Echo("Найдено AirtightSlideDoor:[" + tag + "]: " + list_obj.Count());
+                test_lcd.WriteText("Поиск дверей:" + "\n", false);
+                foreach (var item in list_obj)
+                {
+                    test_lcd.WriteText("дверь:" + item.CustomName + "\n", true);
+
+                }
             }
 
         }

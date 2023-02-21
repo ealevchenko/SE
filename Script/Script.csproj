@@ -90,7 +90,8 @@
     <Compile Include="KLEPA3.cs" />
     <Compile Include="KROTIK1.cs" />
     <Compile Include="MUL1.cs" />
-    <Compile Include="NASTYA.cs" />
+    <Compile Include="NASTYA_LOGIC_DOORS.cs" />
+    <Compile Include="NASTYA_PROJECTOR.cs" />
     <Compile Include="Pahking.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SANA1-Управление.cs" />
