@@ -19,8 +19,13 @@ namespace NASTYA_PROJECTOR
 
         //string NameObj = "NASTYA1";
         string NameProjector = "NASTYA1-Проектор МС";
+        string NamePiston = "NASTYA1-Поршень проектор МС";
 
+        static float max_speed_pis = 0.5f;
+        static float min_speed_pis = 0.05f;
+        static float step_pis = 0.5f;
         Projector prg_ms;
+        Piston pis_prg;
 
         static Program _scr;
         public class PText
@@ -433,6 +438,7 @@ namespace NASTYA_PROJECTOR
             Echo("test_lcd: " + ((test_lcd != null) ? ("Ок") : ("not found")));
 
             prg_ms = new Projector(NameProjector);
+            pis_prg = new Piston(NamePiston);
         }
         public void Save()
         {
@@ -469,7 +475,6 @@ namespace NASTYA_PROJECTOR
             }
         }
         // Переходная дверь
-
         public class Projector : BaseTerminalBlock<IMyProjector>
         {
             public Projector(string name) : base(name)
@@ -523,29 +528,41 @@ namespace NASTYA_PROJECTOR
             {
                 switch (argument)
                 {
-                    case "addX":
-                        add_X(1);
-                        break;
                     case "incX":
-                        inc_X(1);
+                        base.obj.ApplyAction("IncreaseX");
                         break;
-                    case "addY":
-                        add_Y(1);
+                    case "decX":
+                        base.obj.ApplyAction("DecreaseX");
                         break;
                     case "incY":
-                        inc_Y(1);
+                        base.obj.ApplyAction("IncreaseY");
                         break;
-                    case "addZ":
-                        add_Z(1);
+                    case "decY":
+                        base.obj.ApplyAction("DecreaseY");
                         break;
                     case "incZ":
-                        inc_Z(1);
+                        base.obj.ApplyAction("IncreaseZ");
+                        break;
+                    case "decZ":
+                        base.obj.ApplyAction("DecreaseZ");
                         break;
                     case "rot_incX":
                         base.obj.ApplyAction("IncreaseRotX");
                         break;
                     case "rot_decX":
                         base.obj.ApplyAction("DecreaseRotX");
+                        break;
+                    case "rot_incY":
+                        base.obj.ApplyAction("IncreaseRotY");
+                        break;
+                    case "rot_decY":
+                        base.obj.ApplyAction("DecreaseRotY");
+                        break;
+                    case "rot_incZ":
+                        base.obj.ApplyAction("IncreaseRotZ");
+                        break;
+                    case "rot_decZ":
+                        base.obj.ApplyAction("DecreaseRotZ");
                         break;
                     default:
                         break;
@@ -555,6 +572,120 @@ namespace NASTYA_PROJECTOR
                 {
 
                 }
+
+            }
+        }
+        public class Piston : BaseTerminalBlock<IMyPistonBase>
+        {
+            bool move = false;
+            float new_pos = 0;
+            public Piston(string name) : base(name)
+            {
+
+            }
+            public void Stop()
+            {
+                base.obj.Velocity = 0;
+                move = false;
+            }
+            public void Parking()
+            {
+                base.obj.Velocity = max_speed_pis;
+                base.obj.Retract();
+            }
+            public void StartPosition()
+            {
+                base.obj.Velocity = max_speed_pis;
+                base.obj.Extend();
+            }
+            public void Up()
+            {
+                base.obj.Velocity = min_speed_pis;
+                base.obj.Retract();
+            }
+            public void Down()
+            {
+                base.obj.Velocity = min_speed_pis;
+                base.obj.Extend();
+            }
+            public void Step_Up()
+            {
+                new_pos = base.obj.CurrentPosition - step_pis;
+                if (new_pos < 0) { new_pos = 0; }
+                move = true;
+            }
+            public void Step_Down()
+            {
+                new_pos = base.obj.CurrentPosition + step_pis;
+                if (new_pos > 10) { new_pos = 10; }
+                move = true;
+            }
+            public void Move()
+            {
+                if (!move) return;
+                float cur_pos = base.obj.CurrentPosition;
+                if (cur_pos == new_pos)
+                {
+                    move = false;
+                    new_pos = 0;
+                }
+                else if (cur_pos < new_pos)
+                {
+                    Down();
+                }
+                else
+                {
+                    Up();
+                }
+            }
+            public void Move(int pos)
+            {
+                new_pos = pos;
+                if (new_pos < 0) { new_pos = 0; }
+                if (new_pos > 10) { new_pos = 10; }
+                move = true;
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    case "prg_stop":
+                        Stop();
+                        break;
+                    case "prg_parking":
+                        Parking();
+                        break;
+                    case "prg_start":
+                        StartPosition();
+                        break;
+                    case "prg_up":
+                        Up();
+                        break;
+                    case "prg_down":
+                        Down();
+                        break;
+                    case "prg_step_up":
+                        Step_Up();
+                        break;
+                    case "prg_step_down":
+                        Step_Down();
+                        break;
+                    default:
+                        break;
+                }
+
+                if (updateSource == UpdateType.Update10)
+                {
+                    Move();
+                }
+
+            }
+        }
+
+        public class ShipWelder : BaseListTerminalBlock<IMyShipWelder>
+        {
+            public ShipWelder(string name_obj) : base(name_obj)
+            {
 
             }
         }
