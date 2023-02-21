@@ -450,6 +450,7 @@ namespace NASTYA_PROJECTOR
             //test_lcd.WriteText("clock="+ clock.ToString() +"updateSource-" + updateSource + "\n", false);
             //
             prg_ms.Logic(argument, updateSource);
+            pis_prg.Logic(argument, updateSource);
 
             switch (argument)
             {
@@ -590,21 +591,25 @@ namespace NASTYA_PROJECTOR
             }
             public void Parking()
             {
+                move = false;
                 base.obj.Velocity = max_speed_pis;
                 base.obj.Retract();
             }
             public void StartPosition()
             {
+                move = false;
                 base.obj.Velocity = max_speed_pis;
                 base.obj.Extend();
             }
             public void Up()
             {
+                move = false;
                 base.obj.Velocity = min_speed_pis;
                 base.obj.Retract();
             }
             public void Down()
             {
+                move = false;
                 base.obj.Velocity = min_speed_pis;
                 base.obj.Extend();
             }
@@ -640,6 +645,7 @@ namespace NASTYA_PROJECTOR
             }
             public void Move(int pos)
             {
+                if (!move) return;
                 new_pos = pos;
                 if (new_pos < 0) { new_pos = 0; }
                 if (new_pos > 10) { new_pos = 10; }
@@ -681,7 +687,6 @@ namespace NASTYA_PROJECTOR
 
             }
         }
-
         public class ShipWelder : BaseListTerminalBlock<IMyShipWelder>
         {
             public ShipWelder(string name_obj) : base(name_obj)
