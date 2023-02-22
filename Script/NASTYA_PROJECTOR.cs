@@ -17,15 +17,24 @@ namespace NASTYA_PROJECTOR
     {
         static IMyTextPanel test_lcd;//, test_lcd1;
 
-        //string NameObj = "NASTYA1";
+        string NameObj = "NASTYA1";
         string NameProjector = "NASTYA1-Проектор МС";
         string NamePiston = "NASTYA1-Поршень проектор МС";
+        string NameSnProtect = "NASTYA1-Сенсор защиты сварщика МС";
+        string NameWelderShipController = "NASTYA1-Контроллер управления сварщика МС";
+
 
         static float max_speed_pis = 0.5f;
         static float min_speed_pis = 0.05f;
         static float step_pis = 0.5f;
+
+        float[] sn_protection_option = { 6.25f, 6.25f, 8.75f, 8.75f, 0, 10f };
+
         Projector prg_ms;
         Piston pis_prg;
+        ShipWelder ship_prg;
+        Sensor sn_protection;
+        WelderShipController ws_controller;
 
         static Program _scr;
         public class PText
@@ -439,6 +448,10 @@ namespace NASTYA_PROJECTOR
 
             prg_ms = new Projector(NameProjector);
             pis_prg = new Piston(NamePiston);
+            ship_prg = new ShipWelder(NameObj);
+            ship_prg.Off();
+            sn_protection = new Sensor(NameSnProtect, sn_protection_option);
+            ws_controller = new WelderShipController(NameWelderShipController);
         }
         public void Save()
         {
@@ -448,32 +461,44 @@ namespace NASTYA_PROJECTOR
         {
             //test_lcd.WriteText("old:" + old_parking.ToString() + " connector:"+connector.IsParkingEnabled.ToString() + "\n" , true);  
             //test_lcd.WriteText("clock="+ clock.ToString() +"updateSource-" + updateSource + "\n", false);
-            //
-            prg_ms.Logic(argument, updateSource);
-            pis_prg.Logic(argument, updateSource);
-
-            switch (argument)
+            // Проверим датчик защиты
+            if (sn_protection.IsActive)
             {
-                //case "open_hl1":
-                //    {
-                //        //slide_door.Open(door_slide.hangar_left_1.ToString());
-                //        break;
-                //    }
-                default:
-                    break;
+                pis_prg.Off();
+                ship_prg.Off();
             }
-            if (updateSource == UpdateType.Update10)
+            else
             {
-                StringBuilder values = new StringBuilder();
+                pis_prg.On();
+                ship_prg.On();
+                prg_ms.Logic(argument, updateSource);
+                pis_prg.Logic(argument, updateSource);
+                ship_prg.Logic(argument, updateSource);
+                switch (argument)
+                {
+                    //case "open_hl1":
+                    //    {
+                    //        //slide_door.Open(door_slide.hangar_left_1.ToString());
+                    //        break;
+                    //    }
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+                    StringBuilder values = new StringBuilder();
 
 
-                // Получим данные
-                //test_lcd.WriteText("" + "\n", false);
-                //test_lcd.WriteText("" + "\n", false);
-                //test_lcd.WriteText("hangar:" + count_room[(int)room.hangar] + "\n", true);
-                //test_lcd.WriteText("factory:" + count_room[(int)room.factory] + "\n", true);
-                //test_lcd.WriteText("technical_1:" + count_room[(int)room.technical_1] + "\n", true);
+                    // Получим данные
+                    //test_lcd.WriteText("" + "\n", false);
+                    //test_lcd.WriteText("" + "\n", false);
+                    //test_lcd.WriteText("hangar:" + count_room[(int)room.hangar] + "\n", true);
+                    //test_lcd.WriteText("factory:" + count_room[(int)room.factory] + "\n", true);
+                    //test_lcd.WriteText("technical_1:" + count_room[(int)room.technical_1] + "\n", true);
+                }
             }
+
+
         }
         // Переходная дверь
         public class Projector : BaseTerminalBlock<IMyProjector>
@@ -691,6 +716,88 @@ namespace NASTYA_PROJECTOR
         {
             public ShipWelder(string name_obj) : base(name_obj)
             {
+
+            }
+
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    case "ship_on":
+                        base.On();
+                        break;
+                    case "ship_off":
+                        base.Off();
+                        break;
+                    default:
+                        break;
+                }
+
+                if (updateSource == UpdateType.Update10)
+                {
+
+                }
+
+            }
+        }
+        public class Sensor : BaseTerminalBlock<IMySensorBlock>
+        {
+
+            public bool IsActive { get { return obj.IsActive; } }
+            public Sensor(string name) : base(name)
+            {
+
+            }
+            public Sensor(string name, float lf, float rg, float bt, float tp, float bc, float fr) : base(name)
+            {
+                SetExtend(lf, rg, bt, tp, bc, fr);
+                SetDetect(true, false, false, false, false, false, false, true, false, false, false);
+            }
+            public Sensor(string name, float[] sn_option) : base(name)
+            {
+                if (sn_option != null && sn_option.Count() >= 6)
+                {
+                    SetExtend(sn_option[0], sn_option[1], sn_option[2], sn_option[3], sn_option[4], sn_option[5]);
+                }
+                else
+                {
+                    SetExtend(0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f);
+                    _scr.Echo("sensor[" + name + "].sn_option: null");
+                }
+                SetDetect(true, false, false, false, false, false, false, true, false, false, false);
+            }
+            public void SetExtend(float lf, float rg, float bt, float tp, float bc, float fr)
+            {
+                obj.LeftExtend = lf;//Left - Охват слева
+                obj.RightExtend = rg;//Right - Охват справа
+                obj.BottomExtend = bt;//Bottom - Охват снизу
+                obj.TopExtend = tp;//Top - Охват сверху
+                obj.BackExtend = bc;//Back - Охват сзади
+                obj.FrontExtend = fr;//Front - Охват спереди
+            }
+            public void SetDetect(bool Players, bool FloatingObjects, bool SmallShips, bool LargeShips, bool Stations, bool Subgrids,
+                bool Asteroids, bool Owner, bool Friendly, bool Neutral, bool Enemy)
+            {
+                obj.DetectPlayers = Players;            // Играки
+                obj.DetectFloatingObjects = FloatingObjects;   // Обнаруживать плавающие объекты
+                obj.DetectSmallShips = SmallShips;        // Малые корабли
+                obj.DetectLargeShips = LargeShips;        // Большие корабли
+                obj.DetectStations = Stations;          // Большие станции
+                obj.DetectSubgrids = Subgrids;          // Подсетки
+                obj.DetectAsteroids = Asteroids;         // Астероиды планеты
+                obj.DetectOwner = Owner;              // Владельцы блоков
+                obj.DetectFriendly = Friendly;          // Дружественные игроки
+                obj.DetectNeutral = Neutral;           // Нитральные игроки
+                obj.DetectEnemy = Enemy;             // Враги
+            }
+        }
+        public class WelderShipController : BaseTerminalBlock<IMyShipController> {
+            public WelderShipController(string name) : base(name)
+            {
+                obj.ControlThrusters = false;
+                obj.ControlWheels = false;
+                obj.HandBrake = false;
+                obj.ShowHorizonIndicator=false;
 
             }
         }
