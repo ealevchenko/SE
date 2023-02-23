@@ -547,6 +547,7 @@ namespace NASTYA_LOGIC_DOORS
             //Echo("test_lcd: " + ((test_lcd != null) ? ("Ок") : ("not found")));
             //door_gataway_hangar_factory = new DoorGateway(dg_option_hangar_factory);
             air_vent = new AirVent(NameObj);
+            air_vent.On();
             air_info = new AirInfo(NameObj, tag_info_tablo);
             gateways_doors = new Gateways(NameObj, tag_door_gateway);
             transition_door = new Transitions(NameObj, tag_door_transition);
@@ -666,6 +667,7 @@ namespace NASTYA_LOGIC_DOORS
                 string sn1_cd = sn1.CustomData; // 1.0f, 1.0f, 2.5f, 1.0f, 0.1f, 2.5f
                 this.sn2 = sn2;
                 this.door1 = door1;
+                this.door1.ApplyAction("OnOff_On");
                 this.door1.CloseDoor();
             }
             public void Logic()
@@ -828,6 +830,8 @@ namespace NASTYA_LOGIC_DOORS
                 this.sn2 = sn2;
                 this.door1 = door1;
                 this.door2 = door2;
+                this.door1.ApplyAction("OnOff_On");
+                this.door2.ApplyAction("OnOff_On");
                 this.door1.CloseDoor();
                 this.door2.CloseDoor();
             }

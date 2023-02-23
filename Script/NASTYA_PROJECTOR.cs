@@ -21,20 +21,25 @@ namespace NASTYA_PROJECTOR
         string NameProjector = "NASTYA1-Проектор МС";
         string NamePiston = "NASTYA1-Поршень проектор МС";
         string NameSnProtect = "NASTYA1-Сенсор защиты сварщика МС";
-        string NameWelderShipController = "NASTYA1-Контроллер управления сварщика МС";
+        string NameWelderShipController = "NASTYA1-Кресло пилота сварщик МС";
+        string NameLightWelder = "NASTYA1-лампа предупреждения сварщик";
 
 
         static float max_speed_pis = 0.5f;
         static float min_speed_pis = 0.05f;
         static float step_pis = 0.5f;
 
-        float[] sn_protection_option = { 6.25f, 6.25f, 8.75f, 8.75f, 0, 10f };
+        float[] sn_protection_option = { 6.25f, 6.25f, 8.75f, 8.75f, 0, 20f };
 
         Projector prg_ms;
         Piston pis_prg;
         ShipWelder ship_prg;
         Sensor sn_protection;
         WelderShipController ws_controller;
+        Lighting lighting_welder;
+
+
+        static bool ship_on_off = false;        // признак работы сварщика
 
         static Program _scr;
         public class PText
@@ -452,6 +457,8 @@ namespace NASTYA_PROJECTOR
             ship_prg.Off();
             sn_protection = new Sensor(NameSnProtect, sn_protection_option);
             ws_controller = new WelderShipController(NameWelderShipController);
+            lighting_welder = new Lighting(NameLightWelder);
+            lighting_welder.Off();
         }
         public void Save()
         {
@@ -464,13 +471,19 @@ namespace NASTYA_PROJECTOR
             // Проверим датчик защиты
             if (sn_protection.IsActive)
             {
-                pis_prg.Off();
-                ship_prg.Off();
+                if (ship_on_off)
+                {
+                    pis_prg.Off();
+                    ship_prg.Off();
+                }
             }
             else
             {
-                pis_prg.On();
-                ship_prg.On();
+                if (ship_on_off)
+                {
+                    pis_prg.On();
+                    ship_prg.On();
+                }
                 prg_ms.Logic(argument, updateSource);
                 pis_prg.Logic(argument, updateSource);
                 ship_prg.Logic(argument, updateSource);
@@ -486,19 +499,17 @@ namespace NASTYA_PROJECTOR
                 }
                 if (updateSource == UpdateType.Update10)
                 {
-                    StringBuilder values = new StringBuilder();
 
-
-                    // Получим данные
-                    //test_lcd.WriteText("" + "\n", false);
-                    //test_lcd.WriteText("" + "\n", false);
-                    //test_lcd.WriteText("hangar:" + count_room[(int)room.hangar] + "\n", true);
-                    //test_lcd.WriteText("factory:" + count_room[(int)room.factory] + "\n", true);
-                    //test_lcd.WriteText("technical_1:" + count_room[(int)room.technical_1] + "\n", true);
                 }
             }
-
-
+            if (ship_on_off)
+            {
+                lighting_welder.On();
+            }
+            else
+            {
+                lighting_welder.Off();
+            }
         }
         // Переходная дверь
         public class Projector : BaseTerminalBlock<IMyProjector>
@@ -725,9 +736,11 @@ namespace NASTYA_PROJECTOR
                 {
                     case "ship_on":
                         base.On();
+                        ship_on_off = true;
                         break;
                     case "ship_off":
                         base.Off();
+                        ship_on_off = false;
                         break;
                     default:
                         break;
@@ -791,13 +804,21 @@ namespace NASTYA_PROJECTOR
                 obj.DetectEnemy = Enemy;             // Враги
             }
         }
-        public class WelderShipController : BaseTerminalBlock<IMyShipController> {
+        public class WelderShipController : BaseTerminalBlock<IMyShipController>
+        {
             public WelderShipController(string name) : base(name)
             {
                 obj.ControlThrusters = false;
                 obj.ControlWheels = false;
                 obj.HandBrake = false;
-                obj.ShowHorizonIndicator=false;
+                obj.ShowHorizonIndicator = false;
+
+            }
+        }
+        public class Lighting : BaseTerminalBlock<IMyLightingBlock>
+        {
+            public Lighting(string name) : base(name)
+            {
 
             }
         }
