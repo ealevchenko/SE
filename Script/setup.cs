@@ -6,6 +6,7 @@ using SpaceEngineers.Game.ModAPI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
@@ -16,6 +17,8 @@ namespace SETUP
     {
         static IMyTextPanel test_lcd, info_lcd;
         static Program _scr;
+
+        ShipWelder sw;
 
         static void DisplayBlockInfo(ref StringBuilder values, IMyTerminalBlock unit)
         {
@@ -540,13 +543,15 @@ namespace SETUP
         }
         public Program()
         {
-            Runtime.UpdateFrequency = UpdateFrequency.Update10;
+            //Runtime.UpdateFrequency = UpdateFrequency.Update10;
             _scr = this;
             // тест LCD
             test_lcd = GridTerminalSystem.GetBlockWithName("test_lcd") as IMyTextPanel;
             Echo("test_lcd: " + ((test_lcd != null) ? ("Ок") : ("not found")));
             info_lcd = GridTerminalSystem.GetBlockWithName("info_lcd") as IMyTextPanel;
             Echo("info_lcd1: " + ((test_lcd != null) ? ("Ок") : ("not found")));
+            sw = new ShipWelder();
+            info_lcd.WriteText("", false);
         }
 
         //info:NASTYA1-info [door-info] [factory]
@@ -559,9 +564,11 @@ namespace SETUP
             if (!String.IsNullOrWhiteSpace(argument))
             {
                 string[] args = argument.Split(':');
+                values_info.Append(argument + "\n");
+                values_info.Append(args[0] + "\n");
                 if (args.Count() > 1 && !String.IsNullOrWhiteSpace(args[1]))
                 {
-                    switch (argument)
+                    switch (args[0])
                     {
                         case "info":
                             {
@@ -620,20 +627,69 @@ namespace SETUP
                                 }
                                 break;
                             }
+                        case "welder":
+                            {
+                                values_info.Append("Зашел!" + "\n");
+                                sw.Rename("БАЗА-МЗ1-СБС-", "БАЗА-МЗ1-");
+                                break;
+                            }
                         default:
                             break;
                     }
                 }
+
             }
-            info_lcd.WriteText(values_info, false);
-            if (updateSource == UpdateType.Update10)
+
+            info_lcd.WriteText(values_info, true);
+            //if (updateSource == UpdateType.Update10)
+            //{
+            //    // Получим данные
+            //    //test_lcd.WriteText("" + "\n", false);
+            //    // Логика отображения подписей двирей с учетом кислорода в помещении
+            //}
+
+
+        }
+
+        public class ShipWelder
+        {
+            public List<IMyShipWelder> list_obj = new List<IMyShipWelder>();
+
+            public ShipWelder()
             {
-                // Получим данные
-                //test_lcd.WriteText("" + "\n", false);
-                // Логика отображения подписей двирей с учетом кислорода в помещении
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyShipWelder>(list_obj);
+                _scr.Echo("IMyShipWelder:[" + list_obj + "]" + ((list_obj != null && list_obj.Count() > 0) ? ("Ок") : ("not found")));
+
             }
 
+            public void Rename(string name_obj, string name_ignore)
+            {
+                StringBuilder values_info = new StringBuilder();
+                values_info.Append("НАЧАЛО!\n");
+                info_lcd.WriteText(values_info, false);
+                foreach (IMyShipWelder sw in list_obj)
+                {
+                    values_info.Append("Найден:" + sw.CustomName);
+                    if (!sw.CustomName.Contains(name_ignore))
+                    {
+                        if (!sw.CustomName.Contains(name_obj))
+                        {
+                            sw.CustomName = name_obj + sw.CustomName;
+                            values_info.Append("-Переименнован" + sw.CustomName + "\n");
+                        }
+                        else
+                        {
+                            values_info.Append("-Пропущен (УЖЕ)\n");
+                        }
+                    }
+                    else
+                    {
+                        values_info.Append("-Пропущен (ИГНОР)\n");
+                    }
+                    info_lcd.WriteText(values_info, true);
 
+                }
+            }
         }
     }
 }
