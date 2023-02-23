@@ -97,6 +97,7 @@
     <Compile Include="SANA1-Управление.cs" />
     <Compile Include="setup.cs" />
     <Compile Include="БАЗА-МЗ1.cs" />
+    <Compile Include="БАЗА_МЗ1_PROJECTOR_LM.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
