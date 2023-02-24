@@ -11,7 +11,6 @@ using System.Text;
 using System.Threading.Tasks;
 using VRage.Game.Components;
 using VRageMath;
-using static SANA1_UPR.Program.Thrust;
 
 namespace SANA1_UPR
 {
