@@ -650,7 +650,6 @@ namespace SETUP
 
 
         }
-
         public class ShipWelder
         {
             public List<IMyShipWelder> list_obj = new List<IMyShipWelder>();
