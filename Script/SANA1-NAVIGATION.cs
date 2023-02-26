@@ -18,7 +18,7 @@ namespace SANA1_NAVIGATION
     {
         // Название 
         string NameObj = "SANA1";
-        string NameCockpit = "SANA1-Кресло пилота";
+        string NameCockpit = "SANA1-Кресло пилота [LCD]";
         string NameCamera = "SANA1-камера forward";
         string NameRemoteControl = "SANA1-ДУ forward";
         string NameLCD = "SANA1-LCD навигация";
@@ -272,7 +272,7 @@ namespace SANA1_NAVIGATION
                 {
                     gyro.Yaw = (float)axis.Dot(gyro.WorldMatrix.Up);
                     gyro.Pitch = (float)axis.Dot(gyro.WorldMatrix.Right);
-                    gyro.Roll = (float)axis.Dot(gyro.WorldMatrix.Backward);
+                    gyro.Roll = 0;// (float)axis.Dot(gyro.WorldMatrix.Backward);
                 }
             }
             public void GyroOver(bool over)
