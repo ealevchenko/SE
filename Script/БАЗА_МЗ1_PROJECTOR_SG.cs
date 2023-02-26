@@ -18,10 +18,10 @@ namespace БАЗА_МЗ1_PROJECTOR_SG
         static IMyTextPanel test_lcd;//, test_lcd1;
 
         string NameObj = "БАЗА-МЗ1";
-        string NameProjector = "БАЗА-МЗ1-Проектор МС";
-        string NamePiston = "БАЗА-МЗ1-Поршень проектор МС";
+        string NameProjector = "БАЗА-МЗ1-Проектор сварщик МС";
+        string NamePiston = "БАЗА-МЗ1-Поршень сварщик МС";
         string NameSnProtect = "БАЗА-МЗ1-Сенсор защиты сварщика МС";
-        string NameWelderShipController = "БАЗА-МЗ1-Кресло пилота сварщик МС";
+        string NameWelderShipController = "БАЗА-МЗ1-Кресло пилота сварщик МС [LCD]";
         string NameLightWelder = "БАЗА-МЗ1-лампа предупреждения сварщик";
 
 
