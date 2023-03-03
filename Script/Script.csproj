@@ -84,11 +84,12 @@
   <ItemGroup>
     <Compile Include="APOLN1.cs" />
     <Compile Include="BASA.cs" />
+    <Compile Include="Basa_Earth\BASE_EARTH_PROJECTOR_SG.cs" />
     <Compile Include="Class4.cs" />
     <Compile Include="Connection.cs" />
     <Compile Include="gorizontcs.cs" />
     <Compile Include="KLEPA3.cs" />
-    <Compile Include="KROTIK1.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK1.cs" />
     <Compile Include="MUL1.cs" />
     <Compile Include="NASTYA_LOGIC_DOORS.cs" />
     <Compile Include="NASTYA_PROJECTOR.cs" />
@@ -97,12 +98,14 @@
     <Compile Include="SANA1-NAVIGATION.cs" />
     <Compile Include="SANA1-Управление.cs" />
     <Compile Include="setup.cs" />
-    <Compile Include="БАЗА-МЗ1.cs" />
-    <Compile Include="БАЗА_МЗ1_PROJECTOR_LM.cs" />
-    <Compile Include="БАЗА_МЗ1_PROJECTOR_SG.cs" />
+    <Compile Include="БАЗА_МЗ1\БАЗА-МЗ1.cs" />
+    <Compile Include="БАЗА_МЗ1\БАЗА_МЗ1_PROJECTOR_LM.cs" />
+    <Compile Include="БАЗА_МЗ1\БАЗА_МЗ1_PROJECTOR_SG.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_2.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
