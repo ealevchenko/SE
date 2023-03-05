@@ -549,14 +549,14 @@ namespace SETUP
             test_lcd = GridTerminalSystem.GetBlockWithName("test_lcd") as IMyTextPanel;
             Echo("test_lcd: " + ((test_lcd != null) ? ("Ок") : ("not found")));
             info_lcd = GridTerminalSystem.GetBlockWithName("info_lcd") as IMyTextPanel;
-            Echo("info_lcd1: " + ((test_lcd != null) ? ("Ок") : ("not found")));
+            Echo("info_lcd: " + ((info_lcd != null) ? ("Ок") : ("not found")));
             sw = new ShipWelder();
             info_lcd.WriteText("", false);
         }
 
         //info:NASTYA1-info [door-info] [factory]
-        //replace:NASTYA1-|ANASTASIIA-
-        //add:NASTYA1-
+        //replace:[BASE-EA1]|[BASE-EA1]-
+        //add:[BASE-EA1]
         void Main(string argument, UpdateType updateSource)
         {
             StringBuilder values_info = new StringBuilder();
@@ -597,7 +597,7 @@ namespace SETUP
                                     values_info.Append("Команда ЗАМЕНИТЬ, найдено блоков:" + blocks.Count() + "\n");
                                     foreach (IMyTerminalBlock bl in blocks)
                                     {
-                                        if (!bl.CustomName.Contains(names[0]))
+                                        if (bl.CustomName.Contains(names[0]))
                                         {
                                             bl.CustomName = bl.CustomName.Replace(names[0], names[1]);
                                             values_info.Append("Имя блока:" + bl.CustomName + "\n");
