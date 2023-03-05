@@ -31,7 +31,7 @@ namespace BASE_EARTH_PROJECTOR_SG
         static float min_speed_pis = 0.05f;
         static float step_pis = 0.5f;
 
-        float[] sn_protection_option = { 8.75f, 8.75f, 8.75f, 8.75f, 10f, 0f };
+        float[] sn_protection_option = { 10.0f, 10.0f, 10.0f, 10.0f, 10f, 0f };
 
         Projector prg_ms;
         Pistons pis_prg;
