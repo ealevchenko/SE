@@ -128,7 +128,6 @@ namespace KLEPA_A1
                 _scr.GridTerminalSystem.GetBlocksOfType<T>(list_obj, r => ((IMyTerminalBlock)r).CustomName.Contains(name_obj));
                 _scr.Echo("Найдено" + typeof(T).Name + "[" + name_obj + "]: " + list_obj.Count());
             }
-
             public BaseListTerminalBlock(string name_obj, string tag)
             {
                 _scr.GridTerminalSystem.GetBlocksOfType<T>(list_obj, r => ((IMyTerminalBlock)r).CustomName.Contains(name_obj));
@@ -190,6 +189,28 @@ namespace KLEPA_A1
             {
                 OnOfTag(list_obj, tag);
             }
+            public bool Enabled(string tag)
+            {
+                foreach (IMyTerminalBlock obj in list_obj)
+                {
+                    if (obj.CustomName.Contains(tag) && !((IMyFunctionalBlock)obj).Enabled)
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            public bool Enabled()
+            {
+                foreach (IMyTerminalBlock obj in list_obj)
+                {
+                    if (!((IMyFunctionalBlock)obj).Enabled)
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
         }
         public class BaseTerminalBlock<T> where T : class
         {
@@ -204,8 +225,9 @@ namespace KLEPA_A1
                 obj = myobj;
                 _scr.Echo("block:[" + obj.ToString() + "]: " + ((obj != null) ? ("Ок") : ("not Block")));
             }
-            public Vector3D GetPosition() { 
-            return ((IMyEntity)obj).GetPosition();
+            public Vector3D GetPosition()
+            {
+                return ((IMyEntity)obj).GetPosition();
             }
 
             // Команды включения\выключения
@@ -249,16 +271,14 @@ namespace KLEPA_A1
 
             //На рыскание просто отправляем сигнал рыскания с контроллера. Им мы будем управлять вручную.
             float YawInput = 0;
-            if (cockpit.ControlThrusters)
-            {
-                YawInput = cockpit._obj.RotationIndicator.Y;
-            }
-            if (remote_control.ControlThrusters)
+            if (remote_control.IsUnderControl)
             {
                 YawInput = remote_control._obj.RotationIndicator.Y;
             }
-
-
+            else if (cockpit.IsUnderControl)
+            {
+                YawInput = cockpit._obj.RotationIndicator.Y;
+            }
             gyros.SetGyro(YawInput, PitchInput, RollInput);
         }
         public Program()
@@ -291,42 +311,54 @@ namespace KLEPA_A1
             switch (argument)
             {
                 case "connected_on":
-                    connector.Connect();
-                    ConnectedOn();
-                    break;
-                case "connected_off":
-                    connector.Disconnect();
-                    ConnectedOff();
-                    break;
-                case "connected":
-                    if (ship_connect)
-                    {
-                        connector.Disconnect();
-                        ConnectedOff();
-                    }
-                    else
+                    if (connector.Connectable)
                     {
                         connector.Connect();
                         ConnectedOn();
                     }
                     break;
+                case "connected_off":
+                    if (connector.Connected)
+                    {
+                        connector.Disconnect();
+                        ConnectedOff();
+                    }
+                    break;
+                case "connected":
+                    if (ship_connect)
+                    {
+                        if (connector.Connected)
+                        {
+                            connector.Disconnect();
+                            ConnectedOff();
+                        }
+                    }
+                    else
+                    {
+                        if (connector.Connectable)
+                        {
+                            connector.Connect();
+                            ConnectedOn();
+                        }
+                    }
+                    break;
                 case "horizont_on":
-                    gyros.GyroOver(true);
+                    //gyros.GyroOver(true);
                     horizont = true;
                     break;
                 case "horizont_off":
-                    gyros.GyroOver(false);
+                    //gyros.GyroOver(false);
                     horizont = false;
                     break;
                 case "horizont":
                     if (horizont)
                     {
-                        gyros.GyroOver(false);
+                        //gyros.GyroOver(false);
                         horizont = false;
                     }
                     else
                     {
-                        gyros.GyroOver(true);
+                        //gyros.GyroOver(true);
                         horizont = true;
                     }
                     break;
@@ -353,11 +385,19 @@ namespace KLEPA_A1
                     welders.Off();
                 }
                 // Держать горизонт
-                if (!connector.Connected && horizont)
+                if (!connector.Connected)
                 {
-                    KeepHorizon();
+                    gyros.GyroOver(horizont);
+                    if (horizont)
+                    {
+                        KeepHorizon();
+                    }
                 }
-
+                // если нет конекта и двигатели отключены включить
+                if (!connector.Connected && !thrusts.Enabled())
+                {
+                    thrusts.On();
+                }
             }
             values_info.Append(bats.TextInfo());
             values_info.Append(connector.TextInfo());
@@ -678,8 +718,8 @@ namespace KLEPA_A1
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("ДОМ: "+ home_position.ToString() + "\n");
-                values.Append("АВТОПИЛОТ: "+ (base.obj.IsAutoPilotEnabled ? "ВКЛ":"ОТК") + "\n");
+                values.Append("ДОМ: " + home_position.ToString() + "\n");
+                values.Append("АВТОПИЛОТ: " + (base.obj.IsAutoPilotEnabled ? "ВКЛ" : "ОТК") + "\n");
                 return values.ToString();
             }
         }
