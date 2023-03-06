@@ -82,22 +82,21 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="APOLN1.cs" />
-    <Compile Include="BASA.cs" />
+    <Compile Include="КОРАБЛИ\APOLN1.cs" />
+    <Compile Include="Setup_Example\Primary_bur.cs" />
     <Compile Include="Basa_Earth\BASE_EARTH_PROJECTOR_SG.cs" />
-    <Compile Include="Class4.cs" />
-    <Compile Include="Connection.cs" />
-    <Compile Include="gorizontcs.cs" />
-    <Compile Include="KLEPA3.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK1.cs" />
-    <Compile Include="MUL1.cs" />
-    <Compile Include="NASTYA_LOGIC_DOORS.cs" />
-    <Compile Include="NASTYA_PROJECTOR.cs" />
-    <Compile Include="Pahking.cs" />
+    <Compile Include="Setup_Example\Octopus.cs" />
+    <Compile Include="Setup_Example\Connection.cs" />
+    <Compile Include="Setup_Example\gorizontcs.cs" />
+    <Compile Include="СВАРЩИКИ\KLEPA3.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_old1.cs" />
+    <Compile Include="ТЯГАЧИ\MUL1.cs" />
+    <Compile Include="КОРАБЛИ\NASTYA\NASTYA_LOGIC_DOORS.cs" />
+    <Compile Include="КОРАБЛИ\NASTYA\NASTYA_PROJECTOR.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SANA1-NAVIGATION.cs" />
-    <Compile Include="SANA1-Управление.cs" />
-    <Compile Include="setup.cs" />
+    <Compile Include="БУРОВИКИ\SANA\SANA1-NAVIGATION.cs" />
+    <Compile Include="БУРОВИКИ\SANA\SANA1-Управление.cs" />
+    <Compile Include="Setup_Example\setup.cs" />
     <Compile Include="БАЗА_МЗ1\БАЗА-МЗ1.cs" />
     <Compile Include="БАЗА_МЗ1\БАЗА_МЗ1_PROJECTOR_LM.cs" />
     <Compile Include="БАЗА_МЗ1\БАЗА_МЗ1_PROJECTOR_SG.cs" />

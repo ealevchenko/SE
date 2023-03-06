@@ -66,7 +66,7 @@ namespace KROTIK_2
             }
             static public string GetCurrentOfMax(float cur, float max, string units)
             {
-                return "[ " + cur + units + " / " + max + units + " ]";
+                return "[ " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]";
             }
             static public string GetSign(int x, int y)
             {
@@ -464,7 +464,6 @@ namespace KROTIK_2
                 StringBuilder values = new StringBuilder();
                 //БАТАРЕЯ: [10 - 10] [0.0MW / 0.0MW]
                 //|- ЗАР:  [''''''''''''''''''''''''']-0%
-                //| -ДЕЖ: -[''''''''''''''''''''''''']-0%
                 values.Append("БАТАРЕЯ: [" + Count + "] [А-" + CountAuto() + " З-" + CountCharger() + "]" + PText.GetCurrentOfMax(CurrentPower(), MaxPower(), "MW") + "\n");
                 values.Append("|- ЗАР:  " + PText.GetScalePersent(CurrentPower() / MaxPower(), 20) + "\n");
                 return values.ToString();
@@ -615,7 +614,7 @@ namespace KROTIK_2
                     {
                         ts.WriteText(text, append);
                     }
-                }               
+                }
             }
         }
     }
