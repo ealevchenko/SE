@@ -1,0 +1,93 @@
+info:[BASE-EA1]-МК Special ЭБ (100%)
+info
+[BASE-EA1]-МК Special ЭБ (100%)
+MyCargoContainer {149485E14936EE7} [BASE-EA1]-МК Special ЭБ (100%)
+92684836247138023
+TyepID=MyObjectBuilder_CargoContainer
+SubtyepID=LargeBlockSmallContainer
+Mass=648.4
+IsBeingHacked =False
+IsWorking =True
+IsFunctional =True
+DisassembleRatio =1
+DisplayNameText =[BASE-EA1]-МК Special ЭБ (100%)
+
+Actions:
+ShowOnHUD:Отображать на экране Вкл/Выкл(Выкл)
+ShowOnHUD_On:Отображать на экране Вкл(Выкл)
+ShowOnHUD_Off:Отображать на экране Выкл(Выкл)
+
+Properties:
+ShowInTerminal:Boolean (True)
+ShowInInventory:Boolean (True)
+ShowInToolbarConfig:Boolean (True)
+Name:StringBuilder ([BASE-EA1]-МК Special ЭБ (100%))
+ShowOnHUD:Boolean (False)
+
+DetailedInfo:
+
+----------
+
+CustomInfo=
+CustomName=[BASE-EA1]-МК Special ЭБ (100%)
+CustomData=Special Container modes:
+
+Positive number: stores wanted amount, removes excess (e.g.: 100)
+Negative number: doesn't store items, only removes excess (e.g.: -100)
+Keyword 'all': stores all items of that subtype (like a type container)
+
+Component/BulletproofGlass=0
+Component/Computer=0
+Component/Construction=0
+Component/Detector=0
+Component/Display=0
+Component/Girder=0
+Component/InteriorPlate=0
+Component/LargeTube=0
+Component/MetalGrid=0
+Component/Motor=0
+Component/PowerCell=0
+Component/RadioCommunication=0
+Component/SmallTube=0
+Component/SteelPlate=0
+Component/Superconductor=0
+Ore/Cobalt=0
+Ore/Ice=500000
+Ore/Iron=0
+Ore/Magnesium=0
+Ore/Nickel=0
+Ore/Silicon=0
+Ingot/Cobalt=0
+Ingot/Gold=0
+Ingot/Iron=0
+Ingot/Magnesium=0
+Ingot/Nickel=0
+Ingot/Silicon=0
+Ingot/Silver=0
+Ingot/Stone=0
+AmmoMagazine/SemiAutoPistolMagazine=0
+OxygenContainerObject/OxygenBottle=0
+GasContainerObject/HydrogenBottle=0
+PhysicalGunObject/AngleGrinderItem=0
+PhysicalGunObject/SemiAutoPistolItem=0
+PhysicalGunObject/WelderItem=0
+PhysicalObject/SpaceCredit=0
+ConsumableItem/Medkit=0
+ConsumableItem/Powerkit=0
+Datapad/Datapad=0
+CustomNameWithFaction=
+ShowOnHUD=False
+
+HasInventory
+ InventoryCount=1
+
+IMyInventory[0]
+ CurrentMass=422297.297993
+ CurrentVolume=156.25
+ IsFull=True
+ MaxVolume=156.25
+
+Accepted resources:
+ No Resources
+Provided resources:
+ No Resources

@@ -54,6 +54,10 @@ namespace KLEPA_A1
         bool ship_connect = false;
         bool horizont = false;
 
+        static Vector3D home_position = new Vector3D();
+        static Vector3D home_position1 = new Vector3D();
+        static Vector3D home_position2 = new Vector3D();
+
         public class PText
         {
             static public string GetPersent(double perse)
@@ -246,21 +250,6 @@ namespace KLEPA_A1
                 if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_On");
             }
         }
-        //public void ConnectedOn()
-        //{
-        //    reflectors_light.Off();
-        //    welders.Off();
-        //    cockpit.Dampeners(false);
-        //    bats.Charger();
-        //    thrusts.Off();
-
-        //}
-        //public void ConnectedOff()
-        //{
-        //    bats.Auto();
-        //    thrusts.On();
-        //    cockpit.Dampeners(true);
-        //}
         public void KeepHorizon()
         {
             Vector3D GravityVector = cockpit._obj.GetNaturalGravity();
@@ -317,55 +306,19 @@ namespace KLEPA_A1
             remote_control.Logic(argument, updateSource);
             switch (argument)
             {
-                //case "connected_on":
-                //    if (connector.Connectable)
-                //    {
-                //        connector.Connect();
-                //        ConnectedOn();
-                //    }
-                //    break;
-                //case "connected_off":
-                //    if (connector.Connected)
-                //    {
-                //        connector.Disconnect();
-                //        ConnectedOff();
-                //    }
-                //    break;
-                //case "connected":
-                //    if (ship_connect)
-                //    {
-                //        if (connector.Connected)
-                //        {
-                //            connector.Disconnect();
-                //            ConnectedOff();
-                //        }
-                //    }
-                //    else
-                //    {
-                //        if (connector.Connectable)
-                //        {
-                //            connector.Connect();
-                //            ConnectedOn();
-                //        }
-                //    }
-                //    break;
                 case "horizont_on":
-                    //gyros.GyroOver(true);
                     horizont = true;
                     break;
                 case "horizont_off":
-                    //gyros.GyroOver(false);
                     horizont = false;
                     break;
                 case "horizont":
                     if (horizont)
                     {
-                        //gyros.GyroOver(false);
                         horizont = false;
                     }
                     else
                     {
-                        //gyros.GyroOver(true);
                         horizont = true;
                     }
                     break;
@@ -374,47 +327,9 @@ namespace KLEPA_A1
             }
             if (updateSource == UpdateType.Update10)
             {
-                //if (!ship_connect && connector.Connected)
-                //{
-                //    // Включили парковку
-                //    ConnectedOn();
-                //}
-                //if (ship_connect && !connector.Connected)
-                //{
-                //    // Выключли парковку
-                //    ConnectedOff();
-                //}
-                //// Проверка кокпит под контроллем
-                //if (!connector.Connected && !cockpit.IsUnderControl)
-                //{
-                //    cockpit.Dampeners(true);
-                //    reflectors_light.Off();
-                //    welders.Off();
-                //}
-                //// Держать горизонт
-                //if (!connector.Connected && !landing_gears.IsLocked())
-                //{
-                //    gyros.GyroOver(horizont);
-                //    if (horizont)
-                //    {
-                //        KeepHorizon();
-                //    }
-                //}
-                //// если нет конекта и зацепа и двигатели отключены - включить (только для атмосферы)
-                //if (!connector.Connected && !landing_gears.IsLocked() && !thrusts.Enabled())
-                //{
-                //    thrusts.On();
-                //}
-
                 // Проверим корабль не припаркован
                 if (!connector.Connected && !landing_gears.IsLocked())
                 {
-                    //// Если трастеры отключены - включить
-                    //if (!thrusts.Enabled())
-                    //{
-                    //    thrusts.On();
-                    //}
-
                     bats.Auto();
                     thrusts.On();
                     cockpit.Dampeners(true);
@@ -434,8 +349,13 @@ namespace KLEPA_A1
                         reflectors_light.Off();
                         welders.Off();
                     }
+                    if (welders.Enabled())
+                    {
+                        reflectors_light.On();
+                    }
                 }
-                else {
+                else
+                {
                     // Припаркован
                     reflectors_light.Off();
                     welders.Off();
@@ -451,6 +371,13 @@ namespace KLEPA_A1
             values_info.Append("РЕЖИМ:" + (horizont ? "ГОРИЗОНТ" : "") + "\n");
             cockpit.OutText(values_info, 0);
             ship_connect = connector.Connected; // сохраним состояние
+
+            StringBuilder test_info = new StringBuilder();
+            test_info.Append("home1 : " + home_position.ToString() + "\n");
+            test_info.Append("home2 : " + home_position1.ToString() + "\n");
+            test_info.Append("home3 : " + home_position2.ToString() + "\n");
+            lcd_info.OutText(test_info);
+
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
@@ -726,9 +653,8 @@ namespace KLEPA_A1
         }
         public class RemoteControl : BaseTerminalBlock<IMyRemoteControl>
         {
-            Vector3D home_position;
-            Vector3D vector_position;
-
+            //Vector3D home_position;
+            //Vector3D vector_position;
             public IMyShipController _obj { get { return obj; } }
             public bool IsUnderControl { get { return obj.IsUnderControl; } }
             public bool ControlThrusters { get { return obj.ControlThrusters; } }
@@ -745,12 +671,17 @@ namespace KLEPA_A1
                 switch (argument)
                 {
                     case "home_position":
-                        home_position = base.GetPosition();
-                        vector_position = base.obj.WorldMatrix.Forward;
-                        vector_position.Length(); // длина вектора
+
+                        Vector3D vector_Forward = base.obj.WorldMatrix.Forward;
+                        Vector3D vector_Up = base.obj.WorldMatrix.Up;
+                        home_position = base.GetPosition() - (vector_Forward * 2);
+                        home_position1 = (home_position - (vector_Forward * 20));
+                        home_position2 = (home_position1 + (vector_Up * 100));
                         break;
                     case "auto_home":
                         base.obj.ClearWaypoints();
+                        base.obj.AddWaypoint(home_position2, "БАЗА-Up");
+                        base.obj.AddWaypoint(home_position1, "БАЗА-Forward");
                         base.obj.AddWaypoint(home_position, "БАЗА");
                         base.obj.SetAutoPilotEnabled(true);
                         break;
