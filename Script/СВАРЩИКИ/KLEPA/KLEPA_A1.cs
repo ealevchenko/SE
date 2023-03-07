@@ -17,6 +17,11 @@ using static Connection.Program;
 using static KROTIK_2.Program;
 using static VRage.Game.MyObjectBuilder_CurveDefinition;
 
+
+/// <summary>
+/// + Добавить рен на 45 град
+/// 
+/// </summary>
 namespace KLEPA_A1
 {
     /// <summary>
@@ -42,6 +47,7 @@ namespace KLEPA_A1
         Thrusts thrusts;
         Cockpit cockpit;
         RemoteControl remote_control;
+        LandingGears landing_gears;
 
         static Program _scr;
 
@@ -240,21 +246,21 @@ namespace KLEPA_A1
                 if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_On");
             }
         }
-        public void ConnectedOn()
-        {
-            reflectors_light.Off();
-            welders.Off();
-            cockpit.Dampeners(false);
-            bats.Charger();
-            thrusts.Off();
+        //public void ConnectedOn()
+        //{
+        //    reflectors_light.Off();
+        //    welders.Off();
+        //    cockpit.Dampeners(false);
+        //    bats.Charger();
+        //    thrusts.Off();
 
-        }
-        public void ConnectedOff()
-        {
-            bats.Auto();
-            thrusts.On();
-            cockpit.Dampeners(true);
-        }
+        //}
+        //public void ConnectedOff()
+        //{
+        //    bats.Auto();
+        //    thrusts.On();
+        //    cockpit.Dampeners(true);
+        //}
         public void KeepHorizon()
         {
             Vector3D GravityVector = cockpit._obj.GetNaturalGravity();
@@ -297,6 +303,7 @@ namespace KLEPA_A1
             reflectors_light.Off();
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj);
+            landing_gears = new LandingGears(NameObj);
         }
         public void Save()
         {
@@ -310,38 +317,38 @@ namespace KLEPA_A1
             remote_control.Logic(argument, updateSource);
             switch (argument)
             {
-                case "connected_on":
-                    if (connector.Connectable)
-                    {
-                        connector.Connect();
-                        ConnectedOn();
-                    }
-                    break;
-                case "connected_off":
-                    if (connector.Connected)
-                    {
-                        connector.Disconnect();
-                        ConnectedOff();
-                    }
-                    break;
-                case "connected":
-                    if (ship_connect)
-                    {
-                        if (connector.Connected)
-                        {
-                            connector.Disconnect();
-                            ConnectedOff();
-                        }
-                    }
-                    else
-                    {
-                        if (connector.Connectable)
-                        {
-                            connector.Connect();
-                            ConnectedOn();
-                        }
-                    }
-                    break;
+                //case "connected_on":
+                //    if (connector.Connectable)
+                //    {
+                //        connector.Connect();
+                //        ConnectedOn();
+                //    }
+                //    break;
+                //case "connected_off":
+                //    if (connector.Connected)
+                //    {
+                //        connector.Disconnect();
+                //        ConnectedOff();
+                //    }
+                //    break;
+                //case "connected":
+                //    if (ship_connect)
+                //    {
+                //        if (connector.Connected)
+                //        {
+                //            connector.Disconnect();
+                //            ConnectedOff();
+                //        }
+                //    }
+                //    else
+                //    {
+                //        if (connector.Connectable)
+                //        {
+                //            connector.Connect();
+                //            ConnectedOn();
+                //        }
+                //    }
+                //    break;
                 case "horizont_on":
                     //gyros.GyroOver(true);
                     horizont = true;
@@ -367,36 +374,75 @@ namespace KLEPA_A1
             }
             if (updateSource == UpdateType.Update10)
             {
-                if (!ship_connect && connector.Connected)
+                //if (!ship_connect && connector.Connected)
+                //{
+                //    // Включили парковку
+                //    ConnectedOn();
+                //}
+                //if (ship_connect && !connector.Connected)
+                //{
+                //    // Выключли парковку
+                //    ConnectedOff();
+                //}
+                //// Проверка кокпит под контроллем
+                //if (!connector.Connected && !cockpit.IsUnderControl)
+                //{
+                //    cockpit.Dampeners(true);
+                //    reflectors_light.Off();
+                //    welders.Off();
+                //}
+                //// Держать горизонт
+                //if (!connector.Connected && !landing_gears.IsLocked())
+                //{
+                //    gyros.GyroOver(horizont);
+                //    if (horizont)
+                //    {
+                //        KeepHorizon();
+                //    }
+                //}
+                //// если нет конекта и зацепа и двигатели отключены - включить (только для атмосферы)
+                //if (!connector.Connected && !landing_gears.IsLocked() && !thrusts.Enabled())
+                //{
+                //    thrusts.On();
+                //}
+
+                // Проверим корабль не припаркован
+                if (!connector.Connected && !landing_gears.IsLocked())
                 {
-                    // Включили парковку
-                    ConnectedOn();
-                }
-                if (ship_connect && !connector.Connected)
-                {
-                    // Выключли парковку
-                    ConnectedOff();
-                }
-                // Проверка кокпит под контроллем
-                if (!connector.Connected && !cockpit.IsUnderControl)
-                {
+                    //// Если трастеры отключены - включить
+                    //if (!thrusts.Enabled())
+                    //{
+                    //    thrusts.On();
+                    //}
+
+                    bats.Auto();
+                    thrusts.On();
                     cockpit.Dampeners(true);
-                    reflectors_light.Off();
-                    welders.Off();
-                }
-                // Держать горизонт
-                if (!connector.Connected)
-                {
+                    // Включим или отключим авто-зацеп если работают сварщики
+                    landing_gears.AutoLock(!welders.Enabled());
+
+                    // режим горизонт
                     gyros.GyroOver(horizont);
                     if (horizont)
                     {
                         KeepHorizon();
                     }
+                    // Проверка кокпит не под контроллем включить тормоз
+                    if (!cockpit.IsUnderControl)
+                    {
+                        cockpit.Dampeners(true);
+                        reflectors_light.Off();
+                        welders.Off();
+                    }
                 }
-                // если нет конекта и двигатели отключены включить
-                if (!connector.Connected && !thrusts.Enabled())
-                {
-                    thrusts.On();
+                else {
+                    // Припаркован
+                    reflectors_light.Off();
+                    welders.Off();
+                    cockpit.Dampeners(false);
+                    bats.Charger();
+                    thrusts.Off();
+
                 }
             }
             values_info.Append(bats.TextInfo());
@@ -681,6 +727,8 @@ namespace KLEPA_A1
         public class RemoteControl : BaseTerminalBlock<IMyRemoteControl>
         {
             Vector3D home_position;
+            Vector3D vector_position;
+
             public IMyShipController _obj { get { return obj; } }
             public bool IsUnderControl { get { return obj.IsUnderControl; } }
             public bool ControlThrusters { get { return obj.ControlThrusters; } }
@@ -698,6 +746,8 @@ namespace KLEPA_A1
                 {
                     case "home_position":
                         home_position = base.GetPosition();
+                        vector_position = base.obj.WorldMatrix.Forward;
+                        vector_position.Length(); // длина вектора
                         break;
                     case "auto_home":
                         base.obj.ClearWaypoints();
@@ -723,5 +773,35 @@ namespace KLEPA_A1
                 return values.ToString();
             }
         }
+        public class LandingGears : BaseListTerminalBlock<IMyLandingGear>
+        {
+            public LandingGears(string name_obj) : base(name_obj)
+            {
+            }
+            public LandingGears(string name_obj, string tag) : base(name_obj, tag)
+            {
+
+            }
+            public bool IsLocked()
+            {
+                foreach (IMyLandingGear obj in list_obj)
+                {
+                    if (obj.IsLocked)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            public void AutoLock(bool on)
+            {
+                foreach (IMyLandingGear obj in list_obj)
+                {
+                    obj.AutoLock = on;
+                }
+            }
+
+        }
+
     }
 }
