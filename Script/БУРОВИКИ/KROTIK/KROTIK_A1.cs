@@ -22,7 +22,7 @@ namespace KROTIK_A1
         // v2.0
         string NameObj = "[KROTIK_A1]";
         string NameCockpit = "[KROTIK_A1]-Промышленный кокпит [LCD]";
-        string NameRemoteControl = "[KROTIK_A1]-ДУ парковка";
+        string NameRemoteControl = "[KROTIK_A1]-ДУ Парковка";
         string NameConnector = "[KROTIK_A1]-Коннектор парковка";
         string NameLCDInfo = "[KROTIK_A1]-LCD-INFO";
 

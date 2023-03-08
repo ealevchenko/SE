@@ -737,7 +737,6 @@ namespace KLEPA_A1
             }
 
         }
-
         public class SpecialInventory : BaseListTerminalBlock<IMyCargoContainer>
         {
             public SpecialInventory(string name_obj) : base(name_obj)
