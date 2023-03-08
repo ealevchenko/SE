@@ -16,7 +16,7 @@ namespace KROTIK1
     {
         //IMyTextPanel test_lcd;
         // Название 
-        string NameGroup = "КРОТИК1";
+        string NameGroup = "КРОТИК1-";
         string NameCockpit = "КРОТИК1-Промышленный кокпит 1 [LCD]";
         string NameConnector = "КРОТИК1-Коннектор парковка";
         string NameLCD1 = "КРОТИК1-ЖК-панель 1-";
