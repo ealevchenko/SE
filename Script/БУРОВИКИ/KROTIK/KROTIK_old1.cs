@@ -19,7 +19,7 @@ namespace KROTIK1
         string NameGroup = "КРОТИК1";
         string NameCockpit = "КРОТИК1-Промышленный кокпит 1 [LCD]";
         string NameConnector = "КРОТИК1-Коннектор парковка";
-        string NameLCD1 = "КРОТИК1-ЖК-панель 1";
+        string NameLCD1 = "КРОТИК1-ЖК-панель 1-";
 
         BatteryBlock batterys;
         Thrust thrust;
