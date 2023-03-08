@@ -1,0 +1,97 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Test
+{
+    class Program
+    {
+        public class MyComp
+        {
+            public Component component { get; set; }
+            public int value { get; set; }
+        }
+        public enum Component : int
+        {
+            BulletproofGlass = 0,
+            Computer = 1,
+            Construction = 2,
+            Detector = 3,
+            Display = 4,
+            Girder = 5,
+            InteriorPlate = 6,
+            LargeTube = 7,
+            MetalGrid = 8,
+            Motor = 9,
+            PowerCell = 10,
+            RadioCommunication = 11,
+            SmallTube = 12,
+            SteelPlate = 13,
+            Superconductor = 14,
+        };
+
+        public string SetListComponent() {
+
+            return null;
+        }
+
+
+        static void Main(string[] args)
+        {
+            string st = "\n" +
+"\n" +
+"Positive number: stores wanted amount, removes excess (e.g.: 100)\n" +
+"Negative number: doesn't store items, only removes excess (e.g.: -100)\n" +
+"Keyword 'all': stores all items of that subtype (like a type container)\n" +
+"\n" +
+"Component/BulletproofGlass=0\n" +
+"Component/Computer=0\n" +
+"Component/Construction=0\n" +
+"Component/Detector=0\n" +
+"Component/Display=0\n" +
+"Component/Girder=0\n" +
+"Component/InteriorPlate=0\n" +
+"Component/LargeTube=0\n" +
+"Component/MetalGrid=0\n" +
+"Component/Motor=0\n" +
+"Component/PowerCell=0\n" +
+"Component/RadioCommunication=0\n" +
+"Component/SmallTube=0\n" +
+"Component/SteelPlate=0\n" +
+"Component/Superconductor=0\n" +
+"Ore/Cobalt=0\n" +
+"Ore/Ice=500000\n";
+
+            //StringBuilder test_info = new StringBuilder();
+            //test_info.Append(st);
+
+
+            List<MyComp> list1 = new List<MyComp>();
+            list1.Add(new MyComp() { component = Component.Display, value = 1000 });
+            list1.Add(new MyComp() { component = Component.Motor, value = 5000 });
+
+
+
+            string[] str = st.Split('\n');
+
+            int value = 10;
+
+            int index = Array.FindIndex(str, element => element.Contains("Motor"));
+            if (index > 0)
+            {
+                int indexOfChar = str[index].IndexOf('='); // равно 4
+                str[index] = str[index].Substring(0, indexOfChar + 1) + value.ToString();
+
+            }
+
+            foreach (string s in str)
+            {
+                Console.WriteLine(s);
+            }
+
+
+        }
+    }
+}

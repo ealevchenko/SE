@@ -12,10 +12,7 @@ using System.Text;
 using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
 using VRageMath;
-using static APOLN1.Program;
-using static Connection.Program;
-using static KROTIK_2.Program;
-using static VRage.Game.MyObjectBuilder_CurveDefinition;
+
 
 
 /// <summary>
@@ -29,7 +26,7 @@ namespace KLEPA_A1
     /// </summary>
     public sealed class Program : MyGridProgram
     {
-        // Название 
+        // v2.1
         string NameObj = "[KLEPA_A1]";
         string NameCockpit = "[KLEPA_A1]-Промышленный кокпит [LCD]";
         string NameRemoteControl = "[KLEPA_A1]-ДУ парковка";
@@ -48,15 +45,12 @@ namespace KLEPA_A1
         Cockpit cockpit;
         RemoteControl remote_control;
         LandingGears landing_gears;
+        SpecialInventory special_inventory;
 
         static Program _scr;
 
         bool ship_connect = false;
         bool horizont = false;
-
-        static Vector3D home_position = new Vector3D();
-        static Vector3D home_position1 = new Vector3D();
-        static Vector3D home_position2 = new Vector3D();
 
         public class PText
         {
@@ -293,6 +287,7 @@ namespace KLEPA_A1
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj);
             landing_gears = new LandingGears(NameObj);
+            special_inventory = new SpecialInventory(NameObj, "Special");
         }
         public void Save()
         {
@@ -367,15 +362,16 @@ namespace KLEPA_A1
             }
             values_info.Append(bats.TextInfo());
             values_info.Append(connector.TextInfo());
+            values_info.Append(welders.TextInfo());
             values_info.Append(remote_control.TextInfo());
-            values_info.Append("РЕЖИМ:" + (horizont ? "ГОРИЗОНТ" : "") + "\n");
+            values_info.Append("РЕЖИМ: " + (horizont ? "ГОРИЗОНТ" : "") + "\n");
             cockpit.OutText(values_info, 0);
             ship_connect = connector.Connected; // сохраним состояние
 
             StringBuilder test_info = new StringBuilder();
-            test_info.Append("home1 : " + home_position.ToString() + "\n");
-            test_info.Append("home2 : " + home_position1.ToString() + "\n");
-            test_info.Append("home3 : " + home_position2.ToString() + "\n");
+            test_info.Append("home1 : " + remote_control.home_position.ToString() + "\n");
+            test_info.Append("home2 : " + remote_control.home_position1.ToString() + "\n");
+            test_info.Append("home3 : " + remote_control.home_position2.ToString() + "\n");
             lcd_info.OutText(test_info);
 
         }
@@ -561,6 +557,12 @@ namespace KLEPA_A1
             {
 
             }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("СВАРЩИКИ: " + (base.Enabled() ? "ВКЛ" : "ОТК") + "\n");
+                return values.ToString();
+            }
         }
         public class ReflectorsLight : BaseListTerminalBlock<IMyReflectorLight>
         {
@@ -653,8 +655,10 @@ namespace KLEPA_A1
         }
         public class RemoteControl : BaseTerminalBlock<IMyRemoteControl>
         {
-            //Vector3D home_position;
-            //Vector3D vector_position;
+
+            public Vector3D home_position = new Vector3D();
+            public Vector3D home_position1 = new Vector3D();
+            public Vector3D home_position2 = new Vector3D();
             public IMyShipController _obj { get { return obj; } }
             public bool IsUnderControl { get { return obj.IsUnderControl; } }
             public bool ControlThrusters { get { return obj.ControlThrusters; } }
@@ -731,6 +735,20 @@ namespace KLEPA_A1
                     obj.AutoLock = on;
                 }
             }
+
+        }
+
+        public class SpecialInventory : BaseListTerminalBlock<IMyCargoContainer>
+        {
+            public SpecialInventory(string name_obj) : base(name_obj)
+            {
+
+            }
+            public SpecialInventory(string name_obj, string tag) : base(name_obj, tag)
+            {
+
+            }
+
 
         }
 

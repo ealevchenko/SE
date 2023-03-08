@@ -101,7 +101,7 @@
     <Compile Include="БАЗА_МЗ1\БАЗА-МЗ1.cs" />
     <Compile Include="БАЗА_МЗ1\БАЗА_МЗ1_PROJECTOR_LM.cs" />
     <Compile Include="БАЗА_МЗ1\БАЗА_МЗ1_PROJECTOR_SG.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_2.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

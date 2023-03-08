@@ -16,8 +16,6 @@ using SpaceEngineers.Game.ModAPI.Ingame;
 using Sandbox.Game.Entities;
 using System.Runtime.CompilerServices;
 using Sandbox.Game.GameSystems.Electricity;
-using static pahking.Program;
-using static Connection.Program;
 using System.Reflection;
 
 namespace Connection

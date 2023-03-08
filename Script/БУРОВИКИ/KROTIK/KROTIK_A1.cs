@@ -10,24 +10,23 @@ using System.Linq;
 using System.Runtime.Remoting.Messaging;
 using System.Text;
 using System.Threading.Tasks;
+using VRage.Game.ModAPI.Ingame;
 using VRageMath;
-using static APOLN1.Program;
-using static Connection.Program;
-using static KROTIK_2.Program;
-using static VRage.Game.MyObjectBuilder_CurveDefinition;
-
-namespace KROTIK_2
+/// <summary>
+/// v2.0
+/// </summary>
+namespace KROTIK_A1
 {
     public sealed class Program : MyGridProgram
     {
-        // Название 
-        string NameObj = "[KROTIK2]";
-        string NameCockpit = "[KROTIK2]-Промышленный кокпит [LCD]";
-        string NameConnector = "[KROTIK2]-Коннектор парковка";
-        string NameLCDInfo = "[KROTIK2]-LCD-INFO";
+        // v2.0
+        string NameObj = "[KROTIK_A1]";
+        string NameCockpit = "[KROTIK_A1]-Промышленный кокпит [LCD]";
+        string NameRemoteControl = "[KROTIK_A1]-ДУ парковка";
+        string NameConnector = "[KROTIK_A1]-Коннектор парковка";
+        string NameLCDInfo = "[KROTIK_A1]-LCD-INFO";
 
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
-
 
         LCD lcd_info;
         Batterys bats;
@@ -37,6 +36,7 @@ namespace KROTIK_2
         Gyros gyros;
         Thrusts thrusts;
         Cockpit cockpit;
+        RemoteControl remote_control;
 
 
         static Program _scr;
@@ -124,7 +124,6 @@ namespace KROTIK_2
                 _scr.GridTerminalSystem.GetBlocksOfType<T>(list_obj, r => ((IMyTerminalBlock)r).CustomName.Contains(name_obj));
                 _scr.Echo("Найдено" + typeof(T).Name + "[" + name_obj + "]: " + list_obj.Count());
             }
-
             public BaseListTerminalBlock(string name_obj, string tag)
             {
                 _scr.GridTerminalSystem.GetBlocksOfType<T>(list_obj, r => ((IMyTerminalBlock)r).CustomName.Contains(name_obj));
@@ -186,6 +185,28 @@ namespace KROTIK_2
             {
                 OnOfTag(list_obj, tag);
             }
+            public bool Enabled(string tag)
+            {
+                foreach (IMyTerminalBlock obj in list_obj)
+                {
+                    if (obj.CustomName.Contains(tag) && !((IMyFunctionalBlock)obj).Enabled)
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            public bool Enabled()
+            {
+                foreach (IMyTerminalBlock obj in list_obj)
+                {
+                    if (!((IMyFunctionalBlock)obj).Enabled)
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
         }
         public class BaseTerminalBlock<T> where T : class
         {
@@ -200,6 +221,11 @@ namespace KROTIK_2
                 obj = myobj;
                 _scr.Echo("block:[" + obj.ToString() + "]: " + ((obj != null) ? ("Ок") : ("not Block")));
             }
+            public Vector3D GetPosition()
+            {
+                return ((IMyEntity)obj).GetPosition();
+            }
+
             // Команды включения\выключения
             public void Off()
             {
@@ -209,21 +235,6 @@ namespace KROTIK_2
             {
                 if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_On");
             }
-        }
-        public void ConnectedOn()
-        {
-            reflectors_light.Off();
-            drill.Off();
-            cockpit.Dampeners(false);
-            bats.Charger();
-            thrusts.Off();
-
-        }
-        public void ConnectedOff()
-        {
-            bats.Auto();
-            thrusts.On();
-            cockpit.Dampeners(true);
         }
         public void KeepHorizon()
         {
@@ -240,15 +251,39 @@ namespace KROTIK_2
             float PitchInput = -(float)Math.Atan2(gF, -gU);
 
             //На рыскание просто отправляем сигнал рыскания с контроллера. Им мы будем управлять вручную.
-            float YawInput = cockpit._obj.RotationIndicator.Y;
+            float YawInput = 0;
+            if (remote_control.IsUnderControl)
+            {
+                YawInput = remote_control._obj.RotationIndicator.Y;
+            }
+            else if (cockpit.IsUnderControl)
+            {
+                YawInput = cockpit._obj.RotationIndicator.Y;
+            }
             gyros.SetGyro(YawInput, PitchInput, RollInput);
         }
+        //public void ConnectedOn()
+        //{
+        //    reflectors_light.Off();
+        //    drill.Off();
+        //    cockpit.Dampeners(false);
+        //    bats.Charger();
+        //    thrusts.Off();
+
+        //}
+        //public void ConnectedOff()
+        //{
+        //    bats.Auto();
+        //    thrusts.On();
+        //    cockpit.Dampeners(true);
+        //}
         public Program()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
             _scr = this;
             lcd_info = new LCD(NameLCDInfo);
             cockpit = new Cockpit(NameCockpit);
+            remote_control = new RemoteControl(NameRemoteControl);
             bats = new Batterys(NameObj);
             connector = new Connector(NameConnector);
             ship_connect = connector.Connected;
@@ -268,46 +303,23 @@ namespace KROTIK_2
         {
             StringBuilder values_info = new StringBuilder();
             bats.Logic(argument, updateSource);
+            remote_control.Logic(argument, updateSource);
 
             switch (argument)
             {
-                case "connected_on":
-                    connector.Connect();
-                    ConnectedOn();
-                    break;
-                case "connected_off":
-                    connector.Disconnect();
-                    ConnectedOff();
-                    break;
-                case "connected":
-                    if (ship_connect)
-                    {
-                        connector.Disconnect();
-                        ConnectedOff();
-                    }
-                    else
-                    {
-                        connector.Connect();
-                        ConnectedOn();
-                    }
-                    break;
                 case "horizont_on":
-                    gyros.GyroOver(true);
                     horizont = true;
                     break;
                 case "horizont_off":
-                    gyros.GyroOver(false);
                     horizont = false;
                     break;
                 case "horizont":
                     if (horizont)
                     {
-                        gyros.GyroOver(false);
                         horizont = false;
                     }
                     else
                     {
-                        gyros.GyroOver(true);
                         horizont = true;
                     }
                     break;
@@ -316,35 +328,55 @@ namespace KROTIK_2
             }
             if (updateSource == UpdateType.Update10)
             {
-                if (!ship_connect && connector.Connected)
+                // Проверим корабль не припаркован
+                if (!connector.Connected)
                 {
-                    // Включили парковку
-                    ConnectedOn();
-                }
-                if (ship_connect && !connector.Connected)
-                {
-                    // Выключли парковку
-                    ConnectedOff();
-                }
-                // Проверка кокпит под контроллем
-                if (!connector.Connected && !cockpit.IsUnderControl)
-                {
+                    bats.Auto();
+                    thrusts.On();
                     cockpit.Dampeners(true);
+
+                    // режим горизонт
+                    gyros.GyroOver(horizont);
+                    if (horizont)
+                    {
+                        KeepHorizon();
+                    }
+                    // Проверка кокпит не под контроллем включить тормоз
+                    if (!cockpit.IsUnderControl)
+                    {
+                        cockpit.Dampeners(true);
+                        reflectors_light.Off();
+                        drill.Off();
+                    }
+                    if (drill.Enabled())
+                    {
+                        reflectors_light.On();
+                    }
+                }
+                else
+                {
+                    // Припаркован
                     reflectors_light.Off();
                     drill.Off();
+                    cockpit.Dampeners(false);
+                    bats.Charger();
+                    thrusts.Off();
                 }
-                // Держать горизонт
-                if (!connector.Connected && horizont)
-                {
-                    KeepHorizon();
-                }
-
             }
             values_info.Append(bats.TextInfo());
             values_info.Append(connector.TextInfo());
-            values_info.Append("РЕЖИМ:" + (horizont ? "ГОРИЗОНТ" : "") + "\n");
+            values_info.Append(drill.TextInfo());
+            values_info.Append(remote_control.TextInfo());
+            values_info.Append("РЕЖИМ: " + (horizont ? "ГОРИЗОНТ" : "") + "\n");
+
             cockpit.OutText(values_info, 0);
             ship_connect = connector.Connected; // сохраним состояние
+
+            StringBuilder test_info = new StringBuilder();
+            test_info.Append("home1 : " + remote_control.home_position.ToString() + "\n");
+            test_info.Append("home2 : " + remote_control.home_position1.ToString() + "\n");
+            test_info.Append("home3 : " + remote_control.home_position2.ToString() + "\n");
+            lcd_info.OutText(test_info);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
@@ -528,6 +560,12 @@ namespace KROTIK_2
             {
 
             }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("БУРЫ: " + (base.Enabled() ? "ВКЛ" : "ОТК") + "\n");
+                return values.ToString();
+            }
         }
         public class ReflectorsLight : BaseListTerminalBlock<IMyReflectorLight>
         {
@@ -615,6 +653,60 @@ namespace KROTIK_2
                         ts.WriteText(text, append);
                     }
                 }
+            }
+        }
+        public class RemoteControl : BaseTerminalBlock<IMyRemoteControl>
+        {
+            public Vector3D home_position = new Vector3D();
+            public Vector3D home_position1 = new Vector3D();
+            public Vector3D home_position2 = new Vector3D();
+            public IMyShipController _obj { get { return obj; } }
+            public bool IsUnderControl { get { return obj.IsUnderControl; } }
+            public bool ControlThrusters { get { return obj.ControlThrusters; } }
+            public RemoteControl(string name) : base(name)
+            {
+
+            }
+            public void Dampeners(bool on)
+            {
+                obj.DampenersOverride = on;
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    case "home_position":
+
+                        Vector3D vector_Forward = base.obj.WorldMatrix.Forward;
+                        Vector3D vector_Up = base.obj.WorldMatrix.Up;
+                        home_position = base.GetPosition() - (vector_Forward * 2);
+                        home_position1 = (home_position - (vector_Forward * 20));
+                        home_position2 = (home_position1 + (vector_Up * 100));
+                        break;
+                    case "auto_home":
+                        base.obj.ClearWaypoints();
+                        base.obj.AddWaypoint(home_position2, "БАЗА-Up");
+                        base.obj.AddWaypoint(home_position1, "БАЗА-Forward");
+                        base.obj.AddWaypoint(home_position, "БАЗА");
+                        base.obj.SetAutoPilotEnabled(true);
+                        break;
+                    case "auto_off":
+                        base.obj.SetAutoPilotEnabled(false);
+                        break;
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+
+                }
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("ДОМ: " + home_position.ToString() + "\n");
+                values.Append("АВТОПИЛОТ: " + (base.obj.IsAutoPilotEnabled ? "ВКЛ" : "ОТК") + "\n");
+                return values.ToString();
             }
         }
     }
