@@ -770,9 +770,16 @@ namespace KLEPA_A1
                 new MyComp() { component = Component.Display, value = 1000 },
                 new MyComp() { component = Component.Motor, value = 5000 }
             };
-            List<MyComp> list_connt = new List<MyComp>() {
-                new MyComp() { component = Component.Display, value = 1000 },
-                new MyComp() { component = Component.Motor, value = 5000 }
+            List<MyComp> list_base = new List<MyComp>() {
+                new MyComp() { component = Component.Display, value = 500 },
+                new MyComp() { component = Component.Motor, value = 2000 },
+                new MyComp() { component = Component.Computer, value = 500 },
+                new MyComp() { component = Component.Construction, value = 5000 },
+                new MyComp() { component = Component.InteriorPlate, value = 2000 },
+                new MyComp() { component = Component.LargeTube, value = 500 },
+                new MyComp() { component = Component.MetalGrid, value = 200 },
+                new MyComp() { component = Component.SmallTube, value = 3000 },
+                new MyComp() { component = Component.SteelPlate, value = 5000 }
             };
 
             public SpecialInventory(string name_obj) : base(name_obj)
@@ -826,6 +833,14 @@ namespace KLEPA_A1
                 }
                 current_special = "Все";
             }
+            public void SetComponent_Base()
+            {
+                foreach (IMyCargoContainer obj in base.list_obj)
+                {
+                    obj.CustomData = SetListComponent(obj.CustomData, list_base);
+                }
+                current_special = "БАЗА";
+            }
             public void Logic(string argument, UpdateType updateSource)
             {
                 switch (argument)
@@ -835,6 +850,9 @@ namespace KLEPA_A1
                         break;
                     case "special_all":
                         SetComponent_All();
+                        break;
+                    case "special_base":
+                        SetComponent_Base();
                         break;
                     default:
                         break;
