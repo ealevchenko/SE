@@ -13,8 +13,6 @@ using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
 using VRageMath;
 
-
-
 /// <summary>
 /// + Добавить рен на 45 град
 /// 
@@ -26,7 +24,7 @@ namespace KLEPA_A1
     /// </summary>
     public sealed class Program : MyGridProgram
     {
-        // v2.1
+        // v2.2
         string NameObj = "[KLEPA_A1]";
         string NameCockpit = "[KLEPA_A1]-Промышленный кокпит [LCD]";
         string NameRemoteControl = "[KLEPA_A1]-ДУ парковка";
@@ -299,6 +297,8 @@ namespace KLEPA_A1
             StringBuilder values_info = new StringBuilder();
             bats.Logic(argument, updateSource);
             remote_control.Logic(argument, updateSource);
+            special_inventory.Logic(argument, updateSource);
+
             switch (argument)
             {
                 case "horizont_on":
@@ -364,6 +364,7 @@ namespace KLEPA_A1
             values_info.Append(connector.TextInfo());
             values_info.Append(welders.TextInfo());
             values_info.Append(remote_control.TextInfo());
+            values_info.Append(special_inventory.TextInfo());
             values_info.Append("РЕЖИМ: " + (horizont ? "ГОРИЗОНТ" : "") + "\n");
             cockpit.OutText(values_info, 0);
             ship_connect = connector.Connected; // сохраним состояние
@@ -739,6 +740,41 @@ namespace KLEPA_A1
         }
         public class SpecialInventory : BaseListTerminalBlock<IMyCargoContainer>
         {
+            public class MyComp
+            {
+                public Component component { get; set; }
+                public int value { get; set; }
+            }
+            public enum Component : int
+            {
+                BulletproofGlass = 0,
+                Computer = 1,
+                Construction = 2,
+                Detector = 3,
+                Display = 4,
+                Girder = 5,
+                InteriorPlate = 6,
+                LargeTube = 7,
+                MetalGrid = 8,
+                Motor = 9,
+                PowerCell = 10,
+                RadioCommunication = 11,
+                SmallTube = 12,
+                SteelPlate = 13,
+                Superconductor = 14,
+            };
+
+            string current_special = "";
+
+            List<MyComp> list_all = new List<MyComp>() {
+                new MyComp() { component = Component.Display, value = 1000 },
+                new MyComp() { component = Component.Motor, value = 5000 }
+            };
+            List<MyComp> list_connt = new List<MyComp>() {
+                new MyComp() { component = Component.Display, value = 1000 },
+                new MyComp() { component = Component.Motor, value = 5000 }
+            };
+
             public SpecialInventory(string name_obj) : base(name_obj)
             {
 
@@ -747,8 +783,73 @@ namespace KLEPA_A1
             {
 
             }
+            public string SetListComponent(string list, List<MyComp> components)
+            {
 
+                string[] list_st = list.Split('\n');
+                // Пройдемся по помещениям и настроим панели
+                foreach (Component com in Enum.GetValues(typeof(Component)))
+                {
+                    int value = 0;
+                    MyComp mycom = components.Where(c => c.component == com).FirstOrDefault();
+                    if (mycom != null)
+                    {
+                        value = mycom.value;
+                    }
+                    int index = Array.FindIndex(list_st, element => element.Contains(com.ToString()));
+                    if (index > 0)
+                    {
+                        int indexOfChar = list_st[index].IndexOf('='); //
+                        list_st[index] = list_st[index].Substring(0, indexOfChar + 1) + value.ToString();
+                    }
+                }
+                string result = "";
+                foreach (string st in list_st)
+                {
+                    result += st + "\n";
+                }
+                return result;
+            }
+            public void SetComponent_Clear()
+            {
+                foreach (IMyCargoContainer obj in base.list_obj)
+                {
+                    obj.CustomData = SetListComponent(obj.CustomData, new List<MyComp>());
+                }
+                current_special = "Пусто";
+            }
+            public void SetComponent_All()
+            {
+                foreach (IMyCargoContainer obj in base.list_obj)
+                {
+                    obj.CustomData = SetListComponent(obj.CustomData, list_all);
+                }
+                current_special = "Все";
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    case "special_clear":
+                        SetComponent_Clear();
+                        break;
+                    case "special_all":
+                        SetComponent_All();
+                        break;
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
 
+                }
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("Компоненты: " + current_special + "\n");
+                return values.ToString();
+            }
         }
 
     }

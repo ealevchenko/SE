@@ -31,13 +31,32 @@ namespace Test
             SteelPlate = 13,
             Superconductor = 14,
         };
+        static public string SetListComponent(string list, List<MyComp> components)
+        {
 
-        public string SetListComponent() {
-
-            return null;
+            string[] list_st = list.Split('\n');
+            // Пройдемся по помещениям и настроим панели
+            foreach (Component com in Enum.GetValues(typeof(Component)))
+            {
+                int value = 0;
+                MyComp mycom = components.Where(c => c.component == com).FirstOrDefault();
+                if (mycom != null)
+                {
+                    value = mycom.value;
+                }
+                int index = Array.FindIndex(list_st, element => element.Contains(com.ToString()));
+                if (index > 0)
+                {
+                    int indexOfChar = list_st[index].IndexOf('='); //
+                    list_st[index] = list_st[index].Substring(0, indexOfChar + 1) + value.ToString();
+                }
+            }
+            string result = "";
+            foreach (string st in list_st) {
+                result += st + "\n";
+            }
+            return result;
         }
-
-
         static void Main(string[] args)
         {
             string st = "\n" +
@@ -55,14 +74,14 @@ namespace Test
 "Component/InteriorPlate=0\n" +
 "Component/LargeTube=0\n" +
 "Component/MetalGrid=0\n" +
-"Component/Motor=0\n" +
+"Component/Motor=12\n" +
 "Component/PowerCell=0\n" +
 "Component/RadioCommunication=0\n" +
 "Component/SmallTube=0\n" +
 "Component/SteelPlate=0\n" +
 "Component/Superconductor=0\n" +
 "Ore/Cobalt=0\n" +
-"Ore/Ice=500000\n";
+"Ore/Ice=0\n";
 
             //StringBuilder test_info = new StringBuilder();
             //test_info.Append(st);
@@ -72,24 +91,28 @@ namespace Test
             list1.Add(new MyComp() { component = Component.Display, value = 1000 });
             list1.Add(new MyComp() { component = Component.Motor, value = 5000 });
 
+            string res = SetListComponent(st, list1);
+
+            Console.WriteLine(res);
 
 
-            string[] str = st.Split('\n');
 
-            int value = 10;
+            //string[] str = st.Split('\n');
 
-            int index = Array.FindIndex(str, element => element.Contains("Motor"));
-            if (index > 0)
-            {
-                int indexOfChar = str[index].IndexOf('='); // равно 4
-                str[index] = str[index].Substring(0, indexOfChar + 1) + value.ToString();
+            //int value = 10;
 
-            }
+            //int index = Array.FindIndex(str, element => element.Contains("Motor"));
+            //if (index > 0)
+            //{
+            //    int indexOfChar = str[index].IndexOf('='); // равно 4
+            //    str[index] = str[index].Substring(0, indexOfChar + 1) + value.ToString();
 
-            foreach (string s in str)
-            {
-                Console.WriteLine(s);
-            }
+            //}
+
+            //foreach (string s in str)
+            //{
+            //    Console.WriteLine(s);
+            //}
 
 
         }
