@@ -91,6 +91,7 @@
     <Compile Include="СВАРЩИКИ\KLEPA3.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\KROTIK_old1.cs" />
     <Compile Include="СВАРЩИКИ\KLEPA\KLEPA_A1.cs" />
+    <Compile Include="ТЯГАЧИ\MUL_H1.cs" />
     <Compile Include="ТЯГАЧИ\MUL1.cs" />
     <Compile Include="КОРАБЛИ\NASTYA\NASTYA_LOGIC_DOORS.cs" />
     <Compile Include="КОРАБЛИ\NASTYA\NASTYA_PROJECTOR.cs" />
