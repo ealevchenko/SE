@@ -376,6 +376,14 @@ namespace MUL_H1
             double S = (a * Math.Pow(t, 2)) / 2;
             // Math.Round(S, 1)
             test_info.Append("S : " + Math.Round(S, 1) + "\n");
+
+            //t = (V - V[0]) / a
+            double tp = (0-cockpit.ShipSpeed) / -5;
+            test_info.Append("tp : " + Math.Round(tp, 2) + "\n");
+            //S = V[0] * t + ( a * t^2 ) / 2
+            double Sp = (cockpit.ShipSpeed * tp) + ((-5) * Math.Pow(tp, 2)) / 2;
+            test_info.Append("Sp : " + Math.Round(Sp, 2) + "\n");
+
             lcd_info.OutText(test_info);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
@@ -769,7 +777,8 @@ namespace MUL_H1
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                //values.Append("Гравитация: " + base.obj.GetNaturalGravity() + "\n");
+                values.Append("Гравитация: " + base.obj.GetNaturalGravity().Length() + "\n");
+                values.Append("ТГравитация: " + base.obj.GetTotalGravity().Length() + "\n");
                 values.Append("BaseMass: " + this.BaseMass + "\n");
                 values.Append("TotalMass: " + this.TotalMass + "\n");
                 values.Append("Скорость: " + base.obj.GetShipSpeed() + "\n");
