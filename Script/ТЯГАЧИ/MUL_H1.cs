@@ -38,6 +38,8 @@ namespace MUL_H1
         Thrusts thrusts;
         Cockpit cockpit;
         RemoteControl remote_control;
+        Navigation navigation;
+
 
 
         static Program _scr;
@@ -278,6 +280,9 @@ namespace MUL_H1
             reflectors_light.Off();
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj);
+
+            navigation = new Navigation(cockpit, thrusts, gyros);
+
         }
         public void Save()
         {
@@ -290,6 +295,8 @@ namespace MUL_H1
             bats.Logic(argument, updateSource);
             cockpit.Logic(argument, updateSource);
             remote_control.Logic(argument, updateSource);
+            navigation.Logic(argument, updateSource);
+
             switch (argument)
             {
                 case "horizont_on":
@@ -313,7 +320,7 @@ namespace MUL_H1
             }
             if (updateSource == UpdateType.Update10)
             {
-                thrusts.GetMaxEffectiveThrust(cockpit.GetCockpitMatrix());
+                //thrusts.GetMaxEffectiveThrust(cockpit.GetCockpitMatrix());
 
                 // Проверим корабль не припаркован
                 if (!connector.Connected)
@@ -324,9 +331,6 @@ namespace MUL_H1
                         thrusts.On();
                         cockpit.Dampeners(true);
                     }
-
-
-
                     // режим горизонт
                     gyros.GyroOver(horizont);
                     if (horizont)
@@ -351,7 +355,7 @@ namespace MUL_H1
             }
             values_info.Append(bats.TextInfo());
             values_info.Append(connector.TextInfo());
-            //values_info.Append(thrusts.TextInfo());
+            values_info.Append(thrusts.TextInfo());
             values_info.Append(remote_control.TextInfo());
             values_info.Append(cockpit.TextInfo());
             values_info.Append("РЕЖИМ: " + (horizont ? "ГОРИЗОНТ" : "") + "\n");
@@ -366,23 +370,23 @@ namespace MUL_H1
             test_info.Append("ThrustsMax : " + thrusts.Forward_ThrustsMax / 1000 + "\n");
             test_info.Append("TotalMass : " + cockpit.TotalMass / 1000 + "\n");
             test_info.Append("ShipSpeed : " + cockpit.ShipSpeed + "\n");
+            test_info.Append(navigation.TextTEST());
+            //double a = (thrusts.Forward_ThrustsMax / 1000) * (1 / (cockpit.TotalMass / 1000));
+            //test_info.Append("a : " + Math.Round(a, 2) + "\n");
+            ////t = V / a
+            //double t = cockpit.ShipSpeed / a;
+            //test_info.Append("t : " + Math.Round(t, 2) + "\n");
+            //// S = ( a * t^2 ) / 2
+            //double S = (a * Math.Pow(t, 2)) / 2;
+            //// Math.Round(S, 1)
+            //test_info.Append("S : " + Math.Round(S, 1) + "\n");
 
-            double a = (thrusts.Forward_ThrustsMax / 1000) * (1 / (cockpit.TotalMass / 1000));
-            test_info.Append("a : " + Math.Round(a, 2) + "\n");
-            //t = V / a
-            double t = cockpit.ShipSpeed / a;
-            test_info.Append("t : " + Math.Round(t, 2) + "\n");
-            // S = ( a * t^2 ) / 2
-            double S = (a * Math.Pow(t, 2)) / 2;
-            // Math.Round(S, 1)
-            test_info.Append("S : " + Math.Round(S, 1) + "\n");
-
-            //t = (V - V[0]) / a
-            double tp = (0-cockpit.ShipSpeed) / -5;
-            test_info.Append("tp : " + Math.Round(tp, 2) + "\n");
-            //S = V[0] * t + ( a * t^2 ) / 2
-            double Sp = (cockpit.ShipSpeed * tp) + ((-5) * Math.Pow(tp, 2)) / 2;
-            test_info.Append("Sp : " + Math.Round(Sp, 2) + "\n");
+            ////t = (V - V[0]) / a
+            //double tp = (0 - cockpit.ShipSpeed) / -5;
+            //test_info.Append("tp : " + Math.Round(tp, 2) + "\n");
+            ////S = V[0] * t + ( a * t^2 ) / 2
+            //double Sp = (cockpit.ShipSpeed * tp) + ((-5) * Math.Pow(tp, 2)) / 2;
+            //test_info.Append("Sp : " + Math.Round(Sp, 2) + "\n");
 
             lcd_info.OutText(test_info);
         }
@@ -601,12 +605,12 @@ namespace MUL_H1
         public class Thrusts : BaseListTerminalBlock<IMyThrust>
         {
             Matrix ThrusterMatrix = new MatrixD();
-            double UpThrMax = 0;
-            double DownThrMax = 0;
-            double LeftThrMax = 0;
-            double RightThrMax = 0;
-            double ForwardThrMax = 0;
-            double BackwardThrMax = 0;
+            private double UpThrMax = 0;
+            private double DownThrMax = 0;
+            private double LeftThrMax = 0;
+            private double RightThrMax = 0;
+            private double ForwardThrMax = 0;
+            private double BackwardThrMax = 0;
             public double Up_ThrustsMax { get { return this.UpThrMax; } }
             public double Down_ThrustsMax { get { return this.DownThrMax; } }
             public double Left_ThrustsMax { get { return this.LeftThrMax; } }
@@ -702,12 +706,12 @@ namespace MUL_H1
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("UpThrMax: " + PText.GetThrust((float)UpThrMax) + "\n");
-                values.Append("DownThrMax: " + PText.GetThrust((float)DownThrMax) + "\n");
-                values.Append("LeftThrMax: " + PText.GetThrust((float)LeftThrMax) + "\n");
-                values.Append("RightThrMax: " + PText.GetThrust((float)RightThrMax) + "\n");
-                values.Append("ForwardThrMax: " + PText.GetThrust((float)ForwardThrMax) + "\n");
-                values.Append("BackwardThrMax: " + PText.GetThrust((float)BackwardThrMax) + "\n");
+                values.Append("Up: " + PText.GetThrust((float)UpThrMax) + ", ");
+                values.Append("Down: " + PText.GetThrust((float)DownThrMax) + "\n");
+                values.Append("Left: " + PText.GetThrust((float)LeftThrMax) + ", ");
+                values.Append("Right: " + PText.GetThrust((float)RightThrMax) + "\n");
+                values.Append("Forward: " + PText.GetThrust((float)ForwardThrMax) + ", ");
+                values.Append("Backward: " + PText.GetThrust((float)BackwardThrMax) + "\n");
                 return values.ToString();
             }
         }
@@ -771,6 +775,7 @@ namespace MUL_H1
                 }
                 if (updateSource == UpdateType.Update10)
                 {
+                    // Получить высоту над поверхностью
                     base.obj.TryGetPlanetElevation(MyPlanetElevation.Surface, out current_height);
                 }
             }
@@ -778,7 +783,6 @@ namespace MUL_H1
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("Гравитация: " + base.obj.GetNaturalGravity().Length() + "\n");
-                values.Append("ТГравитация: " + base.obj.GetTotalGravity().Length() + "\n");
                 values.Append("BaseMass: " + this.BaseMass + "\n");
                 values.Append("TotalMass: " + this.TotalMass + "\n");
                 values.Append("Скорость: " + base.obj.GetShipSpeed() + "\n");
@@ -837,6 +841,75 @@ namespace MUL_H1
                 StringBuilder values = new StringBuilder();
                 values.Append("ДОМ: " + home_position.ToString() + "\n");
                 values.Append("АВТОПИЛОТ: " + (base.obj.IsAutoPilotEnabled ? "ВКЛ" : "ОТК") + "\n");
+                return values.ToString();
+            }
+        }
+        // V1.0
+        public class Navigation
+        {
+            public class braking
+            {
+                public double a { get; }
+                public double t { get; }
+                public double s { get; }
+                public braking(double a, double t, double s)
+                {
+                    this.a = a; this.t = t; this.s = s;
+                }
+            }
+
+            const int a_loading = -5; //(-3...-5)
+
+            Cockpit cockpit;
+            Thrusts thrusts;
+            Gyros gyros;
+            public Navigation(Cockpit cockpit, Thrusts thrusts, Gyros gyros)
+            {
+                this.cockpit = cockpit;
+                this.thrusts = thrusts;
+                this.gyros = gyros;
+            }
+            // Космос
+            public braking GetBrakingSpace(double max_thrusts)
+            {
+                double a = (max_thrusts / 1000) * (1 / (cockpit.TotalMass / 1000));
+                double t = cockpit.ShipSpeed / a;           //t = V / a
+                double s = (a * Math.Pow(t, 2)) / 2;        // S = ( a * t^2 ) / 2
+                return new braking(a, t, s);
+            }
+            // Посадка
+            public braking GetBrakingLanding(double max_thrusts)
+            {
+
+                double t = (0 - cockpit.ShipSpeed) / a_loading; //t = (V - V[0]) / a
+                double s = (cockpit.ShipSpeed * t) + ((a_loading) * Math.Pow(t, 2)) / 2; //S = V[0] * t + ( a * t^2 ) / 2
+                return new braking((double)a_loading, t, s);
+            }
+
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+                    // Получим макс эффективность трастеров по направлениям
+                    thrusts.GetMaxEffectiveThrust(cockpit.GetCockpitMatrix());
+                }
+            }
+
+            public string TextTEST()
+            {
+                StringBuilder values = new StringBuilder();
+
+                braking space = GetBrakingSpace(thrusts.Forward_ThrustsMax);
+                braking londing = GetBrakingSpace(thrusts.Forward_ThrustsMax);
+
+                values.Append("Space: a=" + Math.Round(space.a, 2) + "t=" + Math.Round(space.t, 2) + "S=" + Math.Round(space.s, 2) + "\n");
+                values.Append("Londing: a=" + Math.Round(londing.a, 2) + "t=" + Math.Round(londing.t, 2) + "S=" + Math.Round(londing.s, 2) + "\n");
+
                 return values.ToString();
             }
         }
