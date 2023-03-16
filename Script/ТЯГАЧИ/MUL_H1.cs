@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
 using VRageMath;
 using static MUL_H1.Program;
+using static SANA1_NAVIGATION.Program;
 using static VRage.Game.MyObjectBuilder_CurveDefinition;
 /// <summary>
 /// v2.0
@@ -26,6 +27,7 @@ namespace MUL_H1
         string NameObj = "[MUL-H1]";
         string NameCockpit = "[MUL-H1]-Кресло пилота [LCD]";
         string NameRemoteControl = "[MUL-H1]-ДУ Парковка";
+        string NameCamera = "[MUL-H1]-Камера вперед";
         string NameConnector = "[MUL-H1]-Коннектор парковка";
         string NameLCDInfo = "[MUL-H1]-LCD-INFO";
         string NameLCDInfo_Upr = "[MUL-H1]-LCD-INFO-UPR";
@@ -41,11 +43,20 @@ namespace MUL_H1
         Thrusts thrusts;
         Cockpit cockpit;
         RemoteControl remote_control;
+        CameraBlock camera;
         Navigation navigation;
 
         static Program _scr;
 
-        public double minHeight = 1000; // мин растояние на которое действует отключать двигатели
+        Vector3D target;
+
+        static double SCAN_DISTANCE = 100000;
+        static float PITCH = 0;
+        static float YAW = 0;
+
+        MyDetectedEntityInfo target_info;
+
+        public double minHeight = 700 + 300; // мин растояние на которое действует отключать двигатели (останавливается за 300м)
         bool ship_connect = false;
         public class PText
         {
@@ -254,6 +265,7 @@ namespace MUL_H1
             reflectors_light.Off();
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj);
+            camera = new CameraBlock(NameCamera);
             navigation = new Navigation(cockpit, remote_control, thrusts, gyros);
 
         }
@@ -271,6 +283,10 @@ namespace MUL_H1
             navigation.Logic(argument, updateSource);
             switch (argument)
             {
+                case "target":
+                    target = camera.GetVectorForward();
+                    target_info = camera.Raycast();
+                    break;
                 default:
                     break;
             }
@@ -319,6 +335,19 @@ namespace MUL_H1
             test_info.Append("TotalMass : " + cockpit.TotalMass / 1000 + "\n");
             test_info.Append("ShipSpeed : " + cockpit.ShipSpeed + "\n");
             test_info.Append(navigation.TextTEST());
+            test_info.Append("Цель: " + target.ToString() + "\n");
+            test_info.Append("Растояние: " + cockpit.GetDistance(target_info.HitPosition!=null? (Vector3D)target_info.HitPosition : new Vector3D(0,0,0) ).ToString() + "\n");
+
+            test_info.Append("SCAN: " + camera.obj.CanScan(SCAN_DISTANCE) + "\n");
+            test_info.Append("Name: " + target_info.Name + "\n");
+            test_info.Append("Type: " + target_info.Type + "\n");
+            test_info.Append("HitPosition: " + target_info.HitPosition + "\n");
+            test_info.Append("Orientation: " + target_info.Orientation + "\n");
+            test_info.Append("Velocity: " + target_info.Velocity + "\n");
+            test_info.Append("Relationship: " + target_info.Relationship + "\n");
+            test_info.Append("BoundingBox: " + target_info.BoundingBox + "\n");
+            test_info.Append("TimeStamp: " + target_info.TimeStamp + "\n");
+            test_info.Append("EntityId: " + target_info.EntityId + "\n");
             lcd_info.OutText(test_info);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
@@ -773,6 +802,10 @@ namespace MUL_H1
             {
                 obj.DampenersOverride = on;
             }
+            public double GetDistance(Vector3D target)
+            {
+                return (target - obj.GetPosition()).Length();
+            }
             public void OutText(StringBuilder values, int num_lcd)
             {
                 if (obj is IMyTextSurfaceProvider)
@@ -839,6 +872,10 @@ namespace MUL_H1
             {
                 obj.DampenersOverride = on;
             }
+            public double GetDistance(Vector3D target)
+            {
+                return (target - obj.GetPosition()).Length();
+            }
             public void Logic(string argument, UpdateType updateSource)
             {
                 switch (argument)
@@ -875,6 +912,28 @@ namespace MUL_H1
                 values.Append("ДОМ: " + home_position.ToString() + "\n");
                 values.Append("АВТОПИЛОТ: " + (base.obj.IsAutoPilotEnabled ? "ВКЛ" : "ОТК") + "\n");
                 return values.ToString();
+            }
+        }
+        public class CameraBlock : BaseTerminalBlock<IMyCameraBlock>
+        {
+            public CameraBlock(string name) : base(name)
+            {
+
+            }
+
+            public MyDetectedEntityInfo Raycast()
+            {
+                this.obj.EnableRaycast = true;
+
+
+                //if (this.obj.CanScan(SCAN_DISTANCE))
+                return this.obj.Raycast(SCAN_DISTANCE, PITCH, YAW);
+
+                //return obj.Raycast(1000000000, 0, 0);
+            }
+            public Vector3D GetVectorForward()
+            {
+                return obj.WorldMatrix.Forward;
             }
         }
         // V1.0
@@ -1126,7 +1185,8 @@ namespace MUL_H1
                                 compensate = true;
                                 this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), 0, 0, 0, 0, 0, 0);
                             }
-                            if (cockpit.GetNaturalGravity.Length() <= 0.01) {
+                            if (cockpit.GetNaturalGravity.Length() <= 0.01)
+                            {
                                 compensate = false;
                                 cockpit.Dampeners(true);
                                 pr_mode = 3;
