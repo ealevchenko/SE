@@ -6,7 +6,9 @@ using SpaceEngineers.Game.ModAPI.Ingame;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
+using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
 using System.Runtime.Remoting.Messaging;
 using System.Text;
@@ -14,6 +16,7 @@ using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
 using VRageMath;
 using static MUL_H1.Program;
+using static MUL_H1.Program.Navigation;
 using static SANA1_NAVIGATION.Program;
 using static VRage.Game.MyObjectBuilder_CurveDefinition;
 /// <summary>
@@ -27,7 +30,8 @@ namespace MUL_H1
         string NameObj = "[MUL-H1]";
         string NameCockpit = "[MUL-H1]-Кресло пилота [LCD]";
         string NameRemoteControl = "[MUL-H1]-ДУ Парковка";
-        string NameCamera = "[MUL-H1]-Камера вперед";
+        string NameCameraForward = "[MUL-H1]-Камера вперед";
+        string NameCameraConnector = "[MUL-H1]-Камера парковка";
         string NameConnector = "[MUL-H1]-Коннектор парковка";
         string NameLCDInfo = "[MUL-H1]-LCD-INFO";
         string NameLCDInfo_Upr = "[MUL-H1]-LCD-INFO-UPR";
@@ -43,23 +47,21 @@ namespace MUL_H1
         Thrusts thrusts;
         Cockpit cockpit;
         RemoteControl remote_control;
-        CameraBlock camera;
+        Camera camera_forward;
+        Camera camera_connector;
         Navigation navigation;
 
         static Program _scr;
 
-        Vector3D target;
+        public double minHeight = 1000;
 
-        static double SCAN_DISTANCE = 100000;
-        static float PITCH = 0;
-        static float YAW = 0;
-
-        MyDetectedEntityInfo target_info;
-
-        public double minHeight = 700 + 300; // мин растояние на которое действует отключать двигатели (останавливается за 300м)
         bool ship_connect = false;
         public class PText
         {
+            static public string GetVector3D(Vector3D vector)
+            {
+                return "X: " + Math.Round(vector.GetDim(0), 2).ToString() + "Y: " + Math.Round(vector.GetDim(1), 2).ToString() + "Z: " + Math.Round(vector.GetDim(2), 2).ToString();
+            }
             static public string GetPersent(double perse)
             {
                 return " - " + Math.Round((perse * 100), 1) + "%";
@@ -225,6 +227,9 @@ namespace MUL_H1
         public class BaseTerminalBlock<T> where T : class
         {
             public T obj;
+
+            public T _obj { get { return obj; } }
+
             public BaseTerminalBlock(string name)
             {
                 obj = _scr.GridTerminalSystem.GetBlockWithName(name) as T;
@@ -265,9 +270,9 @@ namespace MUL_H1
             reflectors_light.Off();
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj);
-            camera = new CameraBlock(NameCamera);
-            navigation = new Navigation(cockpit, remote_control, thrusts, gyros);
-
+            camera_forward = new Camera(NameCameraForward);
+            camera_connector = new Camera(NameCameraConnector);
+            navigation = new Navigation(cockpit, remote_control, thrusts, gyros, camera_forward, camera_connector);
         }
         public void Save()
         {
@@ -283,10 +288,6 @@ namespace MUL_H1
             navigation.Logic(argument, updateSource);
             switch (argument)
             {
-                case "target":
-                    target = camera.GetVectorForward();
-                    target_info = camera.Raycast();
-                    break;
                 default:
                     break;
             }
@@ -335,19 +336,10 @@ namespace MUL_H1
             test_info.Append("TotalMass : " + cockpit.TotalMass / 1000 + "\n");
             test_info.Append("ShipSpeed : " + cockpit.ShipSpeed + "\n");
             test_info.Append(navigation.TextTEST());
-            test_info.Append("Цель: " + target.ToString() + "\n");
-            test_info.Append("Растояние: " + cockpit.GetDistance(target_info.HitPosition!=null? (Vector3D)target_info.HitPosition : new Vector3D(0,0,0) ).ToString() + "\n");
+            //test_info.Append("Цель: " + target.ToString() + "\n");
+            //test_info.Append("Растояние: " + cockpit.GetDistance(target_info.HitPosition != null ? (Vector3D)target_info.HitPosition : new Vector3D(0, 0, 0)).ToString() + "\n");
+            //test_info.Append("SCAN: " + camera.obj.CanScan(dist_scan) + "\n");
 
-            test_info.Append("SCAN: " + camera.obj.CanScan(SCAN_DISTANCE) + "\n");
-            test_info.Append("Name: " + target_info.Name + "\n");
-            test_info.Append("Type: " + target_info.Type + "\n");
-            test_info.Append("HitPosition: " + target_info.HitPosition + "\n");
-            test_info.Append("Orientation: " + target_info.Orientation + "\n");
-            test_info.Append("Velocity: " + target_info.Velocity + "\n");
-            test_info.Append("Relationship: " + target_info.Relationship + "\n");
-            test_info.Append("BoundingBox: " + target_info.BoundingBox + "\n");
-            test_info.Append("TimeStamp: " + target_info.TimeStamp + "\n");
-            test_info.Append("EntityId: " + target_info.EntityId + "\n");
             lcd_info.OutText(test_info);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
@@ -914,31 +906,60 @@ namespace MUL_H1
                 return values.ToString();
             }
         }
-        public class CameraBlock : BaseTerminalBlock<IMyCameraBlock>
+        public class Camera : BaseTerminalBlock<IMyCameraBlock>
         {
-            public CameraBlock(string name) : base(name)
+            public Camera(string name) : base(name)
             {
 
             }
-
-            public MyDetectedEntityInfo Raycast()
+            public MyDetectedEntityInfo? Raycast(double dist_scan, float pitch_scan, float yaw_scan)
             {
+                MyDetectedEntityInfo? result = null;
                 this.obj.EnableRaycast = true;
+                if (this.obj.CanScan(dist_scan))
+                {
+                    result = this.obj.Raycast(dist_scan, pitch_scan, yaw_scan);
+                }
+                this.obj.EnableRaycast = false;
+                return result;
 
-
-                //if (this.obj.CanScan(SCAN_DISTANCE))
-                return this.obj.Raycast(SCAN_DISTANCE, PITCH, YAW);
-
-                //return obj.Raycast(1000000000, 0, 0);
             }
             public Vector3D GetVectorForward()
             {
                 return obj.WorldMatrix.Forward;
             }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+
+                return values.ToString();
+            }
+            public string GetTextDetectedEntityInfo(MyDetectedEntityInfo? info)
+            {
+                if (info == null) return "";
+                StringBuilder values = new StringBuilder();
+                values.Append("Name: " + ((MyDetectedEntityInfo)info).Name + "\n");
+                values.Append("Type: " + ((MyDetectedEntityInfo)info).Type + "\n");
+                values.Append("HitPosition: " + ((MyDetectedEntityInfo)info).HitPosition + "\n");
+                values.Append("Orientation: " + ((MyDetectedEntityInfo)info).Orientation + "\n");
+                values.Append("Velocity: " + ((MyDetectedEntityInfo)info).Velocity + "\n");
+                values.Append("Relationship: " + ((MyDetectedEntityInfo)info).Relationship + "\n");
+                values.Append("BoundingBox: " + ((MyDetectedEntityInfo)info).BoundingBox + "\n");
+                values.Append("TimeStamp: " + ((MyDetectedEntityInfo)info).TimeStamp + "\n");
+                values.Append("EntityId: " + ((MyDetectedEntityInfo)info).EntityId + "\n");
+                return values.ToString();
+            }
         }
         // V1.0
         public class Navigation
         {
+            Vector3D target;
+            Vector3D course;
+            MyDetectedEntityInfo? target_info;
+            double dist_scan = 10000;
+            float pitch_scan = 0;
+            float yaw_scan = 0;
+
             public double ForwardThrust = 0;
             public double LeftThrust = 0;
             public double UpThrust = 0;
@@ -946,28 +967,30 @@ namespace MUL_H1
             public double RightThrust = 0;
             public double DownThrust = 0;
 
-
             bool compensate = false;
-            public enum horizon : int
+            public enum orientation : int
             {
                 none = 0,
-                down = 1,
-                backward = 2,
-                forward = 3,
+                horizon_down = 1,
+                horizon_backward = 2,
+                horizon_forward = 3,
+                course_forward = 4,
             };
-            public static string[] name_horizont = { "", "Горизонт", "Вверх", "Вниз" };
+            public static string[] name_horizont = { "", "Горизонт", "Вверх", "Вниз" , "Курс" };
             public enum mode : int
             {
                 none = 0,
                 landing_planet = 1,
                 taking_planet = 2,
+                flying_course = 3,
+                flying_target = 4,
             };
-            public static string[] name_mode = { "", "Посадка на планету", "Взлет с планеты" };
-            horizon curent_horizon = horizon.none;
+            public static string[] name_mode = { "", "Посадка на планету", "Взлет с планеты", "Полет по курсу", "Полет к цели" };
+            orientation curent_orientation = orientation.none;
             mode curent_mode = mode.none;
             int pr_mode = 0;
             int max_spid = 200;
-            int d_hieght = 700;
+            int reserve_hieght = 400 + 300; // мин растояние на которое действует отключать двигатели (останавливается за 300м)
 
             public class braking
             {
@@ -985,12 +1008,17 @@ namespace MUL_H1
             RemoteControl remote_control;
             Thrusts thrusts;
             Gyros gyros;
-            public Navigation(Cockpit cockpit, RemoteControl remote_control, Thrusts thrusts, Gyros gyros)
+            Camera camera_forward;
+            Camera camera_connector;
+
+            public Navigation(Cockpit cockpit, RemoteControl remote_control, Thrusts thrusts, Gyros gyros, Camera camera_forward, Camera camera_connector)
             {
                 this.cockpit = cockpit;
                 this.remote_control = remote_control;
                 this.thrusts = thrusts;
                 this.gyros = gyros;
+                this.camera_forward = camera_forward;
+                this.camera_connector = camera_connector;
             }
             // Космос тормозной путь
             public braking GetBrakingSpace(double max_thrusts)
@@ -1086,6 +1114,32 @@ namespace MUL_H1
                 }
                 gyros.SetGyro(YawInput, PitchInput, RollInput);
             }
+            public void ForwardСourse()
+            {
+                //Vector3D GravNorm = GetGravNormalize();
+                Vector3D course = Vector3D.Normalize(this.course);
+
+                //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
+                double gF = course.Dot(cockpit._obj.WorldMatrix.Up);
+                double gL = course.Dot(cockpit._obj.WorldMatrix.Right);
+                double gU = course.Dot(cockpit._obj.WorldMatrix.Backward);
+
+                //Получаем сигналы по тангажу и крены операцией atan2
+                float YawInput = (float)Math.Atan2(gL, -gU); // крен  // YawInput
+                float PitchInput = -(float)Math.Atan2(gF, -gU); // тангаж
+
+                //На рыскание просто отправляем сигнал рыскания с контроллера. Им мы будем управлять вручную.
+                float RollInput = 0;
+                if (remote_control.IsUnderControl)
+                {
+                    RollInput = remote_control._obj.RotationIndicator.Y; // RollInput
+                }
+                else if (cockpit.IsUnderControl)
+                {
+                    RollInput = cockpit._obj.RotationIndicator.Y;
+                }
+                gyros.SetGyro(YawInput, PitchInput, RollInput);
+            }
             public void CompensateWeight()
             {
                 Vector3D GravityVector = cockpit.GetNaturalGravity;
@@ -1111,7 +1165,7 @@ namespace MUL_H1
                     case 0:
                         {
                             // Проверка возможна операция?
-                            curent_horizon = horizon.backward;
+                            curent_orientation = orientation.horizon_backward;
                             pr_mode = 1; // Набор скорости
                             break;
                         }
@@ -1131,7 +1185,7 @@ namespace MUL_H1
                                 this.thrusts.Off(); // свободное падение
                             }
                             braking londing = GetBrakingLanding(thrusts.Forward_ThrustsMax);
-                            if (this.cockpit.CurrentHeight <= londing.s + d_hieght)
+                            if (this.cockpit.CurrentHeight <= londing.s + reserve_hieght)
                             {
                                 // Надо тормозить
                                 pr_mode = 3;
@@ -1166,7 +1220,7 @@ namespace MUL_H1
                         {
                             // Проверка возможна операция?
                             compensate = false;
-                            curent_horizon = horizon.backward;
+                            curent_orientation = orientation.horizon_backward;
                             pr_mode = 1; // Набор скорости
                             break;
                         }
@@ -1185,7 +1239,7 @@ namespace MUL_H1
                                 compensate = true;
                                 this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), 0, 0, 0, 0, 0, 0);
                             }
-                            if (cockpit.GetNaturalGravity.Length() <= 0.01)
+                            if (cockpit.GetNaturalGravity.Length() <= 0.2f)
                             {
                                 compensate = false;
                                 cockpit.Dampeners(true);
@@ -1209,54 +1263,87 @@ namespace MUL_H1
             {
                 switch (argument)
                 {
+                    case "course":
+                        course = camera_forward.GetVectorForward();
+                        break;
+                    case "target":
+                        MyDetectedEntityInfo? tg_info = camera_forward.Raycast(dist_scan, pitch_scan, yaw_scan);
+                        if (tg_info != null && ((MyDetectedEntityInfo)tg_info).Type != MyDetectedEntityType.None)
+                        {
+                            target = (Vector3D)((MyDetectedEntityInfo)tg_info).HitPosition;
+                        }
+                        break;
+                    case "scan":
+                        target_info = camera_forward.Raycast(dist_scan, pitch_scan, yaw_scan);
+                        break;
                     case "horizont_down_on":
-                        curent_horizon = horizon.down;
+                        curent_orientation = orientation.horizon_down;
                         break;
                     case "horizont_down_off":
-                        curent_horizon = horizon.none;
+                        curent_orientation = orientation.none;
                         break;
                     case "horizont_down":
-                        if (curent_horizon == horizon.down)
+                        if (curent_orientation == orientation.horizon_down)
                         {
-                            curent_horizon = horizon.none;
+                            curent_orientation = orientation.none;
                         }
                         else
                         {
-                            curent_horizon = horizon.down;
+                            curent_orientation = orientation.horizon_down;
                         }
                         break;
                     case "horizont_backward_on":
-                        curent_horizon = horizon.backward;
+                        curent_orientation = orientation.horizon_backward;
                         break;
                     case "horizont_backward_off":
-                        curent_horizon = horizon.none;
+                        curent_orientation = orientation.none;
                         break;
                     case "horizont_backward":
-                        if (curent_horizon == horizon.backward)
+                        if (curent_orientation == orientation.horizon_backward)
                         {
-                            curent_horizon = horizon.none;
+                            curent_orientation = orientation.none;
                         }
                         else
                         {
-                            curent_horizon = horizon.backward;
+                            curent_orientation = orientation.horizon_backward;
                         }
                         break;
                     case "horizont_forward_on":
-                        curent_horizon = horizon.forward;
+                        curent_orientation = orientation.horizon_forward;
                         break;
                     case "horizont_forward_off":
-                        curent_horizon = horizon.none;
+                        curent_orientation = orientation.none;
                         break;
                     case "horizont_forward":
-                        if (curent_horizon == horizon.forward)
+                        if (curent_orientation == orientation.horizon_forward)
                         {
-                            curent_horizon = horizon.none;
+                            curent_orientation = orientation.none;
                         }
                         else
                         {
-                            curent_horizon = horizon.forward;
+                            curent_orientation = orientation.horizon_forward;
                         }
                         break;
+
+                    case "course_forward_on":
+                        curent_orientation = orientation.course_forward;
+                        break;
+                    case "course_forward_off":
+                        curent_orientation = orientation.none;
+                        break;
+                    case "course_forward":
+                        if (curent_orientation == orientation.course_forward)
+                        {
+                            curent_orientation = orientation.none;
+                        }
+                        else
+                        {
+                            curent_orientation = orientation.course_forward;
+                        }
+                        break;
+
+
+
                     case "mode_landing_planet_on":
                         curent_mode = mode.landing_planet;
                         break;
@@ -1312,7 +1399,7 @@ namespace MUL_H1
                     // Сбросим подпрограммы
                     if (curent_mode == mode.none) pr_mode = 0;
                     // режим горизонт
-                    if (curent_horizon == horizon.none)
+                    if (curent_orientation == orientation.none)
                     {
                         gyros.GyroOver(false);
                     }
@@ -1321,17 +1408,21 @@ namespace MUL_H1
                         gyros.GyroOver(true);
                     }
                     // Режимы удержания горизонта
-                    if (curent_horizon == horizon.down)
+                    if (curent_orientation == orientation.horizon_down)
                     {
                         DownHorizon();
                     }
-                    if (curent_horizon == horizon.backward)
+                    if (curent_orientation == orientation.horizon_backward)
                     {
                         BackwardHorizon();
                     }
-                    if (curent_horizon == horizon.forward)
+                    if (curent_orientation == orientation.horizon_forward)
                     {
                         ForwardHorizon();
+                    }
+                    if (curent_orientation == orientation.course_forward)
+                    {
+                        ForwardСourse();
                     }
                     if (curent_mode == mode.landing_planet)
                     {
@@ -1350,24 +1441,27 @@ namespace MUL_H1
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("ВЫРАВНИВАНИЕ: " + name_horizont[(int)curent_horizon] + "\n");
+                values.Append("ВЫРАВНИВАНИЕ: " + name_horizont[(int)curent_orientation] + "\n");
                 values.Append("РЕЖИМ: " + name_mode[(int)curent_mode] + ", pr : " + pr_mode + "\n");
                 values.Append("КОМПЕНСАЦИЯ: " + (compensate ? "ВКЛ" : "ВЫК") + "\n");
+                values.Append("Курс: " + course + "\n");
+                values.Append("ЦЕЛЬ: " + PText.GetVector3D(target) +  "\n");
+                values.Append("РАССТОЯНИЕ: " + cockpit.GetDistance(target) +  "\n");
                 return values.ToString();
             }
             public string TextTEST()
             {
                 StringBuilder values = new StringBuilder();
-
                 braking space = GetBrakingSpace(thrusts.Forward_ThrustsMax);
                 braking londing = GetBrakingLanding(thrusts.Forward_ThrustsMax);
-
                 values.Append("Space: a=" + Math.Round(space.a, 2) + "t=" + Math.Round(space.t, 2) + "S=" + Math.Round(space.s, 2) + "\n");
                 values.Append("Londing: a=" + Math.Round(londing.a, 2) + "t=" + Math.Round(londing.t, 2) + "S=" + Math.Round(londing.s, 2) + "\n");
-
                 values.Append("Thrust: up=" + PText.GetThrust((float)UpThrust) + "down=" + PText.GetThrust((float)DownThrust) + "\n");
                 values.Append("Thrust: left=" + PText.GetThrust((float)LeftThrust) + "right=" + PText.GetThrust((float)RightThrust) + "\n");
                 values.Append("Thrust: forw=" + PText.GetThrust((float)ForwardThrust) + "back=" + PText.GetThrust((float)BackwardThrust) + "\n");
+                values.Append("SCAN - " + camera_forward._obj.CanScan(this.dist_scan) + "\n");
+                values.Append("Растояние: " + (target_info != null ? cockpit.GetDistance((Vector3D)((MyDetectedEntityInfo)target_info).HitPosition).ToString() : "") + "\n");
+                values.Append(camera_forward.GetTextDetectedEntityInfo(target_info) + "\n");
                 return values.ToString();
             }
         }
