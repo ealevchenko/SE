@@ -35,11 +35,13 @@ namespace MUL_H1
         string NameConnector = "[MUL-H1]-Коннектор парковка";
         string NameLCDInfo = "[MUL-H1]-LCD-INFO";
         string NameLCDInfo_Upr = "[MUL-H1]-LCD-INFO-UPR";
+        string NameLCDInfo_Debug = "[MUL-H1]-LCD-INFO-DEBUG";
 
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
 
         LCD lcd_info;
         LCD lcd_info_upr;
+        static LCD lcd_info_debug;
         Batterys bats;
         Connector connector;
         ReflectorsLight reflectors_light;
@@ -228,7 +230,7 @@ namespace MUL_H1
         {
             public T obj;
 
-            public T _obj { get { return obj; } }
+            //public T _obj { get { return obj; } }
 
             public BaseTerminalBlock(string name)
             {
@@ -261,6 +263,7 @@ namespace MUL_H1
             _scr = this;
             lcd_info = new LCD(NameLCDInfo);
             lcd_info_upr = new LCD(NameLCDInfo_Upr);
+            lcd_info_debug = new LCD(NameLCDInfo_Debug);
             cockpit = new Cockpit(NameCockpit);
             remote_control = new RemoteControl(NameRemoteControl);
             bats = new Batterys(NameObj);
@@ -910,19 +913,23 @@ namespace MUL_H1
         {
             public Camera(string name) : base(name)
             {
+                base.obj.EnableRaycast = true;
+            }
+            public bool CanScan(double distance)
+            {
 
+                return base.obj.CanScan(distance);
             }
             public MyDetectedEntityInfo? Raycast(double dist_scan, float pitch_scan, float yaw_scan)
             {
                 MyDetectedEntityInfo? result = null;
-                this.obj.EnableRaycast = true;
-                if (this.obj.CanScan(dist_scan))
+                //base.obj.EnableRaycast = true;
+                if (this.CanScan(dist_scan))
                 {
-                    result = this.obj.Raycast(dist_scan, pitch_scan, yaw_scan);
+                    result = base.obj.Raycast(dist_scan, pitch_scan, yaw_scan);
                 }
-                this.obj.EnableRaycast = false;
+                //base.obj.EnableRaycast = false;
                 return result;
-
             }
             public Vector3D GetVectorForward()
             {
@@ -936,17 +943,19 @@ namespace MUL_H1
             }
             public string GetTextDetectedEntityInfo(MyDetectedEntityInfo? info)
             {
-                if (info == null) return "";
                 StringBuilder values = new StringBuilder();
-                values.Append("Name: " + ((MyDetectedEntityInfo)info).Name + "\n");
-                values.Append("Type: " + ((MyDetectedEntityInfo)info).Type + "\n");
-                values.Append("HitPosition: " + ((MyDetectedEntityInfo)info).HitPosition + "\n");
-                values.Append("Orientation: " + ((MyDetectedEntityInfo)info).Orientation + "\n");
-                values.Append("Velocity: " + ((MyDetectedEntityInfo)info).Velocity + "\n");
-                values.Append("Relationship: " + ((MyDetectedEntityInfo)info).Relationship + "\n");
-                values.Append("BoundingBox: " + ((MyDetectedEntityInfo)info).BoundingBox + "\n");
-                values.Append("TimeStamp: " + ((MyDetectedEntityInfo)info).TimeStamp + "\n");
-                values.Append("EntityId: " + ((MyDetectedEntityInfo)info).EntityId + "\n");
+                if (info != null)
+                {
+                    values.Append("Name: " + ((MyDetectedEntityInfo)info).Name + "\n");
+                    values.Append("Type: " + ((MyDetectedEntityInfo)info).Type + "\n");
+                    values.Append("HitPosition: " + ((MyDetectedEntityInfo)info).HitPosition + "\n");
+                    values.Append("Orientation: " + ((MyDetectedEntityInfo)info).Orientation + "\n");
+                    values.Append("Velocity: " + ((MyDetectedEntityInfo)info).Velocity + "\n");
+                    values.Append("Relationship: " + ((MyDetectedEntityInfo)info).Relationship + "\n");
+                    values.Append("BoundingBox: " + ((MyDetectedEntityInfo)info).BoundingBox + "\n");
+                    values.Append("TimeStamp: " + ((MyDetectedEntityInfo)info).TimeStamp + "\n");
+                    values.Append("EntityId: " + ((MyDetectedEntityInfo)info).EntityId + "\n");
+                };
                 return values.ToString();
             }
         }
@@ -976,7 +985,7 @@ namespace MUL_H1
                 horizon_forward = 3,
                 course_forward = 4,
             };
-            public static string[] name_horizont = { "", "Горизонт", "Вверх", "Вниз" , "Курс" };
+            public static string[] name_horizont = { "", "Горизонт", "Вверх", "Вниз", "Курс" };
             public enum mode : int
             {
                 none = 0,
@@ -1259,6 +1268,67 @@ namespace MUL_H1
                         }
                 }
             }
+            public void FlyingCourse()
+            {
+                StringBuilder test_info = new StringBuilder();
+                test_info.Append("pr_mode : " + pr_mode + "\n");
+                switch (pr_mode)
+                {
+                    case 0:
+                        {
+                            // Проверка возможна операция?
+                            curent_orientation = orientation.course_forward;
+                            pr_mode = 1; // Набор скорости
+                            break;
+                        }
+                    case 1:
+                        {
+                            this.thrusts.On();
+                            cockpit.Dampeners(false);
+                            this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), 0, 0, 0, 0, 0, 1.0f);
+                            pr_mode = 2; // проверка скорости и включить компенсации ()
+                            break;
+                        }
+                    case 2:
+                        {
+                            target_info = camera_forward.Raycast(dist_scan, pitch_scan, yaw_scan);
+                            if (target_info != null && ((MyDetectedEntityInfo)target_info).Type != MyDetectedEntityType.None)
+                            {
+                                braking space = GetBrakingSpace(thrusts.Forward_ThrustsMax);
+                                double curr_dist = cockpit.GetDistance((Vector3D)((MyDetectedEntityInfo)target_info).HitPosition);
+                                test_info.Append("Space: a=" + Math.Round(space.a, 2) + "t=" + Math.Round(space.t, 2) + "S=" + Math.Round(space.s, 2) + "\n");
+                                test_info.Append("curr_dist : " + curr_dist + "\n");
+                                if (curr_dist <= space.s + reserve_hieght)
+                                {
+                                    // Надо тормозить
+                                    cockpit.Dampeners(true);
+                                    curent_orientation = orientation.none;
+                                    pr_mode = 3;
+                                }
+                            }
+                            else
+                            {
+                                if (this.cockpit.ShipSpeed >= max_spid)
+                                {
+                                    this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), 0, 0, 0, 0, 0, 0);
+                                    //pr_mode = 3;
+                                }
+                            }
+                            break;
+                        }
+                    case 3:
+                        {
+                            if (this.cockpit.ShipSpeed <= 0.2f)
+                            {
+                                // Скорость погашена сбросим режим посадки
+                                curent_mode = mode.none;
+                                pr_mode = 0;
+                            }
+                            break;
+                        }
+                }
+                lcd_info_debug.OutText(test_info);
+            }
             public void Logic(string argument, UpdateType updateSource)
             {
                 switch (argument)
@@ -1267,7 +1337,7 @@ namespace MUL_H1
                         course = camera_forward.GetVectorForward();
                         break;
                     case "target":
-                        MyDetectedEntityInfo? tg_info = camera_forward.Raycast(dist_scan, pitch_scan, yaw_scan);
+                        MyDetectedEntityInfo? tg_info = camera_forward.Raycast(this.dist_scan, this.pitch_scan, this.yaw_scan);
                         if (tg_info != null && ((MyDetectedEntityInfo)tg_info).Type != MyDetectedEntityType.None)
                         {
                             target = (Vector3D)((MyDetectedEntityInfo)tg_info).HitPosition;
@@ -1324,7 +1394,6 @@ namespace MUL_H1
                             curent_orientation = orientation.horizon_forward;
                         }
                         break;
-
                     case "course_forward_on":
                         curent_orientation = orientation.course_forward;
                         break;
@@ -1341,9 +1410,6 @@ namespace MUL_H1
                             curent_orientation = orientation.course_forward;
                         }
                         break;
-
-
-
                     case "mode_landing_planet_on":
                         curent_mode = mode.landing_planet;
                         break;
@@ -1376,6 +1442,23 @@ namespace MUL_H1
                             curent_mode = mode.taking_planet;
                         }
                         break;
+                    case "mode_flying_course_on":
+                        curent_mode = mode.flying_course;
+                        break;
+                    case "mode_flying_course_off":
+                        curent_mode = mode.none;
+                        break;
+                    case "mode_flying_course":
+                        if (curent_mode == mode.flying_course)
+                        {
+                            curent_mode = mode.none;
+                        }
+                        else
+                        {
+                            curent_mode = mode.flying_course;
+                        }
+                        break;
+                    //
                     case "test100":
                         this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), 0, 0, 0, 0, 0, 1.0f);
                         break;
@@ -1397,7 +1480,14 @@ namespace MUL_H1
                     // Получим макс эффективность трастеров по направлениям
                     thrusts.GetMaxEffectiveThrust(cockpit.GetCockpitMatrix());
                     // Сбросим подпрограммы
-                    if (curent_mode == mode.none) pr_mode = 0;
+                    if (curent_mode == mode.none)
+                    {
+                        pr_mode = 0;
+                        curent_orientation = orientation.none;
+                        this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), 0, 0, 0, 0, 0, 0.0f);
+                        cockpit.Dampeners(true);
+                    }
+
                     // режим горизонт
                     if (curent_orientation == orientation.none)
                     {
@@ -1432,6 +1522,10 @@ namespace MUL_H1
                     {
                         TakingPlanet();
                     }
+                    if (curent_mode == mode.flying_course)
+                    {
+                        FlyingCourse();
+                    }
                     if (compensate)
                     {
                         CompensateWeight();
@@ -1441,12 +1535,12 @@ namespace MUL_H1
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("ВЫРАВНИВАНИЕ: " + name_horizont[(int)curent_orientation] + "\n");
+                values.Append("ОРИНТАЦИЯ: " + name_horizont[(int)curent_orientation] + "\n");
                 values.Append("РЕЖИМ: " + name_mode[(int)curent_mode] + ", pr : " + pr_mode + "\n");
                 values.Append("КОМПЕНСАЦИЯ: " + (compensate ? "ВКЛ" : "ВЫК") + "\n");
                 values.Append("Курс: " + course + "\n");
-                values.Append("ЦЕЛЬ: " + PText.GetVector3D(target) +  "\n");
-                values.Append("РАССТОЯНИЕ: " + cockpit.GetDistance(target) +  "\n");
+                values.Append("ЦЕЛЬ: " + PText.GetVector3D(target) + "\n");
+                values.Append("РАССТОЯНИЕ: " + cockpit.GetDistance(target) + "\n");
                 return values.ToString();
             }
             public string TextTEST()
@@ -1459,8 +1553,8 @@ namespace MUL_H1
                 values.Append("Thrust: up=" + PText.GetThrust((float)UpThrust) + "down=" + PText.GetThrust((float)DownThrust) + "\n");
                 values.Append("Thrust: left=" + PText.GetThrust((float)LeftThrust) + "right=" + PText.GetThrust((float)RightThrust) + "\n");
                 values.Append("Thrust: forw=" + PText.GetThrust((float)ForwardThrust) + "back=" + PText.GetThrust((float)BackwardThrust) + "\n");
-                values.Append("SCAN - " + camera_forward._obj.CanScan(this.dist_scan) + "\n");
-                values.Append("Растояние: " + (target_info != null ? cockpit.GetDistance((Vector3D)((MyDetectedEntityInfo)target_info).HitPosition).ToString() : "") + "\n");
+                values.Append("SCAN - " + camera_forward.CanScan(this.dist_scan) + "\n");
+                values.Append("Растояние: " + (target_info != null && ((MyDetectedEntityInfo)target_info).HitPosition != null ? cockpit.GetDistance((Vector3D)((MyDetectedEntityInfo)target_info).HitPosition).ToString() : "") + "\n");
                 values.Append(camera_forward.GetTextDetectedEntityInfo(target_info) + "\n");
                 return values.ToString();
             }
