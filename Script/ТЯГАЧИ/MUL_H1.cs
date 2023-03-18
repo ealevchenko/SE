@@ -537,6 +537,16 @@ namespace MUL_H1
             {
 
             }
+
+            public float getPitch() {
+                return base.list_obj.Select(g => g.Pitch).Sum();
+            }
+            public float getRoll() {
+                return base.list_obj.Select(g => g.Roll).Sum();
+            }
+            public float getYaw() {
+                return base.list_obj.Select(g => g.Yaw).Sum();
+            }
             public void SetGyro(float Yaw, float Pitch, float Roll)
             {
                 foreach (IMyGyro gyro in base.list_obj)
@@ -555,6 +565,14 @@ namespace MUL_H1
                     gyro.Roll = 0;
                     gyro.GyroOverride = over;
                 }
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("Yaw" + this.getYaw() + "\n");
+                values.Append("Pitch" + this.getPitch() + "\n");
+                values.Append("Roll" + this.getRoll() + "\n");
+                return values.ToString();
             }
         }
         public class Thrusts : BaseListTerminalBlock<IMyThrust>
@@ -965,7 +983,7 @@ namespace MUL_H1
             Vector3D target;
             Vector3D course;
             MyDetectedEntityInfo? target_info;
-            double dist_scan = 10000;
+            double dist_scan = 5000;
             float pitch_scan = 0;
             float yaw_scan = 0;
 
@@ -1125,7 +1143,6 @@ namespace MUL_H1
             }
             public void ForwardСourse()
             {
-                //Vector3D GravNorm = GetGravNormalize();
                 Vector3D course = Vector3D.Normalize(this.course);
 
                 //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
@@ -1272,6 +1289,7 @@ namespace MUL_H1
             {
                 StringBuilder test_info = new StringBuilder();
                 test_info.Append("pr_mode : " + pr_mode + "\n");
+                test_info.Append("pr_mode : " + gyros.TextInfo() + "\n");
                 switch (pr_mode)
                 {
                     case 0:
