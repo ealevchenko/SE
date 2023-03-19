@@ -23,11 +23,12 @@ namespace MUL_H1
 {
     public sealed class Program : MyGridProgram
     {
-        // v2.0
+        // v2.1
         string NameObj = "[MUL-H1]";
         string NameCockpit = "[MUL-H1]-Кресло пилота [LCD]";
         string NameRemoteControl = "[MUL-H1]-ДУ Парковка";
-        string NameCameraForward = "[MUL-H1]-Камера вперед";
+        string NameCameraCourse = "[MUL-H1]-Камера course";
+        string NameCameraForward = "[MUL-H1]-Камера forward";
         string NameCameraConnector = "[MUL-H1]-Камера парковка";
         string NameConnector = "[MUL-H1]-Коннектор парковка";
         string NameLCDInfo = "[MUL-H1]-LCD-INFO";
@@ -70,6 +71,7 @@ namespace MUL_H1
         Thrusts thrusts;
         Cockpit cockpit;
         RemoteControl remote_control;
+        Camera camera_course;
         Camera camera_forward;
         Camera camera_connector;
         Navigation navigation;
@@ -296,9 +298,10 @@ namespace MUL_H1
             gyros = new Gyros(NameObj);
             gastanks = new GasTanks(NameObj);
             thrusts = new Thrusts(NameObj);
+            camera_course = new Camera(NameCameraCourse);
             camera_forward = new Camera(NameCameraForward);
             camera_connector = new Camera(NameCameraConnector);
-            navigation = new Navigation(cockpit, remote_control, thrusts, gyros, camera_forward, camera_connector);
+            navigation = new Navigation(cockpit, remote_control, thrusts, gyros, camera_course, camera_connector);
             gateways_doors = new Gateways(NameObj, tag_door_gateway);
             room_light = new Lightings(NameObj, tag_lighting_room); // Освещение
             room_light.Off();
@@ -1069,7 +1072,7 @@ namespace MUL_H1
                 return values.ToString();
             }
         }
-        // V1.0
+        // V1.1
         public class Navigation
         {
             Vector3D target = new Vector3D(26827.8655273466, -23658.4360006724, 99710.1771295082);
@@ -1138,16 +1141,16 @@ namespace MUL_H1
             RemoteControl remote_control;
             Thrusts thrusts;
             Gyros gyros;
-            Camera camera_forward;
+            Camera camera_course;
             Camera camera_connector;
 
-            public Navigation(Cockpit cockpit, RemoteControl remote_control, Thrusts thrusts, Gyros gyros, Camera camera_forward, Camera camera_connector)
+            public Navigation(Cockpit cockpit, RemoteControl remote_control, Thrusts thrusts, Gyros gyros, Camera camera_course, Camera camera_connector)
             {
                 this.cockpit = cockpit;
                 this.remote_control = remote_control;
                 this.thrusts = thrusts;
                 this.gyros = gyros;
-                this.camera_forward = camera_forward;
+                this.camera_course = camera_course;
                 this.camera_connector = camera_connector;
             }
             // Космос тормозной путь
@@ -1175,7 +1178,7 @@ namespace MUL_H1
             public double? GetDistanceOfRaycast(double dist_scan, float pitch_scan, float yaw_scan)
             {
                 double? result = null;
-                MyDetectedEntityInfo? target_info = camera_forward.Raycast(dist_scan, pitch_scan, yaw_scan);
+                MyDetectedEntityInfo? target_info = camera_course.Raycast(dist_scan, pitch_scan, yaw_scan);
                 if (target_info != null && ((MyDetectedEntityInfo)target_info).Type != MyDetectedEntityType.None)
                 {
                     braking space = GetBrakingSpace(thrusts.Forward_ThrustsMax);
@@ -1449,7 +1452,7 @@ namespace MUL_H1
                 //    pr_mode = 3; // тормозим и выходим
                 //}
                 test_info.Append("pr_mode : " + pr_mode + "\n");
-                test_info.Append("SCAN :" + camera_forward.CanScan(this.dist_scan) + "\n");
+                test_info.Append("SCAN :" + camera_course.CanScan(this.dist_scan) + "\n");
                 //test_info.Append("curr_distance : " + curr_distance + "\n");
                 //test_info.Append("Space: a=" + Math.Round(space.a, 2) + "t=" + Math.Round(space.t, 2) + "S=" + Math.Round(space.s, 2) + "\n");
                 test_info.Append(gyros.TextInfo());
@@ -1593,17 +1596,17 @@ namespace MUL_H1
                 switch (argument)
                 {
                     case "course":
-                        course = camera_forward.GetVectorForward();
+                        course = camera_course.GetVectorForward();
                         break;
                     case "target":
-                        MyDetectedEntityInfo? tg_info = camera_forward.Raycast(this.dist_scan, this.pitch_scan, this.yaw_scan);
+                        MyDetectedEntityInfo? tg_info = camera_course.Raycast(this.dist_scan, this.pitch_scan, this.yaw_scan);
                         if (tg_info != null && ((MyDetectedEntityInfo)tg_info).Type != MyDetectedEntityType.None)
                         {
                             target = (Vector3D)((MyDetectedEntityInfo)tg_info).HitPosition;
                         }
                         break;
                     case "scan":
-                        target_info = camera_forward.Raycast(dist_scan, pitch_scan, yaw_scan);
+                        target_info = camera_course.Raycast(dist_scan, pitch_scan, yaw_scan);
                         break;
                     case "set_base_connection":
                         base_pre_vector_connection = this.cockpit.WorldMatrix.Forward;
@@ -1900,9 +1903,9 @@ namespace MUL_H1
                 //values.Append("Thrust: up=" + PText.GetThrust((float)UpThrust) + "down=" + PText.GetThrust((float)DownThrust) + "\n");
                 //values.Append("Thrust: left=" + PText.GetThrust((float)LeftThrust) + "right=" + PText.GetThrust((float)RightThrust) + "\n");
                 //values.Append("Thrust: forw=" + PText.GetThrust((float)ForwardThrust) + "back=" + PText.GetThrust((float)BackwardThrust) + "\n");
-                //values.Append("SCAN - " + camera_forward.CanScan(this.dist_scan) + "\n");
+                //values.Append("SCAN - " + camera_course.CanScan(this.dist_scan) + "\n");
                 //values.Append("Растояние: " + (target_info != null && ((MyDetectedEntityInfo)target_info).HitPosition != null ? cockpit.GetDistance((Vector3D)((MyDetectedEntityInfo)target_info).HitPosition).ToString() : "") + "\n");
-                //values.Append(camera_forward.GetTextDetectedEntityInfo(target_info) + "\n");
+                //values.Append(camera_course.GetTextDetectedEntityInfo(target_info) + "\n");
                 return values.ToString();
             }
         }
@@ -2113,3 +2116,9 @@ namespace MUL_H1
         }
     }
 }
+// Запись координат базы в блок
+// добавить соеден в алгориьм стыковки
+// своб полет - сделать режим разгон и тормоз (сравнить режимы)
+// сделать остановку на точку таргет
+// Определить эффект мощьность по стороне 3д коорд трмоза 
+// добавить контроль безопасности (столкновения) по камерам (по сторонам)
