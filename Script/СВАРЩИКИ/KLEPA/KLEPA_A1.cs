@@ -24,7 +24,7 @@ namespace KLEPA_A1
     /// </summary>
     public sealed class Program : MyGridProgram
     {
-        // v2.2
+        // v2.3
         string NameObj = "[KLEPA_A1]";
         string NameCockpit = "[KLEPA_A1]-Промышленный кокпит [LCD]";
         string NameRemoteControl = "[KLEPA_A1]-ДУ парковка";
@@ -52,6 +52,10 @@ namespace KLEPA_A1
 
         public class PText
         {
+            static public string GetVector3D(Vector3D vector)
+            {
+                return "X: " + Math.Round(vector.GetDim(0), 2).ToString() + "Y: " + Math.Round(vector.GetDim(1), 2).ToString() + "Z: " + Math.Round(vector.GetDim(2), 2).ToString();
+            }
             static public string GetPersent(double perse)
             {
                 return " - " + Math.Round((perse * 100), 1) + "%";
@@ -217,6 +221,9 @@ namespace KLEPA_A1
         public class BaseTerminalBlock<T> where T : class
         {
             public T obj;
+
+            //public T _obj { get { return obj; } }
+
             public BaseTerminalBlock(string name)
             {
                 obj = _scr.GridTerminalSystem.GetBlockWithName(name) as T;
@@ -767,8 +774,20 @@ namespace KLEPA_A1
             string current_special = "";
 
             List<MyComp> list_all = new List<MyComp>() {
-                new MyComp() { component = Component.Display, value = 1000 },
-                new MyComp() { component = Component.Motor, value = 5000 }
+                new MyComp() { component = Component.BulletproofGlass, value = 500 },
+                new MyComp() { component = Component.Computer, value = 500 },
+                new MyComp() { component = Component.Construction, value = 5000 },
+                new MyComp() { component = Component.Detector, value = 50 },
+                new MyComp() { component = Component.Display, value = 500 },
+                new MyComp() { component = Component.Girder, value = 500 },
+                new MyComp() { component = Component.InteriorPlate, value = 2000 },
+                new MyComp() { component = Component.LargeTube, value = 500 },
+                new MyComp() { component = Component.MetalGrid, value = 200 },
+                new MyComp() { component = Component.Motor, value = 2000 },
+                new MyComp() { component = Component.PowerCell, value = 100 },
+                new MyComp() { component = Component.RadioCommunication, value = 50 },
+                new MyComp() { component = Component.SmallTube, value = 3000 },
+                new MyComp() { component = Component.SteelPlate, value = 5000 }
             };
             List<MyComp> list_base = new List<MyComp>() {
                 new MyComp() { component = Component.Display, value = 500 },
