@@ -782,7 +782,7 @@ namespace KLEPA_A1
                 new MyComp() { component = Component.Girder, value = 500 },
                 new MyComp() { component = Component.InteriorPlate, value = 2000 },
                 new MyComp() { component = Component.LargeTube, value = 500 },
-                new MyComp() { component = Component.MetalGrid, value = 200 },
+                new MyComp() { component = Component.MetalGrid, value = 1000 },
                 new MyComp() { component = Component.Motor, value = 2000 },
                 new MyComp() { component = Component.PowerCell, value = 100 },
                 new MyComp() { component = Component.RadioCommunication, value = 50 },
