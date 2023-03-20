@@ -30,7 +30,7 @@ namespace MUL_H1
         string NameObj = "[MUL-H1]";
         string NameCockpit = "[MUL-H1]-Кресло пилота [LCD]";
         string NameRemoteControl = "[MUL-H1]-ДУ Парковка";
-        string NameCameraCourse = "[MUL-H1]-Камера course";
+        string NameCameraCourse = "[MUL-H1]-Камера [collision_protection] course";
         //string NameCameraForward = "[MUL-H1]-Камера forward";
         string NameCameraConnector = "[MUL-H1]-Камера парковка";
         string NameConnector = "[MUL-H1]-Коннектор парковка";
@@ -45,7 +45,7 @@ namespace MUL_H1
 
         public enum or_mtr : int
         {
-            up = 0, down = 1, left = 2, right = 3, forward = 4, backward = 5
+            not = 0, up = 1, down = 2, left = 3, right = 4, forward = 5, backward = 6
         };
 
         public enum room : int
@@ -320,8 +320,8 @@ namespace MUL_H1
             room_light = new Lightings(NameObj, tag_lighting_room); // Освещение
             room_light.Off();
             collision_protection = new CollisionProtection(NameObj, tag_collision_protection); // Защита от столкновений
-            collision_protection.InitOrentation(cockpit.GetCockpitMatrix());
-            collision_protection.Scan=true;
+            //collision_protection.InitOrentation(cockpit.GetCockpitMatrix());
+            collision_protection.Scan = true;
             navigation = new Navigation(cockpit, remote_control, thrusts, gyros, camera_course, camera_connector, collision_protection);
 
         }
@@ -339,6 +339,9 @@ namespace MUL_H1
             navigation.Logic(argument, updateSource);
             gateways_doors.Logic(argument, updateSource);   // Логика отработки шлюзовых дверей
             room_light.Logic(argument, updateSource);       // Логика отработки освещения
+
+            collision_protection.GetDistance(cockpit.GetCockpitMatrix());
+
             switch (argument)
             {
                 default:
@@ -373,12 +376,12 @@ namespace MUL_H1
                     thrusts.Off();
                 }
             }
-            values_info.Append(bats.TextInfo());
-            values_info.Append(gastanks.TextInfo());
+            //values_info.Append(bats.TextInfo());
+            //values_info.Append(gastanks.TextInfo());
             values_info.Append(connector.TextInfo());
             //values_info.Append(thrusts.TextInfo());
-            values_info.Append(remote_control.TextInfo());
-            //values_info.Append(cockpit.TextInfo());
+            //values_info.Append(remote_control.TextInfo());
+            values_info.Append(cockpit.TextInfo());
             values_info.Append(navigation.TextInfo());
             //cockpit.OutText(values_info, 0);
             lcd_info_upr.OutText(values_info);
@@ -391,7 +394,8 @@ namespace MUL_H1
             //test_info.Append("ThrustsMax : " + thrusts.Forward_ThrustsMax / 1000 + "\n");
             //test_info.Append("TotalMass : " + cockpit.TotalMass / 1000 + "\n");
             //test_info.Append("ShipSpeed : " + cockpit.ShipSpeed + "\n");
-            test_info.Append(navigation.TextTEST());
+            //test_info.Append(navigation.TextTEST());
+
             test_info.Append(collision_protection.TextInfo());
             //test_info.Append("Цель: " + target.ToString() + "\n");
             //test_info.Append("Растояние: " + cockpit.GetDistance(target_info.HitPosition != null ? (Vector3D)target_info.HitPosition : new Vector3D(0, 0, 0)).ToString() + "\n");
@@ -973,6 +977,10 @@ namespace MUL_H1
                 values.Append("TotalMass: " + this.TotalMass + "\n");
                 values.Append("Скорость: " + base.obj.GetShipSpeed() + "\n");
                 values.Append("Высота: " + current_height + "\n");
+                values.Append("LinearVelocity: " + base.obj.GetShipVelocities().LinearVelocity + "\n");
+                values.Append("LinearVelocity: " + base.obj.GetShipVelocities().LinearVelocity.Length() + "\n");
+                values.Append("AngularVelocity: " + base.obj.GetShipVelocities().AngularVelocity + "\n");
+                values.Append("AngularVelocity: " + base.obj.GetShipVelocities().AngularVelocity.Length() + "\n");
                 return values.ToString();
             }
         }
@@ -1095,128 +1103,128 @@ namespace MUL_H1
             }
         }
         // V1.0
-        public class CollisionProtection : BaseListTerminalBlock<Camera>
+        public class CollisionProtection : BaseListTerminalBlock<IMyCameraBlock>
         {
             public bool Scan { get { return scan; } set { scan = value; } }
             bool scan = false;
             public class DistationOfOrentation
             {
                 public or_mtr orentation { get; set; }
-                public int count { get; set; }
                 public double? distanse { get; set; }
             }
-            List<DistationOfOrentation> list_dist_orent = new List<DistationOfOrentation>();
-            double dist_scan = 5000;
+            public List<DistationOfOrentation> list_dist_orent = new List<DistationOfOrentation>();
+            double dist_scan_forward = 5000;
+            float pitch_scan_forward = 0f;
+            float yaw_scan_forward = 0f;
+            double dist_scan = 1000;
             float pitch_scan = 0f;
             float yaw_scan = 0f;
-            string[] orentations = { "up", "down", "left", "right", "forward", "backward" };
             public CollisionProtection(string name_obj, string tag) : base(name_obj)
             {
                 if (!String.IsNullOrWhiteSpace(tag))
                 {
                     list_obj = list_obj.Where(n => n.CustomName.Contains(tag)).ToList();
                 }
-                _scr.Echo("Найдено CameraBlock:[" + tag + "]: " + list_obj.Count());
+                _scr.Echo("Найдено CollisionProtection:[" + tag + "]: " + list_obj.Count());
             }
-            public void InitOrentation(Matrix CockpitMatrix)
+            public void GetDistance(Matrix CockpitMatrix)
             {
-                Matrix ThrusterMatrix = new MatrixD();
-                foreach (Camera camera in base.list_obj)
-                {
-                    camera.Orientation.GetMatrix(out ThrusterMatrix);
-                    foreach (or_mtr gw in Enum.GetValues(typeof(or_mtr)))
-                    {
-                        camera.CustomName.Replace("[" + gw.ToString() + "]", "");
-                    }
-                    if (ThrusterMatrix.Forward == CockpitMatrix.Up)
-                    {
-                        camera.CustomName += "[up]";
-                    }
-                    else if (ThrusterMatrix.Forward == CockpitMatrix.Down)
-                    {
-                        camera.CustomName += "[down]";
-                    }
-                    else if (ThrusterMatrix.Forward == CockpitMatrix.Left)
-                    {
-                        camera.CustomName += "[left]";
-                    }
-                    else if (ThrusterMatrix.Forward == CockpitMatrix.Right)
-                    {
-                        camera.CustomName += "[right]";
-                    }
-                    else if (ThrusterMatrix.Forward == CockpitMatrix.Forward)
-                    {
-                        camera.CustomName += "[forward]";
-                    }
-                    else if (ThrusterMatrix.Forward == CockpitMatrix.Backward)
-                    {
-                        camera.CustomName += "[backward]";
-                    }
-                }
-            }
-            public double? GetDistance(string tag_orentation)
-            {
-                List<Camera> list = base.list_obj.Where(n => n.CustomName.Contains(tag_orentation)).ToList();
-                double? result_distance = null;
-                foreach (Camera cam in list)
-                {
-                    double? result = null;
-                    MyDetectedEntityInfo? res = cam.Raycast(dist_scan, pitch_scan, yaw_scan);
-                    if (res != null && ((MyDetectedEntityInfo)res).Type != MyDetectedEntityType.None)
-                    {
-                        result = ((Vector3D)((MyDetectedEntityInfo)res).HitPosition - cam.GetPosition()).Length();
-                    }
-                    result_distance = result != null && result_distance > result ? result : result_distance;
-                }
-                return result_distance;
-            }
-            public List<DistationOfOrentation> GetDistance()
-            {
-                List<DistationOfOrentation> list = new List<DistationOfOrentation>();
-                foreach (or_mtr om in Enum.GetValues(typeof(or_mtr)))
-                {
 
-                    DistationOfOrentation dsor = new DistationOfOrentation()
-                    {
-                        orentation = om,
-                        count = base.list_obj.Where(n => n.CustomName.Contains("[" + om.ToString() + "]")).Count(),
-                        distanse = GetDistance(om.ToString())
-                    };
-                    list.Add(dsor);
-                }
-                return list;
-            }
-            public void Logic(string argument, UpdateType updateSource)
-            {
-                switch (argument)
+                StringBuilder test_info = new StringBuilder();
+                List<DistationOfOrentation> list = new List<DistationOfOrentation>();
+                Matrix CameraMatrix = new MatrixD();
+                foreach (IMyCameraBlock camera in base.list_obj)
                 {
-                    case "collision_protection_on":
-                        scan = true;
-                        break;
-                    case "collision_protection_off":
-                        scan = false;
-                        break;
-                    default:
-                        break;
-                }
-                if (updateSource == UpdateType.Update10)
-                {
+                    DistationOfOrentation dsor;
+                    or_mtr curr = or_mtr.not;
+                    camera.EnableRaycast = scan;
                     if (scan)
                     {
-                        list_dist_orent = GetDistance();
+                        camera.Orientation.GetMatrix(out CameraMatrix);
+                        if (CameraMatrix.Forward == CockpitMatrix.Up)
+                        {
+                            curr = or_mtr.up;
+                        }
+                        else if (CameraMatrix.Forward == CockpitMatrix.Down)
+                        {
+                            curr = or_mtr.down;
+                        }
+                        else if (CameraMatrix.Forward == CockpitMatrix.Left)
+                        {
+                            curr = or_mtr.left;
+                        }
+                        else if (CameraMatrix.Forward == CockpitMatrix.Right)
+                        {
+                            curr = or_mtr.right;
+                        }
+                        else if (CameraMatrix.Forward == CockpitMatrix.Forward)
+                        {
+                            curr = or_mtr.forward;
+                        }
+                        else if (CameraMatrix.Forward == CockpitMatrix.Backward)
+                        {
+                            curr = or_mtr.backward;
+                        }
+                        //test_info.Append("CanScan: " + camera.CanScan(dist_scan) + "\n");
+                        //curr == or_mtr.forward ? dist_scan_forward : dist_scan;
+                        if (camera.CanScan(curr == or_mtr.forward ? dist_scan_forward : dist_scan))
+                        {
+                            MyDetectedEntityInfo? res = camera.Raycast(curr == or_mtr.forward ? dist_scan_forward : dist_scan, pitch_scan, yaw_scan);
+                            if (res != null && ((MyDetectedEntityInfo)res).Type != MyDetectedEntityType.None)
+                            {
+                                dsor = new DistationOfOrentation()
+                                {
+                                    orentation = curr,
+                                    distanse = ((Vector3D)((MyDetectedEntityInfo)res).HitPosition - camera.GetPosition()).Length()
+                                };
+                                list.Add(dsor);
+                            }
+                        }
+                        this.list_dist_orent = list;
+                        if (list.Count() > 0)
+                        {
+                            //this.list_dist_orent = list;
+                        }
                     }
                     else
                     {
-                        list_dist_orent.Clear();
+                        this.list_dist_orent.Clear();
                     }
                 }
+                lcd_info_debug.OutText(test_info);
             }
+            //public void Logic(string argument, UpdateType updateSource)
+            //{
+            //    switch (argument)
+            //    {
+            //        case "collision_protection_on":
+            //            scan = true;
+            //            break;
+            //        case "collision_protection_off":
+            //            scan = false;
+            //            break;
+            //        default:
+            //            break;
+            //    }
+            //    if (updateSource == UpdateType.Update10)
+            //    {
+            //        if (scan)
+            //        {
+            //            list_dist_orent = GetDistance();
+            //        }
+            //        else
+            //        {
+            //            list_dist_orent.Clear();
+            //        }
+            //    }
+            //}
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
+                values.Append("Найдено:" + list_dist_orent.Count() + "\n");
                 foreach (DistationOfOrentation ds_or in list_dist_orent)
                 {
-                    values.Append(ds_or.orentation.ToString() + " [" + ds_or.count + "] :" + ds_or.distanse + "\n");
+                    values.Append(ds_or.orentation.ToString() + " :" + ds_or.distanse + "\n");
                 }
                 return values.ToString();
             }
@@ -1280,8 +1288,6 @@ namespace MUL_H1
                 flying_course = 4,
                 flying_target = 5,
             };
-
-
             int pr_mode = 0;
             int max_spid = 200;
             int reserve_hieght = 400 + 300; // мин растояние на которое действует отключать двигатели (останавливается за 300м)
@@ -1306,7 +1312,7 @@ namespace MUL_H1
             Camera camera_connector;
             CollisionProtection collision_protection;
 
-            public Navigation(Cockpit cockpit, RemoteControl remote_control, Thrusts thrusts, Gyros gyros, Camera camera_course, 
+            public Navigation(Cockpit cockpit, RemoteControl remote_control, Thrusts thrusts, Gyros gyros, Camera camera_course,
                 Camera camera_connector, CollisionProtection collision_protection)
             {
                 this.cockpit = cockpit;
