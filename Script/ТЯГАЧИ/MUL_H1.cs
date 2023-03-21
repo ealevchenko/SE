@@ -16,8 +16,7 @@ using System.Text;
 using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
 using VRageMath;
-using static MUL_H1.Program;
-using static MUL_H1.Program.Navigation;
+using static MUL_H1.Program.CollisionProtection;
 
 /// <summary>
 /// v2.0
@@ -320,8 +319,7 @@ namespace MUL_H1
             room_light = new Lightings(NameObj, tag_lighting_room); // Освещение
             room_light.Off();
             collision_protection = new CollisionProtection(NameObj, tag_collision_protection); // Защита от столкновений
-            //collision_protection.InitOrentation(cockpit.GetCockpitMatrix());
-            collision_protection.Scan = true;
+            //collision_protection.Scan = true;
             navigation = new Navigation(cockpit, remote_control, thrusts, gyros, camera_course, camera_connector, collision_protection);
 
         }
@@ -340,7 +338,7 @@ namespace MUL_H1
             gateways_doors.Logic(argument, updateSource);   // Логика отработки шлюзовых дверей
             room_light.Logic(argument, updateSource);       // Логика отработки освещения
 
-            collision_protection.GetDistance(cockpit.GetCockpitMatrix());
+            //collision_protection.GetDistance(cockpit.GetCockpitMatrix());
 
             switch (argument)
             {
@@ -376,8 +374,8 @@ namespace MUL_H1
                     thrusts.Off();
                 }
             }
-            //values_info.Append(bats.TextInfo());
-            //values_info.Append(gastanks.TextInfo());
+            values_info.Append(bats.TextInfo());
+            values_info.Append(gastanks.TextInfo());
             values_info.Append(connector.TextInfo());
             //values_info.Append(thrusts.TextInfo());
             //values_info.Append(remote_control.TextInfo());
@@ -977,10 +975,10 @@ namespace MUL_H1
                 values.Append("TotalMass: " + this.TotalMass + "\n");
                 values.Append("Скорость: " + base.obj.GetShipSpeed() + "\n");
                 values.Append("Высота: " + current_height + "\n");
-                values.Append("LinearVelocity: " + base.obj.GetShipVelocities().LinearVelocity + "\n");
-                values.Append("LinearVelocity: " + base.obj.GetShipVelocities().LinearVelocity.Length() + "\n");
-                values.Append("AngularVelocity: " + base.obj.GetShipVelocities().AngularVelocity + "\n");
-                values.Append("AngularVelocity: " + base.obj.GetShipVelocities().AngularVelocity.Length() + "\n");
+                //values.Append("LinearVelocity: " + base.obj.GetShipVelocities().LinearVelocity + "\n");
+                //values.Append("LinearVelocity: " + base.obj.GetShipVelocities().LinearVelocity.Length() + "\n");
+                //values.Append("AngularVelocity: " + base.obj.GetShipVelocities().AngularVelocity + "\n");
+                //values.Append("AngularVelocity: " + base.obj.GetShipVelocities().AngularVelocity.Length() + "\n");
                 return values.ToString();
             }
         }
@@ -1113,9 +1111,6 @@ namespace MUL_H1
                 public double? distanse { get; set; }
             }
             public List<DistationOfOrentation> list_dist_orent = new List<DistationOfOrentation>();
-            double dist_scan_forward = 5000;
-            float pitch_scan_forward = 0f;
-            float yaw_scan_forward = 0f;
             double dist_scan = 1000;
             float pitch_scan = 0f;
             float yaw_scan = 0f;
@@ -1128,6 +1123,10 @@ namespace MUL_H1
                 _scr.Echo("Найдено CollisionProtection:[" + tag + "]: " + list_obj.Count());
             }
             public void GetDistance(Matrix CockpitMatrix)
+            {
+                list_dist_orent = GetListDistance(CockpitMatrix, dist_scan);
+            }
+            public List<DistationOfOrentation> GetListDistance(Matrix CockpitMatrix, double dist_scan)
             {
 
                 StringBuilder test_info = new StringBuilder();
@@ -1167,9 +1166,9 @@ namespace MUL_H1
                         }
                         //test_info.Append("CanScan: " + camera.CanScan(dist_scan) + "\n");
                         //curr == or_mtr.forward ? dist_scan_forward : dist_scan;
-                        if (camera.CanScan(curr == or_mtr.forward ? dist_scan_forward : dist_scan))
+                        if (camera.CanScan(dist_scan))
                         {
-                            MyDetectedEntityInfo? res = camera.Raycast(curr == or_mtr.forward ? dist_scan_forward : dist_scan, pitch_scan, yaw_scan);
+                            MyDetectedEntityInfo? res = camera.Raycast(dist_scan, pitch_scan, yaw_scan);
                             if (res != null && ((MyDetectedEntityInfo)res).Type != MyDetectedEntityType.None)
                             {
                                 dsor = new DistationOfOrentation()
@@ -1180,44 +1179,28 @@ namespace MUL_H1
                                 list.Add(dsor);
                             }
                         }
-                        this.list_dist_orent = list;
-                        if (list.Count() > 0)
-                        {
-                            //this.list_dist_orent = list;
-                        }
-                    }
-                    else
-                    {
-                        this.list_dist_orent.Clear();
                     }
                 }
-                lcd_info_debug.OutText(test_info);
+                return list;
             }
-            //public void Logic(string argument, UpdateType updateSource)
-            //{
-            //    switch (argument)
-            //    {
-            //        case "collision_protection_on":
-            //            scan = true;
-            //            break;
-            //        case "collision_protection_off":
-            //            scan = false;
-            //            break;
-            //        default:
-            //            break;
-            //    }
-            //    if (updateSource == UpdateType.Update10)
-            //    {
-            //        if (scan)
-            //        {
-            //            list_dist_orent = GetDistance();
-            //        }
-            //        else
-            //        {
-            //            list_dist_orent.Clear();
-            //        }
-            //    }
-            //}
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    case "collision_protection_on":
+                        scan = true;
+                        break;
+                    case "collision_protection_off":
+                        scan = false;
+                        break;
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+
+                }
+            }
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
@@ -1248,6 +1231,9 @@ namespace MUL_H1
             float pitch_scan = 0;
             float yaw_scan = 0;
 
+            List<DistationOfOrentation> list_dist_scan = new List<DistationOfOrentation>();
+
+
             public double ForwardThrust = 0;
             public double LeftThrust = 0;
             public double UpThrust = 0;
@@ -1275,22 +1261,22 @@ namespace MUL_H1
                 flying_course = 4,
                 flying_target = 5,
             };
-            public static string[] name_mode = { "", "Орентация", "Посадка на планету", "Взлет с планеты", "Полет по курсу", "Полет к цели" };
+            public static string[] name_programm = { "", "Орентация", "Посадка на планету", "Взлет с планеты", "Полет по курсу", "Полет к цели" };
             orientation curent_orientation = orientation.none;
             programm curent_programm = programm.none;
-
             public enum mode : int
             {
                 none = 0,
-                orientation = 1,
-                landing_planet = 2,
-                taking_planet = 3,
-                flying_course = 4,
-                flying_target = 5,
+                speed = 1,
+                speed_control = 2,
+                braking = 3,
+                braking_control = 4,
             };
+            public static string[] name_mode = { "", "Разгон", "Контроль скорости", "Торможение", "Контроль торможения" };
+            mode curent_mode = mode.none;
             int pr_mode = 0;
             int max_spid = 200;
-            int reserve_hieght = 400 + 300; // мин растояние на которое действует отключать двигатели (останавливается за 300м)
+            int reserve_hieght = 400 + 300; // мин растояние на которое действует отключать двигатели (останавливается на гравитации за 300м)
 
             public class braking
             {
@@ -1302,8 +1288,6 @@ namespace MUL_H1
                     this.a = a; this.t = t; this.s = s;
                 }
             }
-            const int a_loading = -5; //(-3...-5)
-
             Cockpit cockpit;
             RemoteControl remote_control;
             Thrusts thrusts;
@@ -1323,15 +1307,7 @@ namespace MUL_H1
                 this.camera_connector = camera_connector;
                 this.collision_protection = collision_protection;
             }
-            // Космос тормозной путь
-            public braking GetBrakingSpace(double max_thrusts)
-            {
-                double a = (max_thrusts / 1000) * (1 / (cockpit.BaseMass / 1000));
-                double t = cockpit.ShipSpeed / a;           //t = V / a
-                double s = (a * Math.Pow(t, 2)) / 2;        // S = ( a * t^2 ) / 2
-                return new braking(a, t, s);
-            }
-            // Посадка с гпавитацией тормозной путь
+            // Посадка с гпавитацией тормозной путь, Космос тормозной путь
             public braking GetBrakingLanding(double max_thrusts)
             {
                 double a = (max_thrusts / 1000) * (1 / (cockpit.BaseMass / 1000));
@@ -1345,36 +1321,64 @@ namespace MUL_H1
                 Vector3D GravNorm = Vector3D.Normalize(GravityVector);
                 return GravNorm;
             }
-            public double? GetDistanceOfRaycast(double dist_scan, float pitch_scan, float yaw_scan)
-            {
-                double? result = null;
-                MyDetectedEntityInfo? target_info = camera_course.Raycast(dist_scan, pitch_scan, yaw_scan);
-                if (target_info != null && ((MyDetectedEntityInfo)target_info).Type != MyDetectedEntityType.None)
-                {
-                    braking space = GetBrakingSpace(thrusts.Forward_ThrustsMax);
-                    result = cockpit.GetDistance((Vector3D)((MyDetectedEntityInfo)target_info).HitPosition);
-                }
-                return result;
-            }
+            //public double? GetDistanceOfRaycast(double dist_scan, float pitch_scan, float yaw_scan)
+            //{
+            //    double? result = null;
+            //    MyDetectedEntityInfo? target_info = camera_course.Raycast(dist_scan, pitch_scan, yaw_scan);
+            //    if (target_info != null && ((MyDetectedEntityInfo)target_info).Type != MyDetectedEntityType.None)
+            //    {
+            //        braking space = GetBrakingSpace(thrusts.Forward_ThrustsMax);
+            //        result = cockpit.GetDistance((Vector3D)((MyDetectedEntityInfo)target_info).HitPosition);
+            //    }
+            //    return result;
+            //}
             public bool GetProtectionObstacle()
             {
-                bool result = false;
-                double? curr_distance = GetDistanceOfRaycast(dist_scan, pitch_scan, yaw_scan);
-                braking space = GetBrakingSpace(thrusts.Forward_ThrustsMax);
-                if (curr_distance != null && curr_distance <= space.s + reserve_hieght)
-                {
-                    // Надо тормозить
-                    result = true;
-                    cockpit.Dampeners(true);
-                    this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), 0, 0, 0, 0, 0, 0);
-                    this.thrusts.On();
-                    curent_orientation = orientation.none;
-                    if (cockpit.GetNaturalGravity.Length() >= 0.01f)
-                    {
-                        compensate = false;
-                    }
+                //bool result = false;
+                double max_Thrust = 0f;
+                or_mtr orent_scan = or_mtr.not;
+                if (curent_programm == programm.landing_planet)
+                {  // посадка
+                    max_Thrust = thrusts.Backward_ThrustsMax;
+                    orent_scan = or_mtr.backward;
                 }
-                return result;
+                else if (curent_programm == programm.taking_planet)
+                {   // взлет
+                    max_Thrust = thrusts.Forward_ThrustsMax;
+                    orent_scan = or_mtr.forward;
+                }
+                else if (curent_programm == programm.flying_course || curent_programm == programm.flying_target)
+                {   // курс и цель
+                    max_Thrust = thrusts.Forward_ThrustsMax;
+                    orent_scan = or_mtr.forward;
+                }
+                else
+                {
+                    max_Thrust = thrusts.Forward_ThrustsMax;
+                    orent_scan = or_mtr.forward;
+                }
+
+                braking space = GetBrakingLanding(max_Thrust);
+                list_dist_scan = collision_protection.GetListDistance(cockpit.GetCockpitMatrix(), space.s + reserve_hieght);
+
+                double? distance = list_dist_scan.Where(o=>o.orentation == orent_scan).Select(d=>d.distanse).Min();
+
+                return distance != null && distance <= space.s + reserve_hieght ? true : false;
+
+                //if (curr_distance != null && curr_distance <= space.s + reserve_hieght)
+                //{
+                //    // Надо тормозить
+                //    result = true;
+                //    cockpit.Dampeners(true);
+                //    this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), 0, 0, 0, 0, 0, 0);
+                //    this.thrusts.On();
+                //    curent_orientation = orientation.none;
+                //    if (cockpit.GetNaturalGravity.Length() >= 0.01f)
+                //    {
+                //        compensate = false;
+                //    }
+                //}
+                //return result;
             }
             public void DownHorizon()
             {
@@ -2051,8 +2055,9 @@ namespace MUL_H1
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("ОРИНТАЦИЯ: " + name_horizont[(int)curent_orientation] + "\n");
-                values.Append("РЕЖИМ: " + name_mode[(int)curent_programm] + ", pr : " + pr_mode + "\n");
                 values.Append("КОМПЕНСАЦИЯ: " + (compensate ? "ВКЛ" : "ВЫК") + "\n");
+                values.Append("ПРОГРАММА: " + name_programm[(int)curent_programm] + ", pr : " + pr_mode + "\n");
+
                 values.Append("Курс: " + course + "\n");
                 values.Append("ЦЕЛЬ: " + PText.GetVector3D(target) + "\n");
                 values.Append("РАССТОЯНИЕ: " + cockpit.GetDistance(target) + "\n");
@@ -2289,7 +2294,7 @@ namespace MUL_H1
 }
 // Запись координат базы в блок
 // добавить соеден в алгориьм стыковки
-// своб полет - сделать режим разгон и тормоз (сравнить режимы)
+// своб полет - сделать режим разгон и тормоз (сравнить режимы) посадка предусм координаты планеты или базы
 // сделать остановку на точку таргет
 // Определить эффект мощьность по стороне 3д коорд трмоза 
 // + добавить контроль безопасности (столкновения) по камерам (по сторонам)
