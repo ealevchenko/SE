@@ -1202,6 +1202,7 @@ namespace MUL_H1
         // V1.1
         public class Navigation
         {
+            int count = 0;
             //Vector3D target = new Vector3D(26827.8655273466, -23658.4360006724, 99710.1771295082);
             Vector3D target = new Vector3D(108169.40, -36240.93, -17712.65);
             Vector3D course;
@@ -1242,13 +1243,12 @@ namespace MUL_H1
             public enum programm : int
             {
                 none = 0,
-                orientation = 1,
-                landing_planet = 2,
-                taking_planet = 3,
-                flying_course = 4,
-                flying_target = 5,
+                landing_planet = 1,
+                taking_planet = 2,
+                flying_course = 3,
+                flying_target = 4,
             };
-            public static string[] name_programm = { "", "Орентация", "Посадка на планету", "Взлет с планеты", "Полет по курсу", "Полет к цели" };
+            public static string[] name_programm = { "", "Посадка на планету", "Взлет с планеты", "Полет по курсу", "Полет к цели" };
             orientation curent_orientation = orientation.none;
             programm curent_programm = programm.none;
             public enum mode : int
@@ -1311,6 +1311,7 @@ namespace MUL_H1
             }
             public bool GetProtectionObstacle()
             {
+                StringBuilder test_info = new StringBuilder();
                 double max_Thrust = 0f;
                 or_mtr orent_scan = or_mtr.not;
                 if (curent_programm == programm.landing_planet)
@@ -1333,9 +1334,17 @@ namespace MUL_H1
                     max_Thrust = thrusts.Forward_ThrustsMax;
                     orent_scan = or_mtr.forward;
                 }
+
+                test_info.Append("max_Thrust :" + max_Thrust + "\n");
+                test_info.Append("orent_scan :" + orent_scan.ToString() + "\n");
                 braking space = GetBrakingLanding(max_Thrust);
+                test_info.Append("space a:" + space.a + ", t:" + space.t + "\n");
+                test_info.Append("space S:" + space.s +"\n");
                 list_dist_scan = collision_protection.GetListDistance(cockpit.GetCockpitMatrix(), space.s + reserve_hieght);
+                test_info.Append("count :" + list_dist_scan.Count() + "\n");
                 double? distance = list_dist_scan.Where(o => o.orentation == orent_scan).Select(d => d.distanse).Min();
+                test_info.Append("distance :" + distance + "\n");
+                lcd_info_debug.OutText(test_info);
                 return distance != null && distance <= space.s + reserve_hieght ? true : false;
             }
             public bool GetTarget(Vector3D target)
@@ -1393,9 +1402,12 @@ namespace MUL_H1
             }
             public bool ModeOrentationGyros()
             {
-                if (Math.Abs(gyros.getPitch()) + Math.Abs(gyros.getYaw()) < 0.01f)
+                if (gyros.getPitch() != 0.0f || gyros.getYaw() != 0.0f)
                 {
-                    return true;
+                    if (Math.Abs(gyros.getPitch()) + Math.Abs(gyros.getYaw()) < 0.01f)
+                    {
+                        return true;
+                    }
                 }
                 return false;
             }
@@ -1412,16 +1424,6 @@ namespace MUL_H1
                 if (this.cockpit.ShipSpeed >= max_spid)
                 {
                     this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), 0, 0, 0, 0, 0, 0);
-                    if (cockpit.GetNaturalGravity.Length() >= 0.01f)
-                    {
-                        compensate = true;
-                        this.thrusts.On();
-                    }
-                    else
-                    {
-                        compensate = false;
-                        this.thrusts.Off();
-                    }
                     return true;
                 }
                 return false;
@@ -1558,110 +1560,129 @@ namespace MUL_H1
                 this.thrusts.SetThrustOverride(cockpit.GetCockpitMatrix(), UpThrust, DownThrust, LeftThrust, RightThrust, ForwardThrust, BackwardThrust);
 
             }
-            public void LandingPlanet()
+            public void ProgrammLandingPlanet()
             {
                 StringBuilder test_info = new StringBuilder();
-                test_info.Append("SCAN :" + camera_course.CanScan(this.dist_scan) + "\n");
-                test_info.Append(gyros.TextInfo());
-                collision_protection.Scan = true;
-                if (GetProtectionObstacle() || GetHiegtPlanet())
+                if (cockpit.GetNaturalGravity.Length() >= 0.01f)
+                {
+                    test_info.Append("SCAN :" + camera_course.CanScan(this.dist_scan) + "\n");
+                    test_info.Append(gyros.TextInfo());
+                    collision_protection.Scan = true;
+                    if (GetProtectionObstacle() || GetHiegtPlanet())
+                    {
+                        curent_mode = mode.braking;
+                    }
+                    // Первый запуск
+                    if (curent_mode == mode.none)
+                    {
+                        curent_orientation = orientation.horizon_backward;
+                        curent_mode = mode.aiming; // Прицелимся
+                    }
+                    if (curent_mode == mode.aiming && ModeOrentationGyros())
+                    {
+                        curent_mode = mode.speed; // Разгон
+                    }
+                    if (curent_mode == mode.speed)
+                    {
+                        ModeSpeedOn(0, 0, 0, 0, 1.0f, 0);
+                        curent_mode = mode.speed_control;
+                    }
+                    if (curent_mode == mode.speed_control && ModeSpeedControl())
+                    {
+                        curent_mode = mode.flight;
+                    }
+                    if (curent_mode == mode.flight)
+                    {
+                        //compensate = false;
+                        this.thrusts.Off();
+                    }
+                    if (curent_mode == mode.braking)
+                    {
+                        ModeBrakingOn();
+                        curent_mode = mode.braking_control;
+                    }
+                    if (curent_mode == mode.braking_control && ModeBrakingControl())
+                    {
+                        curent_programm = programm.none;
+                        curent_mode = mode.none;
+                        curent_orientation = orientation.none;
+                    }
+                }
+                else
                 {
                     curent_mode = mode.braking;
                 }
-                // Первый запуск
-                if (curent_mode == mode.none && cockpit.GetNaturalGravity.Length() >= 0.01f)
+                lcd_info_debug.OutText(test_info);
+            }
+            public void ProgrammTakingPlanet()
+            {
+                StringBuilder test_info = new StringBuilder();
+                if (cockpit.GetNaturalGravity.Length() >= 0.01f)
                 {
-                    curent_orientation = orientation.horizon_backward;
-                    curent_mode = mode.aiming; // Прицелимся
+                    test_info.Append("SCAN :" + camera_course.CanScan(this.dist_scan) + "\n");
+                    test_info.Append(gyros.TextInfo());
+                    collision_protection.Scan = true;
+                    if (GetProtectionObstacle() && curent_mode != mode.none && curent_mode != mode.aiming)
+                    {
+                        curent_mode = mode.braking;
+                    }
+                    // Первый запуск
+                    if (curent_mode == mode.none)
+                    {
+                        curent_orientation = orientation.horizon_backward;
+                        curent_mode = mode.aiming; // Прицелимся
+                    }
+                    if (curent_mode == mode.aiming && ModeOrentationGyros())
+                    {
+                        curent_mode = mode.speed; // Разгон
+                    }
+                    if (curent_mode == mode.speed)
+                    {
+                        ModeSpeedOn(0, 0, 0, 0, 0, 1.0f);
+                        curent_mode = mode.speed_control;
+                    }
+                    if (curent_mode == mode.speed_control && ModeSpeedControl())
+                    {
+                        curent_mode = mode.flight;
+                    }
+                    if (curent_mode == mode.flight)
+                    {
+                        if (cockpit.GetNaturalGravity.Length() >= 0.01f)
+                        {
+                            compensate = true;
+                            this.thrusts.On();
+                        }
+                        else
+                        {
+                            compensate = false;
+                            this.thrusts.Off();
+                        }
+                    }
+                    if (curent_mode == mode.braking)
+                    {
+                        ModeBrakingOn();
+                        curent_mode = mode.braking_control;
+                    }
+                    if (curent_mode == mode.braking_control && ModeBrakingControl())
+                    {
+                        curent_programm = programm.none;
+                        curent_mode = mode.none;
+                        curent_orientation = orientation.none;
+                    }
                 }
-                if (curent_mode == mode.aiming && ModeOrentationGyros())
+                else
                 {
-                    curent_mode = mode.speed; // Разгон
-                }
-                if (curent_mode == mode.speed)
-                {
-                    ModeSpeedOn(0, 0, 0, 0, 1.0f, 0);
-                    curent_mode = mode.speed_control;
-                }
-                if (curent_mode == mode.speed_control && ModeSpeedControl())
-                {
-                    curent_mode = mode.flight;
-                }
-                if (curent_mode == mode.braking)
-                {
-                    ModeBrakingOn();
-                    curent_mode = mode.braking_control;
-                }
-                if (curent_mode == mode.braking_control && ModeBrakingControl())
-                {
-                    curent_programm = programm.none;
-                    curent_mode = mode.none;
-                    curent_orientation = orientation.none;
+                    curent_mode = mode.braking;
                 }
                 lcd_info_debug.OutText(test_info);
             }
-            public void TakingPlanet()
+            public void ProgrammFlyingCourse()
             {
-                //if (GetProtectionObstacle())
-                //{
-                //    pr_mode = 3; // тормозим и выходим
-                //}
-                //switch (pr_mode)
-                //{
-                //    case 0:
-                //        {
-                //            if (cockpit.GetNaturalGravity.Length() >= 0.01f)
-                //            {
-                //                // Проверка возможна операция?
-                //                compensate = false;
-                //                curent_orientation = orientation.horizon_backward;
-                //                pr_mode = 1; // Набор скорости
-                //            }
-                //            else
-                //            {
-                //                curent_programm = programm.none;
-                //            }
-                //            break;
-                //        }
-                //    case 1:
-                //        {
-                //            this.thrusts.On();
-                //            this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), 0, 0, 0, 0, 0, 1.0f);
-                //            pr_mode = 2; // проверка скорости и включить компенсации ()
-                //            break;
-                //        }
-                //    case 2:
-                //        {
-                //            if (this.cockpit.ShipSpeed >= max_spid)
-                //            {
-                //                compensate = true;
-                //                this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), 0, 0, 0, 0, 0, 0);
-                //            }
-                //            if (cockpit.GetNaturalGravity.Length() <= 0.2f)
-                //            {
-                //                compensate = false;
-                //                cockpit.Dampeners(true);
-                //                pr_mode = 3;
-                //            }
-                //            break;
-                //        }
-                //    case 3:
-                //        {
-                //            if (this.cockpit.ShipSpeed <= 0.2f)
-                //            {
-                //                // Скорость погашена сбросим режим посадки
-                //                curent_programm = programm.none;
-                //                pr_mode = 0;
-                //            }
-                //            break;
-                //        }
-                //}
-            }
-            public void FlyingCourse()
-            {
-                StringBuilder test_info = new StringBuilder();
-                test_info.Append("SCAN :" + camera_course.CanScan(this.dist_scan) + "\n");
-                test_info.Append(gyros.TextInfo());
+                //StringBuilder test_info = new StringBuilder();
+                //test_info.Append("count :" + count + "\n");
+                count++;
+                //test_info.Append("SCAN :" + camera_course.CanScan(this.dist_scan) + "\n");
+                //test_info.Append(gyros.TextInfo());
                 collision_protection.Scan = true;
                 if (GetProtectionObstacle())
                 {
@@ -1686,19 +1707,33 @@ namespace MUL_H1
                 {
                     curent_mode = mode.flight;
                 }
+                if (curent_mode == mode.flight)
+                {
+                    if (cockpit.GetNaturalGravity.Length() >= 0.01f)
+                    {
+                        compensate = true;
+                        this.thrusts.On();
+                    }
+                    else
+                    {
+                        compensate = false;
+                        this.thrusts.Off();
+                    }
+                }
                 if (curent_mode == mode.braking)
                 {
                     ModeBrakingOn();
                     curent_mode = mode.braking_control;
                 }
-                if (curent_mode == mode.braking_control && ModeBrakingControl()) {
+                if (curent_mode == mode.braking_control && ModeBrakingControl())
+                {
                     curent_programm = programm.none;
                     curent_mode = mode.none;
-                    curent_orientation =  orientation.none;
+                    curent_orientation = orientation.none;
                 }
-                lcd_info_debug.OutText(test_info);
+                //lcd_info_debug.OutText(test_info);
             }
-            public void FlyingTarget()
+            public void ProgrammFlyingTarget()
             {
                 StringBuilder test_info = new StringBuilder();
                 test_info.Append("SCAN :" + camera_course.CanScan(this.dist_scan) + "\n");
@@ -1726,6 +1761,17 @@ namespace MUL_H1
                 if (curent_mode == mode.speed_control && ModeSpeedControl())
                 {
                     curent_mode = mode.flight;
+                }
+                if (curent_mode == mode.flight)
+                {
+                    if (cockpit.GetNaturalGravity.Length() >= 0.01f)
+                    {
+                        this.thrusts.On();
+                    }
+                    else
+                    {
+                        this.thrusts.Off();
+                    }
                 }
                 if (curent_mode == mode.braking)
                 {
@@ -1773,47 +1819,38 @@ namespace MUL_H1
                         station_pre_space_connection = (station_space_connection - (station_pre_space_vector_connection * 300));
                         break;
                     case "horizont_down_on":
-                        curent_programm = programm.orientation;
                         curent_orientation = orientation.horizon_down;
                         break;
                     case "horizont_down_off":
-                        curent_programm = programm.none;
                         curent_orientation = orientation.none;
                         break;
                     case "horizont_down":
                         if (curent_orientation == orientation.horizon_down)
                         {
-                            curent_programm = programm.none;
                             curent_orientation = orientation.none;
                         }
                         else
                         {
-                            curent_programm = programm.orientation;
                             curent_orientation = orientation.horizon_down;
                         }
                         break;
                     case "horizont_backward_on":
-                        curent_programm = programm.orientation;
                         curent_orientation = orientation.horizon_backward;
                         break;
                     case "horizont_backward_off":
-                        curent_programm = programm.none;
                         curent_orientation = orientation.none;
                         break;
                     case "horizont_backward":
                         if (curent_orientation == orientation.horizon_backward)
                         {
-                            curent_programm = programm.none;
                             curent_orientation = orientation.none;
                         }
                         else
                         {
-                            curent_programm = programm.orientation;
                             curent_orientation = orientation.horizon_backward;
                         }
                         break;
                     case "horizont_forward_on":
-                        curent_programm = programm.orientation;
                         curent_orientation = orientation.horizon_forward;
                         break;
                     case "horizont_forward_off":
@@ -1823,52 +1860,43 @@ namespace MUL_H1
                     case "horizont_forward":
                         if (curent_orientation == orientation.horizon_forward)
                         {
-                            curent_programm = programm.none;
                             curent_orientation = orientation.none;
                         }
                         else
                         {
-                            curent_programm = programm.orientation;
                             curent_orientation = orientation.horizon_forward;
                         }
                         break;
                     case "course_forward_on":
-                        curent_programm = programm.orientation;
                         curent_orientation = orientation.course_forward;
                         break;
                     case "course_forward_off":
-                        curent_programm = programm.none;
+
                         curent_orientation = orientation.none;
                         break;
                     case "course_forward":
                         if (curent_orientation == orientation.course_forward)
                         {
-                            curent_programm = programm.none;
                             curent_orientation = orientation.none;
                         }
                         else
                         {
-                            curent_programm = programm.orientation;
                             curent_orientation = orientation.course_forward;
                         }
                         break;
                     case "target_forward_on":
-                        curent_programm = programm.orientation;
                         curent_orientation = orientation.target_forward;
                         break;
                     case "target_forward_off":
-                        curent_programm = programm.none;
                         curent_orientation = orientation.none;
                         break;
                     case "target_forward":
                         if (curent_orientation == orientation.target_forward)
                         {
-                            curent_programm = programm.none;
                             curent_orientation = orientation.none;
                         }
                         else
                         {
-                            curent_programm = programm.orientation;
                             curent_orientation = orientation.target_forward;
                         }
                         break;
@@ -1892,12 +1920,12 @@ namespace MUL_H1
                         curent_programm = programm.taking_planet;
                         break;
                     case "mode_taking_planet_off":
-                        curent_programm = programm.none;
+                        curent_mode = mode.braking;
                         break;
                     case "mode_taking_planet":
                         if (curent_programm == programm.taking_planet)
                         {
-                            curent_programm = programm.none;
+                            curent_mode = mode.braking;
                         }
                         else
                         {
@@ -1909,14 +1937,12 @@ namespace MUL_H1
                         curent_programm = programm.flying_course;
                         break;
                     case "mode_flying_course_off":
-                        //curent_programm = programm.none;
-                        curent_mode =  mode.braking;
+                        curent_mode = mode.braking;
                         break;
                     case "mode_flying_course":
                         if (curent_programm == programm.flying_course)
                         {
                             curent_mode = mode.braking;
-                            //curent_programm = programm.none;
                         }
                         else
                         {
@@ -1928,13 +1954,11 @@ namespace MUL_H1
                         curent_programm = programm.flying_target;
                         break;
                     case "mode_flying_target_off":
-                        //curent_programm = programm.none;
                         curent_mode = mode.braking;
                         break;
                     case "mode_flying_target":
                         if (curent_programm == programm.flying_target)
                         {
-                            //curent_programm = programm.none;
                             curent_mode = mode.braking;
                         }
                         else
@@ -1956,7 +1980,6 @@ namespace MUL_H1
                         compensate = false;
                         this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), 0, 0, 0, 0, 0, 0.0f);
                         break;
-
                     default:
                         break;
                 }
@@ -1965,13 +1988,6 @@ namespace MUL_H1
                     // Получим макс эффективность трастеров по направлениям
                     thrusts.GetMaxEffectiveThrust(cockpit.GetCockpitMatrix());
                     // Сбросим подпрограммы
-                    if (curent_programm == programm.none)
-                    {
-                        //pr_mode = 0;
-                        //curent_mode = mode.none;
-                        //curent_orientation = orientation.none;
-
-                    }
                     // режим горизонт
                     if (curent_orientation == orientation.none)
                     {
@@ -2008,21 +2024,20 @@ namespace MUL_H1
                     }
                     if (curent_programm == programm.landing_planet)
                     {
-                        LandingPlanet();
+                        ProgrammLandingPlanet();
                     }
                     if (curent_programm == programm.taking_planet)
                     {
-                        TakingPlanet();
+                        ProgrammTakingPlanet();
                     }
                     if (curent_programm == programm.flying_course)
                     {
-                        FlyingCourse();
+                        ProgrammFlyingCourse();
                     }
                     if (curent_programm == programm.flying_target)
                     {
-                        FlyingTarget();
+                        ProgrammFlyingTarget();
                     }
-
                 }
             }
             public string TextInfo()
