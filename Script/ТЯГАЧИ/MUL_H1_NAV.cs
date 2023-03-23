@@ -18,9 +18,10 @@ using VRage.Game.ModAPI.Ingame;
 using VRageMath;
 
 /// <summary>
-/// v2.0
+/// v3.0
+/// Навигация коробля
 /// </summary>
-namespace MUL_H1
+namespace MUL_H1_NAV
 {
     public sealed class Program : MyGridProgram
     {
@@ -29,7 +30,6 @@ namespace MUL_H1
         string NameCockpit = "[MUL-H1]-Кресло пилота [LCD]";
         string NameRemoteControl = "[MUL-H1]-ДУ Парковка";
         string NameCameraCourse = "[MUL-H1]-Камера [collision_protection] course";
-        //string NameCameraForward = "[MUL-H1]-Камера forward";
         string NameCameraConnector = "[MUL-H1]-Камера парковка";
         string NameConnector = "[MUL-H1]-Коннектор парковка";
         string NameLCDInfo = "[MUL-H1]-LCD-INFO";
@@ -37,36 +37,12 @@ namespace MUL_H1
         string NameLCDInfo_Debug = "[MUL-H1]-LCD-INFO-DEBUG";
 
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
-        string tag_door_gateway = "[door-gateway]";
-        string tag_lighting_room = "[lighting_room]";
         string tag_collision_protection = "[collision_protection]";
 
         public enum or_mtr : int
         {
             not = 0, up = 1, down = 2, left = 3, right = 4, forward = 5, backward = 6
         };
-
-        public enum room : int
-        {
-            none = 0,
-            cabin = 1,             // кабина
-            space = 2,         // Космос
-        };
-        public static string[] name_room = { "", "Кабина", "Выход в космос" };
-        public static int[] count_room = { 0, 0, 0 };
-
-        public enum doors_gareways : int
-        {
-            space_cabin1 = 1,
-            space_cabin2 = 2,
-        }
-
-        // door [door-gateway] [space_cabin2] [cabin]
-        // sn [door-gateway] [space_cabin2] [cabin]
-        // door [door-gateway] [space_cabin2] [space]
-        // sn [door-gateway] [space_cabin2] [space]
-
-        //light [lighting_room] [cabin]
 
         LCD lcd_info;
         LCD lcd_info_upr;
@@ -82,9 +58,6 @@ namespace MUL_H1
         Camera camera_course;
         Camera camera_connector;
         Navigation navigation;
-        Gateways gateways_doors;
-        Lightings room_light;
-
         CollisionProtection collision_protection;
 
         static Program _scr;
@@ -312,9 +285,6 @@ namespace MUL_H1
             thrusts = new Thrusts(NameObj);
             camera_course = new Camera(NameCameraCourse);
             camera_connector = new Camera(NameCameraConnector);
-            gateways_doors = new Gateways(NameObj, tag_door_gateway);
-            room_light = new Lightings(NameObj, tag_lighting_room); // Освещение
-            room_light.Off();
             collision_protection = new CollisionProtection(NameObj, tag_collision_protection); // Защита от столкновений
             //collision_protection.Scan = true;
             navigation = new Navigation(cockpit, remote_control, thrusts, gyros, camera_course, camera_connector, collision_protection);
@@ -331,8 +301,6 @@ namespace MUL_H1
             cockpit.Logic(argument, updateSource);
             remote_control.Logic(argument, updateSource);
             navigation.Logic(argument, updateSource);
-            gateways_doors.Logic(argument, updateSource);   // Логика отработки шлюзовых дверей
-            room_light.Logic(argument, updateSource);       // Логика отработки освещения
             //collision_protection.GetDistance(cockpit.GetCockpitMatrix());
             switch (argument)
             {
@@ -1098,7 +1066,7 @@ namespace MUL_H1
                 public double? distanse { get; set; }
             }
             public List<DistationOfOrentation> list_dist_orent = new List<DistationOfOrentation>();
-            double dist_scan = 5000;
+            double dist_scan = 3000;
             float pitch_scan = 0f;
             float yaw_scan = 0f;
             public CollisionProtection(string name_obj, string tag) : base(name_obj)
@@ -1109,6 +1077,36 @@ namespace MUL_H1
                 }
                 _scr.Echo("Найдено CollisionProtection:[" + tag + "]: " + list_obj.Count());
             }
+            public or_mtr GetOrentation(IMyCameraBlock camera, Matrix CockpitMatrix)
+            {
+                Matrix CameraMatrix = new MatrixD();
+                camera.Orientation.GetMatrix(out CameraMatrix);
+                if (CameraMatrix.Forward == CockpitMatrix.Up)
+                {
+                    return or_mtr.up;
+                }
+                else if (CameraMatrix.Forward == CockpitMatrix.Down)
+                {
+                    return or_mtr.down;
+                }
+                else if (CameraMatrix.Forward == CockpitMatrix.Left)
+                {
+                    return or_mtr.left;
+                }
+                else if (CameraMatrix.Forward == CockpitMatrix.Right)
+                {
+                    return or_mtr.right;
+                }
+                else if (CameraMatrix.Forward == CockpitMatrix.Forward)
+                {
+                    return or_mtr.forward;
+                }
+                else if (CameraMatrix.Forward == CockpitMatrix.Backward)
+                {
+                    return or_mtr.backward;
+                }
+                return or_mtr.not;
+            }
             public void GetDistance(Matrix CockpitMatrix)
             {
                 list_dist_orent = GetListDistance(CockpitMatrix, dist_scan);
@@ -1116,54 +1114,38 @@ namespace MUL_H1
             public List<DistationOfOrentation> GetListDistance(Matrix CockpitMatrix, double dist_scan)
             {
 
+                return GetListDistance(CockpitMatrix, null, dist_scan);
+            }
+            public List<DistationOfOrentation> GetListDistance(Matrix CockpitMatrix, or_mtr? orenation, double dist_scan)
+            {
+
                 StringBuilder test_info = new StringBuilder();
                 List<DistationOfOrentation> list = new List<DistationOfOrentation>();
-                Matrix CameraMatrix = new MatrixD();
                 foreach (IMyCameraBlock camera in base.list_obj)
                 {
                     DistationOfOrentation dsor;
                     or_mtr curr = or_mtr.not;
-                    camera.EnableRaycast = scan;
-                    if (scan)
+
+                    if (orenation == null || orenation != null && curr == orenation)
                     {
-                        camera.Orientation.GetMatrix(out CameraMatrix);
-                        if (CameraMatrix.Forward == CockpitMatrix.Up)
+                        camera.EnableRaycast = scan;
+                        if (scan)
                         {
-                            curr = or_mtr.up;
-                        }
-                        else if (CameraMatrix.Forward == CockpitMatrix.Down)
-                        {
-                            curr = or_mtr.down;
-                        }
-                        else if (CameraMatrix.Forward == CockpitMatrix.Left)
-                        {
-                            curr = or_mtr.left;
-                        }
-                        else if (CameraMatrix.Forward == CockpitMatrix.Right)
-                        {
-                            curr = or_mtr.right;
-                        }
-                        else if (CameraMatrix.Forward == CockpitMatrix.Forward)
-                        {
-                            curr = or_mtr.forward;
-                        }
-                        else if (CameraMatrix.Forward == CockpitMatrix.Backward)
-                        {
-                            curr = or_mtr.backward;
-                        }
-                        //test_info.Append("CanScan: " + camera.CanScan(dist_scan) + "\n");
-                        //curr == or_mtr.forward ? dist_scan_forward : dist_scan;
-                        if (camera.CanScan(dist_scan))
-                        {
-                            MyDetectedEntityInfo? res = camera.Raycast(dist_scan, pitch_scan, yaw_scan);
-                            if (res != null && ((MyDetectedEntityInfo)res).Type != MyDetectedEntityType.None)
+                            curr = GetOrentation(camera, CockpitMatrix);
+                            //test_info.Append("CanScan: " + camera.CanScan(dist_scan) + "\n");
+                            //curr == or_mtr.forward ? dist_scan_forward : dist_scan;
+                            if (camera.CanScan(dist_scan))
                             {
-                                dsor = new DistationOfOrentation()
+                                MyDetectedEntityInfo? res = camera.Raycast(dist_scan, pitch_scan, yaw_scan);
+                                if (res != null && ((MyDetectedEntityInfo)res).Type != MyDetectedEntityType.None)
                                 {
-                                    orentation = curr,
-                                    distanse = ((Vector3D)((MyDetectedEntityInfo)res).HitPosition - camera.GetPosition()).Length()
-                                };
-                                list.Add(dsor);
+                                    dsor = new DistationOfOrentation()
+                                    {
+                                        orentation = curr,
+                                        distanse = ((Vector3D)((MyDetectedEntityInfo)res).HitPosition - camera.GetPosition()).Length()
+                                    };
+                                    list.Add(dsor);
+                                }
                             }
                         }
                     }
@@ -1239,7 +1221,7 @@ namespace MUL_H1
                 course_forward = 4,
                 target_forward = 5,
             };
-            public static string[] name_horizont = { "", "Горизонт", "Вверх", "Вниз", "Курс", "Точка" };
+            public static string[] name_orientation = { "", "Горизонт", "Вверх", "Вниз", "Курс", "Точка" };
             public enum programm : int
             {
                 none = 0,
@@ -1247,6 +1229,7 @@ namespace MUL_H1
                 taking_planet = 2,
                 flying_course = 3,
                 flying_target = 4,
+                flying_horizont = 5,
             };
             public static string[] name_programm = { "", "Посадка на планету", "Взлет с планеты", "Полет по курсу", "Полет к цели" };
             orientation curent_orientation = orientation.none;
@@ -1309,38 +1292,60 @@ namespace MUL_H1
                 Vector3D GravNorm = Vector3D.Normalize(GravityVector);
                 return GravNorm;
             }
-            public bool GetProtectionObstacle()
+            public double GetMaxThrustOfProgramm()
             {
-                StringBuilder test_info = new StringBuilder();
                 double max_Thrust = 0f;
-                or_mtr orent_scan = or_mtr.not;
                 if (curent_programm == programm.landing_planet)
                 {  // посадка
                     max_Thrust = thrusts.Backward_ThrustsMax;
-                    orent_scan = or_mtr.backward;
                 }
                 else if (curent_programm == programm.taking_planet)
                 {   // взлет
                     max_Thrust = thrusts.Forward_ThrustsMax;
-                    orent_scan = or_mtr.forward;
                 }
-                else if (curent_programm == programm.flying_course || curent_programm == programm.flying_target)
+                else if (curent_programm == programm.flying_course || curent_programm == programm.flying_target || curent_programm == programm.flying_horizont)
                 {   // курс и цель
                     max_Thrust = thrusts.Forward_ThrustsMax;
-                    orent_scan = or_mtr.forward;
                 }
                 else
                 {
                     max_Thrust = thrusts.Forward_ThrustsMax;
-                    orent_scan = or_mtr.forward;
                 }
+                return max_Thrust;
+            }
+            public or_mtr GetOrentationOfProgramm()
+            {
+                or_mtr orentat = or_mtr.not;
+                if (curent_programm == programm.landing_planet)
+                {  // посадка
+                    orentat = or_mtr.backward;
+                }
+                else if (curent_programm == programm.taking_planet)
+                {   // взлет
+                    orentat = or_mtr.forward;
+                }
+                else if (curent_programm == programm.flying_course || curent_programm == programm.flying_target || curent_programm == programm.flying_horizont)
+                {   // курс и цель
+                    orentat = or_mtr.forward;
+                }
+                else
+                {
+                    orentat = or_mtr.forward;
+                }
+                return orentat;
+            }
+            public bool GetProtectionObstacle()
+            {
+                StringBuilder test_info = new StringBuilder();
+                double max_Thrust = GetMaxThrustOfProgramm();
+                or_mtr orent_scan = GetOrentationOfProgramm();
 
                 test_info.Append("max_Thrust :" + max_Thrust + "\n");
                 test_info.Append("orent_scan :" + orent_scan.ToString() + "\n");
                 braking space = GetBrakingLanding(max_Thrust);
                 test_info.Append("space a:" + space.a + ", t:" + space.t + "\n");
-                test_info.Append("space S:" + space.s +"\n");
-                list_dist_scan = collision_protection.GetListDistance(cockpit.GetCockpitMatrix(), space.s + reserve_hieght);
+                test_info.Append("space S:" + space.s + "\n");
+                list_dist_scan = collision_protection.GetListDistance(cockpit.GetCockpitMatrix(), orent_scan, space.s + reserve_hieght);
                 test_info.Append("count :" + list_dist_scan.Count() + "\n");
                 double? distance = list_dist_scan.Where(o => o.orentation == orent_scan).Select(d => d.distanse).Min();
                 test_info.Append("distance :" + distance + "\n");
@@ -1349,23 +1354,7 @@ namespace MUL_H1
             }
             public bool GetTarget(Vector3D target)
             {
-                double max_Thrust = 0f;
-                if (curent_programm == programm.landing_planet)
-                {  // посадка
-                    max_Thrust = thrusts.Backward_ThrustsMax;
-                }
-                else if (curent_programm == programm.taking_planet)
-                {   // взлет
-                    max_Thrust = thrusts.Forward_ThrustsMax;
-                }
-                else if (curent_programm == programm.flying_course || curent_programm == programm.flying_target)
-                {   // курс и цель
-                    max_Thrust = thrusts.Forward_ThrustsMax;
-                }
-                else
-                {
-                    max_Thrust = thrusts.Forward_ThrustsMax;
-                }
+                double max_Thrust = GetMaxThrustOfProgramm();
                 braking space = GetBrakingLanding(max_Thrust);
                 double distance = this.cockpit.GetDistance(target);
                 if (distance > -space.s && distance < space.s)
@@ -1376,23 +1365,7 @@ namespace MUL_H1
             }
             public bool GetHiegtPlanet()
             {
-                double max_Thrust = 0f;
-                if (curent_programm == programm.landing_planet)
-                {  // посадка
-                    max_Thrust = thrusts.Backward_ThrustsMax;
-                }
-                else if (curent_programm == programm.taking_planet)
-                {   // взлет
-                    max_Thrust = thrusts.Forward_ThrustsMax;
-                }
-                else if (curent_programm == programm.flying_course || curent_programm == programm.flying_target)
-                {   // курс и цель
-                    max_Thrust = thrusts.Forward_ThrustsMax;
-                }
-                else
-                {
-                    max_Thrust = thrusts.Forward_ThrustsMax;
-                }
+                double max_Thrust = GetMaxThrustOfProgramm();
                 braking space = GetBrakingLanding(max_Thrust);
                 if (this.cockpit.CurrentHeight <= space.s + reserve_hieght)
                 {
@@ -1733,6 +1706,72 @@ namespace MUL_H1
                 }
                 //lcd_info_debug.OutText(test_info);
             }
+            public void ProgrammFlyingHorizont()
+            {
+                //StringBuilder test_info = new StringBuilder();
+                if (cockpit.GetNaturalGravity.Length() >= 0.01f)
+                {
+                    //test_info.Append("count :" + count + "\n");
+                    count++;
+                    //test_info.Append("SCAN :" + camera_course.CanScan(this.dist_scan) + "\n");
+                    //test_info.Append(gyros.TextInfo());
+                    collision_protection.Scan = true;
+                    if (GetProtectionObstacle())
+                    {
+                        curent_mode = mode.braking;
+                    }
+                    // Первый запуск
+                    if (curent_mode == mode.none)
+                    {
+                        curent_orientation = orientation.horizon_down;
+                        curent_mode = mode.aiming; // Прицелимся
+                    }
+                    if (curent_mode == mode.aiming && ModeOrentationGyros())
+                    {
+                        curent_mode = mode.speed; // Разгон
+                    }
+                    if (curent_mode == mode.speed)
+                    {
+                        ModeSpeedOn(0, 0, 0, 0, 0, 1.0f);
+                        curent_mode = mode.speed_control;
+                    }
+                    if (curent_mode == mode.speed_control && ModeSpeedControl())
+                    {
+                        curent_mode = mode.flight;
+                    }
+                    if (curent_mode == mode.flight)
+                    {
+                        if (cockpit.GetNaturalGravity.Length() >= 0.01f)
+                        {
+                            compensate = true;
+                            this.thrusts.On();
+                        }
+                        else
+                        {
+                            compensate = false;
+                            this.thrusts.Off();
+                        }
+                    }
+                    if (curent_mode == mode.braking)
+                    {
+                        ModeBrakingOn();
+                        curent_mode = mode.braking_control;
+                    }
+                    if (curent_mode == mode.braking_control && ModeBrakingControl())
+                    {
+                        curent_programm = programm.none;
+                        curent_mode = mode.none;
+                        curent_orientation = orientation.none;
+                    }
+                }
+                else
+                {
+                    curent_mode = mode.braking;
+                }
+
+
+                //lcd_info_debug.OutText(test_info);
+            }
             public void ProgrammFlyingTarget()
             {
                 StringBuilder test_info = new StringBuilder();
@@ -1766,10 +1805,12 @@ namespace MUL_H1
                 {
                     if (cockpit.GetNaturalGravity.Length() >= 0.01f)
                     {
+                        compensate = true;
                         this.thrusts.On();
                     }
                     else
                     {
+                        compensate = false;
                         this.thrusts.Off();
                     }
                 }
@@ -1818,6 +1859,7 @@ namespace MUL_H1
                         station_space_connection = this.cockpit.GetPosition();
                         station_pre_space_connection = (station_space_connection - (station_pre_space_vector_connection * 300));
                         break;
+                    //
                     case "horizont_down_on":
                         curent_orientation = orientation.horizon_down;
                         break;
@@ -1834,6 +1876,7 @@ namespace MUL_H1
                             curent_orientation = orientation.horizon_down;
                         }
                         break;
+                    //
                     case "horizont_backward_on":
                         curent_orientation = orientation.horizon_backward;
                         break;
@@ -1850,6 +1893,7 @@ namespace MUL_H1
                             curent_orientation = orientation.horizon_backward;
                         }
                         break;
+                    //
                     case "horizont_forward_on":
                         curent_orientation = orientation.horizon_forward;
                         break;
@@ -1867,6 +1911,7 @@ namespace MUL_H1
                             curent_orientation = orientation.horizon_forward;
                         }
                         break;
+                    //
                     case "course_forward_on":
                         curent_orientation = orientation.course_forward;
                         break;
@@ -1884,6 +1929,7 @@ namespace MUL_H1
                             curent_orientation = orientation.course_forward;
                         }
                         break;
+                    //
                     case "target_forward_on":
                         curent_orientation = orientation.target_forward;
                         break;
@@ -1900,6 +1946,7 @@ namespace MUL_H1
                             curent_orientation = orientation.target_forward;
                         }
                         break;
+                    //
                     case "mode_landing_planet_on":
                         curent_programm = programm.landing_planet;
                         break;
@@ -1916,6 +1963,7 @@ namespace MUL_H1
                             curent_programm = programm.landing_planet;
                         }
                         break;
+                    //
                     case "mode_taking_planet_on":
                         curent_programm = programm.taking_planet;
                         break;
@@ -1967,10 +2015,27 @@ namespace MUL_H1
                         }
                         break;
                     //
-                    case "test100":
+                    case "mode_flying_horizont_on":
+                        curent_programm = programm.flying_horizont;
+                        break;
+                    case "mode_flying_horizont_off":
+                        curent_mode = mode.braking;
+                        break;
+                    case "mode_flying_horizont":
+                        if (curent_programm == programm.flying_horizont)
+                        {
+                            curent_mode = mode.braking;
+                        }
+                        else
+                        {
+                            curent_programm = programm.flying_horizont;
+                        }
+                        break;
+                    //
+                    case "bascward_100":
                         this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), 0, 0, 0, 0, 0, 1.0f);
                         break;
-                    case "test0":
+                    case "bascward_0":
                         this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), 0, 0, 0, 0, 0, 0.0f);
                         break;
                     case "compensate_on":
@@ -2038,12 +2103,16 @@ namespace MUL_H1
                     {
                         ProgrammFlyingTarget();
                     }
+                    if (curent_programm == programm.flying_horizont)
+                    {
+                        ProgrammFlyingHorizont();
+                    }
                 }
             }
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("ОРИНТАЦИЯ: " + name_horizont[(int)curent_orientation] + "\n");
+                values.Append("ОРИНТАЦИЯ: " + name_orientation[(int)curent_orientation] + "\n");
                 values.Append("КОМПЕНСАЦИЯ: " + (compensate ? "ВКЛ" : "ВЫК") + "\n");
                 values.Append("ПРОГРАММА: " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП: " + name_mode[(int)curent_mode] + "\n");
@@ -2073,214 +2142,11 @@ namespace MUL_H1
                 return values.ToString();
             }
         }
-        public class Gateway
-        {
-            doors_gareways door_gtw;
-            IMySensorBlock sn1;
-            IMySensorBlock sn2;
-            room rm1;
-            IMyDoor door1;
-            IMyDoor door2;
-            room rm2;
-            //bool input_door = false;
-            //bool output_door = false;
-            bool sn1_active = false;    // датчик входа
-            bool sn2_active = false;   // датчик выхода
-            public Gateway(doors_gareways dg, IMyDoor door1, IMySensorBlock sn1, room rm1, IMyDoor door2, IMySensorBlock sn2, room rm2)
-            {
-                this.door_gtw = dg;
-                this.rm1 = rm1;
-                this.rm2 = rm2;
-                this.sn1 = sn1;
-                string sn1_cd = sn1.CustomData; // 1.0f, 1.0f, 2.5f, 1.0f, 0.1f, 2.5f
-                this.sn2 = sn2;
-                this.door1 = door1;
-                this.door2 = door2;
-                this.door1.ApplyAction("OnOff_On");
-                this.door2.ApplyAction("OnOff_On");
-                this.door1.CloseDoor();
-                this.door2.CloseDoor();
-            }
-
-            public void Logic()
-            {
-                if (!sn1.IsActive && door1.Status == DoorStatus.Open)
-                {
-                    // Игрок не найден возле внутр двери
-                    door1.CloseDoor();
-                }
-                if (sn1.IsActive && door1.Status == DoorStatus.Closed && door2.Status == DoorStatus.Closed)
-                {
-                    // Игрокнайден возле внутр дверь закрыта и внешняя закрыта
-                    door1.OpenDoor();
-                }
-                if (!sn2.IsActive && door2.Status == DoorStatus.Open)
-                {
-                    // Игрок не найден возле внутр двери
-                    door2.CloseDoor();
-                }
-                if (sn2.IsActive && door2.Status == DoorStatus.Closed && door1.Status == DoorStatus.Closed)
-                {
-                    // Игрокнайден возле внутр дверь закрыта и внешняя закрыта
-                    door2.OpenDoor();
-                }
-                // Логика направдения движения
-                if (sn1_active && !sn2_active && sn2.IsActive)
-                {
-                    // Выход
-                    //sn1_active = false;
-                    sn2_active = true;
-                    //input_door = false;
-                    //output_door = true;
-                    count_room[(int)rm1]--;
-                    count_room[(int)rm2]++;
-                }
-                if (sn2_active && !sn1_active && sn1.IsActive)
-                {
-                    // Вход
-                    sn1_active = true;
-                    //sn2_active = false;
-                    //input_door = true;
-                    //output_door = false;
-                    count_room[(int)rm1]++;
-                    count_room[(int)rm2]--;
-                }
-                if (sn2_active && sn1_active && !sn2.IsActive && !sn1.IsActive)
-                {
-                    // Вход
-                    sn1_active = false;
-                    sn2_active = false;
-                    //input_door = false;
-                    //output_door = false;
-                }
-
-                if (!sn1_active && !sn2_active)
-                {
-                    // Выход
-                    sn1_active = sn1.IsActive;
-                    sn2_active = sn2.IsActive;
-                }
-                if (count_room[(int)rm1] < 0) count_room[(int)rm1] = 0;
-                if (count_room[(int)rm2] < 0) count_room[(int)rm2] = 0;
-            }
-        }
-        public class Gateways
-        {
-            private List<IMyDoor> doors = new List<IMyDoor>();
-            private List<IMySensorBlock> sensors = new List<IMySensorBlock>();
-            List<Gateway> list_gtw = new List<Gateway>();
-            public Gateways(string name_obj, string tag)
-            {
-                //test_lcd.WriteText("Start" + "\n", false);
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
-                _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
-                //test_lcd.WriteText("doors:" + doors.Count() + "\n", true);
-                //test_lcd.WriteText("sensors:" + doors.Count() + "\n", true);
-                IMyDoor door1;
-                IMySensorBlock sensor1;
-                room room1;
-                IMyDoor door2;
-                IMySensorBlock sensor2;
-                room room2;
-                //test_lcd.WriteText("Поиск дверей:" + "\n", false);
-                foreach (doors_gareways gw in Enum.GetValues(typeof(doors_gareways)))
-                {
-                    door1 = null;
-                    sensor1 = null;
-                    room1 = room.none;
-                    door2 = null;
-                    sensor2 = null;
-                    room2 = room.none;
-
-                    List<IMyDoor> l_drs = doors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).ToList();
-                    List<IMySensorBlock> l_sns = sensors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).ToList();
-                    if (l_drs != null && l_drs.Count() == 2 && l_sns != null && l_sns.Count() == 2)
-                    {
-                        foreach (room rm in Enum.GetValues(typeof(room)))
-                        {
-                            //test_lcd.WriteText("room:" + rm + "\n", true);
-                            IMyDoor dr = l_drs.Where(d => d.CustomName.Contains("[" + rm.ToString() + "]")).FirstOrDefault();
-                            IMySensorBlock sn = l_sns.Where(d => d.CustomName.Contains("[" + rm.ToString() + "]")).FirstOrDefault();
-                            if (dr != null && sn != null)
-                            {
-                                if (door1 != null && door2 == null) { door2 = dr; room2 = rm; }
-                                if (door1 == null) { door1 = dr; room1 = rm; }
-                                if (sensor1 != null && sensor2 == null) { sensor2 = sn; }
-                                if (sensor1 == null) { sensor1 = sn; }
-                            }
-                        }
-                        if (door1 != null && door2 != null && sensor1 != null && sensor2 != null)
-                        {
-                            //test_lcd.WriteText("door1:"+ door1.CustomName + "\n", true);
-                            //test_lcd.WriteText("door2:"+ door2.CustomName + "\n", true);
-                            //test_lcd.WriteText("sensor1:" + sensor1.CustomName + "\n", true);
-                            //test_lcd.WriteText("sensor2:" + sensor2.CustomName + "\n", true);
-                            list_gtw.Add(new Gateway(gw, door1, sensor1, room1, door2, sensor2, room2));
-                        }
-                    }
-                }
-                _scr.Echo("Найдено Gateways:[" + tag + "]: " + list_gtw.Count());
-            }
-            public void Logic(string argument, UpdateType updateSource)
-            {
-                switch (argument)
-                {
-                    //case "connected_on":
-                    //    break;
-                    default:
-                        break;
-                }
-
-                if (updateSource == UpdateType.Update10)
-                {
-                    foreach (Gateway gateway in list_gtw)
-                    {
-                        gateway.Logic();
-                    }
-                }
-
-            }
-        }
-        public class Lightings : BaseListTerminalBlock<IMyInteriorLight>
-        {
-            public Lightings(string name_obj, string tag) : base(name_obj)
-            {
-                if (!String.IsNullOrWhiteSpace(tag))
-                {
-                    list_obj = list_obj.Where(n => n.CustomName.Contains(tag)).ToList();
-                }
-                _scr.Echo("Найдено Lighting:[" + tag + "]: " + list_obj.Count());
-            }
-            public void Logic(string argument, UpdateType updateSource)
-            {
-                switch (argument)
-                {
-                    default:
-                        break;
-                }
-
-                if (updateSource == UpdateType.Update10)
-                {
-                    foreach (room rm in Enum.GetValues(typeof(room)))
-                    {
-                        if (count_room[(int)rm] > 0)
-                        {
-                            OnOfTag(rm.ToString());
-                        }
-                        else
-                        {
-                            OffOfTag(rm.ToString());
-                        }
-                    }
-                }
-
-            }
-        }
     }
 }
 // Запись координат базы в блок
 // добавить соеден в алгориьм стыковки
-// своб полет - сделать режим разгон и тормоз (сравнить режимы) посадка предусм координаты планеты или базы
-// сделать остановку на точку таргет
+// + своб полет - сделать режим разгон и тормоз (сравнить режимы) посадка предусм координаты планеты или базы
+// + сделать остановку на точку таргет
 // Определить эффект мощьность по стороне 3д коорд трмоза 
 // + добавить контроль безопасности (столкновения) по камерам (по сторонам)
