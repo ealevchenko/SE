@@ -82,6 +82,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="OSS\OSS_BM_UPR.cs" />
+    <Compile Include="OSS\OSS_BM_DORS.cs" />
     <Compile Include="КОРАБЛИ\APOLN1.cs" />
     <Compile Include="Setup_Example\Primary_bur.cs" />
     <Compile Include="Basa_Earth\BASE_EARTH_PROJECTOR_SG.cs" />
