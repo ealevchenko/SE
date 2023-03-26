@@ -30,7 +30,7 @@ namespace OSS_BM_DORS
         string NameLCDInfo_Upr = "[OSS]-[BM]-LCD-INFO-UPR";
 
         string tag_info_tablo = "[door-info]";
-        string tag_door_transition = "[door_transition]";
+        string tag_door_transition = "[door-transition]";
         string tag_door_gateway = "[door-gateway]";
         string tag_lighting_room = "[lighting_room]";
         string tag_ref_room_hangar = "[ref_room]";
@@ -43,11 +43,11 @@ namespace OSS_BM_DORS
             energy_module_left = 4, // энерг. мод
             energy_module_right = 5,// энерг. мод
             cargo_module = 6,       // груз. мод
-            work_module = 6,       //  произв. мод
+            work_module = 7,       //  произв. мод
 
         };
-        public static string[] name_room = { "", "Кабина", "Выход в космос", "Операторская", "Энерго-модуль", "Энерго-модуль", "Грузовой модуль" };
-        public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0 };
+        public static string[] name_room = { "", "Кабина", "Выход в космос", "Операторская", "Энерго-модуль", "Энерго-модуль", "Грузовой модуль", "Производственный модуль" };
+        public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0, 0 };
         public enum doors_gareways : int
         {
             cabin_space = 1,
@@ -58,21 +58,29 @@ namespace OSS_BM_DORS
             operators_work_module = 0,
             operators_cabin = 1,
             cabin_energy_module_left = 2,
-            cabin_energy_module_right = 2,
+            cabin_energy_module_right = 3,
         }
 
-        // door [door-gateway] [space_cabin2] [cabin]
-        // sn [door-gateway] [space_cabin2] [cabin]
-        // door [door-gateway] [space_cabin2] [space]
-        // sn [door-gateway] [space_cabin2] [space]
+        // door [door-gateway] [cabin_cargo_module] [cabin]
+        // sn [door-gateway] [cabin_cargo_module] [cabin]
+        // door [door-gateway] [cabin_cargo_module] [cargo_module]
+        // sn [door-gateway] [cabin_cargo_module] [cargo_module]
 
-        //light [lighting_room] [cabin]
+        // sn [door-transition] [cabin_energy_module_left] [energy_module_left]
+        // sn [door-transition] [cabin_energy_module_left] [cabin]
+        // door [door-transition] [cabin_energy_module_left]
+
+        // sn [door-transition] [cabin_energy_module_right] [energy_module_right]
+        // sn [door-transition] [cabin_energy_module_right] [cabin]
+        // door [door-transition] [cabin_energy_module_right]
+
+        //[OSS]-[BM]-light [lighting_room] [cabin]
 
         public static Color red = new Color(255, 0, 0);
         public static Color yellow = new Color(255, 255, 0);
         public static Color green = new Color(0, 128, 0);
 
-        LCD lcd_info_upr;
+        static LCD lcd_info_upr;
         AirInfo air_info;
         AirVent air_vent;
         ReflectorsLight reflectors_light;
@@ -485,19 +493,21 @@ namespace OSS_BM_DORS
                 if (count_room[(int)rm2] < 0) count_room[(int)rm2] = 0;
             }
         }
-        // Класс управления переходными дверями
         public class Transitions
         {
+
             private List<IMyDoor> doors = new List<IMyDoor>();
             private List<IMySensorBlock> sensors = new List<IMySensorBlock>();
             List<Transition> list_tr = new List<Transition>();
             public Transitions(string name_obj, string tag)
             {
+
+                //StringBuilder values_info = new StringBuilder();
                 //test_lcd.WriteText("Start" + "\n", false);
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
                 _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
-                //test_lcd.WriteText("doors:" + doors.Count() + "\n", true);
-                //test_lcd.WriteText("sensors:" + doors.Count() + "\n", true);
+                //values_info.Append("doors:" + doors.Count() + "\n");
+                //values_info.Append("sensors:" + sensors.Count() + "\n");
                 IMyDoor door1;
                 IMySensorBlock sensor1;
                 IMySensorBlock sensor2;
@@ -513,11 +523,13 @@ namespace OSS_BM_DORS
                     room2 = room.none;
                     IMyDoor l_drs = doors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).FirstOrDefault();
                     List<IMySensorBlock> l_sns = sensors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).ToList();
+                    //if (l_drs != null) values_info.Append("l_drs:" + l_drs.ToString() + "\n");
+                    //values_info.Append("l_sns:" + l_sns.Count() + "\n");
                     if (l_drs != null && l_sns != null && l_sns.Count() == 2)
                     {
                         foreach (room rm in Enum.GetValues(typeof(room)))
                         {
-                            //test_lcd.WriteText("room:" + rm + "\n", true);
+                            //values_info.Append("room:" + rm.ToString() + "\n");
                             IMySensorBlock sn = l_sns.Where(d => d.CustomName.Contains("[" + rm.ToString() + "]")).FirstOrDefault();
                             if (l_drs != null && sn != null)
                             {
@@ -528,15 +540,16 @@ namespace OSS_BM_DORS
                         }
                         if (door1 != null && sensor1 != null && sensor2 != null)
                         {
-                            //test_lcd.WriteText("door1:" + door1.CustomName + "\n", true);
-                            //test_lcd.WriteText("sensor1:" + sensor1.CustomName + "\n", true);
-                            //test_lcd.WriteText("sensor2:" + sensor2.CustomName + "\n", true);
+                            //values_info.Append("door1:" + door1.CustomName + "\n");
+                            //values_info.Append("sensor1:" + sensor1.CustomName + "\n");
+                            //values_info.Append("sensor2:" + sensor2.CustomName + "\n");
                             list_tr.Add(new Transition(gw, door1, sensor1, room1, sensor2, room2));
                         }
                     }
 
                 }
                 _scr.Echo("Найдено Transitions:[" + tag + "]: " + list_tr.Count());
+                //lcd_info_upr.OutText(values_info);
             }
 
             public void Logic(string argument, UpdateType updateSource)

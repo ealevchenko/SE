@@ -551,11 +551,11 @@ namespace SETUP
             info_lcd = GridTerminalSystem.GetBlockWithName("info_lcd") as IMyTextPanel;
             Echo("info_lcd: " + ((info_lcd != null) ? ("Ок") : ("not found")));
             sw = new ShipWelder();
-            info_lcd.WriteText("", false);
+            //info_lcd.WriteText("", false);
         }
 
         //info:NASTYA1-info [door-info] [factory]
-        //replace:[BASE-EA1]|[BASE-EA1]-
+        //replace:КЛЕПА3-|[KLEPA_H1]-
         //add:[BASE-EA1]
         void Main(string argument, UpdateType updateSource)
         {
@@ -639,8 +639,7 @@ namespace SETUP
                 }
 
             }
-
-            info_lcd.WriteText(values_info, true);
+            //info_lcd.WriteText(values_info, true);
             //if (updateSource == UpdateType.Update10)
             //{
             //    // Получим данные
@@ -663,29 +662,29 @@ namespace SETUP
 
             public void Rename(string name_obj, string name_ignore)
             {
-                StringBuilder values_info = new StringBuilder();
-                values_info.Append("НАЧАЛО!\n");
-                info_lcd.WriteText(values_info, false);
+                //StringBuilder values_info = new StringBuilder();
+                //values_info.Append("НАЧАЛО!\n");
+                //info_lcd.WriteText(values_info, false);
                 foreach (IMyShipWelder sw in list_obj)
                 {
-                    values_info.Append("Найден:" + sw.CustomName);
+                    //values_info.Append("Найден:" + sw.CustomName);
                     if (!sw.CustomName.Contains(name_ignore))
                     {
                         if (!sw.CustomName.Contains(name_obj))
                         {
                             sw.CustomName = name_obj + sw.CustomName;
-                            values_info.Append("-Переименнован" + sw.CustomName + "\n");
+                            //values_info.Append("-Переименнован" + sw.CustomName + "\n");
                         }
                         else
                         {
-                            values_info.Append("-Пропущен (УЖЕ)\n");
+                            //values_info.Append("-Пропущен (УЖЕ)\n");
                         }
                     }
                     else
                     {
-                        values_info.Append("-Пропущен (ИГНОР)\n");
+                        //values_info.Append("-Пропущен (ИГНОР)\n");
                     }
-                    info_lcd.WriteText(values_info, true);
+                    //info_lcd.WriteText(values_info, true);
 
                 }
             }

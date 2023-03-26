@@ -6,68 +6,49 @@ using SpaceEngineers.Game.ModAPI.Ingame;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.Linq;
-using System.Runtime.ConstrainedExecution;
-using System.Runtime.InteropServices;
 using System.Runtime.Remoting.Messaging;
-using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
 using VRageMath;
 
 /// <summary>
-/// v1.0
-/// Навигация коробля
+/// + Добавить рен на 45 град
+/// 
 /// </summary>
-namespace OSS_BM_UPR
+namespace KROTIK_H1
 {
+    /// <summary>
+    /// Сварщик водородный -1
+    /// </summary>
     public sealed class Program : MyGridProgram
     {
-        // v1.0
-        // Добавить режим "Установка на солнце",
-
-        string NameObj = "[OSS]-"; // [OSS]-[BM]-
-        string NameCockpit = "[OSS]-[BM]-Кресло пилота [LCD]"; // основное
-        string NameCockpit1 = "[OSS]-[BM]-Кресло оператора 1 [LCD]";
-        string NameCockpit2 = "[OSS]-[BM]-Кресло оператора 2 [LCD]";
-        string NameCameraCourse = "[OSS]-[BM]-Камера course";
-        string NameConnector1 = "[OSS]-[BM]-Коннектор парковка-1";
-        string NameConnector2 = "[OSS]-[BM]-Коннектор парковка-2";
-        string NameProjector = "[OSS]-[BM]-Проектор МС";
-        string NameLCDInfo = "[OSS]-[BM]-LCD-INFO";
-        string NameLCDInfo_Upr = "[OSS]-[BM]-LCD-INFO-UPR";
-        string NameLCDInfo_Debug = "[OSS]-[BM]-LCD-INFO-DEBUG";
+        // v1
+        string NameObj = "[KROTIK_H1]";
+        string NameCockpit = "[KROTIK_H1]-Кокпит [LCD]";
+        string NameRemoteControl = "[KROTIK_H1]-ДУ парковка";
+        string NameConnector = "[KROTIK_H1]-Коннектор парковка";
+        string NameLCDInfo = "[KLEPA_H1]-LCD-INFO";
 
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
-        string tag_mechanical_connectior = "[mechanical_connectior]";
-
-        public enum or_mtr : int
-        {
-            not = 0, up = 1, down = 2, left = 3, right = 4, forward = 5, backward = 6
-        };
 
         LCD lcd_info;
-        LCD lcd_info_upr;
-        static LCD lcd_info_debug;
         Batterys bats;
-        Connector connector1;
-        Connector connector2;
-        MechanicalConnectior mechanical_connectior;
+        Connector connector;
+        ShipDrill drill;
         ReflectorsLight reflectors_light;
         Gyros gyros;
-        GasTanks gastanks;
+        Thrusts thrusts;
         Cockpit cockpit;
-        Cockpit cockpit_operator1;
-        Cockpit cockpit_operator2;
-        Camera camera_course;
-        Projector projector_ls;
+        RemoteControl remote_control;
+        GasTanks gastanks;
 
         static Program _scr;
 
-        bool ship_connect1 = false;
-        bool ship_connect2 = false;
+        bool ship_connect = false;
+        bool horizont = false;
+
         public class PText
         {
             static public string GetVector3D(Vector3D vector)
@@ -240,8 +221,6 @@ namespace OSS_BM_UPR
         {
             public T obj;
 
-            public string CustomName { get { return ((IMyTerminalBlock)this.obj).CustomName; } set { ((IMyTerminalBlock)this.obj).CustomName = value; } }
-
             //public T _obj { get { return obj; } }
 
             public BaseTerminalBlock(string name)
@@ -269,31 +248,49 @@ namespace OSS_BM_UPR
                 if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_On");
             }
         }
+        public void KeepHorizon()
+        {
+            Vector3D GravityVector = cockpit._obj.GetNaturalGravity();
+            Vector3D GravNorm = Vector3D.Normalize(GravityVector);
+
+            //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
+            double gF = GravNorm.Dot(cockpit._obj.WorldMatrix.Forward);
+            double gL = GravNorm.Dot(cockpit._obj.WorldMatrix.Left);
+            double gU = GravNorm.Dot(cockpit._obj.WorldMatrix.Up);
+
+            //Получаем сигналы по тангажу и крены операцией atan2
+            float RollInput = (float)Math.Atan2(gL, -gU);
+            float PitchInput = -(float)Math.Atan2(gF, -gU);
+
+            //На рыскание просто отправляем сигнал рыскания с контроллера. Им мы будем управлять вручную.
+            float YawInput = 0;
+            if (remote_control.IsUnderControl)
+            {
+                YawInput = remote_control._obj.RotationIndicator.Y;
+            }
+            else if (cockpit.IsUnderControl)
+            {
+                YawInput = cockpit._obj.RotationIndicator.Y;
+            }
+            gyros.SetGyro(YawInput, PitchInput, RollInput);
+        }
         public Program()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
             _scr = this;
             lcd_info = new LCD(NameLCDInfo);
-            lcd_info_upr = new LCD(NameLCDInfo_Upr);
-            lcd_info_debug = new LCD(NameLCDInfo_Debug);
             cockpit = new Cockpit(NameCockpit);
-            cockpit_operator1 = new Cockpit(NameCockpit1);
-            cockpit_operator1.SetControl(false); // Откл. упр.
-            cockpit_operator2 = new Cockpit(NameCockpit2);
-            cockpit_operator2.SetControl(false); // Откл. упр.
+            remote_control = new RemoteControl(NameRemoteControl);
             bats = new Batterys(NameObj);
-            connector1 = new Connector(NameConnector1);
-            connector2 = new Connector(NameConnector2);
-            mechanical_connectior = new MechanicalConnectior(NameObj, tag_mechanical_connectior);
-            mechanical_connectior.AttachDetach(mechanical_connectior.IsAttached());      
-            ship_connect1 = connector1.Connected;
-            ship_connect2 = connector2.Connected;
+            connector = new Connector(NameConnector);
+            ship_connect = connector.Connected;
+            drill = new ShipDrill(NameObj);
+            drill.Off();
             reflectors_light = new ReflectorsLight(NameObj);
             reflectors_light.Off();
             gyros = new Gyros(NameObj);
+            thrusts = new Thrusts(NameObj);
             gastanks = new GasTanks(NameObj);
-            camera_course = new Camera(NameCameraCourse);
-            projector_ls = new Projector(NameProjector);
         }
         public void Save()
         {
@@ -304,30 +301,82 @@ namespace OSS_BM_UPR
         {
             StringBuilder values_info = new StringBuilder();
             bats.Logic(argument, updateSource);
-            cockpit.Logic(argument, updateSource);
-            projector_ls.Logic(argument, updateSource);
+            remote_control.Logic(argument, updateSource);
             switch (argument)
             {
+                case "horizont_on":
+                    horizont = true;
+                    break;
+                case "horizont_off":
+                    horizont = false;
+                    break;
+                case "horizont":
+                    if (horizont)
+                    {
+                        horizont = false;
+                    }
+                    else
+                    {
+                        horizont = true;
+                    }
+                    break;
                 default:
                     break;
             }
             if (updateSource == UpdateType.Update10)
             {
-                // Проверим корабль не припаркован к первому коннектору
-                if (!connector1.Connected) { } else { }
-                // Проверим корабль не припаркован к второму коннектору
-                if (!connector2.Connected) { } else { }
+                // Проверим корабль не припаркован
+                if (!connector.Connected)
+                {
+                    bats.Auto();
+                    if (cockpit.GetNaturalGravity.Length() >= 0.01f)
+                    {
+                        thrusts.On();
+                    }
+                    cockpit.Dampeners(true);
+                    gastanks.Stockpile(false);
+                    // режим горизонт
+                    gyros.GyroOver(horizont);
+                    if (horizont)
+                    {
+                        KeepHorizon();
+                    }
+                    // Проверка кокпит не под контроллем включить тормоз
+                    if (!cockpit.IsUnderControl)
+                    {
+                        cockpit.Dampeners(true);
+                        reflectors_light.Off();
+                        drill.Off();
+                    }
+                    if (drill.Enabled())
+                    {
+                        reflectors_light.On();
+                    }
+                }
+                else
+                {
+                    // Припаркован
+                    reflectors_light.Off();
+                    drill.Off();
+                    cockpit.Dampeners(false);
+                    gastanks.Stockpile(true);
+                    bats.Charger();
+                    thrusts.Off();
+
+                }
             }
-            //values_info.Append(bats.TextInfo());
-            //values_info.Append(gastanks.TextInfo());
-            values_info.Append(connector1.TextInfo());
-            values_info.Append(connector2.TextInfo());
-            values_info.Append(cockpit.TextInfo());
-            //cockpit.OutText(values_info, 0);
-            lcd_info_upr.OutText(values_info);
-            ship_connect1 = connector1.Connected; // сохраним состояние
-            ship_connect2 = connector2.Connected; // сохраним состояние
+            values_info.Append(bats.TextInfo());
+            values_info.Append(connector.TextInfo());
+            values_info.Append(drill.TextInfo());
+            values_info.Append(remote_control.TextInfo());
+            values_info.Append("РЕЖИМ: " + (horizont ? "ГОРИЗОНТ" : "") + "\n");
+            cockpit.OutText(values_info, 0);
+            ship_connect = connector.Connected; // сохраним состояние
+
             //StringBuilder test_info = new StringBuilder();
+            //test_info.Append("home1 : " + remote_control.home_position.ToString() + "\n");
+            //test_info.Append("home2 : " + remote_control.home_position1.ToString() + "\n");
+            //test_info.Append("home3 : " + remote_control.home_position2.ToString() + "\n");
             //lcd_info.OutText(test_info);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
@@ -503,54 +552,21 @@ namespace OSS_BM_UPR
                 obj.Disconnect();
             }
         }
-        public class MechanicalConnectior : BaseListTerminalBlock<IMyMechanicalConnectionBlock>
+        public class ShipDrill : BaseListTerminalBlock<IMyShipDrill>
         {
-            public MechanicalConnectior(string name_obj) : base(name_obj)
+            public ShipDrill(string name_obj) : base(name_obj)
+            {
+            }
+            public ShipDrill(string name_obj, string tag) : base(name_obj, tag)
             {
 
             }
-            public MechanicalConnectior(string name_obj, string tag) : base(name_obj, tag)
+            public string TextInfo()
             {
-
+                StringBuilder values = new StringBuilder();
+                values.Append("БУРЫ: " + (base.Enabled() ? "ВКЛ" : "ОТК") + "\n");
+                return values.ToString();
             }
-            public bool IsAttached()
-            {
-                bool result = false;
-                foreach (IMyMechanicalConnectionBlock obj in base.list_obj)
-                {
-                    if (obj.IsAttached) return true;
-                }
-                return result;
-            }
-            public void Attach()
-            {
-                foreach (IMyMechanicalConnectionBlock obj in base.list_obj)
-                {
-                    obj.Attach();
-                }
-            }
-            public void Detach()
-            {
-                foreach (IMyMechanicalConnectionBlock obj in base.list_obj)
-                {
-                    obj.Detach();
-                }
-            }
-            public void AttachDetach(bool on)
-            {
-                foreach (IMyMechanicalConnectionBlock obj in base.list_obj)
-                {
-                    if (on)
-                    {
-                        obj.Attach();
-                    }
-                    else {
-                        obj.Detach();
-                    }
-                    
-                }
-            }
-
         }
         public class ReflectorsLight : BaseListTerminalBlock<IMyReflectorLight>
         {
@@ -560,6 +576,184 @@ namespace OSS_BM_UPR
             public ReflectorsLight(string name_obj, string tag) : base(name_obj, tag)
             {
 
+            }
+        }
+        public class Gyros : BaseListTerminalBlock<IMyGyro>
+        {
+            public Gyros(string name_obj) : base(name_obj)
+            {
+            }
+            public Gyros(string name_obj, string tag) : base(name_obj, tag)
+            {
+
+            }
+            public void SetGyro(float Yaw, float Pitch, float Roll)
+            {
+                foreach (IMyGyro gyro in base.list_obj)
+                {
+                    gyro.Yaw = Yaw;
+                    gyro.Pitch = Pitch;
+                    gyro.Roll = Roll;
+                }
+            }
+            public void GyroOver(bool over)
+            {
+                foreach (IMyGyro gyro in base.list_obj)
+                {
+                    gyro.Yaw = 0;
+                    gyro.Pitch = 0;
+                    gyro.Roll = 0;
+                    gyro.GyroOverride = over;
+                }
+            }
+        }
+        public class Thrusts : BaseListTerminalBlock<IMyThrust>
+        {
+            public Thrusts(string name_obj) : base(name_obj)
+            {
+            }
+            public Thrusts(string name_obj, string tag) : base(name_obj, tag)
+            {
+
+            }
+        }
+        public class Cockpit : BaseTerminalBlock<IMyShipController>
+        {
+            private double current_height = 0;
+            public float BaseMass { get { return base.obj.CalculateShipMass().BaseMass; } }
+            public float TotalMass { get { return base.obj.CalculateShipMass().TotalMass; } }
+            public float PhysicalMass { get { return base.obj.CalculateShipMass().PhysicalMass; } }
+            public double CurrentHeight { get { return this.current_height; } }
+            public double ShipSpeed { get { return base.obj.GetShipSpeed(); } }
+            public MatrixD WorldMatrix { get { return base.obj.WorldMatrix; } }
+            public IMyShipController _obj { get { return obj; } }
+            public bool IsUnderControl { get { return obj.IsUnderControl; } }
+            public Vector3D GetNaturalGravity { get { return obj.GetNaturalGravity(); } }
+            public Matrix GetCockpitMatrix()
+            {
+                Matrix CockpitMatrix = new MatrixD();
+                base.obj.Orientation.GetMatrix(out CockpitMatrix);
+                return CockpitMatrix;
+            }
+            public Cockpit(string name) : base(name)
+            {
+
+            }
+            public void Dampeners(bool on)
+            {
+                obj.DampenersOverride = on;
+            }
+            public double GetDistance(Vector3D target)
+            {
+                return (target - obj.GetPosition()).Length();
+            }
+            public void OutText(StringBuilder values, int num_lcd)
+            {
+                if (obj is IMyTextSurfaceProvider)
+                {
+                    IMyTextSurfaceProvider ipp = obj as IMyTextSurfaceProvider;
+                    if (num_lcd > ipp.SurfaceCount) return;
+                    IMyTextSurface ts = ipp.GetSurface(num_lcd);
+                    if (ts != null)
+                    {
+                        ts.WriteText(values, false);
+                    }
+                }
+            }
+            public void OutText(string text, bool append, int num_lcd)
+            {
+                if (obj is IMyTextSurfaceProvider)
+                {
+                    IMyTextSurfaceProvider ipp = obj as IMyTextSurfaceProvider;
+                    if (num_lcd > ipp.SurfaceCount) return;
+                    IMyTextSurface ts = ipp.GetSurface(num_lcd);
+                    if (ts != null)
+                    {
+                        ts.WriteText(text, append);
+                    }
+                }
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+                    // Получить высоту над поверхностью
+                    base.obj.TryGetPlanetElevation(MyPlanetElevation.Surface, out current_height);
+                }
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("Гравитация: " + base.obj.GetNaturalGravity().Length() + "\n");
+                values.Append("BaseMass: " + this.BaseMass + "\n");
+                values.Append("TotalMass: " + this.TotalMass + "\n");
+                values.Append("Скорость: " + base.obj.GetShipSpeed() + "\n");
+                values.Append("Высота: " + current_height + "\n");
+                //values.Append("LinearVelocity: " + base.obj.GetShipVelocities().LinearVelocity + "\n");
+                //values.Append("LinearVelocity: " + base.obj.GetShipVelocities().LinearVelocity.Length() + "\n");
+                //values.Append("AngularVelocity: " + base.obj.GetShipVelocities().AngularVelocity + "\n");
+                //values.Append("AngularVelocity: " + base.obj.GetShipVelocities().AngularVelocity.Length() + "\n");
+                return values.ToString();
+            }
+        }
+        public class RemoteControl : BaseTerminalBlock<IMyRemoteControl>
+        {
+
+            public Vector3D home_position = new Vector3D();
+            public Vector3D home_position1 = new Vector3D();
+            public Vector3D home_position2 = new Vector3D();
+            public IMyShipController _obj { get { return obj; } }
+            public bool IsUnderControl { get { return obj.IsUnderControl; } }
+            public bool ControlThrusters { get { return obj.ControlThrusters; } }
+            public RemoteControl(string name) : base(name)
+            {
+
+            }
+            public void Dampeners(bool on)
+            {
+                obj.DampenersOverride = on;
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    case "home_position":
+
+                        Vector3D vector_Forward = base.obj.WorldMatrix.Forward;
+                        Vector3D vector_Up = base.obj.WorldMatrix.Up;
+                        home_position = base.GetPosition() - (vector_Forward * 2);
+                        home_position1 = (home_position - (vector_Forward * 20));
+                        home_position2 = (home_position1 + (vector_Up * 100));
+                        break;
+                    case "auto_home":
+                        base.obj.ClearWaypoints();
+                        base.obj.AddWaypoint(home_position2, "БАЗА-Up");
+                        base.obj.AddWaypoint(home_position1, "БАЗА-Forward");
+                        base.obj.AddWaypoint(home_position, "БАЗА");
+                        base.obj.SetAutoPilotEnabled(true);
+                        break;
+                    case "auto_off":
+                        base.obj.SetAutoPilotEnabled(false);
+                        break;
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+
+                }
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("ДОМ: " + home_position.ToString() + "\n");
+                values.Append("АВТОПИЛОТ: " + (base.obj.IsAutoPilotEnabled ? "ВКЛ" : "ОТК") + "\n");
+                return values.ToString();
             }
         }
         public class GasTanks : BaseListTerminalBlock<IMyGasTank>
@@ -610,298 +804,6 @@ namespace OSS_BM_UPR
                 values.Append("БАКИ H2: [" + Count + "] [А-" + CountAutoRefillBottles() + " З-" + CountStockpiles() + "]" + PText.GetCapacityTanks(FilledRatio(), MaxCapacity()) + "\n");
                 values.Append("|- НАП:  " + PText.GetScalePersent(FilledRatio(), 20) + "\n");
                 return values.ToString();
-            }
-        }
-        public class Gyros : BaseListTerminalBlock<IMyGyro>
-        {
-            public Gyros(string name_obj) : base(name_obj)
-            {
-            }
-            public Gyros(string name_obj, string tag) : base(name_obj, tag)
-            {
-
-            }
-
-            public float getPitch()
-            {
-                return base.list_obj.Select(g => g.Pitch).Average();
-            }
-            public float getRoll()
-            {
-                return base.list_obj.Select(g => g.Roll).Average();
-            }
-            public float getYaw()
-            {
-                return base.list_obj.Select(g => g.Yaw).Average();
-            }
-            public void SetGyro(float Yaw, float Pitch, float Roll)
-            {
-                foreach (IMyGyro gyro in base.list_obj)
-                {
-                    gyro.Yaw = Yaw;
-                    gyro.Pitch = Pitch;
-                    gyro.Roll = Roll;
-                }
-            }
-            public void GyroOver(bool over)
-            {
-                foreach (IMyGyro gyro in base.list_obj)
-                {
-                    gyro.Yaw = 0;
-                    gyro.Pitch = 0;
-                    gyro.Roll = 0;
-                    gyro.GyroOverride = over;
-                }
-            }
-            public string TextInfo()
-            {
-                StringBuilder values = new StringBuilder();
-                values.Append("Yaw :" + this.getYaw() + "\n");
-                values.Append("Pitch :" + this.getPitch() + "\n");
-                values.Append("Roll :" + this.getRoll() + "\n");
-                return values.ToString();
-            }
-        }
-        public class Cockpit : BaseTerminalBlock<IMyShipController>
-        {
-            // V2.0
-            private double current_height = 0;
-            public float BaseMass { get { return base.obj.CalculateShipMass().BaseMass; } }
-            public float TotalMass { get { return base.obj.CalculateShipMass().TotalMass; } }
-            public float PhysicalMass { get { return base.obj.CalculateShipMass().PhysicalMass; } }
-            public double CurrentHeight { get { return this.current_height; } }
-            public double ShipSpeed { get { return base.obj.GetShipSpeed(); } }
-            public MatrixD WorldMatrix { get { return base.obj.WorldMatrix; } }
-            public IMyShipController _obj { get { return obj; } }
-            public bool IsUnderControl { get { return obj.IsUnderControl; } }
-            public Vector3D GetNaturalGravity { get { return obj.GetNaturalGravity(); } }
-            public Matrix GetCockpitMatrix()
-            {
-                Matrix CockpitMatrix = new MatrixD();
-                base.obj.Orientation.GetMatrix(out CockpitMatrix);
-                return CockpitMatrix;
-            }
-            public Cockpit(string name) : base(name)
-            {
-
-            }
-            public void Dampeners(bool on)
-            {
-                obj.DampenersOverride = on;
-            }
-            public void SetControl(bool on) {
-                obj.ControlThrusters = on;
-                obj.ControlWheels = on;
-                obj.HandBrake = on;
-                obj.ShowHorizonIndicator = on;
-            }
-            public double GetDistance(Vector3D target)
-            {
-                return (target - obj.GetPosition()).Length();
-            }
-            public void OutText(StringBuilder values, int num_lcd)
-            {
-                if (obj is IMyTextSurfaceProvider)
-                {
-                    IMyTextSurfaceProvider ipp = obj as IMyTextSurfaceProvider;
-                    if (num_lcd > ipp.SurfaceCount) return;
-                    IMyTextSurface ts = ipp.GetSurface(num_lcd);
-                    if (ts != null)
-                    {
-                        ts.WriteText(values, false);
-                    }
-                }
-            }
-            public void OutText(string text, bool append, int num_lcd)
-            {
-                if (obj is IMyTextSurfaceProvider)
-                {
-                    IMyTextSurfaceProvider ipp = obj as IMyTextSurfaceProvider;
-                    if (num_lcd > ipp.SurfaceCount) return;
-                    IMyTextSurface ts = ipp.GetSurface(num_lcd);
-                    if (ts != null)
-                    {
-                        ts.WriteText(text, append);
-                    }
-                }
-            }
-            public void Logic(string argument, UpdateType updateSource)
-            {
-                switch (argument)
-                {
-                    default:
-                        break;
-                }
-                if (updateSource == UpdateType.Update10)
-                {
-
-                }
-            }
-            public string TextInfo()
-            {
-                StringBuilder values = new StringBuilder();
-                values.Append("Гравитация: " + base.obj.GetNaturalGravity().Length() + "\n");
-                values.Append("BaseMass: " + this.BaseMass + "\n");
-                values.Append("TotalMass: " + this.TotalMass + "\n");
-                values.Append("Скорость: " + base.obj.GetShipSpeed() + "\n");
-                values.Append("Высота: " + current_height + "\n");
-                //values.Append("LinearVelocity: " + base.obj.GetShipVelocities().LinearVelocity + "\n");
-                //values.Append("LinearVelocity: " + base.obj.GetShipVelocities().LinearVelocity.Length() + "\n");
-                //values.Append("AngularVelocity: " + base.obj.GetShipVelocities().AngularVelocity + "\n");
-                //values.Append("AngularVelocity: " + base.obj.GetShipVelocities().AngularVelocity.Length() + "\n");
-                return values.ToString();
-            }
-        }
-        public class Camera : BaseTerminalBlock<IMyCameraBlock>
-        {
-            public MyBlockOrientation Orientation { get { return base.obj.Orientation; } }
-            public Camera(string name) : base(name)
-            {
-                base.obj.EnableRaycast = true;
-
-            }
-            public bool CanScan(double distance)
-            {
-
-                return base.obj.CanScan(distance);
-            }
-            public MyDetectedEntityInfo? Raycast(double dist_scan, float pitch_scan, float yaw_scan)
-            {
-                MyDetectedEntityInfo? result = null;
-                //base.obj.EnableRaycast = true;
-                if (this.CanScan(dist_scan))
-                {
-                    result = base.obj.Raycast(dist_scan, pitch_scan, yaw_scan);
-                }
-                //base.obj.EnableRaycast = false;
-                return result;
-            }
-            public Vector3D GetVectorForward()
-            {
-                return obj.WorldMatrix.Forward;
-            }
-            public string TextInfo()
-            {
-                StringBuilder values = new StringBuilder();
-
-                return values.ToString();
-            }
-            public string GetTextDetectedEntityInfo(MyDetectedEntityInfo? info)
-            {
-                StringBuilder values = new StringBuilder();
-                if (info != null)
-                {
-                    values.Append("Name: " + ((MyDetectedEntityInfo)info).Name + "\n");
-                    values.Append("Type: " + ((MyDetectedEntityInfo)info).Type + "\n");
-                    values.Append("HitPosition: " + ((MyDetectedEntityInfo)info).HitPosition + "\n");
-                    values.Append("Orientation: " + ((MyDetectedEntityInfo)info).Orientation + "\n");
-                    values.Append("Velocity: " + ((MyDetectedEntityInfo)info).Velocity + "\n");
-                    values.Append("Relationship: " + ((MyDetectedEntityInfo)info).Relationship + "\n");
-                    values.Append("BoundingBox: " + ((MyDetectedEntityInfo)info).BoundingBox + "\n");
-                    //values.Append("TimeStamp: " + ((MyDetectedEntityInfo)info).TimeStamp + "\n");
-                    //values.Append("EntityId: " + ((MyDetectedEntityInfo)info).EntityId + "\n");
-                };
-                return values.ToString();
-            }
-        }
-        public class Projector : BaseTerminalBlock<IMyProjector>
-        {
-            public Projector(string name) : base(name)
-            {
-
-            }
-
-            public void add_X(int x)
-            {
-                Vector3I pos = base.obj.ProjectionOffset;
-                Vector3I new_pos = new Vector3I(pos.X + x, pos.Y, pos.Z);
-                base.obj.ProjectionOffset = new_pos;
-                base.obj.UpdateOffsetAndRotation();
-            }
-            public void inc_X(int x)
-            {
-                Vector3I pos = base.obj.ProjectionOffset;
-                Vector3I new_pos = new Vector3I(pos.X - x, pos.Y, pos.Z);
-                base.obj.ProjectionOffset = new_pos;
-                base.obj.UpdateOffsetAndRotation();
-            }
-            public void add_Y(int y)
-            {
-                Vector3I pos = base.obj.ProjectionOffset;
-                Vector3I new_pos = new Vector3I(pos.X, pos.Y + y, pos.Z);
-                base.obj.ProjectionOffset = new_pos;
-                base.obj.UpdateOffsetAndRotation();
-            }
-            public void inc_Y(int y)
-            {
-                Vector3I pos = base.obj.ProjectionOffset;
-                Vector3I new_pos = new Vector3I(pos.X, pos.Y - y, pos.Z);
-                base.obj.ProjectionOffset = new_pos;
-                base.obj.UpdateOffsetAndRotation();
-            }
-            public void add_Z(int z)
-            {
-                Vector3I pos = base.obj.ProjectionOffset;
-                Vector3I new_pos = new Vector3I(pos.X, pos.Y, pos.Z + z);
-                base.obj.ProjectionOffset = new_pos;
-                base.obj.UpdateOffsetAndRotation();
-            }
-            public void inc_Z(int z)
-            {
-                Vector3I pos = base.obj.ProjectionOffset;
-                Vector3I new_pos = new Vector3I(pos.X, pos.Y, pos.Z - z);
-                base.obj.ProjectionOffset = new_pos;
-                base.obj.UpdateOffsetAndRotation();
-            }
-            public void Logic(string argument, UpdateType updateSource)
-            {
-                switch (argument)
-                {
-                    case "incX":
-                        base.obj.ApplyAction("IncreaseX");
-                        break;
-                    case "decX":
-                        base.obj.ApplyAction("DecreaseX");
-                        break;
-                    case "incY":
-                        base.obj.ApplyAction("IncreaseY");
-                        break;
-                    case "decY":
-                        base.obj.ApplyAction("DecreaseY");
-                        break;
-                    case "incZ":
-                        base.obj.ApplyAction("IncreaseZ");
-                        break;
-                    case "decZ":
-                        base.obj.ApplyAction("DecreaseZ");
-                        break;
-                    case "rot_incX":
-                        base.obj.ApplyAction("IncreaseRotX");
-                        break;
-                    case "rot_decX":
-                        base.obj.ApplyAction("DecreaseRotX");
-                        break;
-                    case "rot_incY":
-                        base.obj.ApplyAction("IncreaseRotY");
-                        break;
-                    case "rot_decY":
-                        base.obj.ApplyAction("DecreaseRotY");
-                        break;
-                    case "rot_incZ":
-                        base.obj.ApplyAction("IncreaseRotZ");
-                        break;
-                    case "rot_decZ":
-                        base.obj.ApplyAction("DecreaseRotZ");
-                        break;
-                    default:
-                        break;
-                }
-
-                if (updateSource == UpdateType.Update10)
-                {
-
-                }
-
             }
         }
     }
