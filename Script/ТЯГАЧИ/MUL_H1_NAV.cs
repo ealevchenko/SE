@@ -39,7 +39,7 @@ namespace MUL_H1_NAV
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
         string tag_collision_protection = "[collision_protection]";
         string tag_mechanical_connectior = "[mechanical_connectior]";
-
+        string tag_cargo_connectior = "[cargo_connectior]";
         public enum or_mtr : int
         {
             not = 0, up = 1, down = 2, left = 3, right = 4, forward = 5, backward = 6
@@ -49,7 +49,7 @@ namespace MUL_H1_NAV
         LCD lcd_info_upr;
         static LCD lcd_info_debug;
         Batterys bats;
-        Connector connector;
+        ConnectorCargo connector_cargo;
         MechanicalConnectior mechanical_connectior;
         ReflectorsLight reflectors_light;
         Gyros gyros;
@@ -66,7 +66,9 @@ namespace MUL_H1_NAV
 
         public double minHeight = 1000;
 
-        bool ship_connect = false;
+        static bool ship_connect = false;
+        static bool cargo_connect = false;
+
         public class PText
         {
             static public string GetVector3D(Vector3D vector)
@@ -278,10 +280,10 @@ namespace MUL_H1_NAV
             cockpit = new Cockpit(NameCockpit);
             remote_control = new RemoteControl(NameRemoteControl);
             bats = new Batterys(NameObj);
-            connector = new Connector(NameConnector);
+            connector_cargo = new ConnectorCargo(NameConnector, tag_cargo_connectior);
+            ship_connect = connector_cargo.Connected;
             mechanical_connectior = new MechanicalConnectior(NameObj, tag_mechanical_connectior);
-            mechanical_connectior.AttachDetach(mechanical_connectior.IsAttached());      
-            ship_connect = connector.Connected;
+            mechanical_connectior.AttachDetach(mechanical_connectior.IsAttached());
             reflectors_light = new ReflectorsLight(NameObj);
             reflectors_light.Off();
             gyros = new Gyros(NameObj);
@@ -305,6 +307,7 @@ namespace MUL_H1_NAV
             cockpit.Logic(argument, updateSource);
             remote_control.Logic(argument, updateSource);
             navigation.Logic(argument, updateSource);
+            connector_cargo.Logic(argument, updateSource);
             //collision_protection.GetDistance(cockpit.GetCockpitMatrix());
             switch (argument)
             {
@@ -314,7 +317,7 @@ namespace MUL_H1_NAV
             if (updateSource == UpdateType.Update10)
             {
                 // Проверим корабль не припаркован
-                if (!connector.Connected)
+                if (!connector_cargo.Connected)
                 {
                     gastanks.Stockpile(false);
                     mechanical_connectior.Detach();
@@ -338,14 +341,15 @@ namespace MUL_H1_NAV
             }
             //values_info.Append(bats.TextInfo());
             //values_info.Append(gastanks.TextInfo());
-            values_info.Append(connector.TextInfo());
+            values_info.Append(connector_cargo.TextInfo());
             //values_info.Append(thrusts.TextInfo());
             //values_info.Append(remote_control.TextInfo());
             values_info.Append(cockpit.TextInfo());
             values_info.Append(navigation.TextInfo());
             //cockpit.OutText(values_info, 0);
             lcd_info_upr.OutText(values_info);
-            ship_connect = connector.Connected; // сохраним состояние
+            ship_connect = connector_cargo.Connected; // сохраним состояние
+            cargo_connect = connector_cargo.IsConnectorCargo(); // груз подключен
             //StringBuilder test_info = new StringBuilder();
             //test_info.Append("home1 : " + remote_control.home_position.ToString() + "\n");
             //test_info.Append("home2 : " + remote_control.home_position1.ToString() + "\n");
@@ -487,9 +491,9 @@ namespace MUL_H1_NAV
         public class Connector : BaseTerminalBlock<IMyShipConnector>
         {
             public MyShipConnectorStatus Status { get { return base.obj.Status; } }
-            public bool Connected { get { return base.obj.Status == MyShipConnectorStatus.Connected ? true : false; } }
-            public bool Unconnected { get { return base.obj.Status == MyShipConnectorStatus.Unconnected ? true : false; } }
-            public bool Connectable { get { return base.obj.Status == MyShipConnectorStatus.Connectable ? true : false; } }
+            public virtual bool Connected { get { return base.obj.Status == MyShipConnectorStatus.Connected ? true : false; } }
+            public virtual bool Unconnected { get { return base.obj.Status == MyShipConnectorStatus.Unconnected ? true : false; } }
+            public virtual bool Connectable { get { return base.obj.Status == MyShipConnectorStatus.Connectable ? true : false; } }
             public Connector(string name) : base(name)
             {
                 if (base.obj != null)
@@ -519,19 +523,137 @@ namespace MUL_H1_NAV
                         }
                 }
             }
-            public string TextInfo()
+            public virtual string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("КОННЕКТОР: [" + GetInfoStatus() + "]" + "\n");
                 return values.ToString();
             }
-            public void Connect()
+            public virtual void Connect()
             {
                 obj.Connect();
             }
-            public void Disconnect()
+            public virtual void Disconnect()
             {
                 obj.Disconnect();
+            }
+        }
+        public class ConnectorCargo : Connector
+        {
+            string tag_connector_cargo;
+            bool con_cargo = false;
+            Connector connector_cargo;
+            public override bool Connected { get { return con_cargo && connector_cargo.Status == MyShipConnectorStatus.Connected ? true : (con_cargo ? false : (base.obj.Status == MyShipConnectorStatus.Connected ? true : false)); } }
+            public override bool Unconnected { get { return con_cargo && connector_cargo.Status == MyShipConnectorStatus.Unconnected ? true : (con_cargo ? false : (base.obj.Status == MyShipConnectorStatus.Unconnected ? true : false)); } }
+            public override bool Connectable { get { return con_cargo && connector_cargo.Status == MyShipConnectorStatus.Connectable ? true : (con_cargo ? false : (base.obj.Status == MyShipConnectorStatus.Connectable ? true : false)); } }
+            public ConnectorCargo(string name, string tag_connector_cargo) : base(name)
+            {
+                this.tag_connector_cargo = tag_connector_cargo;
+                GetConnectorCargo();
+            }
+            public void GetConnectorCargo()
+            {
+
+                connector_cargo = new Connector(tag_connector_cargo);
+                con_cargo = IsConnectorCargo();
+            }
+            public bool IsConnectorCargo()
+            {
+                return connector_cargo != null && connector_cargo.obj != null ? true : false;
+            }
+            public override string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                if (con_cargo)
+                {
+                    // присоеденен
+                    values.Append("КОН-ГРУЗ: [" + base.GetInfoStatus() + "]" + "\n");
+                    values.Append("КОН-ПАРКОВКА: [" + connector_cargo.GetInfoStatus() + "]" + "\n");
+                }
+                else
+                {
+                    // присоеденен
+                    values.Append("КОН-ГРУЗ: [-]" + "\n");
+                    values.Append("КОН-ПАРКОВКА: [" + base.GetInfoStatus() + "]" + "\n");
+                }
+                return values.ToString();
+            }
+            public override void Connect()
+            {
+                if (con_cargo)
+                {
+                    connector_cargo.Connect();
+                }
+                else
+                {
+                    base.Connect();
+                }
+            }
+            public override void Disconnect()
+            {
+                if (con_cargo)
+                {
+                    connector_cargo.Disconnect();
+                }
+                else
+                {
+                    base.Disconnect();
+                }
+            }
+            public void CargoConnect()
+            {
+                base.Connect();
+            }
+            public void CargoDisconnect()
+            {
+                if (con_cargo)
+                {
+                    base.Disconnect();
+                }
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    case "ship_connect":
+                        Connect();
+                        break;
+                    case "ship_disconnect":
+                        Disconnect();
+                        break;
+                    case "ship_connect_toggle":
+                        if (ship_connect)
+                        {
+                            Disconnect();
+                        }
+                        else
+                        {
+                            Connect();
+                        }
+                        break;
+                    case "cargo_connect":
+                        CargoConnect();
+                        break;
+                    case "cargo_disconnect":
+                        CargoDisconnect();
+                        break;
+                    case "cargo_connect_toggle":
+                        if (cargo_connect)
+                        {
+                            CargoDisconnect();
+                        }
+                        else
+                        {
+                            CargoConnect();
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+                    GetConnectorCargo();
+                }
             }
         }
         public class MechanicalConnectior : BaseListTerminalBlock<IMyMechanicalConnectionBlock>
@@ -575,10 +697,11 @@ namespace MUL_H1_NAV
                     {
                         obj.Attach();
                     }
-                    else {
+                    else
+                    {
                         obj.Detach();
                     }
-                    
+
                 }
             }
 
@@ -1179,13 +1302,13 @@ namespace MUL_H1_NAV
                 foreach (IMyCameraBlock camera in base.list_obj)
                 {
                     DistationOfOrentation dsor;
-                    or_mtr cam_orenation = GetOrentation(camera, CockpitMatrix); 
+                    or_mtr cam_orenation = GetOrentation(camera, CockpitMatrix);
                     if (orenation == null || (orenation != null && cam_orenation == orenation))
                     {
                         camera.EnableRaycast = scan;
                         if (scan)
                         {
-                            
+
                             //test_info.Append("CanScan: " + camera.CanScan(dist_scan) + "\n");
                             //curr == or_mtr.forward ? dist_scan_forward : dist_scan;
                             if (camera.CanScan(dist_scan))
@@ -1395,7 +1518,7 @@ namespace MUL_H1_NAV
                 or_mtr orent_scan = GetOrentationOfProgramm();
 
                 //test_info.Append("max_Thrust :" + max_Thrust + "\n");
-               // test_info.Append("orent_scan :" + orent_scan.ToString() + "\n");
+                // test_info.Append("orent_scan :" + orent_scan.ToString() + "\n");
                 braking space = GetBrakingLanding(max_Thrust);
                 //test_info.Append("space a:" + space.a + ", t:" + space.t + "\n");
                 //test_info.Append("space S:" + space.s + "\n");
