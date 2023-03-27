@@ -32,6 +32,7 @@ namespace MUL_H1_NAV
         string NameCameraCourse = "[MUL-H1]-Камера [collision_protection] course";
         string NameCameraConnector = "[MUL-H1]-Камера парковка";
         string NameConnector = "[MUL-H1]-Коннектор парковка";
+        string NameCargoConnector = "[MUL-CM1]-Коннектор парковка [cargo_connectior]";
         string NameLCDInfo = "[MUL-H1]-LCD-INFO";
         string NameLCDInfo_Upr = "[MUL-H1]-LCD-INFO-UPR";
         string NameLCDInfo_Debug = "[MUL-H1]-LCD-INFO-DEBUG";
@@ -280,7 +281,7 @@ namespace MUL_H1_NAV
             cockpit = new Cockpit(NameCockpit);
             remote_control = new RemoteControl(NameRemoteControl);
             bats = new Batterys(NameObj);
-            connector_cargo = new ConnectorCargo(NameConnector, tag_cargo_connectior);
+            connector_cargo = new ConnectorCargo(NameConnector, NameCargoConnector);
             ship_connect = connector_cargo.Connected;
             mechanical_connectior = new MechanicalConnectior(NameObj, tag_mechanical_connectior);
             mechanical_connectior.AttachDetach(mechanical_connectior.IsAttached());
@@ -308,6 +309,7 @@ namespace MUL_H1_NAV
             remote_control.Logic(argument, updateSource);
             navigation.Logic(argument, updateSource);
             connector_cargo.Logic(argument, updateSource);
+            values_info.Append("Connected: "+ connector_cargo.Connected+ "\n");
             //collision_protection.GetDistance(cockpit.GetCockpitMatrix());
             switch (argument)
             {
@@ -543,9 +545,9 @@ namespace MUL_H1_NAV
             string tag_connector_cargo;
             bool con_cargo = false;
             Connector connector_cargo;
-            public override bool Connected { get { return con_cargo && connector_cargo.Status == MyShipConnectorStatus.Connected ? true : (con_cargo ? false : (base.obj.Status == MyShipConnectorStatus.Connected ? true : false)); } }
-            public override bool Unconnected { get { return con_cargo && connector_cargo.Status == MyShipConnectorStatus.Unconnected ? true : (con_cargo ? false : (base.obj.Status == MyShipConnectorStatus.Unconnected ? true : false)); } }
-            public override bool Connectable { get { return con_cargo && connector_cargo.Status == MyShipConnectorStatus.Connectable ? true : (con_cargo ? false : (base.obj.Status == MyShipConnectorStatus.Connectable ? true : false)); } }
+            public override bool Connected { get { return con_cargo && connector_cargo.Status == MyShipConnectorStatus.Connected ? true : (con_cargo ? false : (base.Status == MyShipConnectorStatus.Connected ? true : false)); } }
+            public override bool Unconnected { get { return con_cargo && connector_cargo.Status == MyShipConnectorStatus.Unconnected ? true : (con_cargo ? false : (base.Status == MyShipConnectorStatus.Unconnected ? true : false)); } }
+            public override bool Connectable { get { return con_cargo && connector_cargo.Status == MyShipConnectorStatus.Connectable ? true : (con_cargo ? false : (base.Status == MyShipConnectorStatus.Connectable ? true : false)); } }
             public ConnectorCargo(string name, string tag_connector_cargo) : base(name)
             {
                 this.tag_connector_cargo = tag_connector_cargo;
@@ -1458,7 +1460,7 @@ namespace MUL_H1_NAV
             // Посадка с гпавитацией тормозной путь, Космос тормозной путь
             public braking GetBrakingLanding(double max_thrusts)
             {
-                double a = (max_thrusts / 1000) * (1 / (cockpit.BaseMass / 1000));
+                double a = (max_thrusts / 1000) * (1 / (cockpit.TotalMass / 1000));
                 double t = (0 - cockpit.ShipSpeed) / -a; //t = (V - V[0]) / a
                 double s = (cockpit.ShipSpeed * t) + ((-a) * Math.Pow(t, 2)) / 2; //S = V[0] * t + ( a * t^2 ) / 2
                 return new braking((double)-a, t, s);
