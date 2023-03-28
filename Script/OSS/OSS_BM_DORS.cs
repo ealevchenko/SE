@@ -28,6 +28,7 @@ namespace OSS_BM_DORS
         // v1.
         string NameObj = "[OSS]-"; // [OSS]-[BM]-
         string NameLCDInfo_Upr = "[OSS]-[BM]-LCD-INFO-UPR";
+        string NameLCDTest = "[OSS]-[EML]-test";
 
         string tag_info_tablo = "[door-info]";
         string tag_door_transition = "[door-transition]";
@@ -44,14 +45,18 @@ namespace OSS_BM_DORS
             energy_module_right = 5,// энерг. мод
             cargo_module = 6,       // груз. мод
             work_module = 7,       //  произв. мод
-
+            reactor_module_left = 8, // энерг. мод реактор
         };
-        public static string[] name_room = { "", "Кабина", "Выход в космос", "Операторская", "Энерго-модуль", "Энерго-модуль", "Грузовой модуль", "Производственный модуль" };
-        public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0, 0 };
+        public static string[] name_room = { "", "Кабина", "Выход в космос", "Операторская", "Энерго-модуль", "Энерго-модуль", "Грузовой модуль", "Производственный модуль", "Ядерный реактор" };
+        public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
         public enum doors_gareways : int
         {
             cabin_space = 1,
             cabin_cargo_module = 2,
+            reactor_energy_module_left1 = 3,
+            reactor_energy_module_left2 = 4,
+            space_reactor_module_left1 = 5,
+            space_reactor_module_left2 = 6,
         }
         public enum door_transition : int
         {
@@ -59,28 +64,32 @@ namespace OSS_BM_DORS
             operators_cabin = 1,
             cabin_energy_module_left = 2,
             cabin_energy_module_right = 3,
+            reactor_energy_module_left1 = 4,
+            reactor_energy_module_left2 = 5,
         }
 
-        // door [door-gateway] [cabin_cargo_module] [cabin]
-        // sn [door-gateway] [cabin_cargo_module] [cabin]
-        // door [door-gateway] [cabin_cargo_module] [cargo_module]
-        // sn [door-gateway] [cabin_cargo_module] [cargo_module]
+        // door [door-gateway] [space_reactor_module_left2] [space]
+        // sn [door-gateway] [space_reactor_module_left2] [space]
+        // door [door-gateway] [space_reactor_module_left2] [reactor_module_left]
+        // sn [door-gateway] [space_reactor_module_left2] [reactor_module_left]
 
-        // sn [door-transition] [cabin_energy_module_left] [energy_module_left]
-        // sn [door-transition] [cabin_energy_module_left] [cabin]
-        // door [door-transition] [cabin_energy_module_left]
+        // sn [door-transition] [reactor_energy_module_left1] [energy_module_left]
+        // sn [door-transition] [reactor_energy_module_left1] [reactor_module_left]
+        // door [door-transition] [reactor_energy_module_left1]
 
         // sn [door-transition] [cabin_energy_module_right] [energy_module_right]
         // sn [door-transition] [cabin_energy_module_right] [cabin]
         // door [door-transition] [cabin_energy_module_right]
 
-        //[OSS]-[BM]-light [lighting_room] [cabin]
+        //[OSS]-[EML]-light [lighting_room] [reactor_module_left]
 
         public static Color red = new Color(255, 0, 0);
         public static Color yellow = new Color(255, 255, 0);
         public static Color green = new Color(0, 128, 0);
 
         static LCD lcd_info_upr;
+        static LCD test_lcd;
+
         AirInfo air_info;
         AirVent air_vent;
         ReflectorsLight reflectors_light;
@@ -222,6 +231,7 @@ namespace OSS_BM_DORS
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
             _scr = this;
             lcd_info_upr = new LCD(NameLCDInfo_Upr);
+            test_lcd = new LCD(NameLCDTest);
             air_vent = new AirVent(NameObj);
             air_vent.On();
             air_info = new AirInfo(NameObj, tag_info_tablo);
@@ -243,7 +253,7 @@ namespace OSS_BM_DORS
         // Переключить батареи
         public void Main(string argument, UpdateType updateSource)
         {
-            StringBuilder values = new StringBuilder();
+            //StringBuilder values = new StringBuilder();
             // Получим данные
             //test_lcd.WriteText("" + "\n", false);
             // Логика отображения подписей двирей с учетом кислорода в помещении
@@ -502,18 +512,18 @@ namespace OSS_BM_DORS
             public Transitions(string name_obj, string tag)
             {
 
-                //StringBuilder values_info = new StringBuilder();
-                //test_lcd.WriteText("Start" + "\n", false);
+                StringBuilder values_info = new StringBuilder();
+                values_info.AppendFormat("Start" + "\n");
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
                 _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
-                //values_info.Append("doors:" + doors.Count() + "\n");
-                //values_info.Append("sensors:" + sensors.Count() + "\n");
+                values_info.AppendFormat("doors:" + doors.Count() + "\n");
+                values_info.AppendFormat("sensors:" + sensors.Count() + "\n");
                 IMyDoor door1;
                 IMySensorBlock sensor1;
                 IMySensorBlock sensor2;
                 room room1;
                 room room2;
-                //test_lcd.WriteText("Поиск дверей:" + "\n", false);
+                values_info.AppendFormat("Поиск дверей:" + "\n");
                 foreach (door_transition gw in Enum.GetValues(typeof(door_transition)))
                 {
                     door1 = null;
@@ -523,8 +533,8 @@ namespace OSS_BM_DORS
                     room2 = room.none;
                     IMyDoor l_drs = doors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).FirstOrDefault();
                     List<IMySensorBlock> l_sns = sensors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).ToList();
-                    //if (l_drs != null) values_info.Append("l_drs:" + l_drs.ToString() + "\n");
-                    //values_info.Append("l_sns:" + l_sns.Count() + "\n");
+                    if (l_drs != null) values_info.Append("l_drs:" + l_drs.ToString() + "\n");
+                    values_info.Append("l_sns:" + l_sns.Count() + "\n");
                     if (l_drs != null && l_sns != null && l_sns.Count() == 2)
                     {
                         foreach (room rm in Enum.GetValues(typeof(room)))
@@ -540,16 +550,16 @@ namespace OSS_BM_DORS
                         }
                         if (door1 != null && sensor1 != null && sensor2 != null)
                         {
-                            //values_info.Append("door1:" + door1.CustomName + "\n");
-                            //values_info.Append("sensor1:" + sensor1.CustomName + "\n");
-                            //values_info.Append("sensor2:" + sensor2.CustomName + "\n");
+                            values_info.Append("door1:" + door1.CustomName + "\n");
+                            values_info.Append("sensor1:" + sensor1.CustomName + "\n");
+                            values_info.Append("sensor2:" + sensor2.CustomName + "\n");
                             list_tr.Add(new Transition(gw, door1, sensor1, room1, sensor2, room2));
                         }
                     }
 
                 }
                 _scr.Echo("Найдено Transitions:[" + tag + "]: " + list_tr.Count());
-                //lcd_info_upr.OutText(values_info);
+                lcd_info_upr.OutText(values_info);
             }
 
             public void Logic(string argument, UpdateType updateSource)
