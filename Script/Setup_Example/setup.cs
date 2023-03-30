@@ -627,10 +627,16 @@ namespace SETUP
                                 }
                                 break;
                             }
-                        case "welder":
+                        case "welder_rename":
                             {
                                 values_info.Append("Зашел!" + "\n");
                                 sw.Rename("БАЗА-МЗ1-СБС-", "БАЗА-МЗ1-");
+                                break;
+                            }
+                        case "welder_add":
+                            {
+                                values_info.Append("Зашел!" + "\n");
+                                sw.Add("[OSS]-[WS-LG]-");
                                 break;
                             }
                         default:
@@ -684,6 +690,19 @@ namespace SETUP
                     {
                         //values_info.Append("-Пропущен (ИГНОР)\n");
                     }
+                    //info_lcd.WriteText(values_info, true);
+
+                }
+            }
+            public void Add(string name_obj)
+            {
+                //StringBuilder values_info = new StringBuilder();
+                //values_info.Append("НАЧАЛО!\n");
+                //info_lcd.WriteText(values_info, false);
+                foreach (IMyShipWelder sw in list_obj)
+                {
+                    //values_info.Append("Найден:" + sw.CustomName);
+                    sw.CustomName = name_obj + sw.CustomName;
                     //info_lcd.WriteText(values_info, true);
 
                 }
