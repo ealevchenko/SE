@@ -95,6 +95,7 @@
     <Compile Include="БУРОВИКИ\KROTIK\KROTIK_old1.cs" />
     <Compile Include="СВАРЩИКИ\KLEPA\KLEPA_H1.cs" />
     <Compile Include="СВАРЩИКИ\KLEPA\KLEPA_A1.cs" />
+    <Compile Include="ТЯГАЧИ\MUL_CARGO.cs" />
     <Compile Include="ТЯГАЧИ\MUL_H1_NAV.cs" />
     <Compile Include="ТЯГАЧИ\MUL_H1_UPR.cs" />
     <Compile Include="ТЯГАЧИ\MUL1.cs" />
