@@ -278,6 +278,7 @@ namespace KROTIK_A1
         {
             StringBuilder values_info = new StringBuilder();
             bats.Logic(argument, updateSource);
+            cockpit.Logic(argument, updateSource);
             remote_control.Logic(argument, updateSource);
             navigation.Logic(argument, updateSource);
 
@@ -319,15 +320,17 @@ namespace KROTIK_A1
                     thrusts.Off();
                 }
             }
-            values_info.Append(bats.TextInfo());
+            //values_info.Append(bats.TextInfo());
             values_info.Append(connector.TextInfo());
             values_info.Append(drill.TextInfo());
-            values_info.Append(remote_control.TextInfo());
+            //values_info.Append(remote_control.TextInfo());
+            values_info.Append(navigation.TextInfo());
 
             cockpit.OutText(values_info, 0);
             ship_connect = connector.Connected; // сохраним состояние
 
             StringBuilder test_info = new StringBuilder();
+            test_info.Append(cockpit.TextInfo());
             lcd_info.OutText(test_info);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
@@ -869,6 +872,7 @@ namespace KROTIK_A1
                 values.Append("Гравитация: " + base.obj.GetNaturalGravity().Length() + "\n");
                 values.Append("BaseMass: " + this.BaseMass + "\n");
                 values.Append("TotalMass: " + this.TotalMass + "\n");
+                values.Append("PhysicalMass: " + this.PhysicalMass + "\n");
                 values.Append("Скорость: " + base.obj.GetShipSpeed() + "\n");
                 values.Append("Высота: " + current_height + "\n");
                 //values.Append("LinearVelocity: " + base.obj.GetShipVelocities().LinearVelocity + "\n");
@@ -887,9 +891,24 @@ namespace KROTIK_A1
             public Vector3D base_space_connection = new Vector3D();
             public Vector3D base_pre_space_connection = new Vector3D();
             public Vector3D base_pre_space_vector_connection = new Vector3D();
+
+            private double current_height = 0;
+            public float BaseMass { get { return base.obj.CalculateShipMass().BaseMass; } }
+            public float TotalMass { get { return base.obj.CalculateShipMass().TotalMass; } }
+            public float PhysicalMass { get { return base.obj.CalculateShipMass().PhysicalMass; } }
+            public double CurrentHeight { get { return this.current_height; } }
+            public double ShipSpeed { get { return base.obj.GetShipSpeed(); } }
+            public MatrixD WorldMatrix { get { return base.obj.WorldMatrix; } }
             public IMyShipController _obj { get { return obj; } }
             public bool IsUnderControl { get { return obj.IsUnderControl; } }
+            public Vector3D GetNaturalGravity { get { return obj.GetNaturalGravity(); } }
             public bool ControlThrusters { get { return obj.ControlThrusters; } }
+            public Matrix GetCockpitMatrix()
+            {
+                Matrix CockpitMatrix = new MatrixD();
+                base.obj.Orientation.GetMatrix(out CockpitMatrix);
+                return CockpitMatrix;
+            }
             public RemoteControl(string name) : base(name)
             {
 
@@ -932,7 +951,8 @@ namespace KROTIK_A1
                 }
                 if (updateSource == UpdateType.Update10)
                 {
-
+                    // Получить высоту над поверхностью
+                    base.obj.TryGetPlanetElevation(MyPlanetElevation.Surface, out current_height);
                 }
             }
             public string TextInfo()
@@ -1084,14 +1104,14 @@ namespace KROTIK_A1
             // Посадка с гпавитацией тормозной путь, Космос тормозной путь
             public braking GetBrakingLanding(double max_thrusts)
             {
-                double a = (max_thrusts / 1000) * (1 / (cockpit.TotalMass / 1000));
-                double t = (0 - cockpit.ShipSpeed) / -a; //t = (V - V[0]) / a
-                double s = (cockpit.ShipSpeed * t) + ((-a) * Math.Pow(t, 2)) / 2; //S = V[0] * t + ( a * t^2 ) / 2
+                double a = (max_thrusts / 1000) * (1 / (remote_control.TotalMass / 1000));
+                double t = (0 - remote_control.ShipSpeed) / -a; //t = (V - V[0]) / a
+                double s = (remote_control.ShipSpeed * t) + ((-a) * Math.Pow(t, 2)) / 2; //S = V[0] * t + ( a * t^2 ) / 2
                 return new braking((double)-a, t, s);
             }
             public Vector3D GetGravNormalize()
             {
-                Vector3D GravityVector = cockpit._obj.GetNaturalGravity();
+                Vector3D GravityVector = remote_control._obj.GetNaturalGravity();
                 Vector3D GravNorm = Vector3D.Normalize(GravityVector);
                 return GravNorm;
             }
@@ -1145,7 +1165,7 @@ namespace KROTIK_A1
             {
                 double max_Thrust = GetMaxThrustOfProgramm();
                 braking space = GetBrakingLanding(max_Thrust);
-                double distance = this.cockpit.GetDistance(target);
+                double distance = this.remote_control.GetDistance(target);
                 if (distance > -space.s && distance < space.s)
                 {
                     return true;
@@ -1156,7 +1176,7 @@ namespace KROTIK_A1
             {
                 double max_Thrust = GetMaxThrustOfProgramm();
                 braking space = GetBrakingLanding(max_Thrust);
-                if (this.cockpit.CurrentHeight <= space.s + reserve_distance)
+                if (this.remote_control.CurrentHeight <= space.s + reserve_distance)
                 {
                     return true;
                 }
@@ -1178,14 +1198,14 @@ namespace KROTIK_A1
                 this.thrusts.On();
                 if (compensate) compensate = false;
                 cockpit.Dampeners(false);
-                this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), up, down, left, right, forward, backward);
+                this.thrusts.SetThrustOverridePersent(this.remote_control.GetCockpitMatrix(), up, down, left, right, forward, backward);
                 return true;
             }
             public bool ModeSpeedControl()
             {
-                if (this.cockpit.ShipSpeed >= max_spid)
+                if (this.remote_control.ShipSpeed >= max_spid)
                 {
-                    this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), 0, 0, 0, 0, 0, 0);
+                    this.thrusts.SetThrustOverridePersent(this.remote_control.GetCockpitMatrix(), 0, 0, 0, 0, 0, 0);
                     return true;
                 }
                 return false;
@@ -1201,9 +1221,9 @@ namespace KROTIK_A1
             }
             public bool ModeBrakingControl()
             {
-                if (this.cockpit.ShipSpeed <= 0.01f)
+                if (this.remote_control.ShipSpeed <= 0.01f)
                 {
-                    if (cockpit.GetNaturalGravity.Length() >= 0.01f)
+                    if (remote_control.GetNaturalGravity.Length() >= 0.01f)
                     {
                         //compensate = true;
                         this.thrusts.On();
@@ -1221,9 +1241,9 @@ namespace KROTIK_A1
             {
                 Vector3D GravNorm = GetGravNormalize();
                 //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
-                double gF = GravNorm.Dot(cockpit._obj.WorldMatrix.Forward);
-                double gL = GravNorm.Dot(cockpit._obj.WorldMatrix.Left);
-                double gU = GravNorm.Dot(cockpit._obj.WorldMatrix.Up);
+                double gF = GravNorm.Dot(remote_control._obj.WorldMatrix.Forward);
+                double gL = GravNorm.Dot(remote_control._obj.WorldMatrix.Left);
+                double gU = GravNorm.Dot(remote_control._obj.WorldMatrix.Up);
 
                 //Получаем сигналы по тангажу и крены операцией atan2
                 float RollInput = (float)Math.Atan2(gL, -gU); // крен
@@ -1245,9 +1265,9 @@ namespace KROTIK_A1
             {
                 Vector3D GravNorm = GetGravNormalize();
                 //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
-                double gF = GravNorm.Dot(cockpit._obj.WorldMatrix.Down);
-                double gL = GravNorm.Dot(cockpit._obj.WorldMatrix.Left);
-                double gU = GravNorm.Dot(cockpit._obj.WorldMatrix.Forward);
+                double gF = GravNorm.Dot(remote_control._obj.WorldMatrix.Down);
+                double gL = GravNorm.Dot(remote_control._obj.WorldMatrix.Left);
+                double gU = GravNorm.Dot(remote_control._obj.WorldMatrix.Forward);
 
                 //Получаем сигналы по тангажу и крены операцией atan2
                 float YawInput = (float)Math.Atan2(gL, -gU); // крен  // YawInput
@@ -1268,9 +1288,9 @@ namespace KROTIK_A1
             public void Forward(Vector3D course)
             {
                 //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
-                double gF = course.Dot(cockpit._obj.WorldMatrix.Up);
-                double gL = course.Dot(cockpit._obj.WorldMatrix.Right);
-                double gU = course.Dot(cockpit._obj.WorldMatrix.Backward);
+                double gF = course.Dot(remote_control._obj.WorldMatrix.Up);
+                double gL = course.Dot(remote_control._obj.WorldMatrix.Right);
+                double gU = course.Dot(remote_control._obj.WorldMatrix.Backward);
 
                 //Получаем сигналы по тангажу и крены операцией atan2
                 float YawInput = (float)Math.Atan2(gL, -gU); // крен  // YawInput
@@ -1301,28 +1321,28 @@ namespace KROTIK_A1
             public void ForwardTarget()
             {
                 //вектор на точку
-                Vector3D course = Vector3D.Normalize(target - cockpit.GetPosition());
+                Vector3D course = Vector3D.Normalize(target - remote_control.GetPosition());
                 Forward(course);
             }
             public void CompensateWeight()
             {
-                Vector3D GravityVector = cockpit.GetNaturalGravity;
-                float ShipMass = cockpit.PhysicalMass;
+                Vector3D GravityVector = remote_control.GetNaturalGravity;
+                float ShipMass = remote_control.PhysicalMass;
                 Vector3D ShipWeight = GravityVector * ShipMass;
                 Vector3D HoverThrust = new Vector3D();
-                ForwardThrust = (ShipWeight + HoverThrust).Dot(cockpit._obj.WorldMatrix.Forward);
-                LeftThrust = (ShipWeight + HoverThrust).Dot(cockpit._obj.WorldMatrix.Left);
-                UpThrust = (ShipWeight + HoverThrust).Dot(cockpit._obj.WorldMatrix.Up);
+                ForwardThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Forward);
+                LeftThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Left);
+                UpThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Up);
                 BackwardThrust = -ForwardThrust;
                 RightThrust = -LeftThrust;
                 DownThrust = -UpThrust;
-                this.thrusts.SetThrustOverride(cockpit.GetCockpitMatrix(), UpThrust, DownThrust, LeftThrust, RightThrust, ForwardThrust, BackwardThrust);
+                this.thrusts.SetThrustOverride(remote_control.GetCockpitMatrix(), UpThrust, DownThrust, LeftThrust, RightThrust, ForwardThrust, BackwardThrust);
 
             }
             public void ProgrammLandingPlanet()
             {
                 //StringBuilder test_info = new StringBuilder();
-                if (cockpit.GetNaturalGravity.Length() >= 0.01f)
+                if (remote_control.GetNaturalGravity.Length() >= 0.01f)
                 {
                     //test_info.Append("SCAN :" + camera_course.CanScan(this.dist_scan) + "\n");
                     //test_info.Append(gyros.TextInfo());
@@ -1375,7 +1395,7 @@ namespace KROTIK_A1
             public void ProgrammTakingPlanet()
             {
                 //StringBuilder test_info = new StringBuilder();
-                if (cockpit.GetNaturalGravity.Length() >= 0.01f)
+                if (remote_control.GetNaturalGravity.Length() >= 0.01f)
                 {
                     //test_info.Append("SCAN :" + camera_course.CanScan(this.dist_scan) + "\n");
                     //test_info.Append(gyros.TextInfo());
@@ -1409,7 +1429,7 @@ namespace KROTIK_A1
                 }
                 if (curent_mode == mode.flight)
                 {
-                    if (cockpit.GetNaturalGravity.Length() >= 0.01f)
+                    if (remote_control.GetNaturalGravity.Length() >= 0.01f)
                     {
                         compensate = true;
                         this.thrusts.On();
@@ -1465,7 +1485,7 @@ namespace KROTIK_A1
                 }
                 if (curent_mode == mode.flight)
                 {
-                    if (cockpit.GetNaturalGravity.Length() >= 0.01f)
+                    if (remote_control.GetNaturalGravity.Length() >= 0.01f)
                     {
                         compensate = true;
                         this.thrusts.On();
@@ -1492,7 +1512,7 @@ namespace KROTIK_A1
             public void ProgrammFlyingHorizont()
             {
                 //StringBuilder test_info = new StringBuilder();
-                if (cockpit.GetNaturalGravity.Length() >= 0.01f)
+                if (remote_control.GetNaturalGravity.Length() >= 0.01f)
                 {
                     //test_info.Append("count :" + count + "\n");
                     //test_info.Append("SCAN :" + camera_course.CanScan(this.dist_scan) + "\n");
@@ -1527,7 +1547,7 @@ namespace KROTIK_A1
                 }
                 if (curent_mode == mode.flight)
                 {
-                    if (cockpit.GetNaturalGravity.Length() >= 0.01f)
+                    if (remote_control.GetNaturalGravity.Length() >= 0.01f)
                     {
                         compensate = true;
                         this.thrusts.On();
@@ -1581,7 +1601,7 @@ namespace KROTIK_A1
                 }
                 if (curent_mode == mode.flight)
                 {
-                    if (cockpit.GetNaturalGravity.Length() >= 0.01f)
+                    if (remote_control.GetNaturalGravity.Length() >= 0.01f)
                     {
                         compensate = true;
                         this.thrusts.On();
@@ -1623,14 +1643,14 @@ namespace KROTIK_A1
                         target_info = camera_course.Raycast(dist_scan, pitch_scan, yaw_scan);
                         break;
                     case "set_base_connection":
-                        base_pre_vector_connection = this.cockpit.WorldMatrix.Forward;
-                        base_connection = this.cockpit.GetPosition();
+                        base_pre_vector_connection = this.remote_control.WorldMatrix.Forward;
+                        base_connection = this.remote_control.GetPosition();
                         base_pre_connection = (base_connection - (base_pre_vector_connection * -300));
                         base_space_connection = (base_connection - (base_pre_vector_connection * -45000));
                         break;
                     case "set_station_space_connection":
-                        station_pre_space_vector_connection = this.cockpit.WorldMatrix.Forward;
-                        station_space_connection = this.cockpit.GetPosition();
+                        station_pre_space_vector_connection = this.remote_control.WorldMatrix.Forward;
+                        station_space_connection = this.remote_control.GetPosition();
                         station_pre_space_connection = (station_space_connection - (station_pre_space_vector_connection * 300));
                         break;
                     //
@@ -1787,17 +1807,17 @@ namespace KROTIK_A1
                         break;
                     //
                     case "bascward_100":
-                        this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), 0, 0, 0, 0, 0, 1.0f);
+                        this.thrusts.SetThrustOverridePersent(this.remote_control.GetCockpitMatrix(), 0, 0, 0, 0, 0, 1.0f);
                         break;
                     case "bascward_0":
-                        this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), 0, 0, 0, 0, 0, 0.0f);
+                        this.thrusts.SetThrustOverridePersent(this.remote_control.GetCockpitMatrix(), 0, 0, 0, 0, 0, 0.0f);
                         break;
                     case "compensate_on":
                         compensate = true;
                         break;
                     case "compensate_off":
                         compensate = false;
-                        this.thrusts.SetThrustOverridePersent(this.cockpit.GetCockpitMatrix(), 0, 0, 0, 0, 0, 0.0f);
+                        this.thrusts.SetThrustOverridePersent(this.remote_control.GetCockpitMatrix(), 0, 0, 0, 0, 0, 0.0f);
                         break;
                     default:
                         break;
@@ -1805,7 +1825,7 @@ namespace KROTIK_A1
                 if (updateSource == UpdateType.Update10)
                 {
                     // Получим макс эффективность трастеров по направлениям
-                    thrusts.GetMaxEffectiveThrust(cockpit.GetCockpitMatrix());
+                    thrusts.GetMaxEffectiveThrust(remote_control.GetCockpitMatrix());
                     // Сбросим подпрограммы
                     // режим горизонт
                     if (curent_orientation == orientation.none)
@@ -1821,14 +1841,6 @@ namespace KROTIK_A1
                     {
                         DownHorizon();
                     }
-                    //if (curent_orientation == orientation.horizon_backward)
-                    //{
-                    //    BackwardHorizon();
-                    //}
-                    //if (curent_orientation == orientation.horizon_forward)
-                    //{
-                    //    ForwardHorizon();
-                    //}
                     if (curent_orientation == orientation.course_forward)
                     {
                         ForwardСourse();
@@ -1872,7 +1884,7 @@ namespace KROTIK_A1
                 values.Append("ЭТАП: " + name_mode[(int)curent_mode] + "\n");
                 values.Append("Курс: " + course + "\n");
                 values.Append("ЦЕЛЬ: " + PText.GetVector3D(target) + "\n");
-                values.Append("РАССТОЯНИЕ: " + cockpit.GetDistance(target) + "\n");
+                values.Append("РАССТОЯНИЕ: " + remote_control.GetDistance(target) + "\n");
                 return values.ToString();
             }
             public string TextTEST()
