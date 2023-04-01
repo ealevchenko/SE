@@ -17,12 +17,12 @@ namespace MUL_CARGO
     /// </summary>
     public sealed class Program : MyGridProgram
     {
-        string NameObj = "[MUL-CARGO]";
-        string NameConnector = "[MUL-CARGO]-Коннектор парковка";
-        string NameShipConnector = "[MUL-CARGO]-Коннектор корабль";
-        string NameCockpit = "[MUL-CARGO]-Кресло пилота [LCD]";
+        string NameObj = "[MUL-CM1]";
+        string NameConnector = "[MUL-CM1]-Коннектор парковка [cargo_connectior]";
+        string NameShipConnector = "[MUL-CM1]-Коннектор MUL";
+        string NameCockpit = "[MUL-CM1]-Кресло пилота [LCD]";
 
-        string NameLCDDebug = "[MUL-CARGO]-LCD-DEBUG";
+        string NameLCDDebug = "[MUL-CM1]-LCD-DEBUG";
 
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
 
@@ -242,7 +242,6 @@ namespace MUL_CARGO
                 if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_On");
             }
         }
-
         public Program()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
@@ -260,7 +259,6 @@ namespace MUL_CARGO
         {
 
         }
-
         public void Main(string argument, UpdateType updateSource)
         {
             StringBuilder values_info = new StringBuilder();
@@ -296,7 +294,6 @@ namespace MUL_CARGO
             ship_connect = connector.Connected;         // сохраним состояние
             cargo_connect = connector_ship.Connected;   // груз подключен
         }
-
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
             public LCD(string name) : base(name)
