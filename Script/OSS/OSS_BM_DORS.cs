@@ -44,11 +44,12 @@ namespace OSS_BM_DORS
             energy_module_left = 4, // энерг. мод
             energy_module_right = 5,// энерг. мод
             cargo_module = 6,       // груз. мод
-            work_module = 7,       //  произв. мод
-            reactor_module_left = 8, // энерг. мод реактор
+            work_module = 7,            //  произв. мод
+            reactor_module_left = 8,    // энерг. мод реактор
+            ice_module_right = 9,        // энерг. мод реактор
         };
-        public static string[] name_room = { "", "Кабина", "Выход в космос", "Операторская", "Энерго-модуль", "Энерго-модуль", "Грузовой модуль", "Производственный модуль", "Ядерный реактор" };
-        public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        public static string[] name_room = { "", "Кабина", "Выход в космос", "Операторская", "Энерго-модуль", "Энерго-модуль", "Грузовой модуль", "Производственный модуль", "Ядерный реактор", "Склад льда" };
+        public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
         public enum doors_gareways : int
         {
             cabin_space = 1,
@@ -57,6 +58,8 @@ namespace OSS_BM_DORS
             reactor_energy_module_left2 = 4,
             space_reactor_module_left1 = 5,
             space_reactor_module_left2 = 6,
+            space_ice_module_right1 = 7,
+            space_ice_module_right2 = 8,
         }
         public enum door_transition : int
         {
@@ -66,16 +69,19 @@ namespace OSS_BM_DORS
             cabin_energy_module_right = 3,
             reactor_energy_module_left1 = 4,
             reactor_energy_module_left2 = 5,
+            ice_energy_module_right1 = 6,
+            ice_energy_module_right2 = 7,
+
         }
 
-        // door [door-gateway] [space_reactor_module_left2] [space]
-        // sn [door-gateway] [space_reactor_module_left2] [space]
-        // door [door-gateway] [space_reactor_module_left2] [reactor_module_left]
-        // sn [door-gateway] [space_reactor_module_left2] [reactor_module_left]
+        // door [door-gateway] [space_ice_module_right1] [space]
+        // sn [door-gateway] [space_ice_module_right1] [space]
+        // door [door-gateway] [space_ice_module_right1] [ice_module_right]
+        // sn [door-gateway] [space_ice_module_right1] [ice_module_right]
 
-        // sn [door-transition] [reactor_energy_module_left1] [energy_module_left]
-        // sn [door-transition] [reactor_energy_module_left1] [reactor_module_left]
-        // door [door-transition] [reactor_energy_module_left1]
+        // sn [door-transition] [ice_energy_module_right2] [energy_module_right]
+        // sn [door-transition] [ice_energy_module_right2] [ice_module_right]
+        // door [door-transition] [ice_energy_module_right2]
 
         // sn [door-transition] [cabin_energy_module_right] [energy_module_right]
         // sn [door-transition] [cabin_energy_module_right] [cabin]
