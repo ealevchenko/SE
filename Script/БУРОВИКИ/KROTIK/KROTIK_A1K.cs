@@ -288,36 +288,36 @@ namespace KROTIK_A1K
             }
             if (updateSource == UpdateType.Update10)
             {
-                // Проверим корабль не припаркован
-                if (!connector.Connected)
-                {
-                    if (navigation.curent_programm == Navigation.programm.none && cockpit.CurrentHeight > 5.0f)
-                    {
-                        bats.Auto();
-                        thrusts.On();
-                        cockpit.Dampeners(true);
-                    }
-                    // Проверка кокпит не под контроллем включить тормоз
-                    if (!cockpit.IsUnderControl)
-                    {
-                        cockpit.Dampeners(true);
-                        reflectors_light.Off();
-                        drill.Off();
-                    }
-                    if (drill.Enabled())
-                    {
-                        reflectors_light.On();
-                    }
-                }
-                else
-                {
-                    // Припаркован
-                    reflectors_light.Off();
-                    drill.Off();
-                    cockpit.Dampeners(false);
-                    bats.Charger();
-                    thrusts.Off();
-                }
+                //// Проверим корабль не припаркован
+                //if (!connector.Connected)
+                //{
+                //    if (navigation.curent_programm == Navigation.programm.none && cockpit.CurrentHeight > 5.0f)
+                //    {
+                //        bats.Auto();
+                //        thrusts.On();
+                //        cockpit.Dampeners(true);
+                //    }
+                //    // Проверка кокпит не под контроллем включить тормоз
+                //    if (!cockpit.IsUnderControl)
+                //    {
+                //        cockpit.Dampeners(true);
+                //        reflectors_light.Off();
+                //        drill.Off();
+                //    }
+                //    if (drill.Enabled())
+                //    {
+                //        reflectors_light.On();
+                //    }
+                //}
+                //else
+                //{
+                //    // Припаркован
+                //    reflectors_light.Off();
+                //    drill.Off();
+                //    cockpit.Dampeners(false);
+                //    bats.Charger();
+                //    thrusts.Off();
+                //}
             }
             //values_info.Append(bats.TextInfo());
             values_info.Append(connector.TextInfo());
@@ -1037,10 +1037,14 @@ namespace KROTIK_A1K
             {
                 public double distance { get; }
                 public double braking { get; }
-                public bool active { get; }
-                public dist_braking(double distance, double braking, bool active)
+                public bool active_braking { get; }
+                public bool active_distance { get; }
+                public dist_braking(double distance, double braking, bool active_braking, bool active_distance)
                 {
-                    this.distance = distance; this.braking = braking; this.active = active;
+                    this.distance = distance;
+                    this.braking = braking;
+                    this.active_braking = active_braking;
+                    this.active_distance = active_distance;
                 }
             }
 
@@ -1093,7 +1097,7 @@ namespace KROTIK_A1K
                 flight_forward = 3,
                 flight_backward = 4,
             };
-            public static string[] name_programm = { "", "СПУСК", "ВЗЛЕТ", "ВПЕРЕД", "НАЗАД" };
+            public static string[] name_programm = { "", "ВЗЛЕТ", "СПУСК", "ВПЕРЕД", "НАЗАД" };
             orientation curent_orientation = orientation.none;
             public programm curent_programm = programm.none;
             public enum mode : int
@@ -1113,7 +1117,9 @@ namespace KROTIK_A1K
             int reserve_distance = 200; // 
             int min_height_distance = 100; // 
             int max_height_distance = 4000; // 
+            double start_disnance = 0;
             double task_speed = 0;
+
             or_mtr task_orentation = or_mtr.not;
             Vector3D? tack_vector = null;
 
@@ -1176,24 +1182,32 @@ namespace KROTIK_A1K
             public dist_braking GetMinHiegtPlanet()
             {
                 StringBuilder test_info = new StringBuilder();
-                double max_Thrust = this.DownThrMax;
+                double max_Thrust = DownThrMax;
                 braking space = GetBrakingLanding(max_Thrust);
                 test_info.Append("max_Thrust :" + max_Thrust + "\n");
-                //test_info.Append("space a:" + space.a + ", t:" + space.t + "\n");
-                test_info.Append("space S:" + Math.Round(space.s, 2) + "Height :" + Math.Round(remote_control.CurrentHeight, 2) + "\n");
-                lcd_info.OutText(test_info);
-                bool active = false;
+                //test_info.Append("space a= " + Math.Round(space.a, 2) + ", t= " + Math.Round(space.t, 2) + "\n");
+                test_info.Append("space S= " + Math.Round(space.s, 2) + ", Height= " + Math.Round(remote_control.CurrentHeight, 2) + "\n");
+
+                bool active_braking = false;
+                bool active_height = false;
                 if (this.remote_control.CurrentHeight <= space.s + min_height_distance)
                 {
-                    active = true;
+                    active_braking = true;
                 }
-                return new dist_braking(this.remote_control.CurrentHeight, space.s, active);
+                if (this.remote_control.CurrentHeight <= min_height_distance)
+                {
+                    active_height = true;
+                }
+                test_info.Append("active_braking= " + active_braking + "\n");
+                test_info.Append("active_height= " + active_height + "\n");
+                lcd_info.OutText(test_info);
+                return new dist_braking(this.remote_control.CurrentHeight, space.s, active_braking, active_height);
             }
             public braking GetBrakingLanding(double max_thrusts)
             {
-                double a = (max_thrusts / 1000) * (1 / (remote_control.TotalMass / 1000)); // Посадка
+                double a = 4;// (max_thrusts / 1000) * (1 / (remote_control.TotalMass / 1000)); // Посадка
                 double t = (0 - remote_control.ShipSpeed) / -a; //t = (V - V[0]) / a
-                double s = (remote_control.ShipSpeed * t) + ((-a) * Math.Pow(t, 2)) / 2; //S = V[0] * t + ( a * t^2 ) / 2
+                double s = (remote_control.ShipSpeed * t) + (((-a) * Math.Pow(t, 2)) / 2); //S = V[0] * t + ( a * t^2 ) / 2
                 return new braking((double)-a, t, s);
             }
             public braking GetTakingPlanet(double max_thrusts)
@@ -1203,7 +1217,7 @@ namespace KROTIK_A1K
                 double s = (remote_control.ShipSpeed * t) + ((-a) * Math.Pow(t, 2)) / 2; //S = V[0] * t + ( a * t^2 ) / 2
                 return new braking((double)-a, t, s);
             }
-            public void CompensateWeight()
+            public void CompensateWeight(bool on)
             {
                 double ForwardThrust = 0;
                 double LeftThrust = 0;
@@ -1214,60 +1228,74 @@ namespace KROTIK_A1K
 
                 StringBuilder test_info = new StringBuilder();
 
-                Vector3D GravityVector = remote_control.GetNaturalGravity;
-                float ShipMass = remote_control.PhysicalMass;
-                Vector3D ShipWeight = GravityVector * ShipMass;
-                Vector3D HoverThrust = new Vector3D();
-
-                double curr_spid = remote_control.ShipSpeed;
-                test_info.Append("curr_spid:" + Math.Round(curr_spid, 2) + " " + "spid:" + Math.Round(task_speed, 2) + "\n");
-
-                ForwardThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Forward);
-                BackwardThrust = -ForwardThrust;
-
-                LeftThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Left);
-                RightThrust = -LeftThrust;
-
-                UpThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Up);
-                DownThrust = -UpThrust;
-                // Управление скоростью
-                int move = 0;
-                if (curr_spid < (task_speed * 0.99f))
+                if (on)
                 {
-                    move = -1;
-                }
-                if (curr_spid > (task_speed * 1.01f))
-                {
-                    move = 1;
-                }
-                if (move != 0)
-                {
-                    if (task_orentation == or_mtr.up)
-                    {
-                        UpThrust = move * UpThrMax;
-                    }
-                    else if (task_orentation == or_mtr.down)
-                    {
-                        DownThrust = move * DownThrMax;
+                    Vector3D GravityVector = remote_control.GetNaturalGravity;
+                    float ShipMass = remote_control.PhysicalMass;
+                    Vector3D ShipWeight = GravityVector * ShipMass;
+                    Vector3D HoverThrust = new Vector3D();
 
-                    }
-                    else if (task_orentation == or_mtr.forward)
+                    double curr_spid = remote_control.ShipSpeed;
+                    test_info.Append("curr_spid:" + Math.Round(curr_spid, 2) + " " + "spid:" + Math.Round(task_speed, 2) + "\n");
+
+                    ForwardThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Forward);
+                    BackwardThrust = -ForwardThrust;
+
+                    LeftThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Left);
+                    RightThrust = -LeftThrust;
+
+                    UpThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Up);
+                    DownThrust = -UpThrust;
+                    // Управление скоростью
+                    int move = 0;
+                    if (curr_spid < (task_speed * 0.99f))
                     {
-                        ForwardThrust = move * ForwardThrMax;
+                        move = -1;
                     }
-                    else if (task_orentation == or_mtr.backward)
+                    if (curr_spid > (task_speed * 1.01f))
                     {
-                        BackwardThrust = move * BackwardThrMax;
+                        move = 1;
                     }
-                    else if (task_orentation == or_mtr.left)
+                    if (move != 0)
                     {
-                        LeftThrust = move * LeftThrMax;
-                    }
-                    else if (task_orentation == or_mtr.right)
-                    {
-                        RightThrust = move * RightThrMax;
+                        if (task_orentation == or_mtr.up)
+                        {
+                            UpThrust = move * UpThrMax;
+                        }
+                        else if (task_orentation == or_mtr.down)
+                        {
+                            DownThrust = move * DownThrMax;
+
+                        }
+                        else if (task_orentation == or_mtr.forward)
+                        {
+                            ForwardThrust = move * ForwardThrMax;
+                        }
+                        else if (task_orentation == or_mtr.backward)
+                        {
+                            BackwardThrust = move * BackwardThrMax;
+                        }
+                        else if (task_orentation == or_mtr.left)
+                        {
+                            LeftThrust = move * LeftThrMax;
+                        }
+                        else if (task_orentation == or_mtr.right)
+                        {
+                            RightThrust = move * RightThrMax;
+                        }
                     }
                 }
+                else
+                {
+                    ForwardThrust = 0;
+                    LeftThrust = 0;
+                    UpThrust = 0;
+                    BackwardThrust = 0;
+                    RightThrust = 0;
+                    DownThrust = 0;
+                }
+
+
                 test_info.Append("ForwardThrust:" + Math.Round(ForwardThrust, 2) + "\n");
                 test_info.Append("LeftThrust:" + Math.Round(LeftThrust, 2) + "\n");
                 test_info.Append("UpThrust:" + Math.Round(UpThrust, 2) + "\n");
@@ -1342,11 +1370,9 @@ namespace KROTIK_A1K
             }
             public void Down()
             {
-                if (curent_mode == mode.braking) {
-                    task_speed = 0;
-                }
                 if (curent_mode == mode.none)
                 {
+                    start_disnance = this.remote_control.CurrentHeight - min_height_distance;
                     task_speed = max_spid;
                     task_orentation = or_mtr.down;
                     tack_vector = null;
@@ -1360,20 +1386,31 @@ namespace KROTIK_A1K
                 }
                 if (curent_mode == mode.flight)
                 {
-                    curent_mode = mode.flight;
-                }
-                dist_braking curr_dist_braking = GetMinHiegtPlanet();
-                if (curr_dist_braking.active)
-                {
-                    task_speed = task_speed / 2;
-                    if (remote_control.ShipSpeed < 1.0)
+                    dist_braking curr_dist_braking = GetMinHiegtPlanet();
+                    double pers = (curr_dist_braking.distance - min_height_distance) / start_disnance;
+                    if (curr_dist_braking.active_braking)
                     {
-                        task_speed = 0;
-                        horizon = false;
-                        compensate = false;
-                        curent_mode = mode.none;
-                        curent_programm = programm.none;
+                        if (pers < 1.0f)
+                        {
+                            task_speed = max_spid * pers;
+                        }
+                        else
+                        {
+                            curent_mode = mode.braking;
+                        }
                     }
+                    if (curr_dist_braking.active_distance)
+                    {
+                        curent_mode = mode.braking;
+                    }
+                }
+                if (curent_mode == mode.braking)
+                {
+                    task_speed = 0;
+                    horizon = false;
+                    compensate = false;
+                    curent_mode = mode.none;
+                    curent_programm = programm.none;
                 }
             }
             public void Logic(string argument, UpdateType updateSource)
@@ -1406,10 +1443,10 @@ namespace KROTIK_A1K
                         break;
                     //
                     case "horizont_on":
-                        horizon =true;
+                        horizon = true;
                         break;
                     case "horizont_off":
-                        horizon = false; 
+                        horizon = false;
                         break;
                     case "horizont":
                         if (horizon)
@@ -1455,28 +1492,21 @@ namespace KROTIK_A1K
                 {
                     // Получим макс эффективность трастеров по направлениям
                     GetMaxThrust();
+                    CompensateWeight(compensate);
+                    cockpit.Dampeners(!compensate);
                     // режим горизонт
                     if (horizon)
                     {
-                        gyros.GyroOver(false);
+                        gyros.GyroOver(true);
                     }
                     else
                     {
-                        gyros.GyroOver(true);
+                        gyros.GyroOver(false);
                     }
                     // Режимы удержания горизонта
                     if (horizon)
                     {
                         Horizon();
-                    }
-                    if (compensate)
-                    {
-                        cockpit.Dampeners(false);
-                        CompensateWeight();
-                    }
-                    else
-                    {
-                        cockpit.Dampeners(true);
                     }
                     if (curent_programm == programm.flight_down)
                     {
@@ -1487,7 +1517,9 @@ namespace KROTIK_A1K
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("ОРИНТАЦИЯ: " + name_orientation[(int)curent_orientation] + "\n");
+                //values.Append("ОРИНТАЦИЯ: " + name_orientation[(int)curent_orientation] + "\n");
+                values.Append("Скорость: " + Math.Round(remote_control.ShipSpeed, 2) + ", зад =" + Math.Round(task_speed, 2) + "\n");
+                values.Append("ГОРИЗОНТ: " + (horizon ? "ВКЛ" : "ВЫК") + "\n");
                 values.Append("КОМПЕНСАЦИЯ: " + (compensate ? "ВКЛ" : "ВЫК") + "\n");
                 values.Append("ПРОГРАММА: " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП: " + name_mode[(int)curent_mode] + "\n");
