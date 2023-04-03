@@ -589,8 +589,8 @@ namespace Octopus
                 public float RMaxT { get; private set; }
                 public float LMaxT { get; private set; }
 
-                public float XMaxA { get; private set; }
-                public float YMaxA { get; private set; }
+                public float XMaxA { get; private set; } // ускорение
+                public float YMaxA { get; private set; }  // ускорение для вверх низ
                 public float ZMaxA { get; private set; }
 
 
