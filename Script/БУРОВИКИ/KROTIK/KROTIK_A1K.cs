@@ -13,7 +13,6 @@ using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
 using VRageMath;
-using static Octopus.Program;
 /// <summary>
 /// v2.0
 /// </summary>

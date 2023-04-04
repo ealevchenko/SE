@@ -1090,7 +1090,8 @@ namespace KROTIK_A1K1
             public float MaxUSpeed { get; private set; }
             public or_mtr TaskCurrOrentation { get; private set; } = or_mtr.not;
             public double CurrentHeight { get; private set; }
-            public double DeltaHeight  { get; private set; }
+            public double OldHeight { get; private set; }
+            public double DeltaHeight { get; private set; }
             public double YTaskHeight { get; private set; } = 2000f;
             public double YMinHeight { get; private set; } = 100f;
             public double YMaxHeight { get; private set; } = 3000f;
@@ -1220,7 +1221,6 @@ namespace KROTIK_A1K1
                 XMaxA = (float)Math.Min(RightThrMax, LeftThrMax) / PhysicalMass;
                 CurrentSpeed = remote_control.ShipSpeed;
                 CurrentHeight = remote_control.CurrentHeight;
-
             }
             public void CompensateWeight(bool on)
             {
@@ -1239,12 +1239,17 @@ namespace KROTIK_A1K1
 
 
                     DeltaHeight = CurrentHeight - YTaskHeight;
-                    HoverThrustTest = HoverThrustTest * PhysicalMass * DeltaHeight;
 
-                    double raz_height = YTaskHeight - remote_control.CurrentHeight;
+
+                    //double VerticalSpeed = (CurrentHeight - OldHeight) * 6;
+                    //HoverThrustTest = HoverThrustTest * PhysicalMass;// + DeltaHeight;// * VerticalSpeed;
+                    //HoverThrust = HoverThrustTest + DeltaHeight;
+                    //OldHeight = CurrentHeight;
+
+                    //double raz_height = YTaskHeight - remote_control.CurrentHeight;
                     //YTaskSpeed = (float)Math.Sqrt(2 * raz_height * YMaxA) / 2;
                     //YTaskSpeed = (float)Math.Sqrt(2 * Math.Abs(remote_control.GetPosition().GetDim(1)) * YMaxA);
-
+                    //HoverThrust = DeltaHeight -
 
                     ForwardThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Forward);
                     BackwardThrust = -ForwardThrust;
@@ -1252,7 +1257,7 @@ namespace KROTIK_A1K1
                     LeftThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Left);
                     RightThrust = -LeftThrust;
 
-                    UpThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Up);
+                    UpThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Up) * -DeltaHeight * 100;
                     DownThrust = -UpThrust;
 
                 }
@@ -1477,9 +1482,12 @@ namespace KROTIK_A1K1
                         break;
                     case "compensate_on":
                         compensate = true;
+                        horizon = true;
+                        OldHeight = CurrentHeight;
                         break;
                     case "compensate_off":
                         compensate = false;
+                        horizon = false;
                         this.thrusts.SetThrustOverridePersent(this.remote_control.GetCockpitMatrix(), 0, 0, 0, 0, 0, 0.0f);
                         break;
                     default:
@@ -1531,16 +1539,18 @@ namespace KROTIK_A1K1
                 values.Append("g: " + Math.Round(g, 2) + "\n");
                 values.Append("PhysicalMass: " + Math.Round(PhysicalMass, 2) + "\n");
                 values.Append("ShipWeight: " + Math.Round(ShipWeight.Length(), 2) + "\n");
-                values.Append("X: " + Math.Round(ShipWeight.GetDim(0), 2) + "\tY: " + Math.Round(ShipWeight.GetDim(1), 2) + "\tZ: " + Math.Round(ShipWeight.GetDim(2), 2) + "\n");
-                values.Append("Thrust: UP------------" + "\n");
-                values.Append("MAX: \t" + PText.GetThrust((float)UpThrMax) + "\tCALC: " + PText.GetThrust((float)UpThrust) + "\n");
-                values.Append("Thrust: DOWN----------" + "\n");
-                values.Append("MAX: \t" + PText.GetThrust((float)DownThrMax) + "\tCALC: " + PText.GetThrust((float)DownThrust) + "\n");
+                values.Append("HoverThrustTest: " + Math.Round(HoverThrustTest.Length(), 2) + "\n");
+                values.Append("X: " + Math.Round(ShipWeight.GetDim(0), 2) + ", Y: " + Math.Round(ShipWeight.GetDim(1), 2) + ", Z: " + Math.Round(ShipWeight.GetDim(2), 2) + "\n");
+                //values.Append("Thrust: UP------------" + "\n");
+                values.Append("UP   MAX: " + PText.GetThrust((float)UpThrMax) + ", CALC: " + PText.GetThrust((float)UpThrust) + "\n");
+                //values.Append("Thrust: DOWN----------" + "\n");
+                values.Append("DOWN MAX: " + PText.GetThrust((float)DownThrMax) + ", CALC: " + PText.GetThrust((float)DownThrust) + "\n");
                 values.Append("YTaskHeight: " + Math.Round(YTaskHeight, 2) + "\n");
-                values.Append("CurrentHeight: " + Math.Round(CurrentHeight, 2) + "\n");
+                values.Append("CurrentHeight: " + Math.Round(CurrentHeight, 2) + "OldHeight: " + Math.Round(OldHeight, 2) + "\n");
                 values.Append("DeltaHeight: " + Math.Round(DeltaHeight, 2) + "\n");
                 values.Append("CurrentSpeed: " + Math.Round(CurrentSpeed, 2) + "\n");
-                values.Append("HoverThrustTest: " + Math.Round(HoverThrustTest.Length(), 2) + "\n");
+
+
                 values.Append("X: " + Math.Round(HoverThrustTest.GetDim(0), 2) + "\tY: " + Math.Round(HoverThrustTest.GetDim(1), 2) + "\tZ: " + Math.Round(HoverThrustTest.GetDim(2), 2) + "\n");
                 //values.Append("XMaxA LR: " + Math.Round(XMaxA, 2) + "\n");
                 //values.Append("YMaxA UD: " + Math.Round(YMaxA, 2) + "\n");
