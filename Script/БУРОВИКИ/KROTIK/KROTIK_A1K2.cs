@@ -1234,22 +1234,10 @@ namespace KROTIK_A1K2
                 {
                     ShipWeight = gVector * PhysicalMass;
                     Vector3D HoverThrust = new Vector3D();
-                    HoverThrustTest = Vector3D.Normalize(gVector);
-
-
 
                     DeltaHeight = CurrentHeight - YTaskHeight;
 
-
-                    //double VerticalSpeed = (CurrentHeight - OldHeight) * 6;
-                    //HoverThrustTest = HoverThrustTest * PhysicalMass;// + DeltaHeight;// * VerticalSpeed;
-                    //HoverThrust = HoverThrustTest + DeltaHeight;
-                    //OldHeight = CurrentHeight;
-
-                    //double raz_height = YTaskHeight - remote_control.CurrentHeight;
-                    //YTaskSpeed = (float)Math.Sqrt(2 * raz_height * YMaxA) / 2;
-                    //YTaskSpeed = (float)Math.Sqrt(2 * Math.Abs(remote_control.GetPosition().GetDim(1)) * YMaxA);
-                    //HoverThrust = DeltaHeight -
+                    YTaskSpeed = (float)Math.Sqrt(2 * Math.Abs(DeltaHeight) * g) / 2;
 
                     ForwardThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Forward);
                     BackwardThrust = -ForwardThrust;
@@ -1257,9 +1245,11 @@ namespace KROTIK_A1K2
                     LeftThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Left);
                     RightThrust = -LeftThrust;
 
-                    UpThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Up) * -DeltaHeight * 100;
+                    UpThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Up);
                     DownThrust = -UpThrust;
 
+
+                    if (DeltaHeight>0 && )
                 }
                 else
                 {
