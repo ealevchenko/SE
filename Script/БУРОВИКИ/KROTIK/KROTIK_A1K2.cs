@@ -812,6 +812,7 @@ namespace KROTIK_A1K2
             public float PhysicalMass { get { return base.obj.CalculateShipMass().PhysicalMass; } }
             public double CurrentHeight { get { return this.current_height; } }
             public double ShipSpeed { get { return base.obj.GetShipSpeed(); } }
+            public MyShipVelocities GetShipVelocities { get { return base.obj.GetShipVelocities(); } }
             public MatrixD WorldMatrix { get { return base.obj.WorldMatrix; } }
             public IMyShipController _obj { get { return obj; } }
             public bool IsUnderControl { get { return obj.IsUnderControl; } }
@@ -1092,10 +1093,12 @@ namespace KROTIK_A1K2
             public double CurrentHeight { get; private set; }
             public double OldHeight { get; private set; }
             public double DeltaHeight { get; private set; }
-            public double YTaskHeight { get; private set; } = 2000f;
+            public double YTaskHeight { get; private set; } = 200f;
             public double YMinHeight { get; private set; } = 100f;
             public double YMaxHeight { get; private set; } = 3000f;
             public Vector3D HoverThrustTest { get; private set; }
+            public string move = "";
+
 
             //Vector3D target = new Vector3D(26827.8655273466, -23658.4360006724, 99710.1771295082);
             Vector3D target = new Vector3D(108169.40, -36240.93, -17712.65);
@@ -1222,6 +1225,30 @@ namespace KROTIK_A1K2
                 CurrentSpeed = remote_control.ShipSpeed;
                 CurrentHeight = remote_control.CurrentHeight;
             }
+
+            public void Up(float power)
+            {
+                // UP MAX
+                double Updelta = UpThrMax - UpThrust;
+                if (Updelta > 0)
+                {
+                    UpThrust = UpThrust + (Updelta * power);
+                }
+                //UpThrust = UpThrMax;
+                DownThrust = -DownThrMax;
+                move = "UP :" + power.ToString();
+            }
+            public void Down(float power)
+            {
+                double Updelta = DownThrMax - DownThrust;
+                if (Updelta > 0)
+                {
+                    DownThrust = DownThrust + (Updelta * power);
+                }
+                UpThrust = -UpThrMax;
+                move = "DOWN :" + power.ToString();
+                //DownThrust = DownThrMax;
+            }
             public void CompensateWeight(bool on)
             {
                 ForwardThrust = 0;
@@ -1236,8 +1263,7 @@ namespace KROTIK_A1K2
                     Vector3D HoverThrust = new Vector3D();
 
                     DeltaHeight = CurrentHeight - YTaskHeight;
-
-                    YTaskSpeed = (float)Math.Sqrt(2 * Math.Abs(DeltaHeight) * g) / 2;
+                    YTaskSpeed = (float)Math.Sqrt(2 * Math.Abs(DeltaHeight) * g) / 3;
 
                     ForwardThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Forward);
                     BackwardThrust = -ForwardThrust;
@@ -1248,8 +1274,97 @@ namespace KROTIK_A1K2
                     UpThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Up);
                     DownThrust = -UpThrust;
 
+                    // стоим
+                    if (DeltaHeight > -0.4 && DeltaHeight < 0.4)
+                    {
+                        // стоп
+                        move = "STOP";
+                        //compensate = false;
+                    }
+                    else
+                    {
+                        double linY = cockpit.GetShipVelocities.LinearVelocity.GetDim(1);
+                        if (linY > 0.1f)
+                        {
+                            // летим вниз
+                            if (DeltaHeight < 0f)
+                            {
+                                // Тормозим
+                                //Down((float)CurrentSpeed / 50f);
+                                Down(1f);
+                            }
+                            else
+                            {
+                                if (CurrentSpeed < YTaskSpeed)
+                                {
+                                    Up((float)(YTaskSpeed - CurrentSpeed) / YTaskSpeed); // разгоняем
+                                                                                         //Up((float)CurrentSpeed / 100f);
 
-                    if (DeltaHeight>0 && )
+                                    //Up(1f);
+                                }
+                                else if (CurrentSpeed > YTaskSpeed)
+                                {
+                                    //Down((float)(CurrentSpeed - YTaskSpeed) / YTaskSpeed); // Притормажимваем вверх
+                                    //if (YTaskSpeed > 5)
+                                    //{
+                                    //    Down(1f);
+                                    //}
+                                    //else
+                                    //{
+                                    //    Down((float)YTaskSpeed / 100f);
+                                    //}
+                                    Down((float)YTaskSpeed / 50f);
+                                    //Down(1f);
+
+                                }
+                            }
+                        }
+                        else if (linY < -0.1f)
+                        {
+                            // летим вверх
+                            if (DeltaHeight > 0f)
+                            {
+                                // Тормозим
+                                //Up((float)CurrentSpeed / 50f);
+                                Up(1f);
+                            }
+                            else
+                            {
+                                if (CurrentSpeed > YTaskSpeed)
+                                {
+                                    Up((float)YTaskSpeed / 50f); // Притормаживаем вниз
+                                    //Up(1f);
+                                    //if (CurrentSpeed > 20)
+                                    //{
+                                    //    Up(1f);
+                                    //}
+                                    //else
+                                    //{
+                                    //    Up((float)CurrentSpeed / 100f);
+                                    //}
+                                }
+                                else if (CurrentSpeed < YTaskSpeed)
+                                {
+                                    Down((float)(YTaskSpeed - CurrentSpeed) / YTaskSpeed); // разгон вверх
+                                    //Down(1f);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            if ((DeltaHeight > 0 && CurrentSpeed < YTaskSpeed) || (DeltaHeight < 0 && CurrentSpeed > YTaskSpeed))
+                            {
+                                //Up(1f);
+                                Up((float)CurrentSpeed / 100f);
+
+                            }
+                            else if ((DeltaHeight < 0 && CurrentSpeed < YTaskSpeed) || (DeltaHeight > 0 && CurrentSpeed > YTaskSpeed))
+                            {
+                                //Down(1f);
+                                Down((float)CurrentSpeed / 100f);
+                            }
+                        }
+                    }
                 }
                 else
                 {
@@ -1259,6 +1374,8 @@ namespace KROTIK_A1K2
                     BackwardThrust = 0;
                     RightThrust = 0;
                     DownThrust = 0;
+                    YTaskSpeed = 0;
+                    move = "off";
                 }
                 Matrix ThrusterMatrix = new MatrixD();
                 // Распределим по трастерам
@@ -1331,34 +1448,34 @@ namespace KROTIK_A1K2
             }
             public void TargetHeight()
             {
-                if (curent_mode == mode.none)
-                {
-                    YTaskHeight = 2000f;
-                    tack_vector = null;
-                    curent_mode = mode.aiming;
-                    horizon = true;
-                    compensate = true;
-                }
-                if (curent_mode == mode.aiming && IsAimingOrentationGyros())
-                {
-                    curent_mode = mode.flight;
-                }
-                if (curent_mode == mode.flight)
-                {
-                    double raz_height = YTaskHeight - remote_control.CurrentHeight;
-                    //YTaskSpeed = (float)Math.Sqrt(2 * raz_height * YMaxA) / 2;
-                    YTaskSpeed = (float)Math.Sqrt(2 * Math.Abs(raz_height) * g) / 2;
-                    if (raz_height < 0) { YTaskSpeed = YTaskSpeed * -1; }
-                    //YTaskSpeed = (float)Math.Sqrt(2 * Math.Abs(remote_control.GetPosition().GetDim(1)) * YMaxA);
-                }
-                if (curent_mode == mode.braking)
-                {
-                    YTaskSpeed = 0;
-                    horizon = false;
-                    compensate = false;
-                    curent_mode = mode.none;
-                    curent_programm = programm.none;
-                }
+                //if (curent_mode == mode.none)
+                //{
+                //    YTaskHeight = 2000f;
+                //    tack_vector = null;
+                //    curent_mode = mode.aiming;
+                //    horizon = true;
+                //    compensate = true;
+                //}
+                //if (curent_mode == mode.aiming && IsAimingOrentationGyros())
+                //{
+                //    curent_mode = mode.flight;
+                //}
+                //if (curent_mode == mode.flight)
+                //{
+                //    double raz_height = YTaskHeight - remote_control.CurrentHeight;
+                //    //YTaskSpeed = (float)Math.Sqrt(2 * raz_height * YMaxA) / 2;
+                //    YTaskSpeed = (float)Math.Sqrt(2 * Math.Abs(raz_height) * g) / 2;
+                //    if (raz_height < 0) { YTaskSpeed = YTaskSpeed * -1; }
+                //    //YTaskSpeed = (float)Math.Sqrt(2 * Math.Abs(remote_control.GetPosition().GetDim(1)) * YMaxA);
+                //}
+                //if (curent_mode == mode.braking)
+                //{
+                //    YTaskSpeed = 0;
+                //    horizon = false;
+                //    compensate = false;
+                //    curent_mode = mode.none;
+                //    curent_programm = programm.none;
+                //}
             }
             //public void Down()
             //{
@@ -1473,12 +1590,22 @@ namespace KROTIK_A1K2
                     case "compensate_on":
                         compensate = true;
                         horizon = true;
-                        OldHeight = CurrentHeight;
+                        //OldHeight = CurrentHeight;
                         break;
                     case "compensate_off":
                         compensate = false;
                         horizon = false;
                         this.thrusts.SetThrustOverridePersent(this.remote_control.GetCockpitMatrix(), 0, 0, 0, 0, 0, 0.0f);
+                        break;
+                    case "compensate_on_200":
+                        YTaskHeight = 200f;
+                        compensate = true;
+                        horizon = true;
+                        break;
+                    case "compensate_on_2500":
+                        YTaskHeight = 2500f;
+                        compensate = true;
+                        horizon = true;
                         break;
                     default:
                         break;
@@ -1529,19 +1656,21 @@ namespace KROTIK_A1K2
                 values.Append("g: " + Math.Round(g, 2) + "\n");
                 values.Append("PhysicalMass: " + Math.Round(PhysicalMass, 2) + "\n");
                 values.Append("ShipWeight: " + Math.Round(ShipWeight.Length(), 2) + "\n");
-                values.Append("HoverThrustTest: " + Math.Round(HoverThrustTest.Length(), 2) + "\n");
-                values.Append("X: " + Math.Round(ShipWeight.GetDim(0), 2) + ", Y: " + Math.Round(ShipWeight.GetDim(1), 2) + ", Z: " + Math.Round(ShipWeight.GetDim(2), 2) + "\n");
-                //values.Append("Thrust: UP------------" + "\n");
-                values.Append("UP   MAX: " + PText.GetThrust((float)UpThrMax) + ", CALC: " + PText.GetThrust((float)UpThrust) + "\n");
-                //values.Append("Thrust: DOWN----------" + "\n");
-                values.Append("DOWN MAX: " + PText.GetThrust((float)DownThrMax) + ", CALC: " + PText.GetThrust((float)DownThrust) + "\n");
+                //values.Append("HoverThrustTest: " + Math.Round(HoverThrustTest.Length(), 2) + "\n");
+                //values.Append("X: " + Math.Round(ShipWeight.GetDim(0), 2) + ", Y: " + Math.Round(ShipWeight.GetDim(1), 2) + ", Z: " + Math.Round(ShipWeight.GetDim(2), 2) + "\n");
+                values.Append("Thrust UP------------" + "\n");
+                values.Append("|-MAX: " + PText.GetThrust((float)UpThrMax) + ", CALC: " + PText.GetThrust((float)UpThrust) + "\n");
+                values.Append("ThrustDOWN----------" + "\n");
+                values.Append("{-MAX: " + PText.GetThrust((float)DownThrMax) + ", CALC: " + PText.GetThrust((float)DownThrust) + "\n");
                 values.Append("YTaskHeight: " + Math.Round(YTaskHeight, 2) + "\n");
-                values.Append("CurrentHeight: " + Math.Round(CurrentHeight, 2) + "OldHeight: " + Math.Round(OldHeight, 2) + "\n");
+                values.Append("CurrentHeight: " + Math.Round(CurrentHeight, 2) + "\n");
                 values.Append("DeltaHeight: " + Math.Round(DeltaHeight, 2) + "\n");
-                values.Append("CurrentSpeed: " + Math.Round(CurrentSpeed, 2) + "\n");
-
-
-                values.Append("X: " + Math.Round(HoverThrustTest.GetDim(0), 2) + "\tY: " + Math.Round(HoverThrustTest.GetDim(1), 2) + "\tZ: " + Math.Round(HoverThrustTest.GetDim(2), 2) + "\n");
+                values.Append("YTaskSpeed: " + Math.Round(YTaskSpeed, 2) + ", CurrentSpeed: " + Math.Round(CurrentSpeed, 2) + "\n");
+                values.Append("deltaSpeed: " + Math.Round(YTaskSpeed - CurrentSpeed, 2) + "\n");
+                values.Append("move: " + move + "\n");
+                values.Append("Linear: " + cockpit.GetShipVelocities.LinearVelocity.GetDim(1) + "\n");
+                values.Append("Angular: " + cockpit.GetShipVelocities.AngularVelocity.GetDim(1) + "\n");
+                //values.Append("X: " + Math.Round(HoverThrustTest.GetDim(0), 2) + "\tY: " + Math.Round(HoverThrustTest.GetDim(1), 2) + "\tZ: " + Math.Round(HoverThrustTest.GetDim(2), 2) + "\n");
                 //values.Append("XMaxA LR: " + Math.Round(XMaxA, 2) + "\n");
                 //values.Append("YMaxA UD: " + Math.Round(YMaxA, 2) + "\n");
                 //values.Append("ZMaxA FB: " + Math.Round(ZMaxA, 2) + "\n");
