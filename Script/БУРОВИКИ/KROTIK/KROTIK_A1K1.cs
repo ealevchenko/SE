@@ -29,6 +29,11 @@ namespace KROTIK_A1K1
         string NameCameraCourse = "[KROTIK_A1]-Камера парковка";
         string NameLCDInfo = "[KROTIK_A1]-LCD-INFO";
 
+        //Коэффициент Kv, характеризующий пропорциональную зависимость между разностью требуемой и текущей высот и необходимой вертикальной скоростью
+        static double Kv = 8;
+        //Коэффициент Ka, характеризующий пропорциональную зависимость между разностью требуемой и текущей верт. скоростей и желаемым ускорением
+        static double Ka = 10;
+
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
         public enum or_mtr : int
         {
@@ -1098,10 +1103,7 @@ namespace KROTIK_A1K1
             public double YMaxHeight { get; private set; } = 3000f;
 
             Vector3D HoverThrust = new Vector3D();
-            //Коэффициент Kv, характеризующий пропорциональную зависимость между разностью требуемой и текущей высот и необходимой вертикальной скоростью
-            double Kv = 8;
-            //Коэффициент Ka, характеризующий пропорциональную зависимость между разностью требуемой и текущей верт. скоростей и желаемым ускорением
-            double Ka = 10;
+
 
             //Vector3D target = new Vector3D(26827.8655273466, -23658.4360006724, 99710.1771295082);
             Vector3D target = new Vector3D(108169.40, -36240.93, -17712.65);
@@ -1244,7 +1246,7 @@ namespace KROTIK_A1K1
                     DeltaHeight = YTaskHeight - CurrentHeight;
                     VerticalSpeed = (CurrentHeight - OldHeight) * 6; 
                     OldHeight = CurrentHeight;
-                    HoverThrust = HoverThrust * PhysicalMass * (DeltaHeight * Kv - VerticalSpeed) * Ka;
+                    HoverThrust = HoverThrust * PhysicalMass * (DeltaHeight * Kv - VerticalSpeed * Ka) ;
 
 
                     ForwardThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Forward);
@@ -1253,7 +1255,7 @@ namespace KROTIK_A1K1
                     LeftThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Left);
                     RightThrust = -LeftThrust;
 
-                    UpThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Up) * -DeltaHeight * 100;
+                    UpThrust = (ShipWeight + HoverThrust).Dot(remote_control._obj.WorldMatrix.Up);
                     DownThrust = -UpThrust;
 
                 }
