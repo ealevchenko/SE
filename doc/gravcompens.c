@@ -6,7 +6,7 @@
     //находим нужные блоки
     public Program()
     {
-        Cockpit = GridTerminalSystem.GetBlockWithName("Cockpit") as IMyCockpit;
+        Cockpit = GridTerminalSystem.GetBlockWithName("[KROTIK_A1]-Промышленный кокпит [LCD]") as IMyCockpit;
         Thrusters = new List<IMyThrust>();
         GridTerminalSystem.GetBlocksOfType<IMyThrust>(Thrusters);
     }
@@ -45,9 +45,10 @@
 
         Vector3D ShipWeight = GravityVector * ShipMass;
 
-        double ForwardThrust = -ShipWeight.Dot(Cockpit.WorldMatrix.Forward);
-        double LeftThrust = -ShipWeight.Dot(Cockpit.WorldMatrix.Left);
-        double UpThrust = -ShipWeight.Dot(Cockpit.WorldMatrix.Up);
+        double ForwardThrust = ShipWeight.Dot(Cockpit.WorldMatrix.Forward);
+        double LeftThrust = ShipWeight.Dot(Cockpit.WorldMatrix.Left);
+        double UpThrust = ShipWeight.Dot(Cockpit.WorldMatrix.Up);
+        //double DownThrust = -ShipWeight.Dot(Cockpit.WorldMatrix.Down);
 
         double BackwardThrust = -ForwardThrust;
         double RightThrust = -LeftThrust;

@@ -84,6 +84,7 @@
   <ItemGroup>
     <Compile Include="OSS\OSS_BM_UPR.cs" />
     <Compile Include="OSS\OSS_BM_DORS.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1K21.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1K2.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1K1.cs" />
