@@ -589,6 +589,13 @@ namespace KROTIK_A1M
             public Vector3D GravityVector { get; private set; } // Вектор гравитации
             public float PhysicalMass { get; private set; } // Физическая масса
             public Vector3D ShipWeight { get; private set; } // Вес коробля с учетом гравитации
+            // 
+            public Vector3D MyPos { get; private set; }
+            public Vector3D MyPrevPos { get; private set; }
+            public Vector3D VelocityVector { get; private set; }
+            public Vector3D UpVelocityVector { get; private set; }
+            public Vector3D ForwVelocityVector { get; private set; }
+            public Vector3D LeftVelocityVector { get; private set; }
             //------------------------------------------------
             public double UpThrMax { get; private set; } = 0;
             public double DownThrMax { get; private set; } = 0;
@@ -612,13 +619,13 @@ namespace KROTIK_A1M
             public Vector3D? TackTarget { get; private set; }
             public double TaskHeight { get; private set; } = 0;
             public double TaskCurse { get; private set; } = 0;
-            public Vector3D CurrentPosition { get; private set; }
-            //public double CurrentHeight { get; private set; }
             public double CurrentHeightPlanetCentr { get; private set; }    // Текущая высота относительно центра земли
             public double OldHeight { get; private set; }                   // Предыдущая высота относительно центра земли
             public double OldCurse { get; private set; }                    // Предыдущее расстояние до цели
             public double DeltaHeight { get; private set; }                 // Текущая разница высоты
             public double DeltaCurse { get; private set; }                  // Текущая разница до цели
+            public double DeltaCurse1 { get; private set; }                  // !!!!Убрать Текущая разница до цели
+            public double DeltaCurse2 { get; private set; }                  // !!!!Убрать Т Текущая разница до цели
             public double VerticalSpeedTick { get; private set; }           // Вертикальная скорость за тик
             public double VerticalSpeed { get; private set; }               // Вертикальная скорость в секунду
             public double HorizontSpeedTick { get; private set; }           // Горизонтальная скорость за тик
@@ -758,11 +765,20 @@ namespace KROTIK_A1M
             }
             public void Update()
             {
+                
+                
                 GravityVector = remote_control.GetNaturalGravity();
                 PhysicalMass = remote_control.CalculateShipMass().PhysicalMass;
                 ShipWeight = GravityVector * PhysicalMass;
-                CurrentPosition = remote_control.GetPosition();
-                CurrentHeightPlanetCentr = (PlanetCentr - CurrentPosition).Length();
+                MyPrevPos = MyPos;
+                MyPos = remote_control.GetPosition();
+                VelocityVector = (MyPos - MyPrevPos) * 6;
+                UpVelocityVector = remote_control.WorldMatrix.Up * Vector3D.Dot(VelocityVector, remote_control.WorldMatrix.Up);
+                ForwVelocityVector = remote_control.WorldMatrix.Forward * Vector3D.Dot(VelocityVector, remote_control.WorldMatrix.Forward);
+                LeftVelocityVector = remote_control.WorldMatrix.Left * Vector3D.Dot(VelocityVector, remote_control.WorldMatrix.Left);
+                //CurrentPosition = remote_control.GetPosition();
+                CurrentHeightPlanetCentr = (PlanetCentr - MyPos).Length();
+
                 //remote_control.GetShipSpeed();
                 // Орентация коробля
                 Matrix CPMatrix = new MatrixD();
@@ -855,8 +871,24 @@ namespace KROTIK_A1M
                 if (TackTarget != null)
                 {
                     //move1 = "1";
-                    DeltaCurse = ((Vector3D)TackTarget - CurrentPosition).Length();
-//remote_control.GetShipVelocities().
+                    //1
+                    //Вектор вертикали, проходящий через точку
+                    Vector3D VerticalVector = (Vector3D)TackTarget - PlanetCentr;
+                    //Нормализация вертикали
+                    Vector3D VerticalNorm = Vector3D.Normalize(VerticalVector);
+                    //Разница
+                    double DeltaHeight = CurrentHeightPlanetCentr - TaskHeight;
+                    //Расчет новой точки
+                    Vector3D CalcTarge = (Vector3D)TackTarget + VerticalNorm * DeltaHeight;
+                    DeltaCurse1 = (CalcTarge - MyPos).Length();
+                    //2
+                    Vector3D VectorTarget = PlanetCentr - (Vector3D)TackTarget;
+                    Vector3D VectorShip = PlanetCentr - MyPos;
+                    Vector3D VectorShipTarget = Vector3D.Reject(VectorTarget, Vector3D.Normalize(VectorShip));
+                    DeltaCurse2 = (VectorShipTarget).Length();
+
+                    
+                    DeltaCurse = ((Vector3D)TackTarget - MyPos).Length();
                     HorizontSpeedTick = remote_control.GetShipVelocities().LinearVelocity.GetDim(1) > 0 ? remote_control.GetShipVelocities().LinearVelocity.GetDim(1) / 6 :0;// (OldCurse - DeltaCurse);
                     HorizontSpeed = remote_control.GetShipVelocities().LinearVelocity.GetDim(1); //VerticalSpeedTick * 6; // Вертикальная скорость
                     OldCurse = DeltaCurse;
@@ -1047,7 +1079,7 @@ namespace KROTIK_A1M
                 YawInput = 0;
                 if (TackTarget != null)
                 {
-                    TaskVector = (Vector3D)TackTarget - CurrentPosition;
+                    TaskVector = (Vector3D)TackTarget - MyPos;
                     //вектор на точку
                     Vector3D T = Vector3D.Normalize((Vector3D)TaskVector);
                     //Рысканием прицеливаемся на точку Target.
@@ -1081,7 +1113,7 @@ namespace KROTIK_A1M
             {
                 TackTarget = target;
                 TaskHeight = (PlanetCentr - (Vector3D)TackTarget).Length();
-                //TaskVector = TackTarget - CurrentPosition;
+                //TaskVector = TackTarget - MyPos;
                 compensate = true;
                 horizont = true;
                 height = true;
@@ -1106,18 +1138,24 @@ namespace KROTIK_A1M
                 values.Append("move: " + move + "\n");
                 values.Append("move1: " + move1 + "\n");
                 values.Append("DeltaCurse: " + Math.Round(DeltaCurse, 2) + "\n");
+                values.Append("DeltaCurse1: " + Math.Round(DeltaCurse1, 2) + "\n");
+                values.Append("DeltaCurse2: " + Math.Round(DeltaCurse2, 2) + "\n");
+
                 values.Append("OldCurse: " + Math.Round(OldCurse, 2) + "\n");
                 values.Append("HorizontSpeedTick: " + Math.Round(HorizontSpeed, 2) + "\n");
                 values.Append("HorizontSpeed: " + Math.Round(HorizontSpeed, 2) + "\n");
-                values.Append("x: " + Math.Round(remote_control.GetShipVelocities().LinearVelocity.GetDim(0), 2) + "\n");
-                values.Append("y: " + Math.Round(remote_control.GetShipVelocities().LinearVelocity.GetDim(1), 2) + "\n");
-                values.Append("z: " + Math.Round(remote_control.GetShipVelocities().LinearVelocity.GetDim(2), 2) + "\n");
+                //values.Append("x: " + Math.Round(remote_control.GetShipVelocities().LinearVelocity.GetDim(0), 2) + "\n");
+                //values.Append("y: " + Math.Round(remote_control.GetShipVelocities().LinearVelocity.GetDim(1), 2) + "\n");
+                //values.Append("z: " + Math.Round(remote_control.GetShipVelocities().LinearVelocity.GetDim(2), 2) + "\n");
+                values.Append("Forw-Back: " + Math.Round(ForwVelocityVector.Length(), 2) + "\n");
+                values.Append("UP-DOWN: " + Math.Round(UpVelocityVector.Length(), 2) + "\n");
+                values.Append("LEFT-RIGHT: " + Math.Round(LeftVelocityVector.Length(), 2) + "\n");
                 values.Append("TaskHorizontSpeed: " + Math.Round(TaskHorizontSpeed, 2) + "\n");
                 //values.Append("TaskHeight: " + Math.Round(TaskHeight, 2) + "\n");
                 //values.Append("DeltaHeight: " + Math.Round(DeltaHeight, 2) + "\n");
                 //values.Append("VerticalSpeed: " + Math.Round(VerticalSpeed, 2) + "\n");
 
-                //values.Append("Target2: " + Math.Round((Target2 - CurrentPosition).Length(), 2) + "\n");
+                //values.Append("Target2: " + Math.Round((Target2 - MyPos).Length(), 2) + "\n");
                 //values.Append("DeltaCurse: " + Math.Round(DeltaCurse, 2) + "\n");
                 //values.Append("OldCurse: " + Math.Round(OldCurse, 2) + "\n");
                 //values.Append("HorizontSpeed: " + Math.Round(HorizontSpeed, 2) + "\n");
