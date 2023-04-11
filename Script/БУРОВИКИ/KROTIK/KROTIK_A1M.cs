@@ -584,6 +584,8 @@ namespace KROTIK_A1M
             public bool horizont { get; private set; } = false;
             public bool height { get; private set; } = false;
             public bool curse { get; private set; } = false;
+
+            public bool clear_velocity { get; private set; } = false;
             //
             public Matrix CockpitMatrix { get; private set; } // Орентация коробля
             public Vector3D GravityVector { get; private set; } // Вектор гравитации
@@ -633,7 +635,8 @@ namespace KROTIK_A1M
             public float TaskVerticalSpeed { get; private set; }           // Задание Вертикальная скорость в секунду
             public float TaskHorizontSpeed { get; private set; }           // Задание Вертикальная скорость в секунду
             //
-            public string move { get; private set; }
+            public string move_ud { get; private set; }
+            public string move_fb { get; private set; }
             public string move1 { get; private set; }
             public Vector3D PlanetCentr = new Vector3D(0.50, 0.50, 0.50);
             public Vector3D Target1 = new Vector3D(53634.1408339977, -26848.4945197565, 11835.781022294); // GPS:Target1:53634.1408339977:-26848.4945197565:11835.781022294:
@@ -655,6 +658,12 @@ namespace KROTIK_A1M
             {
                 switch (argument)
                 {
+                    case "clear_velocity_on":
+                        clear_velocity = true;
+                        break;
+                    case "clear_velocity_off":
+                        clear_velocity = false;
+                        break;                   
                     case "compensate_on":
                         compensate = true;
                         horizont = true;
@@ -680,11 +689,23 @@ namespace KROTIK_A1M
                             horizont = true;
                         }
                         break;
-                    case "Target1":
+                    case "T1":
                         Target(Target1);
                         break;
-                    case "Target2":
+                    case "T2":
                         Target(Target2);
+                        break;
+                    case "TH1":
+                        TargetHeight(Target1);
+                        break;
+                    case "TH2":
+                        TargetHeight(Target2);
+                        break;
+                    case "TC1":
+                        TargetCurse(Target1);
+                        break;
+                    case "TC2":
+                        TargetCurse(Target2);
                         break;
                     default:
                         break;
@@ -697,7 +718,7 @@ namespace KROTIK_A1M
                     GyroOver(horizont);
                     if (compensate)
                     {
-                        CompensateWeight();
+                        CompensateWeight(clear_velocity);
                     }
                     if (horizont)
                     {
@@ -834,7 +855,7 @@ namespace KROTIK_A1M
                     UpThrust = UpThrust + (delta * power);
                 }
                 DownThrust = 0;
-                move = "UP :" + power.ToString();
+                move_ud = "UP :" + power.ToString();
             }
             public void Down(float power)
             {
@@ -844,7 +865,7 @@ namespace KROTIK_A1M
                     DownThrust = DownThrust + (delta * power);
                 }
                 UpThrust = 0;
-                move = "DOWN :" + power.ToString();
+                move_ud = "DOWN :" + power.ToString();
             }
             public void Forward(float power)
             {
@@ -854,7 +875,7 @@ namespace KROTIK_A1M
                     ForwardThrust = ForwardThrust + (delta * power);
                 }
                 BackwardThrust = 0;
-                move = "Forward :" + power.ToString();
+                move_fb = "Forward :" + power.ToString();
             }
             public void Backward(float power)
             {
@@ -864,7 +885,7 @@ namespace KROTIK_A1M
                     BackwardThrust = BackwardThrust + (delta * power);
                 }
                 ForwardThrust = 0;
-                move = "Backward :" + power.ToString();
+                move_fb = "Backward :" + power.ToString();
             }
             public void ControlCurse()
             {
@@ -895,7 +916,7 @@ namespace KROTIK_A1M
                     if (DeltaCurse > 0f && DeltaCurse < 1f && HorizontSpeed >= 0 && HorizontSpeed < 1f)
                     {
                         // стоп попали
-                        move = "STOP";
+                        move_fb = "STOP";
                         compensate = false;
                         curse = false;
                     }
@@ -915,6 +936,11 @@ namespace KROTIK_A1M
                             }
                             else { Forward(0.7f); }
                         }
+                        else
+                        {
+                            // летим с компенсацией
+                            move_fb = "COMPENSATE";
+                        }
                     }
                 }
             }
@@ -929,10 +955,9 @@ namespace KROTIK_A1M
                 if (DeltaHeight > -0.5f && DeltaHeight < 0.5f && VerticalSpeed >= -0.5 && VerticalSpeed < 0.5f)
                 {
                     // стоп попали
-                    move = "STOP";
+                    move_ud = "STOP";
                     //compensate = false;
                     height = false;
-                    ClearThrustOverridePersent();
                 }
                 else
                 {
@@ -946,7 +971,7 @@ namespace KROTIK_A1M
                         }
                         else
                         {
-                            if (Math.Abs(VerticalSpeed) < TaskVerticalSpeed - VerticalSpeedTick)
+                            if (Math.Abs(VerticalSpeed) < TaskVerticalSpeed - Math.Abs(VerticalSpeedTick))
                             {
                                 // разгон
                                 Up((float)(TaskVerticalSpeed - Math.Abs(VerticalSpeed)) / TaskVerticalSpeed); // разгон вверх
@@ -963,7 +988,7 @@ namespace KROTIK_A1M
                             else
                             {
                                 // летим с компенсацией
-                                move = "COMPENSATE";
+                                move_ud = "COMPENSATE";
                             }
                         }
                     }
@@ -977,7 +1002,7 @@ namespace KROTIK_A1M
                         }
                         else
                         {
-                            if (Math.Abs(VerticalSpeed) < TaskVerticalSpeed - VerticalSpeedTick)
+                            if (Math.Abs(VerticalSpeed) < TaskVerticalSpeed - Math.Abs(VerticalSpeedTick))
                             {
                                 // разгон
                                 //Down((float)(YTaskSpeed - Math.Abs(VerticalSpeed)) / YTaskSpeed); // разгон вверх
@@ -1003,7 +1028,7 @@ namespace KROTIK_A1M
                             else
                             {
                                 // летим с компенсацией
-                                move = "COMPENSATE";
+                                move_ud = "COMPENSATE";
                             }
                         }
                     }
@@ -1022,11 +1047,16 @@ namespace KROTIK_A1M
                     }
                 }
             }
-            public void CompensateWeight()
+            public void CompensateWeight(bool clear_velocity)
             {
-                ForwardThrust = ShipWeight.Dot(remote_control.WorldMatrix.Forward);
-                LeftThrust = ShipWeight.Dot(remote_control.WorldMatrix.Left);
-                UpThrust = ShipWeight.Dot(remote_control.WorldMatrix.Up);
+                Vector3D VelocityThrust = new Vector3D();
+                if (clear_velocity) {
+                    VelocityThrust = VelocityVector;
+                }
+
+                ForwardThrust = (ShipWeight + VelocityThrust).Dot(remote_control.WorldMatrix.Forward);
+                LeftThrust = (ShipWeight + VelocityThrust).Dot(remote_control.WorldMatrix.Left);
+                UpThrust = (ShipWeight + VelocityThrust).Dot(remote_control.WorldMatrix.Up);
                 BackwardThrust = -ForwardThrust;
                 RightThrust = -LeftThrust;
                 DownThrust = -UpThrust;
@@ -1120,6 +1150,24 @@ namespace KROTIK_A1M
                 height = false;
                 curse = true;
             }
+            public void TargetHeight(Vector3D target)
+            {
+                TackTarget = target;
+                TaskHeight = (PlanetCentr - (Vector3D)TackTarget).Length();
+                compensate = true;
+                horizont = true;
+                height = true;
+                curse = false;
+            }
+            public void TargetCurse(Vector3D target)
+            {
+                TackTarget = target;
+                TaskHeight = (PlanetCentr - (Vector3D)TackTarget).Length();
+                compensate = true;
+                horizont = true;
+                height = false;
+                curse = true;
+            }
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
@@ -1138,16 +1186,20 @@ namespace KROTIK_A1M
                 //values.Append("GravityVector: " + Math.Round(GravityVector.Length(), 2) + "\n");
                 //values.Append("PhysicalMass: " + Math.Round(PhysicalMass, 2) + "\n");
                 //values.Append("ShipWeight: " + Math.Round(ShipWeight.Length(), 2) + "\n");
-                values.Append("move: " + move + "\n");
-                //values.Append("move1: " + move1 + "\n");
+                values.Append("move_horizont : " + move_ud + "\n");
+                values.Append("move_curse    : " + move_fb + "\n");
+                values.Append("-----------------------------------------"+ "\n");
                 values.Append("DeltaCurse: " + Math.Round(DeltaCurse, 2) + "\n");
-                values.Append("TaskHorizontSpeed: " + Math.Round(TaskHorizontSpeed, 2) + "\n");
-                values.Append("HorizontSpeed: " + Math.Round(HorizontSpeed, 2) + "\n");
+                values.Append("TaskHorizontSpeed : " + Math.Round(TaskHorizontSpeed, 2) + "\n");
+                values.Append("HorizontSpeed     : " + Math.Round(HorizontSpeed, 2) + "\n");
                 values.Append("-----------------------------------------"+ "\n");
                 values.Append("DeltaHeight: " + Math.Round(DeltaHeight, 2) + "\n");
-                values.Append("TaskVerticalSpeed: " + Math.Round(TaskHorizontSpeed, 2) + "\n");
-                values.Append("VerticalSpeed: " + Math.Round(VerticalSpeed, 2) + "\n");
-
+                values.Append("TaskVerticalSpeed : " + Math.Round(TaskHorizontSpeed, 2) + "\n");
+                values.Append("VerticalSpeed     : " + Math.Round(VerticalSpeed, 2) + "\n");
+                values.Append("-----------------------------------------"+ "\n");
+                values.Append("ForwV : " + Math.Round(ForwVelocityVector.Length(), 2) + "\n");
+                values.Append("UpV   : " + Math.Round(UpVelocityVector.Length(), 2) + "\n");
+                values.Append("LeftV : " + Math.Round(LeftVelocityVector.Length(), 2) + "\n");
                 //values.Append("DeltaCurse1: " + Math.Round(DeltaCurse1, 2) + "\n");
                 //values.Append("DeltaCurse2: " + Math.Round(DeltaCurse2, 2) + "\n");
 
@@ -1157,9 +1209,7 @@ namespace KROTIK_A1M
                 //values.Append("x: " + Math.Round(remote_control.GetShipVelocities().LinearVelocity.GetDim(0), 2) + "\n");
                 //values.Append("y: " + Math.Round(remote_control.GetShipVelocities().LinearVelocity.GetDim(1), 2) + "\n");
                 //values.Append("z: " + Math.Round(remote_control.GetShipVelocities().LinearVelocity.GetDim(2), 2) + "\n");
-                //values.Append("Forw-Back: " + Math.Round(ForwVelocityVector.Length(), 2) + "\n");
-                //values.Append("UP-DOWN: " + Math.Round(UpVelocityVector.Length(), 2) + "\n");
-                //values.Append("LEFT-RIGHT: " + Math.Round(LeftVelocityVector.Length(), 2) + "\n");
+
 
                 //values.Append("TaskHeight: " + Math.Round(TaskHeight, 2) + "\n");
 
@@ -1178,11 +1228,12 @@ namespace KROTIK_A1M
                 //values.Append("planeta_target: " + Math.Round(planeta_target, 2) + "\n");
                 //values.Append("DeltaHeight: " + Math.Round(DeltaHeight, 2) + "\n");
                 //values.Append("YTaskSpeed: " + Math.Round(YTaskSpeed, 2) + ", CurrentSpeed: " + Math.Round(CurrentSpeed, 2) + "\n");
-                values.Append("UP   : " + PText.GetThrust((float)UpThrust) + ", MAX : " + PText.GetThrust((float)UpThrMax) + "\n");
-                //values.Append("UP M-C: " + Math.Round(UpThrMax - UpThrust, 2) + "\n");
-                values.Append("DOWN : " + PText.GetThrust((float)DownThrust) + ", MAX : " + PText.GetThrust((float)DownThrMax) + "\n");
-                values.Append("Forward : " + PText.GetThrust((float)ForwardThrust) + ", MAX : " + PText.GetThrust((float)ForwardThrMax) + "\n");
-                values.Append("Backward : " + PText.GetThrust((float)BackwardThrust) + ", MAX : " + PText.GetThrust((float)BackwardThrMax) + "\n");
+                values.Append("UP       : " + PText.GetThrust((float)UpThrust) + "\t, MAX : " + PText.GetThrust((float)UpThrMax) + "\n");
+                values.Append("DOWN     : " + PText.GetThrust((float)DownThrust) + "\t, MAX : " + PText.GetThrust((float)DownThrMax) + "\n");
+                values.Append("Forward  : " + PText.GetThrust((float)ForwardThrust) + "\t, MAX : " + PText.GetThrust((float)ForwardThrMax) + "\n");
+                values.Append("Backward : " + PText.GetThrust((float)BackwardThrust) + "\t, MAX : " + PText.GetThrust((float)BackwardThrMax) + "\n");
+                values.Append("Left     : " + PText.GetThrust((float)LeftThrust) + "\t, MAX : " + PText.GetThrust((float)LeftThrMax) + "\n");
+                values.Append("Right    : " + PText.GetThrust((float)RightThrust) + "\t, MAX : " + PText.GetThrust((float)RightThrMax) + "\n");
                 //values.Append("UP M-C: " + Math.Round(DownThrMax - DownThrust, 2) + "\n");
                 //values.Append("YTaskHeight: " + Math.Round(YTaskHeight, 2) + "\n");
                 //values.Append("CurrentHeight: " + Math.Round(CurrentHeight, 2) + "\n");
