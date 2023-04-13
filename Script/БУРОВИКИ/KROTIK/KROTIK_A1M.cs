@@ -598,6 +598,9 @@ namespace KROTIK_A1M
             public Vector3D UpVelocityVector { get; private set; }
             public Vector3D ForwVelocityVector { get; private set; }
             public Vector3D LeftVelocityVector { get; private set; }
+
+            public Vector3D LinearVelocity { get; private set; }
+
             //------------------------------------------------
             public double UpThrMax { get; private set; } = 0;
             public double DownThrMax { get; private set; } = 0;
@@ -618,7 +621,9 @@ namespace KROTIK_A1M
             public float PitchInput { get; private set; } = 0;
 
             public Vector3D? TaskVector = null;
-            public Vector3D? TackTarget { get; private set; }
+            public Vector3D? TackTarget { get; private set; }               // Точка прицеливания
+            public Vector3D? TackTargetCalcPoint { get; private set; }      // Расчетная точка растояния к вектору (от центра к точке прицеливания)
+            public Vector3D? TackTargetAimingPoint { get; private set; }    // Расчетная точка прицеливания с вектор от точки растояния + ... метров
             public double TaskHeight { get; private set; } = 0;
             public double TaskCurse { get; private set; } = 0;
             public double CurrentHeightPlanetCentr { get; private set; }    // Текущая высота относительно центра земли
@@ -626,21 +631,25 @@ namespace KROTIK_A1M
             public double OldCurse { get; private set; }                    // Предыдущее расстояние до цели
             public double DeltaHeight { get; private set; }                 // Текущая разница высоты
             public double DeltaCurse { get; private set; }                  // Текущая разница до цели
-            //public double DeltaCurse1 { get; private set; }                  // !!!!Убрать Текущая разница до цели
-            //public double DeltaCurse2 { get; private set; }                  // !!!!Убрать Т Текущая разница до цели
             public double VerticalSpeedTick { get; private set; }           // Вертикальная скорость за тик
             public double VerticalSpeed { get; private set; }               // Вертикальная скорость в секунду
             public double HorizontSpeedTick { get; private set; }           // Горизонтальная скорость за тик
             public double HorizontSpeed { get; private set; }               // Горизонтальная скорость в секунду
-            public float TaskVerticalSpeed { get; private set; }           // Задание Вертикальная скорость в секунду
-            public float TaskHorizontSpeed { get; private set; }           // Задание Вертикальная скорость в секунду
+            public float TaskVerticalSpeed { get; private set; }            // Задание Вертикальная скорость в секунду
+            public float TaskHorizontSpeed { get; private set; }            // Задание Вертикальная скорость в секунду
             //
+            public float KVRL { get; private set; } = 1.0f;                 // Коэф. гашения боковых скоростей
+            public float KVFB { get; private set; } = 0.2f;                 // Коэф. гашения вперед\назад
+            public float KVUD { get; private set; } = 0.2f;                 // Коэф. гашения вверх\вниз
+
             public string move_ud { get; private set; }
             public string move_fb { get; private set; }
             public string move1 { get; private set; }
+
             public Vector3D PlanetCentr = new Vector3D(0.50, 0.50, 0.50);
             public Vector3D Target1 = new Vector3D(53634.1408339977, -26848.4945197565, 11835.781022294); // GPS:Target1:53634.1408339977:-26848.4945197565:11835.781022294:
             public Vector3D Target2 = new Vector3D(54247.1045229673, -28025.4557401103, 9975.66911975904);  // GPS:Target2:54247.1045229673:-28025.4557401103:9975.66911975904:
+
 
             public Navigation(Cockpit cockpit, string NameObj, string NameRemoteControl, string NameCameraCourse)
             {
@@ -803,6 +812,9 @@ namespace KROTIK_A1M
                 UpVelocityVector = remote_control.WorldMatrix.Up * Vector3D.Dot(VelocityVector, remote_control.WorldMatrix.Up);
                 ForwVelocityVector = remote_control.WorldMatrix.Forward * Vector3D.Dot(VelocityVector, remote_control.WorldMatrix.Forward);
                 LeftVelocityVector = remote_control.WorldMatrix.Left * Vector3D.Dot(VelocityVector, remote_control.WorldMatrix.Left);
+
+                LinearVelocity = remote_control.GetShipVelocities().LinearVelocity;
+
                 //CurrentPosition = remote_control.GetPosition();
                 CurrentHeightPlanetCentr = (PlanetCentr - MyPos).Length();
 
@@ -912,7 +924,9 @@ namespace KROTIK_A1M
                     Vector3D VectorTarget = PlanetCentr - (Vector3D)TackTarget;
                     Vector3D VectorShip = PlanetCentr - MyPos;
                     Vector3D VectorShipTarget = Vector3D.Reject(VectorTarget, Vector3D.Normalize(VectorShip));
-                    DeltaCurse = (VectorShipTarget).Length() - 1f;
+                    Vector3D VectorShipTargetNew = VectorShipTarget + (Vector3D.Normalize(VectorShipTarget) * 100);
+
+                    DeltaCurse = (VectorShipTarget).Length();
                     //DeltaCurse = ((Vector3D)TackTarget - MyPos).Length();
                     HorizontSpeedTick = ForwVelocityVector.Length() / 6; // (OldCurse - DeltaCurse);
                     HorizontSpeed = ForwVelocityVector.Length(); //VerticalSpeedTick * 6; // Вертикальная скорость
@@ -1072,34 +1086,30 @@ namespace KROTIK_A1M
             }
             public void CompensateWeight(bool clear_velocity)
             {
-                //if (DeltaCurse > 0f && DeltaCurse < 1f && DeltaHeight > -0.6f && DeltaHeight < 0.6f) { 
-                //    clear_velocity = true;
-                //    height = false;
-                //    curse = false;
-                //}
                 bool res_h = false;
                 bool res_c = false;
                 Vector3D VelocityThrust = new Vector3D();
                 Vector3D HeightVelocityThrust = new Vector3D();
                 Vector3D CurseVelocityThrust = new Vector3D();
+                Vector3D RLVelocityThrust = new Vector3D();
 
-                Vector3D ShipWeight = GravityVector * PhysicalMass;
-                VelocityThrust = GravityVector * ShipWeight * remote_control.GetShipVelocities().LinearVelocity * 0.2f; //VelocityVector;
-                Vector3D VelocityThrust1 = GravityVector * ShipWeight * remote_control.GetShipVelocities().LinearVelocity * 1f; //VelocityVector;                                                                                                                        //
+                ShipWeight = GravityVector * PhysicalMass;
+                RLVelocityThrust = GravityVector * ShipWeight * LinearVelocity * KVRL;
+                //
                 if (clear_velocity)
                 {
-                    if (remote_control.GetShipVelocities().LinearVelocity.Length() > 0.6)
+                    if (LinearVelocity.Length() > 0.6)
                     {
                         clear_velocity = false;
                         compensate = false;
                     }
 
-                    if (!height) HeightVelocityThrust = VelocityThrust;
-                    if (!curse) CurseVelocityThrust = VelocityThrust;
+                    if (!height) HeightVelocityThrust = VelocityThrust * KVUD;
+                    if (!curse) CurseVelocityThrust = VelocityThrust * KVFB;
                 }
 
                 ForwardThrust = (ShipWeight + CurseVelocityThrust).Dot(remote_control.WorldMatrix.Forward);
-                LeftThrust = (ShipWeight + VelocityThrust1).Dot(remote_control.WorldMatrix.Left);
+                LeftThrust = (ShipWeight + RLVelocityThrust).Dot(remote_control.WorldMatrix.Left);
                 UpThrust = (ShipWeight + HeightVelocityThrust).Dot(remote_control.WorldMatrix.Up);
                 BackwardThrust = -ForwardThrust;
                 RightThrust = -LeftThrust;
