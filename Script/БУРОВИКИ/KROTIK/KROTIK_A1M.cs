@@ -638,7 +638,7 @@ namespace KROTIK_A1M
             public float TaskVerticalSpeed { get; private set; }            // Задание Вертикальная скорость в секунду
             public float TaskHorizontSpeed { get; private set; }            // Задание Вертикальная скорость в секунду
             //
-            public float KVRL { get; private set; } = 1.0f;                 // Коэф. гашения боковых скоростей
+            public float KVRL { get; private set; } = 0.5f;                 // Коэф. гашения боковых скоростей
             public float KVFB { get; private set; } = 0.2f;                 // Коэф. гашения вперед\назад
             public float KVUD { get; private set; } = 0.2f;                 // Коэф. гашения вверх\вниз
 
@@ -864,6 +864,26 @@ namespace KROTIK_A1M
                 }
 
             }
+            public Vector3D GetTackTargetCalcVector(Vector3D TackTarget)
+            {
+                Vector3D VectorTarget = PlanetCentr - (Vector3D)TackTarget;
+                Vector3D VectorShip = PlanetCentr - MyPos;
+                //return Vector3D.Reject(VectorTarget, Vector3D.Normalize(VectorShip));
+                return Vector3D.Reject(VectorShip, Vector3D.Normalize(VectorTarget));
+            }            
+            public Vector3D GetTackTargetCalcPoint(Vector3D TackTarget)
+            {
+                return GetTackTargetCalcVector(TackTarget) + MyPos;
+            }
+            public Vector3D GetTackTargetAimingVector(Vector3D TackTarget)
+            {
+                Vector3D VectorShipTarget = GetTackTargetCalcVector(TackTarget);
+                return VectorShipTarget + (Vector3D.Normalize(VectorShipTarget) * 1000);
+            }
+            public Vector3D GetTackTargetAimingPoint(Vector3D TackTarget)
+            {
+                return GetTackTargetAimingVector(TackTarget) + MyPos;
+            }
             public void Up(float power)
             {
                 // UP MAX
@@ -921,9 +941,10 @@ namespace KROTIK_A1M
                     //Vector3D CalcTarge = (Vector3D)TackTarget + VerticalNorm * DeltaHeight;
                     //DeltaCurse1 = (CalcTarge - MyPos).Length();
                     //2
-                    Vector3D VectorTarget = PlanetCentr - (Vector3D)TackTarget;
-                    Vector3D VectorShip = PlanetCentr - MyPos;
-                    Vector3D VectorShipTarget = Vector3D.Reject(VectorTarget, Vector3D.Normalize(VectorShip));
+                    //Vector3D VectorTarget = PlanetCentr - (Vector3D)TackTarget;
+                    //Vector3D VectorShip = PlanetCentr - MyPos;
+                    //Vector3D VectorShipTarget = Vector3D.Reject(VectorTarget, Vector3D.Normalize(VectorShip));
+                    Vector3D VectorShipTarget = GetTackTargetCalcVector((Vector3D)TackTarget);
                     Vector3D VectorShipTargetNew = VectorShipTarget + (Vector3D.Normalize(VectorShipTarget) * 100);
 
                     DeltaCurse = (VectorShipTarget).Length();
@@ -947,7 +968,12 @@ namespace KROTIK_A1M
                         if (Math.Abs(HorizontSpeed) < TaskHorizontSpeed - HorizontSpeedTick)
                         {
                             // разгон
-                            Backward((float)(TaskHorizontSpeed - Math.Abs(HorizontSpeed)) / TaskHorizontSpeed); // разгон вверх
+                            //Backward((float)(TaskHorizontSpeed - Math.Abs(HorizontSpeed)) / TaskHorizontSpeed); // разгон вверх
+                            if (TaskHorizontSpeed > 10 || DeltaCurse < 50)
+                            {
+                                Backward(1f);
+                            }
+                            else { Backward(0.3f); }
                         }
                         else if (Math.Abs(HorizontSpeed) > TaskHorizontSpeed)
                         {
@@ -1170,7 +1196,9 @@ namespace KROTIK_A1M
                 YawInput = 0;
                 if (TackTarget != null)
                 {
-                    TaskVector = (Vector3D)TackTarget - MyPos;
+                    //TaskVector = (Vector3D)TackTarget - MyPos;
+                    TaskVector = GetTackTargetAimingVector((Vector3D)TackTarget);
+                    //TaskVector = GetTackTargetCalcVector((Vector3D)TackTarget);
                     //вектор на точку
                     Vector3D T = Vector3D.Normalize((Vector3D)TaskVector);
                     //Рысканием прицеливаемся на точку Target.
@@ -1202,9 +1230,8 @@ namespace KROTIK_A1M
             }
             public void Target(Vector3D target)
             {
-                TackTarget = target;
+                //TackTarget = UpdateTack(target);
                 TaskHeight = (PlanetCentr - (Vector3D)TackTarget).Length();
-                //TaskVector = TackTarget - MyPos;
                 clear_velocity = false;
                 compensate = true;
                 horizont = true;
