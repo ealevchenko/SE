@@ -15,7 +15,7 @@ using VRageMath;
 /// <summary>
 /// v4.0
 /// </summary>
-namespace KROTIK_A1M
+namespace KROTIK_A1M1
 {
     public sealed class Program : MyGridProgram
     {
@@ -598,8 +598,8 @@ namespace KROTIK_A1M
             public Vector3D UpVelocityVector { get; private set; }
             public Vector3D ForwVelocityVector { get; private set; }
             public Vector3D LeftVelocityVector { get; private set; }
-
             public Vector3D LinearVelocity { get; private set; }
+            public Vector3D VelocityThrust { get; private set; } // компенсация скорости
 
             //------------------------------------------------
             public double UpThrMax { get; private set; } = 0;
@@ -638,7 +638,7 @@ namespace KROTIK_A1M
             public float TaskVerticalSpeed { get; private set; }            // Задание Вертикальная скорость в секунду
             public float TaskHorizontSpeed { get; private set; }            // Задание Вертикальная скорость в секунду
             //
-            public float KVRL { get; private set; } = 0.2f;                 // Коэф. гашения боковых скоростей
+            public float KVRL { get; private set; } = 0.5f;                 // Коэф. гашения боковых скоростей
             public float KVFB { get; private set; } = 0.2f;                 // Коэф. гашения вперед\назад
             public float KVUD { get; private set; } = 0.2f;                 // Коэф. гашения вверх\вниз
 
@@ -812,7 +812,6 @@ namespace KROTIK_A1M
                 UpVelocityVector = remote_control.WorldMatrix.Up * Vector3D.Dot(VelocityVector, remote_control.WorldMatrix.Up);
                 ForwVelocityVector = remote_control.WorldMatrix.Forward * Vector3D.Dot(VelocityVector, remote_control.WorldMatrix.Forward);
                 LeftVelocityVector = remote_control.WorldMatrix.Left * Vector3D.Dot(VelocityVector, remote_control.WorldMatrix.Left);
-
                 LinearVelocity = remote_control.GetShipVelocities().LinearVelocity;
 
                 //CurrentPosition = remote_control.GetPosition();
@@ -884,47 +883,6 @@ namespace KROTIK_A1M
             {
                 return GetTackTargetAimingVector(TackTarget) + MyPos;
             }
-            public void Up(float power)
-            {
-                // UP MAX
-                double delta = UpThrMax - UpThrust;
-                if (delta > 0)
-                {
-                    UpThrust = UpThrust + (delta * power);
-                }
-                DownThrust = 0;
-                move_ud = "UP :" + power.ToString();
-            }
-            public void Down(float power)
-            {
-                double delta = DownThrMax - DownThrust;
-                if (delta > 0)
-                {
-                    DownThrust = DownThrust + (delta * power);
-                }
-                UpThrust = 0;
-                move_ud = "DOWN :" + power.ToString();
-            }
-            public void Forward(float power)
-            {
-                double delta = ForwardThrMax - ForwardThrust;
-                if (delta > 0)
-                {
-                    ForwardThrust = ForwardThrust + (delta * power);
-                }
-                BackwardThrust = 0;
-                move_fb = "Forward :" + power.ToString();
-            }
-            public void Backward(float power)
-            {
-                double delta = BackwardThrMax - BackwardThrust;
-                if (delta > 0)
-                {
-                    BackwardThrust = BackwardThrust + (delta * power);
-                }
-                ForwardThrust = 0;
-                move_fb = "Backward :" + power.ToString();
-            }
             public bool ControlCurse()
             {
                 if (TackTarget != null)
@@ -969,23 +927,20 @@ namespace KROTIK_A1M
                         {
                             // разгон
                             //Backward((float)(TaskHorizontSpeed - Math.Abs(HorizontSpeed)) / TaskHorizontSpeed); // разгон вверх
-                            if (TaskHorizontSpeed < 10 || DeltaCurse < 50)
+                            if (TaskHorizontSpeed > 10 || DeltaCurse < 50)
                             {
-                                Backward(0.3f);
+                                ForwardBackward(1.0f, false);
                             }
-                            else
-                            {
-                                Backward(1f);
-                            }
+                            else { ForwardBackward(0.3f, false); }
                         }
                         else if (Math.Abs(HorizontSpeed) > TaskHorizontSpeed)
                         {
                             // тормоз
-                            if (TaskHorizontSpeed < 10 || DeltaCurse < 50)
+                            if (TaskHorizontSpeed > 10 || DeltaCurse > 50)
                             {
-                                Forward(0.3f);
+                                ForwardBackward(-1.0f, false);
                             }
-                            else { Forward(1f); }
+                            else { Forward(0.3f); }
                         }
                         else
                         {
@@ -1023,28 +978,28 @@ namespace KROTIK_A1M
                         {
                             // а, надо вверх - ТОРМОЗИМ
                             //Down(1f);
-
                             if (TaskVerticalSpeed < 10f || Math.Abs(DeltaHeight) < 100f)
                             {
-                                Down(0.3f);
+                                UpDown(0.3f, false);
+
                             }
-                            else { Down(1.0f); }
+                            else { UpDown(1.0f, false); }
                         }
                         else
                         {
                             if (Math.Abs(VerticalSpeed) < TaskVerticalSpeed - Math.Abs(VerticalSpeedTick))
                             {
                                 // разгон
-                                Up((float)(TaskVerticalSpeed - Math.Abs(VerticalSpeed)) / TaskVerticalSpeed); // разгон вверх
+                                UpDown((float)-(TaskVerticalSpeed - Math.Abs(VerticalSpeed)) / TaskVerticalSpeed, false); // разгон вверх
                             }
                             else if (Math.Abs(VerticalSpeed) > TaskVerticalSpeed)
                             {
                                 // тормоз
                                 if (TaskVerticalSpeed < 10f || Math.Abs(DeltaHeight) < 100f)
                                 {
-                                    Down(0.3f);
+                                    UpDown(0.3f, false);
                                 }
-                                else { Down(1f); }
+                                else { UpDown(1.0f, false); }
                             }
                             else
                             {
@@ -1059,12 +1014,11 @@ namespace KROTIK_A1M
                         if (DeltaHeight > 0.6f)
                         {
                             // а, надо вниз - ТОРМОЗИМ
-                            //Up(1f);
                             if (TaskVerticalSpeed < 10f || Math.Abs(DeltaHeight) < 100f)
                             {
-                                Up(0.3f);
+                                UpDown(-0.3f, false);
                             }
-                            else { Up(1f); }
+                            else { UpDown(-1.0f, false); }
                         }
                         else
                         {
@@ -1072,24 +1026,24 @@ namespace KROTIK_A1M
                             {
                                 // разгон
                                 //Down((float)(YTaskSpeed - Math.Abs(VerticalSpeed)) / YTaskSpeed); // разгон вверх
-                                if (TaskVerticalSpeed < 10f || Math.Abs(DeltaHeight) < 100f)
+                                if (TaskVerticalSpeed > 10f || Math.Abs(DeltaHeight) > 100f)
                                 {
-                                    Down(0.3f); // разгон вверх
+                                    Down(1.0f); // разгон вверх
                                 }
                                 else
                                 {
-                                    Down(1.0f); // разгон вверх
+                                    Down(0.3f); // разгон вверх
                                 }
                             }
                             else if (Math.Abs(VerticalSpeed) > TaskVerticalSpeed)
                             {
                                 // тормоз
                                 //Up(1f);
-                                if (TaskVerticalSpeed < 10f || Math.Abs(DeltaHeight) < 100f)
+                                if (TaskVerticalSpeed > 10f || Math.Abs(DeltaHeight) > 100f)
                                 {
-                                    Up(0.3f);
+                                    Up(1f);
                                 }
-                                else { Up(1f); }
+                                else { Down(0.3f); }
                             }
                             else
                             {
@@ -1114,6 +1068,135 @@ namespace KROTIK_A1M
                 }
                 return false;
             }
+            public void ForwardBackward(float power, bool clear)
+            {
+                Vector3D CurseVelocityThrust = new Vector3D();
+                if (clear)
+                {
+                    // Компенсируем скорость
+                    CurseVelocityThrust = VelocityThrust * KVFB;
+                }
+                ForwardThrust = (ShipWeight + CurseVelocityThrust).Dot(remote_control.WorldMatrix.Forward);
+                BackwardThrust = -ForwardThrust;
+                if (!clear)
+                {
+                    if (power > 0) // вперед
+                    {
+                        double delta = BackwardThrMax - BackwardThrust;
+                        if (delta > 0) { BackwardThrust = BackwardThrust + (delta * power); }
+                        ForwardThrust = 0;
+                        move_fb = "Backward :" + power.ToString();
+                    }
+                    else if (power < 0) // Назад
+                    {
+                        double delta = ForwardThrMax - ForwardThrust;
+                        if (delta > 0) { ForwardThrust = ForwardThrust + (delta * power); }
+                        BackwardThrust = 0;
+                        move_fb = "Forward :" + power.ToString();
+                    }
+                }
+            }
+            public void UpDown(float power, bool clear)
+            {
+                Vector3D HeightVelocityThrust = new Vector3D();
+
+                if (clear)
+                {
+                    // Компенсируем скорость
+                    HeightVelocityThrust = VelocityThrust * KVUD;
+                }
+                UpThrust = (ShipWeight + HeightVelocityThrust).Dot(remote_control.WorldMatrix.Up);
+                DownThrust = -UpThrust;
+                if (!clear)
+                {
+                    if (power > 0) // Поднять
+                    {
+                        double delta = DownThrMax - DownThrust;
+                        if (delta > 0) { DownThrust = DownThrust + (delta * power); }
+                        UpThrust = 0;
+                        move_ud = "DOWN :" + power.ToString();
+                    }
+                    else if (power < 0) // Опустить
+                    {
+                        double delta = UpThrMax - UpThrust;
+                        if (delta > 0) { UpThrust = UpThrust + (delta * power); }
+                        DownThrust = 0;
+                        move_ud = "UP :" + power.ToString();
+                    }
+                }
+            }
+            public void CompensateWeight()
+            {
+                bool res_h = false;
+                bool res_c = false;
+                // Компенсация боковой скорости
+                Vector3D RLVelocityThrust = new Vector3D();
+                VelocityThrust = GravityVector * ShipWeight * LinearVelocity;
+                ShipWeight = GravityVector * PhysicalMass;
+                RLVelocityThrust = GravityVector * ShipWeight * LinearVelocity * KVRL;
+                //
+                //if (clear_velocity)
+                //{
+                //    if (LinearVelocity.Length() > 0.6)
+                //    {
+                //        clear_velocity = false;
+                //        compensate = false;
+                //    }
+
+                //    //if (!height) HeightVelocityThrust = VelocityThrust * KVUD;
+                //    //if (!curse) CurseVelocityThrust = VelocityThrust * KVFB;
+                //}
+
+                LeftThrust = (ShipWeight + RLVelocityThrust).Dot(remote_control.WorldMatrix.Left);
+                RightThrust = -LeftThrust;
+                if (height)
+                {
+                    res_h = ControlHeight();
+                }
+                if (curse)
+                {
+                    res_c = ControlCurse();
+                }
+                if (res_h && res_c)
+                {
+                    clear_velocity = true;
+                    height = false;
+                    curse = false;
+                }
+
+                Matrix ThrusterMatrix = new MatrixD();
+                foreach (IMyThrust thrust in thrusts)
+                {
+                    thrust.Orientation.GetMatrix(out ThrusterMatrix);
+                    //Y
+                    if (ThrusterMatrix.Forward == CockpitMatrix.Up)
+                    {
+                        thrust.ThrustOverridePercentage = (float)(UpThrust / UpThrMax);
+                    }
+                    else if (ThrusterMatrix.Forward == CockpitMatrix.Down)
+                    {
+                        thrust.ThrustOverridePercentage = (float)(DownThrust / DownThrMax);
+                    }
+                    //X
+                    else if (ThrusterMatrix.Forward == CockpitMatrix.Left)
+                    {
+                        thrust.ThrustOverridePercentage = (float)(LeftThrust / LeftThrMax);
+                    }
+                    else if (ThrusterMatrix.Forward == CockpitMatrix.Right)
+                    {
+                        thrust.ThrustOverridePercentage = (float)(RightThrust / RightThrMax);
+                    }
+                    //Z
+                    else if (ThrusterMatrix.Forward == CockpitMatrix.Forward)
+                    {
+                        thrust.ThrustOverridePercentage = (float)(ForwardThrust / ForwardThrMax);
+                    }
+                    else if (ThrusterMatrix.Forward == CockpitMatrix.Backward)
+                    {
+                        thrust.ThrustOverridePercentage = (float)(BackwardThrust / BackwardThrMax);
+                    }
+                }
+            }
             public void CompensateWeight(bool clear_velocity)
             {
                 bool res_h = false;
@@ -1124,20 +1207,19 @@ namespace KROTIK_A1M
                 Vector3D RLVelocityThrust = new Vector3D();
 
                 ShipWeight = GravityVector * PhysicalMass;
-                VelocityThrust = GravityVector * ShipWeight * LinearVelocity;
-                RLVelocityThrust = VelocityThrust * KVRL;
+                RLVelocityThrust = GravityVector * ShipWeight * LinearVelocity * KVRL;
                 //
-                //if (clear_velocity)
-                //{
-                //    if (LinearVelocity.Length() > 0.6)
-                //    {
-                //        clear_velocity = false;
-                //        compensate = false;
-                //    }
+                if (clear_velocity)
+                {
+                    if (LinearVelocity.Length() > 0.6)
+                    {
+                        clear_velocity = false;
+                        compensate = false;
+                    }
 
-                //    if (!height) HeightVelocityThrust = VelocityThrust * KVUD;
-                //    if (!curse) CurseVelocityThrust = VelocityThrust * KVFB;
-                //}
+                    if (!height) HeightVelocityThrust = VelocityThrust * KVUD;
+                    if (!curse) CurseVelocityThrust = VelocityThrust * KVFB;
+                }
 
                 ForwardThrust = (ShipWeight + CurseVelocityThrust).Dot(remote_control.WorldMatrix.Forward);
                 LeftThrust = (ShipWeight + RLVelocityThrust).Dot(remote_control.WorldMatrix.Left);
@@ -1149,67 +1231,50 @@ namespace KROTIK_A1M
                 if (height)
                 {
                     res_h = ControlHeight();
-                    if (res_h && !res_c)
-                    {
-                        HeightVelocityThrust = VelocityThrust * KVUD;
-                    }
                 }
                 if (curse)
                 {
                     res_c = ControlCurse();
-                    if (res_c && !res_h)
-                    {
-                        CurseVelocityThrust = VelocityThrust * KVFB;
-                    }
                 }
                 if (res_h && res_c)
                 {
-                    clear_velocity = false;
+                    clear_velocity = true;
                     height = false;
                     curse = false;
-                    compensate = false;
-                    horizont = false;
-                    ClearThrustOverridePersent();
                 }
-                else
+
+                Matrix ThrusterMatrix = new MatrixD();
+                foreach (IMyThrust thrust in thrusts)
                 {
-                    Matrix ThrusterMatrix = new MatrixD();
-                    foreach (IMyThrust thrust in thrusts)
+                    thrust.Orientation.GetMatrix(out ThrusterMatrix);
+                    //Y
+                    if (ThrusterMatrix.Forward == CockpitMatrix.Up)
                     {
-                        thrust.Orientation.GetMatrix(out ThrusterMatrix);
-                        //Y
-                        if (ThrusterMatrix.Forward == CockpitMatrix.Up)
-                        {
-                            thrust.ThrustOverridePercentage = (float)(UpThrust / UpThrMax);
-                        }
-                        else if (ThrusterMatrix.Forward == CockpitMatrix.Down)
-                        {
-                            thrust.ThrustOverridePercentage = (float)(DownThrust / DownThrMax);
-                        }
-                        //X
-                        else if (ThrusterMatrix.Forward == CockpitMatrix.Left)
-                        {
-                            thrust.ThrustOverridePercentage = (float)(LeftThrust / LeftThrMax);
-                        }
-                        else if (ThrusterMatrix.Forward == CockpitMatrix.Right)
-                        {
-                            thrust.ThrustOverridePercentage = (float)(RightThrust / RightThrMax);
-                        }
-                        //Z
-                        else if (ThrusterMatrix.Forward == CockpitMatrix.Forward)
-                        {
-                            thrust.ThrustOverridePercentage = (float)(ForwardThrust / ForwardThrMax);
-                        }
-                        else if (ThrusterMatrix.Forward == CockpitMatrix.Backward)
-                        {
-                            thrust.ThrustOverridePercentage = (float)(BackwardThrust / BackwardThrMax);
-                        }
+                        thrust.ThrustOverridePercentage = (float)(UpThrust / UpThrMax);
                     }
-
+                    else if (ThrusterMatrix.Forward == CockpitMatrix.Down)
+                    {
+                        thrust.ThrustOverridePercentage = (float)(DownThrust / DownThrMax);
+                    }
+                    //X
+                    else if (ThrusterMatrix.Forward == CockpitMatrix.Left)
+                    {
+                        thrust.ThrustOverridePercentage = (float)(LeftThrust / LeftThrMax);
+                    }
+                    else if (ThrusterMatrix.Forward == CockpitMatrix.Right)
+                    {
+                        thrust.ThrustOverridePercentage = (float)(RightThrust / RightThrMax);
+                    }
+                    //Z
+                    else if (ThrusterMatrix.Forward == CockpitMatrix.Forward)
+                    {
+                        thrust.ThrustOverridePercentage = (float)(ForwardThrust / ForwardThrMax);
+                    }
+                    else if (ThrusterMatrix.Forward == CockpitMatrix.Backward)
+                    {
+                        thrust.ThrustOverridePercentage = (float)(BackwardThrust / BackwardThrMax);
+                    }
                 }
-
-
-
             }
             public void Horizon()
             {
@@ -1218,8 +1283,8 @@ namespace KROTIK_A1M
                 YawInput = 0;
                 if (TackTarget != null)
                 {
-                    TaskVector = (Vector3D)TackTarget - MyPos;
-                    //TaskVector = GetTackTargetAimingVector((Vector3D)TackTarget);
+                    //TaskVector = (Vector3D)TackTarget - MyPos;
+                    TaskVector = GetTackTargetAimingVector((Vector3D)TackTarget);
                     //TaskVector = GetTackTargetCalcVector((Vector3D)TackTarget);
                     //вектор на точку
                     Vector3D T = Vector3D.Normalize((Vector3D)TaskVector);
@@ -1301,19 +1366,16 @@ namespace KROTIK_A1M
                 values.Append("move_curse    : " + move_fb + "\n");
                 values.Append("-----------------------------------------" + "\n");
                 values.Append("DeltaCurse: " + Math.Round(DeltaCurse, 2) + "\n");
-                values.Append("ForwV : " + Math.Round(ForwVelocityVector.Length(), 2) + "\n");
                 values.Append("TaskHorizontSpeed : " + Math.Round(TaskHorizontSpeed, 2) + "\n");
                 values.Append("HorizontSpeed     : " + Math.Round(HorizontSpeed, 2) + "\n");
                 values.Append("-----------------------------------------" + "\n");
                 values.Append("DeltaHeight: " + Math.Round(DeltaHeight, 2) + "\n");
                 values.Append("TaskVerticalSpeed : " + Math.Round(TaskVerticalSpeed, 2) + "\n");
-                values.Append("UpV   : " + Math.Round(UpVelocityVector.Length(), 2) + "\n");
                 values.Append("VerticalSpeed     : " + Math.Round(VerticalSpeed, 2) + "\n");
                 values.Append("-----------------------------------------" + "\n");
+                values.Append("ForwV : " + Math.Round(ForwVelocityVector.Length(), 2) + "\n");
+                values.Append("UpV   : " + Math.Round(UpVelocityVector.Length(), 2) + "\n");
                 values.Append("LeftV : " + Math.Round(LeftVelocityVector.Length(), 2) + "\n");
-                values.Append("Yaw: " + Math.Round(YawInput, 2) + "\n");
-                values.Append("Roll: " + Math.Round(RollInput, 2) + "\n");
-                values.Append("Pitch: " + Math.Round(PitchInput, 2) + "\n");
                 //values.Append("DeltaCurse1: " + Math.Round(DeltaCurse1, 2) + "\n");
                 //values.Append("DeltaCurse2: " + Math.Round(DeltaCurse2, 2) + "\n");
 
@@ -1334,7 +1396,9 @@ namespace KROTIK_A1M
                 //values.Append("OldCurse: " + Math.Round(OldCurse, 2) + "\n");
                 //values.Append("HorizontSpeed: " + Math.Round(HorizontSpeed, 2) + "\n");
                 //values.Append("ZTaskSpeed: " + Math.Round(ZTaskSpeed, 2) + "\n");
-
+                //values.Append("Yaw: " + Math.Round(YawInput, 2) + "\n");
+                //values.Append("Roll: " + Math.Round(RollInput, 2) + "\n");
+                //values.Append("Pitch: " + Math.Round(PitchInput, 2) + "\n");
 
                 //values.Append("CurrentPlanetCentr: " + Math.Round(CurrentPlanetCentr, 2) + "\n");
                 //values.Append("planeta_target: " + Math.Round(planeta_target, 2) + "\n");
