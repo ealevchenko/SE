@@ -60,6 +60,7 @@ namespace OSS_BM_DORS
             space_reactor_module_left2 = 6,
             space_ice_module_right1 = 7,
             space_ice_module_right2 = 8,
+            cargo_module_space = 9,
         }
         public enum door_transition : int
         {
@@ -74,10 +75,10 @@ namespace OSS_BM_DORS
 
         }
 
-        // door [door-gateway] [space_ice_module_right1] [space]
-        // sn [door-gateway] [space_ice_module_right1] [space]
-        // door [door-gateway] [space_ice_module_right1] [ice_module_right]
-        // sn [door-gateway] [space_ice_module_right1] [ice_module_right]
+        // door [door-gateway] [cargo_module_space] [space]
+        // sn [door-gateway] [cargo_module_space] [space]
+        // door [door-gateway] [cargo_module_space] [cargo_module]
+        // sn [door-gateway] [cargo_module_space] [cargo_module]
 
         // sn [door-transition] [ice_energy_module_right2] [energy_module_right]
         // sn [door-transition] [ice_energy_module_right2] [ice_module_right]
