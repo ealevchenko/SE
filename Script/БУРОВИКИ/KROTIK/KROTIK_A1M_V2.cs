@@ -15,11 +15,11 @@ using VRageMath;
 /// <summary>
 /// v4.0
 /// </summary>
-namespace KROTIK_A1M1
+namespace KROTIK_A1M_V2
 {
     public sealed class Program : MyGridProgram
     {
-        // v4.0
+        // m.v2
         string NameObj = "[KROTIK_A1]";
         string NameCockpit = "[KROTIK_A1]-Промышленный кокпит [LCD]";
         string NameRemoteControl = "[KROTIK_A1]-ДУ Парковка";
@@ -580,8 +580,10 @@ namespace KROTIK_A1M1
             IMyCameraBlock camera_course;
             List<IMyThrust> thrusts = new List<IMyThrust>();
             List<IMyGyro> gyros = new List<IMyGyro>();
-            public bool compensate { get; private set; } = false;
-            public bool horizont { get; private set; } = false;
+            public bool compensate { get; private set; } = false;   // компенсируем вес
+            public bool horizont { get; private set; } = false;     // держим горизонтальное направление
+            public bool target { get; private set; } = false;       // рыскать на цель
+
             public bool height { get; private set; } = false;
             public bool curse { get; private set; } = false;
 
@@ -623,7 +625,6 @@ namespace KROTIK_A1M1
             public Vector3D? TaskVector = null;
             public Vector3D? TackTarget { get; private set; }               // Точка прицеливания
             public Vector3D? TackTargetCalcPoint { get; private set; }      // Расчетная точка растояния к вектору (от центра к точке прицеливания)
-            public Vector3D? TackTargetAimingPoint { get; private set; }    // Расчетная точка прицеливания с вектор от точки растояния + ... метров
             public double TaskHeight { get; private set; } = 0;
             public double TaskCurse { get; private set; } = 0;
             public double CurrentHeightPlanetCentr { get; private set; }    // Текущая высота относительно центра земли
@@ -733,7 +734,7 @@ namespace KROTIK_A1M1
                     GyroOver(horizont);
                     if (compensate)
                     {
-                        CompensateWeight(clear_velocity);
+                        CompensateWeight();
                     }
                     if (horizont)
                     {
@@ -801,8 +802,6 @@ namespace KROTIK_A1M1
             }
             public void Update()
             {
-
-
                 GravityVector = remote_control.GetNaturalGravity();
                 PhysicalMass = remote_control.CalculateShipMass().PhysicalMass;
                 ShipWeight = GravityVector * PhysicalMass;
@@ -813,11 +812,50 @@ namespace KROTIK_A1M1
                 ForwVelocityVector = remote_control.WorldMatrix.Forward * Vector3D.Dot(VelocityVector, remote_control.WorldMatrix.Forward);
                 LeftVelocityVector = remote_control.WorldMatrix.Left * Vector3D.Dot(VelocityVector, remote_control.WorldMatrix.Left);
                 LinearVelocity = remote_control.GetShipVelocities().LinearVelocity;
-
-                //CurrentPosition = remote_control.GetPosition();
                 CurrentHeightPlanetCentr = (PlanetCentr - MyPos).Length();
-
-                //remote_control.GetShipSpeed();
+                //На рыскание просто отправляем сигнал рыскания с контроллера. Им мы будем управлять вручную если не указан вектр.
+                YawInput = 0;
+                if (TackTarget != null)
+                {
+                    if (target)
+                    {
+                        //TaskVector = (Vector3D)TackTarget - MyPos;
+                        TaskVector = GetTackTargetCalcVector((Vector3D)TackTarget);
+                        //вектор на точку
+                        Vector3D T = Vector3D.Normalize((Vector3D)TaskVector);
+                        //Рысканием прицеливаемся на точку Target.
+                        double tF = T.Dot(remote_control.WorldMatrix.Forward);
+                        double tL = T.Dot(remote_control.WorldMatrix.Left);
+                        YawInput = -(float)Math.Atan2(tL, tF);
+                    }
+                }
+                else
+                {
+                    if (remote_control.IsUnderControl)
+                    {
+                        YawInput = remote_control.RotationIndicator.Y;
+                    }
+                    else if (cockpit.IsUnderControl)
+                    {
+                        YawInput = cockpit._obj.RotationIndicator.Y;
+                    }
+                }
+                // Контроль высоты
+                DeltaHeight = CurrentHeightPlanetCentr - TaskHeight;
+                VerticalSpeedTick = (CurrentHeightPlanetCentr - OldHeight);
+                VerticalSpeed = VerticalSpeedTick * 6; // Вертикальная скорость
+                OldHeight = CurrentHeightPlanetCentr;
+                TaskVerticalSpeed = (float)Math.Sqrt(2 * Math.Abs(DeltaHeight) * GravityVector.Length()) / 2; // Определим скорость
+                // Контроль курса приближения
+                if (TackTarget != null)
+                {
+                    Vector3D VectorShipTarget = GetTackTargetCalcVector((Vector3D)TackTarget);
+                    DeltaCurse = (VectorShipTarget).Length();
+                    HorizontSpeedTick = ForwVelocityVector.Length() / 6;
+                    HorizontSpeed = ForwVelocityVector.Length(); // Вертикальная скорость
+                    OldCurse = DeltaCurse;
+                    TaskHorizontSpeed = (float)Math.Sqrt(2 * Math.Abs(DeltaCurse) * GravityVector.Length()) / 5;// Определим скорость
+                }
                 // Орентация коробля
                 Matrix CPMatrix = new MatrixD();
                 Matrix ThrusterMatrix = new MatrixD();
@@ -861,8 +899,8 @@ namespace KROTIK_A1M1
                         BackwardThrMax += thrust.MaxEffectiveThrust;
                     }
                 }
-
             }
+
             public Vector3D GetTackTargetCalcVector(Vector3D TackTarget)
             {
                 Vector3D VectorTarget = PlanetCentr - (Vector3D)TackTarget;
@@ -882,191 +920,6 @@ namespace KROTIK_A1M1
             public Vector3D GetTackTargetAimingPoint(Vector3D TackTarget)
             {
                 return GetTackTargetAimingVector(TackTarget) + MyPos;
-            }
-            public bool ControlCurse()
-            {
-                if (TackTarget != null)
-                {
-                    //move1 = "1";
-                    //1
-                    ////Вектор вертикали, проходящий через точку
-                    //Vector3D VerticalVector = (Vector3D)TackTarget - PlanetCentr;
-                    ////Нормализация вертикали
-                    //Vector3D VerticalNorm = Vector3D.Normalize(VerticalVector);
-                    ////Разница
-                    //double DeltaHeight = CurrentHeightPlanetCentr - TaskHeight;
-                    ////Расчет новой точки
-                    //Vector3D CalcTarge = (Vector3D)TackTarget + VerticalNorm * DeltaHeight;
-                    //DeltaCurse1 = (CalcTarge - MyPos).Length();
-                    //2
-                    //Vector3D VectorTarget = PlanetCentr - (Vector3D)TackTarget;
-                    //Vector3D VectorShip = PlanetCentr - MyPos;
-                    //Vector3D VectorShipTarget = Vector3D.Reject(VectorTarget, Vector3D.Normalize(VectorShip));
-                    Vector3D VectorShipTarget = GetTackTargetCalcVector((Vector3D)TackTarget);
-                    Vector3D VectorShipTargetNew = VectorShipTarget + (Vector3D.Normalize(VectorShipTarget) * 100);
-
-                    DeltaCurse = (VectorShipTarget).Length();
-                    //DeltaCurse = ((Vector3D)TackTarget - MyPos).Length();
-                    HorizontSpeedTick = ForwVelocityVector.Length() / 6; // (OldCurse - DeltaCurse);
-                    HorizontSpeed = ForwVelocityVector.Length(); //VerticalSpeedTick * 6; // Вертикальная скорость
-                    OldCurse = DeltaCurse;
-                    // Определим скорость
-                    TaskHorizontSpeed = (float)Math.Sqrt(2 * Math.Abs(DeltaCurse) * GravityVector.Length()) / 5;
-                    if (DeltaCurse > 0f && DeltaCurse < 1f && HorizontSpeed >= 0 && HorizontSpeed < 1f)
-                    {
-                        // стоп попали
-                        move_fb = "STOP";
-                        //compensate = false;
-                        //curse = false;
-                        //clear_velocity = true;
-                        return true;
-                    }
-                    else
-                    {
-                        if (Math.Abs(HorizontSpeed) < TaskHorizontSpeed - HorizontSpeedTick)
-                        {
-                            // разгон
-                            //Backward((float)(TaskHorizontSpeed - Math.Abs(HorizontSpeed)) / TaskHorizontSpeed); // разгон вверх
-                            if (TaskHorizontSpeed > 10 || DeltaCurse < 50)
-                            {
-                                ForwardBackward(1.0f, false);
-                            }
-                            else { ForwardBackward(0.3f, false); }
-                        }
-                        else if (Math.Abs(HorizontSpeed) > TaskHorizontSpeed)
-                        {
-                            // тормоз
-                            if (TaskHorizontSpeed > 10 || DeltaCurse > 50)
-                            {
-                                ForwardBackward(-1.0f, false);
-                            }
-                            else { ForwardBackward(-0.3f, false); }
-                        }
-                        else
-                        {
-                            // летим с компенсацией
-                            move_fb = "COMPENSATE";
-                        }
-                    }
-
-                }
-                return false;
-            }
-            public bool ControlHeight()
-            {
-                DeltaHeight = CurrentHeightPlanetCentr - TaskHeight;
-                VerticalSpeedTick = (CurrentHeightPlanetCentr - OldHeight);
-                VerticalSpeed = VerticalSpeedTick * 6; // Вертикальная скорость
-                OldHeight = CurrentHeightPlanetCentr;
-                // Определим скорость
-                TaskVerticalSpeed = (float)Math.Sqrt(2 * Math.Abs(DeltaHeight) * GravityVector.Length()) / 2;
-                if (DeltaHeight > -0.6f && DeltaHeight < 0.6f && VerticalSpeed >= -0.6 && VerticalSpeed < 0.6f)
-                {
-                    // стоп попали
-                    move_ud = "STOP";
-                    //compensate = false;
-                    //height = false;
-                    //clear_velocity = true;
-                    return true;
-                }
-                else
-                {
-                    if (VerticalSpeed < 0.6f)
-                    {
-                        // летим вниз
-                        if (DeltaHeight < 0.6f)
-                        {
-                            // а, надо вверх - ТОРМОЗИМ
-                            //Down(1f);
-                            if (TaskVerticalSpeed < 10f || Math.Abs(DeltaHeight) < 100f)
-                            {
-                                UpDown(0.3f, false);
-
-                            }
-                            else { UpDown(1.0f, false); }
-                        }
-                        else
-                        {
-                            if (Math.Abs(VerticalSpeed) < TaskVerticalSpeed - Math.Abs(VerticalSpeedTick))
-                            {
-                                // разгон
-                                UpDown((float)-(TaskVerticalSpeed - Math.Abs(VerticalSpeed)) / TaskVerticalSpeed, false); // разгон вверх
-                            }
-                            else if (Math.Abs(VerticalSpeed) > TaskVerticalSpeed)
-                            {
-                                // тормоз
-                                if (TaskVerticalSpeed < 10f || Math.Abs(DeltaHeight) < 100f)
-                                {
-                                    UpDown(0.3f, false);
-                                }
-                                else { UpDown(1.0f, false); }
-                            }
-                            else
-                            {
-                                // летим с компенсацией
-                                move_ud = "COMPENSATE";
-                            }
-                        }
-                    }
-                    else if (VerticalSpeed > 0.6f)
-                    {
-                        // летим вверх
-                        if (DeltaHeight > 0.6f)
-                        {
-                            // а, надо вниз - ТОРМОЗИМ
-                            if (TaskVerticalSpeed < 10f || Math.Abs(DeltaHeight) < 100f)
-                            {
-                                UpDown(-0.3f, false);
-                            }
-                            else { UpDown(-1.0f, false); }
-                        }
-                        else
-                        {
-                            if (Math.Abs(VerticalSpeed) < TaskVerticalSpeed - Math.Abs(VerticalSpeedTick))
-                            {
-                                // разгон
-                                //Down((float)(YTaskSpeed - Math.Abs(VerticalSpeed)) / YTaskSpeed); // разгон вверх
-                                if (TaskVerticalSpeed > 10f || Math.Abs(DeltaHeight) > 100f)
-                                {
-                                    Down(1.0f); // разгон вверх
-                                }
-                                else
-                                {
-                                    Down(0.3f); // разгон вверх
-                                }
-                            }
-                            else if (Math.Abs(VerticalSpeed) > TaskVerticalSpeed)
-                            {
-                                // тормоз
-                                //Up(1f);
-                                if (TaskVerticalSpeed > 10f || Math.Abs(DeltaHeight) > 100f)
-                                {
-                                    Up(1f);
-                                }
-                                else { Down(0.3f); }
-                            }
-                            else
-                            {
-                                // летим с компенсацией
-                                move_ud = "COMPENSATE";
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if (DeltaHeight < 0.6f)
-                        {
-                            // вверх
-                            Down(0.3f);
-                        }
-                        else if (DeltaHeight > 0.6f)
-                        {
-                            // Вниз
-                            Up(0.3f);
-                        }
-                    }
-                }
-                return false;
             }
             public void ForwardBackward(float power, bool clear)
             {
@@ -1134,100 +987,9 @@ namespace KROTIK_A1M1
                 VelocityThrust = GravityVector * ShipWeight * LinearVelocity;
                 ShipWeight = GravityVector * PhysicalMass;
                 RLVelocityThrust = GravityVector * ShipWeight * LinearVelocity * KVRL;
-                //
-                //if (clear_velocity)
-                //{
-                //    if (LinearVelocity.Length() > 0.6)
-                //    {
-                //        clear_velocity = false;
-                //        compensate = false;
-                //    }
-
-                //    //if (!height) HeightVelocityThrust = VelocityThrust * KVUD;
-                //    //if (!curse) CurseVelocityThrust = VelocityThrust * KVFB;
-                //}
 
                 LeftThrust = (ShipWeight + RLVelocityThrust).Dot(remote_control.WorldMatrix.Left);
                 RightThrust = -LeftThrust;
-                if (height)
-                {
-                    res_h = ControlHeight();
-                }
-                if (curse)
-                {
-                    res_c = ControlCurse();
-                }
-                if (res_h && res_c)
-                {
-                    clear_velocity = true;
-                    height = false;
-                    curse = false;
-                }
-
-                Matrix ThrusterMatrix = new MatrixD();
-                foreach (IMyThrust thrust in thrusts)
-                {
-                    thrust.Orientation.GetMatrix(out ThrusterMatrix);
-                    //Y
-                    if (ThrusterMatrix.Forward == CockpitMatrix.Up)
-                    {
-                        thrust.ThrustOverridePercentage = (float)(UpThrust / UpThrMax);
-                    }
-                    else if (ThrusterMatrix.Forward == CockpitMatrix.Down)
-                    {
-                        thrust.ThrustOverridePercentage = (float)(DownThrust / DownThrMax);
-                    }
-                    //X
-                    else if (ThrusterMatrix.Forward == CockpitMatrix.Left)
-                    {
-                        thrust.ThrustOverridePercentage = (float)(LeftThrust / LeftThrMax);
-                    }
-                    else if (ThrusterMatrix.Forward == CockpitMatrix.Right)
-                    {
-                        thrust.ThrustOverridePercentage = (float)(RightThrust / RightThrMax);
-                    }
-                    //Z
-                    else if (ThrusterMatrix.Forward == CockpitMatrix.Forward)
-                    {
-                        thrust.ThrustOverridePercentage = (float)(ForwardThrust / ForwardThrMax);
-                    }
-                    else if (ThrusterMatrix.Forward == CockpitMatrix.Backward)
-                    {
-                        thrust.ThrustOverridePercentage = (float)(BackwardThrust / BackwardThrMax);
-                    }
-                }
-            }
-            public void CompensateWeight(bool clear_velocity)
-            {
-                bool res_h = false;
-                bool res_c = false;
-                Vector3D VelocityThrust = new Vector3D();
-                Vector3D HeightVelocityThrust = new Vector3D();
-                Vector3D CurseVelocityThrust = new Vector3D();
-                Vector3D RLVelocityThrust = new Vector3D();
-
-                ShipWeight = GravityVector * PhysicalMass;
-                RLVelocityThrust = GravityVector * ShipWeight * LinearVelocity * KVRL;
-                //
-                if (clear_velocity)
-                {
-                    if (LinearVelocity.Length() > 0.6)
-                    {
-                        clear_velocity = false;
-                        compensate = false;
-                    }
-
-                    if (!height) HeightVelocityThrust = VelocityThrust * KVUD;
-                    if (!curse) CurseVelocityThrust = VelocityThrust * KVFB;
-                }
-
-                ForwardThrust = (ShipWeight + CurseVelocityThrust).Dot(remote_control.WorldMatrix.Forward);
-                LeftThrust = (ShipWeight + RLVelocityThrust).Dot(remote_control.WorldMatrix.Left);
-                UpThrust = (ShipWeight + HeightVelocityThrust).Dot(remote_control.WorldMatrix.Up);
-                BackwardThrust = -ForwardThrust;
-                RightThrust = -LeftThrust;
-                DownThrust = -UpThrust;
-
                 if (height)
                 {
                     res_h = ControlHeight();
@@ -1279,40 +1041,13 @@ namespace KROTIK_A1M1
             public void Horizon()
             {
                 Vector3D GravNorm = Vector3D.Normalize(GravityVector);
-                //На рыскание просто отправляем сигнал рыскания с контроллера. Им мы будем управлять вручную если не указан вектр.
-                YawInput = 0;
-                if (TackTarget != null)
-                {
-                    //TaskVector = (Vector3D)TackTarget - MyPos;
-                    TaskVector = GetTackTargetAimingVector((Vector3D)TackTarget);
-                    //TaskVector = GetTackTargetCalcVector((Vector3D)TackTarget);
-                    //вектор на точку
-                    Vector3D T = Vector3D.Normalize((Vector3D)TaskVector);
-                    //Рысканием прицеливаемся на точку Target.
-                    double tF = T.Dot(remote_control.WorldMatrix.Forward);
-                    double tL = T.Dot(remote_control.WorldMatrix.Left);
-                    YawInput = -(float)Math.Atan2(tL, tF);
-                }
                 //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
                 double gF = GravNorm.Dot(remote_control.WorldMatrix.Forward);
                 double gL = GravNorm.Dot(remote_control.WorldMatrix.Left);
                 double gU = GravNorm.Dot(remote_control.WorldMatrix.Up);
-
                 //Получаем сигналы по тангажу и крены операцией atan2
                 RollInput = (float)Math.Atan2(gL, -gU); // крен
                 PitchInput = -(float)Math.Atan2(gF, -gU); // тангаж
-
-                if (TaskVector == null)
-                {
-                    if (remote_control.IsUnderControl)
-                    {
-                        YawInput = remote_control.RotationIndicator.Y;
-                    }
-                    else if (cockpit.IsUnderControl)
-                    {
-                        YawInput = cockpit._obj.RotationIndicator.Y;
-                    }
-                }
                 SetGyro(YawInput, PitchInput, RollInput);
             }
             public void Target(Vector3D target)
