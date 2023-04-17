@@ -44,12 +44,14 @@ namespace OSS_BM_DORS
             energy_module_left = 4, // энерг. мод
             energy_module_right = 5,// энерг. мод
             cargo_module = 6,       // груз. мод
-            work_module = 7,            //  произв. мод
+            habitation_module = 7,      //  жилой. мод
             reactor_module_left = 8,    // энерг. мод реактор
             ice_module_right = 9,        // энерг. мод реактор
+            waiting_hall = 10,        // Зал ожидания
+            gateway_module = 11,        // Зал ожидания
         };
-        public static string[] name_room = { "", "Кабина", "Выход в космос", "Операторская", "Энерго-модуль", "Энерго-модуль", "Грузовой модуль", "Производственный модуль", "Ядерный реактор", "Склад льда" };
-        public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+        public static string[] name_room = { "", "Кабина", "Выход в космос", "Операторская", "Энерго-модуль", "Энерго-модуль", "Рабочий модуль", "Жилой модуль", "Ядерный реактор", "Склад льда", "Зал ожидания", "Шлюзовой модуль" };
+        public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0};
         public enum doors_gareways : int
         {
             cabin_space = 1,
@@ -61,10 +63,12 @@ namespace OSS_BM_DORS
             space_ice_module_right1 = 7,
             space_ice_module_right2 = 8,
             cargo_module_space = 9,
+            space_habitation_module1 = 10,
+            space_habitation_module4 = 11,
         }
         public enum door_transition : int
         {
-            operators_work_module = 0,
+            operators_habitation_module = 0,
             operators_cabin = 1,
             cabin_energy_module_left = 2,
             cabin_energy_module_right = 3,
@@ -72,17 +76,20 @@ namespace OSS_BM_DORS
             reactor_energy_module_left2 = 5,
             ice_energy_module_right1 = 6,
             ice_energy_module_right2 = 7,
-
+            waiting_hall_habitation_module1 = 8,
+            waiting_hall_habitation_module2 = 9,
+            waiting_hall_gateway_module1 = 10,
+            waiting_hall_gateway_module2 = 11,
         }
 
-        // door [door-gateway] [cargo_module_space] [space]
-        // sn [door-gateway] [cargo_module_space] [space]
-        // door [door-gateway] [cargo_module_space] [cargo_module]
-        // sn [door-gateway] [cargo_module_space] [cargo_module]
+        // door [door-gateway] [space_habitation_module4] [habitation_module]
+        // sn [door-gateway] [space_habitation_module4] [habitation_module]
+        // door [door-gateway] [space_habitation_module4] [space]
+        // sn [door-gateway] [space_habitation_module4] [space]
 
-        // sn [door-transition] [ice_energy_module_right2] [energy_module_right]
-        // sn [door-transition] [ice_energy_module_right2] [ice_module_right]
-        // door [door-transition] [ice_energy_module_right2]
+        // sn [door-transition] [waiting_hall_gateway_module1] [waiting_hall]
+        // sn [door-transition] [waiting_hall_gateway_module1] [gateway_module]
+        // door [door-transition] [waiting_hall_gateway_module1]
 
         // sn [door-transition] [cabin_energy_module_right] [energy_module_right]
         // sn [door-transition] [cabin_energy_module_right] [cabin]
