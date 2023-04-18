@@ -1016,10 +1016,10 @@ namespace KROTIK_A1M
                 }
                 else
                 {
-                    if (VerticalSpeed < 0.6f)
+                    if (VerticalSpeed < -0.6f)
                     {
                         // летим вниз
-                        if (DeltaHeight < 0.6f)
+                        if (DeltaHeight < -0.6f)
                         {
                             // а, надо вверх - ТОРМОЗИМ
                             //Down(1f);
