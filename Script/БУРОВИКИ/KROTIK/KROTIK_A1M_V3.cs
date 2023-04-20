@@ -10,6 +10,7 @@ using System.Linq;
 using System.Runtime.Remoting.Messaging;
 using System.Text;
 using System.Threading.Tasks;
+using System.Timers;
 using VRage.Game.ModAPI.Ingame;
 using VRageMath;
 /// <summary>
@@ -621,6 +622,8 @@ namespace KROTIK_A1M_V3
             public double DownThrust { get; private set; } = 0;
             //---------------------------------------------------------
             public float YawInput { get; private set; } = 0;
+            public float YawTarget { get; private set; } = 0;
+            public float YawVector { get; private set; } = 0;
             public float RollInput { get; private set; } = 0;
             public float PitchInput { get; private set; } = 0;
 
@@ -628,8 +631,8 @@ namespace KROTIK_A1M_V3
             public float KVFB { get; private set; } = 0.2f;                 // Коэф. гашения вперед\назад
             public float KVUD { get; private set; } = 0.2f;                 // Коэф. гашения вверх\вниз
 
-            public Vector3D? TaskVector = null;
-            public Vector3D? TackTarget { get; private set; }               // Точка прицеливания
+            public Vector3D? TaskVector { get; private set; } = null;       // Вектор направления (лететь по курсу)
+            public Vector3D? TackTarget { get; private set; } = null;       // Точка прицеливания (лететь на точку)
             public Vector3D? TackTargetCalcPoint { get; private set; }      // Расчетная точка растояния к вектору (от центра к точке прицеливания)
 
             public Vector3D PlanetCentr = new Vector3D(0.50, 0.50, 0.50);
@@ -686,6 +689,18 @@ namespace KROTIK_A1M_V3
             {
                 SetThrustOverridePersent(0f, 0f, 0f, 0f, 0f, 0f);
             }
+            public float getPitch()
+            {
+                return gyros.Select(g => g.Pitch).Average();
+            }
+            public float getRoll()
+            {
+                return gyros.Select(g => g.Roll).Average();
+            }
+            public float getYaw()
+            {
+                return gyros.Select(g => g.Yaw).Average();
+            }
             public void SetGyro(float Yaw, float Pitch, float Roll)
             {
                 foreach (IMyGyro gyro in gyros)
@@ -723,26 +738,25 @@ namespace KROTIK_A1M_V3
                 VelocityThrust = GravityVector * ShipWeight * LinearVelocity;
                 //CurrentHeightPlanetCentr = (PlanetCentr - MyPos).Length();
                 // Рыскание на точку
-                YawInput = 0;
+                YawTarget = 0;
                 if (TackTarget != null)
                 {
                     Vector3D T = Vector3D.Normalize((Vector3D)TackTarget - MyPos);
                     //Рысканием прицеливаемся на точку Target.
                     double tF = T.Dot(remote_control.WorldMatrix.Forward);
                     double tL = T.Dot(remote_control.WorldMatrix.Left);
-                    YawInput = -(float)Math.Atan2(tL, tF);
+                    YawTarget = -(float)Math.Atan2(tL, tF);
                 }
-                else if (!take_aim)
+                YawVector = 0;
+                if (TaskVector != null)
                 {
-                    if (remote_control.IsUnderControl)
-                    {
-                        YawInput = remote_control.RotationIndicator.Y;
-                    }
-                    else if (cockpit.IsUnderControl)
-                    {
-                        YawInput = cockpit._obj.RotationIndicator.Y;
-                    }
+                    Vector3D T = (Vector3D)TaskVector;
+                    //Рысканием прицеливаемся на точку Target.
+                    double tF = T.Dot(remote_control.WorldMatrix.Forward);
+                    double tL = T.Dot(remote_control.WorldMatrix.Left);
+                    YawVector = -(float)Math.Atan2(tL, tF);
                 }
+
                 // Орентация коробля
                 Matrix CPMatrix = new MatrixD();
                 Matrix ThrusterMatrix = new MatrixD();
@@ -787,9 +801,20 @@ namespace KROTIK_A1M_V3
                     }
                 }
             }
+            // Прицелится
             public void TakeAim()
             {
-
+                if (TackTarget != null) // Точка задана ?
+                {
+                    horizont = true;
+                    if (getPitch() != 0.0f || getYaw() != 0.0f || getRoll() != 0.0f)
+                    {
+                        if (Math.Abs(getPitch()) + Math.Abs(getYaw()) + Math.Abs(getRoll()) < 0.01f)
+                        {
+                            take_aim = false;
+                        }
+                    }
+                }
             }
             public Vector3D GetTackTargetCalcVector(Vector3D TackTarget)
             {
@@ -867,13 +892,36 @@ namespace KROTIK_A1M_V3
                 //Получаем сигналы по тангажу и крены операцией atan2
                 RollInput = (float)Math.Atan2(gL, -gU); // крен
                 PitchInput = -(float)Math.Atan2(gF, -gU); // тангаж
+                if (!take_aim && !fly_course)
+                {
+                    YawInput = 0;
+                    if (remote_control.IsUnderControl)
+                    {
+                        YawInput = remote_control.RotationIndicator.Y;
+                    }
+                    else if (cockpit.IsUnderControl)
+                    {
+                        YawInput = cockpit._obj.RotationIndicator.Y;
+                    }
+                }
+                else if (take_aim)
+                {
+                    YawInput = YawTarget;
+                }
+                if (fly_course)
+                {
+                    YawInput = YawVector;
+                }
+                else {
+                    YawInput = 0;
+                }
                 SetGyro(YawInput, PitchInput, RollInput);
             }
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("СКОРОСТЬ   : " + Math.Round(remote_control.GetShipSpeed(), 2) + "\n");
-                values.Append("ГОРИЗОНТ   : " + (horizont ? "ВКЛ" : "ВЫК") + "\n");
+                values.Append("ГОРИЗОНТ   : " + (horizont ? "ВКЛ" : "ВЫК") + "\tT : " + (take_aim ? "ВКЛ" : "ВЫК") + "\tV : " + (fly_course ? "ВКЛ" : "ВЫК") + "\n");
                 values.Append("КОМПЕНСАЦИЯ: " + (compensate ? "ВКЛ" : "ВЫК") + "\n");
                 values.Append("К.ВЫСОТЫ   : " + (height ? "ВКЛ" : "ВЫК") + "\n");
                 values.Append("К.КУРСА    : " + (curse ? "ВКЛ" : "ВЫК") + "\n");
@@ -888,11 +936,13 @@ namespace KROTIK_A1M_V3
                 //values.Append("GravityVector: " + Math.Round(GravityVector.Length(), 2) + "\n");
                 //values.Append("PhysicalMass: " + Math.Round(PhysicalMass, 2) + "\n");
                 //values.Append("ShipWeight: " + Math.Round(ShipWeight.Length(), 2) + "\n");
-                values.Append("LeftV : " + Math.Round(LeftVelocityVector.Length(), 2) + "\n");
-                values.Append("Yaw: " + Math.Round(YawInput, 2) + "\n");
-                values.Append("Roll: " + Math.Round(RollInput, 2) + "\n");
-                values.Append("Pitch: " + Math.Round(PitchInput, 2) + "\n");
-
+                //values.Append("LeftV : " + Math.Round(LeftVelocityVector.Length(), 2) + "\n");
+                values.Append("Yaw-target  : " + Math.Round(YawTarget, 2) + "\n");
+                values.Append("Yaw-curse   : " + Math.Round(YawTarget, 2) + "\n");
+                values.Append("Yaw         : " + Math.Round(YawInput, 2) + "\n");
+                values.Append("Roll        : " + Math.Round(RollInput, 2) + "\n");
+                values.Append("Pitch       : " + Math.Round(PitchInput, 2) + "\n");
+                values.Append("-----------------------------------------------\n");
                 values.Append("UP       : " + PText.GetThrust((float)UpThrust) + "\t, MAX : " + PText.GetThrust((float)UpThrMax) + "\n");
                 values.Append("DOWN     : " + PText.GetThrust((float)DownThrust) + "\t, MAX : " + PText.GetThrust((float)DownThrMax) + "\n");
                 values.Append("Forward  : " + PText.GetThrust((float)ForwardThrust) + "\t, MAX : " + PText.GetThrust((float)ForwardThrMax) + "\n");
