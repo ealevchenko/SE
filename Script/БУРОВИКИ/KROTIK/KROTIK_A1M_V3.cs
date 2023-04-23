@@ -881,10 +881,12 @@ namespace KROTIK_A1M_V3
 
                     }
                 }
-                if (curent_mode == mode.fly_horizont && FlyHorizont()) {
+                if (curent_mode == mode.fly_horizont && FlyHorizont())
+                {
                     curent_mode = mode.fly;
                 }
-                if (curent_mode == mode.fly_curse && FlyCurse()) {
+                if (curent_mode == mode.fly_curse && FlyCurse())
+                {
                     curent_mode = mode.fly;
                 }
                 if (curent_mode == mode.fly)
@@ -931,9 +933,9 @@ namespace KROTIK_A1M_V3
                 if (TackTarget != null) // Точка задана ?
                 {
                     horizont = true;
-                    if (getPitch() != 0.0f || getYaw() != 0.0f || getRoll() != 0.0f)
+                    if (YawTarget != 0.0f)
                     {
-                        if (Math.Abs(getPitch()) + Math.Abs(getYaw()) + Math.Abs(getRoll()) < 0.01f)
+                        if (Math.Abs(YawTarget) < 0.01f)
                         {
                             aim_point = false;
                         }
@@ -947,15 +949,17 @@ namespace KROTIK_A1M_V3
                 {
 
                 }
-                else {
+                else
+                {
                     if (DeltaHeight < -MinHeight)
                     {
                         if (DeltaHeight < -MinDeltaHeight)
                         {
 
                         }
-                        else { 
-                        
+                        else
+                        {
+
                         }
 
                         //// а, надо вверх - ТОРМОЗИМ
@@ -967,106 +971,104 @@ namespace KROTIK_A1M_V3
                         //}
                         //else { UpDown(1.0f, false); }
                     }
-                    else if (DeltaHeight > MinHeight){ 
-                    
-                    
-                    }
-
-
-
-                    if (VerticalSpeed < -minVerticalSpeed)
+                    else if (DeltaHeight > MinHeight)
                     {
-                        // летим вниз
-                        if (DeltaHeight < -minDeltaHeight)
-                        {
-                            // а, надо вверх - ТОРМОЗИМ
-                            if (TaskVerticalSpeed < 10f || Math.Abs(DeltaHeight) < 100f)
-                            {
-                                UpDown(0.3f, false);
-                                //UpDown(0.0f, true);
 
-                            }
-                            else { UpDown(1.0f, false); }
-                        }
-                        else
-                        {
-                            if (Math.Abs(VerticalSpeed) < TaskVerticalSpeed - Math.Abs(VerticalSpeedTick))
-                            {
-                                // разгон
-                                UpDown((float)-(TaskVerticalSpeed - Math.Abs(VerticalSpeed)) / TaskVerticalSpeed, false); // разгон вверх
-                            }
-                            else if (Math.Abs(VerticalSpeed) > TaskVerticalSpeed)
-                            {
-                                // тормоз
-                                if (TaskVerticalSpeed < 10f || Math.Abs(DeltaHeight) < 100f)
-                                {
-                                    UpDown(0.3f, false);
-                                    //UpDown(0.0f, true);
-                                }
-                                else { UpDown(1.0f, false); }
-                            }
-                            else
-                            {
-                                move_ud = "COMPENSATE";// летим с компенсацией
-                            }
-                        }
-                    }
-                    else if (VerticalSpeed > minVerticalSpeed)
-                    {
-                        // летим вверх
-                        if (DeltaHeight > minDeltaHeight)
-                        {
-                            // а, надо вниз - ТОРМОЗИМ
-                            if (TaskVerticalSpeed < 10f || Math.Abs(DeltaHeight) < 100f)
-                            {
-                                UpDown(-0.3f, false);
-                                //UpDown(0.0f, true);
-                            }
-                            else { UpDown(-1.0f, false); }
-                        }
-                        else
-                        {
-                            if (Math.Abs(VerticalSpeed) < TaskVerticalSpeed - Math.Abs(VerticalSpeedTick))
-                            {
-                                // разгон
-                                //Down((float)(YTaskSpeed - Math.Abs(VerticalSpeed)) / YTaskSpeed); // разгон вверх
-                                if (TaskVerticalSpeed < 10f || Math.Abs(DeltaHeight) < 100f)
-                                {
-                                    UpDown(0.3f, false);// разгон вверх
-                                }
-                                else
-                                {
-                                    UpDown(1.0f, false);// разгон вверх
-                                }
-                            }
-                            else if (Math.Abs(VerticalSpeed) > TaskVerticalSpeed)
-                            {
-                                // тормоз
 
-                                if (TaskVerticalSpeed < 10f || Math.Abs(DeltaHeight) < 100f)
-                                {
-                                    UpDown(-0.3f, false);
-                                    //UpDown(0.0f, true);
-                                }
-                                else { UpDown(-1.0f, false); }
-                            }
-                            else
-                            {
-                                move_ud = "COMPENSATE";// летим с компенсацией
-                            }
-                        }
                     }
-                    else
-                    {
-                        if (DeltaHeight < -minDeltaHeight)
-                        {
-                            UpDown(0.3f, false);// вверх
-                        }
-                        else if (DeltaHeight > minDeltaHeight)
-                        {
-                            UpDown(-0.3f, false);// Вниз
-                        }
-                    }
+                    //if (VerticalSpeed < -minVerticalSpeed)
+                    //{
+                    //    // летим вниз
+                    //    if (DeltaHeight < -minDeltaHeight)
+                    //    {
+                    //        // а, надо вверх - ТОРМОЗИМ
+                    //        if (TaskVerticalSpeed < 10f || Math.Abs(DeltaHeight) < 100f)
+                    //        {
+                    //            UpDown(0.3f, false);
+                    //            //UpDown(0.0f, true);
+
+                    //        }
+                    //        else { UpDown(1.0f, false); }
+                    //    }
+                    //    else
+                    //    {
+                    //        if (Math.Abs(VerticalSpeed) < TaskVerticalSpeed - Math.Abs(VerticalSpeedTick))
+                    //        {
+                    //            // разгон
+                    //            UpDown((float)-(TaskVerticalSpeed - Math.Abs(VerticalSpeed)) / TaskVerticalSpeed, false); // разгон вверх
+                    //        }
+                    //        else if (Math.Abs(VerticalSpeed) > TaskVerticalSpeed)
+                    //        {
+                    //            // тормоз
+                    //            if (TaskVerticalSpeed < 10f || Math.Abs(DeltaHeight) < 100f)
+                    //            {
+                    //                UpDown(0.3f, false);
+                    //                //UpDown(0.0f, true);
+                    //            }
+                    //            else { UpDown(1.0f, false); }
+                    //        }
+                    //        else
+                    //        {
+                    //            move_ud = "COMPENSATE";// летим с компенсацией
+                    //        }
+                    //    }
+                    //}
+                    //else if (VerticalSpeed > minVerticalSpeed)
+                    //{
+                    //    // летим вверх
+                    //    if (DeltaHeight > minDeltaHeight)
+                    //    {
+                    //        // а, надо вниз - ТОРМОЗИМ
+                    //        if (TaskVerticalSpeed < 10f || Math.Abs(DeltaHeight) < 100f)
+                    //        {
+                    //            UpDown(-0.3f, false);
+                    //            //UpDown(0.0f, true);
+                    //        }
+                    //        else { UpDown(-1.0f, false); }
+                    //    }
+                    //    else
+                    //    {
+                    //        if (Math.Abs(VerticalSpeed) < TaskVerticalSpeed - Math.Abs(VerticalSpeedTick))
+                    //        {
+                    //            // разгон
+                    //            //Down((float)(YTaskSpeed - Math.Abs(VerticalSpeed)) / YTaskSpeed); // разгон вверх
+                    //            if (TaskVerticalSpeed < 10f || Math.Abs(DeltaHeight) < 100f)
+                    //            {
+                    //                UpDown(0.3f, false);// разгон вверх
+                    //            }
+                    //            else
+                    //            {
+                    //                UpDown(1.0f, false);// разгон вверх
+                    //            }
+                    //        }
+                    //        else if (Math.Abs(VerticalSpeed) > TaskVerticalSpeed)
+                    //        {
+                    //            // тормоз
+
+                    //            if (TaskVerticalSpeed < 10f || Math.Abs(DeltaHeight) < 100f)
+                    //            {
+                    //                UpDown(-0.3f, false);
+                    //                //UpDown(0.0f, true);
+                    //            }
+                    //            else { UpDown(-1.0f, false); }
+                    //        }
+                    //        else
+                    //        {
+                    //            move_ud = "COMPENSATE";// летим с компенсацией
+                    //        }
+                    //    }
+                    //}
+                    //else
+                    //{
+                    //    if (DeltaHeight < -minDeltaHeight)
+                    //    {
+                    //        UpDown(0.3f, false);// вверх
+                    //    }
+                    //    else if (DeltaHeight > minDeltaHeight)
+                    //    {
+                    //        UpDown(-0.3f, false);// Вниз
+                    //    }
+                    //}
                 }
                 return false;
             }
@@ -1165,13 +1167,9 @@ namespace KROTIK_A1M_V3
                 {
                     YawInput = YawTarget;
                 }
-                if (aim_vector)
+                else if (aim_vector)
                 {
                     YawInput = YawVector;
-                }
-                else
-                {
-                    YawInput = 0;
                 }
                 SetGyro(YawInput, PitchInput, RollInput);
             }
@@ -1179,12 +1177,12 @@ namespace KROTIK_A1M_V3
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("СКОРОСТЬ   : " + Math.Round(remote_control.GetShipSpeed(), 2) + "\n");
-                values.Append("ГОРИЗОНТ   : " + (horizont ? "ВКЛ" : "ВЫК") + "\tT : " + (aim_point ? "ВКЛ" : "ВЫК") + "\tV : " + (aim_vector ? "ВКЛ" : "ВЫК") + "\n");
+                values.Append("ГОРИЗОНТ   : " + (horizont ? "ВКЛ" : "ВЫК") + ",  T : " + (aim_point ? "ВКЛ" : "ВЫК") + ",  V : " + (aim_vector ? "ВКЛ" : "ВЫК") + "\n");
                 values.Append("КОМПЕНСАЦИЯ: " + (compensate ? "ВКЛ" : "ВЫК") + "\n");
                 values.Append("ПРОГРАММА: " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП: " + name_mode[(int)curent_mode] + "\n");
-                values.Append("К.ВЫСОТЫ   : " + (height ? "ВКЛ" : "ВЫК") + "\n");
-                values.Append("К.КУРСА    : " + (curse ? "ВКЛ" : "ВЫК") + "\n");
+                //values.Append("К.ВЫСОТЫ   : " + (height ? "ВКЛ" : "ВЫК") + "\n");
+                //values.Append("К.КУРСА    : " + (curse ? "ВКЛ" : "ВЫК") + "\n");
                 values.Append("СБРОС      : " + (clear_velocity ? "ВКЛ" : "ВЫК") + "\n");
                 values.Append("T1: " + PText.GetGPS("Target1", Target1) + "\n");
                 values.Append("T2: " + PText.GetGPS("Target2", Target2) + "\n");
@@ -1201,7 +1199,7 @@ namespace KROTIK_A1M_V3
                 values.Append("DeltaHeight  : " + Math.Round(DeltaHeight, 2) + "\n");
                 values.Append("-----------------------------------------------\n");
                 values.Append("Yaw-target  : " + Math.Round(YawTarget, 2) + "\n");
-                values.Append("Yaw-curse   : " + Math.Round(YawTarget, 2) + "\n");
+                values.Append("Yaw-curse   : " + Math.Round(YawVector, 2) + "\n");
                 values.Append("Yaw         : " + Math.Round(YawInput, 2) + "\n");
                 values.Append("Roll        : " + Math.Round(RollInput, 2) + "\n");
                 values.Append("Pitch       : " + Math.Round(PitchInput, 2) + "\n");
@@ -1239,6 +1237,8 @@ namespace KROTIK_A1M_V3
                         height = false;
                         curse = false;
                         curse_target = false;
+                        curent_programm = programm.none;
+                        curent_mode = mode.none;
                         ClearThrustOverridePersent();
                         break;
                     case "horizont_on":

@@ -48,10 +48,12 @@ namespace OSS_BM_DORS
             reactor_module_left = 8,    // энерг. мод реактор
             ice_module_right = 9,        // энерг. мод реактор
             waiting_hall = 10,        // Зал ожидания
-            gateway_module = 11,        // Зал ожидания
+            gateway_module = 11,        // Шлюз
+            wardroom = 12,        // Зал ожидания
+
         };
-        public static string[] name_room = { "", "Кабина", "Выход в космос", "Операторская", "Энерго-модуль", "Энерго-модуль", "Рабочий модуль", "Жилой модуль", "Ядерный реактор", "Склад льда", "Зал ожидания", "Шлюзовой модуль" };
-        public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0};
+        public static string[] name_room = { "", "Кабина", "Выход в космос", "Операторская", "Энерго-модуль", "Энерго-модуль", "Рабочий модуль", "Жилой модуль", "Ядерный реактор", "Склад льда", "Зал ожидания", "Шлюзовой модуль", "Кают-компания" };
+        public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0};
         public enum doors_gareways : int
         {
             cabin_space = 1,
@@ -65,6 +67,10 @@ namespace OSS_BM_DORS
             cargo_module_space = 9,
             space_habitation_module1 = 10,
             space_habitation_module4 = 11,
+            space_gateway_module2 = 12,
+            space_gateway_module3 = 13,
+            space_ship_gateway_module_ship1 = 14,
+            space_ship_gateway_module_ship2 = 15,
         }
         public enum door_transition : int
         {
@@ -80,16 +86,17 @@ namespace OSS_BM_DORS
             waiting_hall_habitation_module2 = 9,
             waiting_hall_gateway_module1 = 10,
             waiting_hall_gateway_module2 = 11,
+            wardroom_habitation_module = 12,
         }
 
-        // door [door-gateway] [space_habitation_module4] [habitation_module]
-        // sn [door-gateway] [space_habitation_module4] [habitation_module]
-        // door [door-gateway] [space_habitation_module4] [space]
-        // sn [door-gateway] [space_habitation_module4] [space]
+        // door [door-gateway] [space_ship_gateway_module_ship2] [gateway_module]
+        // sn [door-gateway] [space_ship_gateway_module_ship2] [gateway_module]
+        // door [door-gateway] [space_ship_gateway_module_ship2] [space]
+        // sn [door-gateway] [space_ship_gateway_module_ship2] [space]
 
-        // sn [door-transition] [waiting_hall_gateway_module1] [waiting_hall]
-        // sn [door-transition] [waiting_hall_gateway_module1] [gateway_module]
-        // door [door-transition] [waiting_hall_gateway_module1]
+        // sn [door-transition] [wardroom_habitation_module] [wardroom]
+        // sn [door-transition] [wardroom_habitation_module] [habitation_module]
+        // door [door-transition] [wardroom_habitation_module]
 
         // sn [door-transition] [cabin_energy_module_right] [energy_module_right]
         // sn [door-transition] [cabin_energy_module_right] [cabin]
@@ -526,18 +533,18 @@ namespace OSS_BM_DORS
             public Transitions(string name_obj, string tag)
             {
 
-                StringBuilder values_info = new StringBuilder();
-                values_info.AppendFormat("Start" + "\n");
+                //StringBuilder values_info = new StringBuilder();
+                //values_info.AppendFormat("Start" + "\n");
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
                 _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
-                values_info.AppendFormat("doors:" + doors.Count() + "\n");
-                values_info.AppendFormat("sensors:" + sensors.Count() + "\n");
+                //values_info.AppendFormat("doors:" + doors.Count() + "\n");
+                //values_info.AppendFormat("sensors:" + sensors.Count() + "\n");
                 IMyDoor door1;
                 IMySensorBlock sensor1;
                 IMySensorBlock sensor2;
                 room room1;
                 room room2;
-                values_info.AppendFormat("Поиск дверей:" + "\n");
+                //values_info.AppendFormat("Поиск дверей:" + "\n");
                 foreach (door_transition gw in Enum.GetValues(typeof(door_transition)))
                 {
                     door1 = null;
@@ -547,8 +554,8 @@ namespace OSS_BM_DORS
                     room2 = room.none;
                     IMyDoor l_drs = doors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).FirstOrDefault();
                     List<IMySensorBlock> l_sns = sensors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).ToList();
-                    if (l_drs != null) values_info.Append("l_drs:" + l_drs.ToString() + "\n");
-                    values_info.Append("l_sns:" + l_sns.Count() + "\n");
+                   // if (l_drs != null) values_info.Append("l_drs:" + l_drs.ToString() + "\n");
+                    //values_info.Append("l_sns:" + l_sns.Count() + "\n");
                     if (l_drs != null && l_sns != null && l_sns.Count() == 2)
                     {
                         foreach (room rm in Enum.GetValues(typeof(room)))
@@ -564,16 +571,16 @@ namespace OSS_BM_DORS
                         }
                         if (door1 != null && sensor1 != null && sensor2 != null)
                         {
-                            values_info.Append("door1:" + door1.CustomName + "\n");
-                            values_info.Append("sensor1:" + sensor1.CustomName + "\n");
-                            values_info.Append("sensor2:" + sensor2.CustomName + "\n");
+                            //values_info.Append("door1:" + door1.CustomName + "\n");
+                            //values_info.Append("sensor1:" + sensor1.CustomName + "\n");
+                            //values_info.Append("sensor2:" + sensor2.CustomName + "\n");
                             list_tr.Add(new Transition(gw, door1, sensor1, room1, sensor2, room2));
                         }
                     }
 
                 }
                 _scr.Echo("Найдено Transitions:[" + tag + "]: " + list_tr.Count());
-                lcd_info_upr.OutText(values_info);
+                //lcd_info_upr.OutText(values_info);
             }
 
             public void Logic(string argument, UpdateType updateSource)

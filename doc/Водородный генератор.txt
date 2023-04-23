@@ -1,0 +1,77 @@
+info
+[OSS]-[BM]-Водородный генератор 1
+MyHydrogenEngine {17DFE6579D8898E} [OSS]-[BM]-Водородный генератор 1
+107521677916146062
+TyepID=MyObjectBuilder_HydrogenEngine
+SubtyepID=LargeHydrogenEngine
+Mass=3253.8
+IsBeingHacked =False
+IsWorking =False
+IsFunctional =True
+DisassembleRatio =1
+DisplayNameText =[OSS]-[BM]-Водородный генератор 1
+
+Actions:
+OnOff:Переключить блок Вкл/Выкл(Выкл)
+OnOff_On:Переключить блок Вкл(Выкл)
+OnOff_Off:Переключить блок Выкл(Выкл)
+ShowOnHUD:Отображать на экране Вкл/Выкл(Выкл)
+ShowOnHUD_On:Отображать на экране Вкл(Выкл)
+ShowOnHUD_Off:Отображать на экране Выкл(Выкл)
+IncreaseFontSize:Увеличить Размер шрифта()
+DecreaseFontSize:Уменьшить Размер шрифта()
+IncreaseTextPaddingSlider:Увеличить Отступ текста()
+DecreaseTextPaddingSlider:Уменьшить Отступ текста()
+IncreaseChangeIntervalSlider:Увеличить Интервал переключения()
+DecreaseChangeIntervalSlider:Уменьшить Интервал переключения()
+PreserveAspectRatio:Сохранять соотношение сторон Вкл/Выкл()
+
+Properties:
+OnOff:Boolean (False)
+ShowInTerminal:Boolean (False)
+ShowInInventory:Boolean (True)
+ShowInToolbarConfig:Boolean (True)
+Name:StringBuilder ([OSS]-[BM]-Водородный генератор 1)
+ShowOnHUD:Boolean (False)
+Content:Int64 (0) Valid Range: 0->3
+ScriptForegroundColor:Color
+ScriptBackgroundColor:Color
+Font:Int64 (0) Valid Range: 151057691->1147350002
+FontSize:Single (1) Valid Range: 0.1->10
+FontColor:Color
+alignment:Int64 (0) Valid Range: 0->2
+TextPaddingSlider:Single (0) Valid Range: 0->50
+BackgroundColor:Color
+ChangeIntervalSlider:Single (0) Valid Range: 0->30
+PreserveAspectRatio:Boolean (False)
+
+DetailedInfo:
+Тип: Водородный генератор
+Макс. отдача: 5.00 MW
+Отдача: 0 W
+Заполнено: 100.0% (100000 л/100000 л)
+----------
+
+CustomInfo=
+CustomName=[OSS]-[BM]-Водородный генератор 1
+CustomData=
+CustomNameWithFaction=
+ShowOnHUD=False
+
+IMyFunctionalBlock
+ Enabled=False
+
+IMyPowerProducer
+ CurrentOutput=0
+ MaxOutput=5
+
+IMyTextSurfaceProvider
+ SurfaceCount=0
+
+No Inventory
+
+Accepted resources:
+ Hydrogen (Hydrogen)
+ Current=0 Max=0.02 PoweredBy=True
+Provided resources:
+ Electricity Current=0 Max=5

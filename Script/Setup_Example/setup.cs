@@ -548,7 +548,7 @@ namespace SETUP
             // тест LCD
             test_lcd = GridTerminalSystem.GetBlockWithName("test_lcd") as IMyTextPanel;
             Echo("test_lcd: " + ((test_lcd != null) ? ("Ок") : ("not found")));
-            info_lcd = GridTerminalSystem.GetBlockWithName("info_lcd") as IMyTextPanel;
+            info_lcd = GridTerminalSystem.GetBlockWithName("my_info_lcd") as IMyTextPanel;
             Echo("info_lcd: " + ((info_lcd != null) ? ("Ок") : ("not found")));
             sw = new ShipWelder();
             //info_lcd.WriteText("", false);
@@ -645,7 +645,7 @@ namespace SETUP
                 }
 
             }
-            //info_lcd.WriteText(values_info, true);
+            info_lcd.WriteText(values_info, true);
             //if (updateSource == UpdateType.Update10)
             //{
             //    // Получим данные
