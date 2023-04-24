@@ -665,14 +665,16 @@ namespace KROTIK_A1M_V3
             public float KVFB { get; private set; } = 0.2f;                 // Коэф. гашения вперед\назад
             public float KVUD { get; private set; } = 0.2f;                 // Коэф. гашения вверх\вниз
 
-            public double MinHeight { get; private set; } = 0.6f;           // растояние с которого начинается точный полет
-            public double MinHorizont { get; private set; } = 0.6f;         // растояние с которого начинается точный полет
+            public double MinHeight { get; private set; } = 0.5f;           // растояние с которого начинается точный полет
+            public double MinHorizont { get; private set; } = 0.5f;         // растояние с которого начинается точный полет
             public double MinDeltaHeight { get; private set; } = 100f;      // растояние с которого начинается точный полет
             public double MinDeltaHorizont { get; private set; } = 100f;    // растояние с которого начинается точный полет
 
             public Vector3D? TaskVector { get; private set; } = null;       // Вектор направления (лететь по курсу)
             public Vector3D? TackTarget { get; private set; } = null;       // Точка прицеливания (лететь на точку)
             //public Vector3D? TackTargetCalcPoint { get; private set; }      // Расчетная точка растояния к вектору (от центра к точке прицеливания)
+
+            public string move_ud { get; private set; }
 
             public Vector3D PlanetCentr = new Vector3D(0.50, 0.50, 0.50);
             public Vector3D Target1 = new Vector3D(53634.1408339977, -26848.4945197565, 11835.781022294); // GPS:Target1:53634.1408339977:-26848.4945197565:11835.781022294:
@@ -794,9 +796,13 @@ namespace KROTIK_A1M_V3
                     SpeedHeight = SpeedHeightTick * 6; // Ускорение по высоте
                     OldHeight = MyPositionHeightCentr;
                     // тормозной путь
-                    if (SpeedHeight < 0) DownBrakingDistances = GetBrakingDistances(DownThrMax, Math.Abs(SpeedHeight));
+                    if (SpeedHeight < 0)
+                    {
+                        double res = GetBrakingDistances(DownThrMax, Math.Abs(SpeedHeight));
+                        DownBrakingDistances = res > 0.1f ? res + 150f : 0;
+                    }
                     if (SpeedHeight > 0) UpBrakingDistances = GetBrakingDistances(UpThrMax, Math.Abs(SpeedHeight));
-
+                    //if (SpeedHeight > 0) UpBrakingDistances = GetBrakingDistances(DownThrMax, Math.Abs(SpeedHeight));
                     // Контроль курса приближения
                     Vector3D VectorShipTarget = GetTackTargetCalcVector((Vector3D)TackTarget);
                     DeltaHorizont = (VectorShipTarget).Length();
@@ -933,7 +939,7 @@ namespace KROTIK_A1M_V3
             }
             public double GetBrakingDistances(double max_thrusts, double speed)
             {
-                double a = (max_thrusts / 1000) * (1 / (cockpit.TotalMass / 1000));
+                double a = (max_thrusts / 1000) * (1 / (cockpit.PhysicalMass / 1000));
                 double t = (0 - speed) / -a; //t = (V - V[0]) / a
                 double s = (speed * t) + ((-a) * Math.Pow(t, 2)) / 2; //S = V[0] * t + ( a * t^2 ) / 2
                 return s;
@@ -959,6 +965,7 @@ namespace KROTIK_A1M_V3
                 //GetBrakingDistances
                 if (DeltaHeight >= -MinHeight && DeltaHeight <= MinHeight)
                 {
+                    move_ud = "stop";
                     return true;
                 }
                 else
@@ -966,58 +973,71 @@ namespace KROTIK_A1M_V3
                     if (DeltaHeight < -MinHeight)
                     {
                         // надо вверх
-                        if (SpeedHeight < -0.1)
+                        if (SpeedHeight < -0.5)
                         {
                             // ускорение вниз, надо тормозить
+                            move_ud = "надо вверз-тормоз";
                             ClearThrustOverridePersent();
                             compensate = false;
                         }
-                        else if (SpeedHeight > -0.1)
+                        else if (SpeedHeight > 0.5)
                         {
                             if (UpBrakingDistances < Math.Abs(DeltaHeight))
                             {
                                 if (Math.Abs(SpeedHeight) < MaxSpeedHeight)
                                 {
                                     // Ускоримся вверх
+                                    move_ud = "Ускоримся вверх";
                                     compensate = false;
-                                    SetThrustOverridePersent(0f, 1f, 0f, 0f, 0f, 0f);
+                                    SetThrustOverridePersent(0f, (Math.Abs(DeltaHeight) > 50 ? 1.0f : 0.4f), 0f, 0f, 0f, 0f);
                                 }
                                 else
                                 {
+                                    move_ud = "Летим с комп -вверх";
                                     ClearThrustOverridePersent();
                                     compensate = true;
-
                                 }
                             }
                             else
                             {
+                                move_ud = "Тормозной путь-вверх";
                                 ClearThrustOverridePersent();
                                 compensate = false;
 
                             }
                         }
+                        else
+                        {
+                            // Ускоримся вверх
+                            move_ud = "Ускоримся вверх, скорость 0";
+                            compensate = false;
+                            SetThrustOverridePersent(0f, (Math.Abs(DeltaHeight) > 50 ? 1.0f : 0.4f), 0f, 0f, 0f, 0f);
+                        }
                     }
                     else if (DeltaHeight > MinHeight)
                     {
                         // надо вниз
-                        if (SpeedHeight > 0.1)
+                        if (SpeedHeight > 0.5)
                         {
+                            move_ud = "надо вниз-тормоз";
                             // ускорение вверх, надо тормозить
                             ClearThrustOverridePersent();
                             compensate = false;
                         }
-                        else if (SpeedHeight < 0.1)
+                        else if (SpeedHeight < -0.5)
                         {
                             if (DownBrakingDistances < Math.Abs(DeltaHeight))
                             {
                                 if (Math.Abs(SpeedHeight) < MaxSpeedHeight)
                                 {
                                     // Ускоримся вверх
+                                    move_ud = "Ускоримся вниз";
                                     compensate = false;
-                                    SetThrustOverridePersent(1f, 0f, 0f, 0f, 0f, 0f);
+                                    SetThrustOverridePersent((Math.Abs(DeltaHeight) > 50 ? 1.0f : 0.4f), 0f, 0f, 0f, 0f, 0f);
                                 }
                                 else
                                 {
+                                    move_ud = "Летим с комп -вниз";
                                     ClearThrustOverridePersent();
                                     compensate = true;
 
@@ -1025,11 +1045,18 @@ namespace KROTIK_A1M_V3
                             }
                             else
                             {
+                                move_ud = "Тормозной путь";
                                 ClearThrustOverridePersent();
                                 compensate = false;
 
                             }
 
+                        }
+                        else
+                        {
+                            move_ud = "Ускоримся вниз,  скорость 0";
+                            compensate = false;
+                            SetThrustOverridePersent((Math.Abs(DeltaHeight) > 50 ? 1.0f : 0.4f), 0f, 0f, 0f, 0f, 0f);
                         }
                     }
                 }
@@ -1158,6 +1185,7 @@ namespace KROTIK_A1M_V3
                 //values.Append("PhysicalMass: " + Math.Round(PhysicalMass, 2) + "\n");
                 //values.Append("ShipWeight: " + Math.Round(ShipWeight.Length(), 2) + "\n");
                 //values.Append("LeftV : " + Math.Round(LeftVelocityVector.Length(), 2) + "\n");
+                values.Append("move_horizont : " + move_ud + "\n");
                 values.Append("DeltaHorizont  : " + Math.Round(DeltaHorizont, 2) + "\n");
                 values.Append("UpVelocity     : " + Math.Round(UpVelocityVector.Length(), 2) + "\n");
                 values.Append("SpeedHeight     : " + Math.Round(SpeedHeight, 2) + "\n");
@@ -1200,6 +1228,8 @@ namespace KROTIK_A1M_V3
                         break;
                     case "compensate_off":
                         TackTarget = null;
+                        aim_vector = false;
+                        aim_point = false;
                         compensate = false;
                         horizont = false;
                         clear_velocity = false;
