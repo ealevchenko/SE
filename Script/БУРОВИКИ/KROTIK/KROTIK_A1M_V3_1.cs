@@ -17,7 +17,7 @@ using VRageMath;
 /// <summary>
 /// v4.0
 /// </summary>
-namespace KROTIK_A1M_V3
+namespace KROTIK_A1M_V3_1
 {
     public sealed class Program : MyGridProgram
     {
@@ -642,6 +642,10 @@ namespace KROTIK_A1M_V3
             public double BackwardThrust { get; private set; } = 0;
             public double RightThrust { get; private set; } = 0;
             public double DownThrust { get; private set; } = 0;
+            //--------------------------------------------------------
+            public float? ForwardPower { get; private set; } = 0;   // сила ускорения вперед (null - тормоз)
+            public float? LeftPower { get; private set; } = 0;      // сила ускорения влево 
+            public float? UpPower { get; private set; } = 0;        // сила ускорения вверх 
             //---------------------------------------------------------
             public float YawInput { get; private set; } = 0;
             public float YawTarget { get; private set; } = 0;
@@ -1081,55 +1085,75 @@ namespace KROTIK_A1M_V3
                 Vector3D ForwardVelocityThrust = new Vector3D();
                 Vector3D LeftVelocityThrust = new Vector3D();
                 Vector3D UpVelocityThrust = new Vector3D();
-                if (clear_velocity)
+                float forward_power = 0;
+                float backward_power = 0;
+                float left_power = 0;
+                float right_power = 0;
+                float up_power = 0;
+                float down_power = 0;
+
+                if (clear_velocity && LinearVelocity.Length() < 0.1f)
+                {
+                    clear_velocity = false;
+                    ForwardPower = 0;
+                    LeftPower = 0;
+                    UpPower = 0;
+                }
+                if (clear_velocity || ForwardPower == null)
                 {
                     ForwardVelocityThrust = VelocityThrust * KVFB;
-                    LeftVelocityThrust = VelocityThrust * KVRL;
-                    UpVelocityThrust = VelocityThrust * KVUD;
-                    if (LinearVelocity.Length() < 0.1f)
-                    {
-                        clear_velocity = false;
-                    }
                 }
-                ForwardThrust = (ShipWeight + ForwardVelocityThrust).Dot(remote_control.WorldMatrix.Forward);
-                LeftThrust = (ShipWeight + LeftVelocityThrust).Dot(remote_control.WorldMatrix.Left);
-                UpThrust = (ShipWeight + UpVelocityThrust).Dot(remote_control.WorldMatrix.Up);
-                BackwardThrust = -ForwardThrust;
-                RightThrust = -LeftThrust;
-                DownThrust = -UpThrust;
-                //
-                Matrix ThrusterMatrix = new MatrixD();
-                foreach (IMyThrust thrust in thrusts)
+                if (clear_velocity || LeftPower == null)
                 {
-                    thrust.Orientation.GetMatrix(out ThrusterMatrix);
-                    //Y
-                    if (ThrusterMatrix.Forward == CockpitMatrix.Up)
+                    LeftVelocityThrust = VelocityThrust * KVRL;
+                }
+                if (clear_velocity || UpPower == null)
+                {
+                    UpVelocityThrust = VelocityThrust * KVUD;
+                }
+
+                ForwardThrust = (ShipWeight + ForwardVelocityThrust).Dot(remote_control.WorldMatrix.Forward);
+                BackwardThrust = (ShipWeight + ForwardVelocityThrust).Dot(remote_control.WorldMatrix.Backward);
+                LeftThrust = (ShipWeight + LeftVelocityThrust).Dot(remote_control.WorldMatrix.Left);
+                RightThrust = (ShipWeight + LeftVelocityThrust).Dot(remote_control.WorldMatrix.Right);
+                UpThrust = (ShipWeight + UpVelocityThrust).Dot(remote_control.WorldMatrix.Up);
+                DownThrust = (ShipWeight + UpVelocityThrust).Dot(remote_control.WorldMatrix.Down);
+                //BackwardThrust = -ForwardThrust;
+                //RightThrust = -LeftThrust;
+                //DownThrust = -UpThrust;
+                float forward = (float)(ForwardThrust / ForwardThrMax);
+                float backward = (float)(BackwardThrust / BackwardThrMax);
+                float left = (float)(LeftThrust / LeftThrMax);
+                float right = (float)(RightThrust / RightThrMax);
+                float up = (float)(UpThrust / UpThrMax);
+                float down = (float)(DownThrust / DownThrMax);
+                if (ForwardPower != null)
+                {
+                    if (ForwardPower > 0)
                     {
-                        thrust.ThrustOverridePercentage = (float)(UpThrust / UpThrMax);
+                        backward_power = backward * Math.Abs((float)ForwardPower);
+                        forward_power = forward * Math.Abs((float)ForwardPower) * -1;
                     }
-                    else if (ThrusterMatrix.Forward == CockpitMatrix.Down)
+                    else if (ForwardPower < 0)
                     {
-                        thrust.ThrustOverridePercentage = (float)(DownThrust / DownThrMax);
-                    }
-                    //X
-                    else if (ThrusterMatrix.Forward == CockpitMatrix.Left)
-                    {
-                        thrust.ThrustOverridePercentage = (float)(LeftThrust / LeftThrMax);
-                    }
-                    else if (ThrusterMatrix.Forward == CockpitMatrix.Right)
-                    {
-                        thrust.ThrustOverridePercentage = (float)(RightThrust / RightThrMax);
-                    }
-                    //Z
-                    else if (ThrusterMatrix.Forward == CockpitMatrix.Forward)
-                    {
-                        thrust.ThrustOverridePercentage = (float)(ForwardThrust / ForwardThrMax);
-                    }
-                    else if (ThrusterMatrix.Forward == CockpitMatrix.Backward)
-                    {
-                        thrust.ThrustOverridePercentage = (float)(BackwardThrust / BackwardThrMax);
+                        backward_power = backward * Math.Abs((float)ForwardPower) * -1;
+                        forward_power = forward * Math.Abs((float)ForwardPower);
                     }
                 }
+                if (UpPower != null)
+                {
+                    if (UpPower > 0)
+                    {
+                        down_power = down * Math.Abs((float)UpPower);
+                        up_power = up * Math.Abs((float)UpPower) * -1;
+                    }
+                    else if (UpPower < 0)
+                    {
+                        down_power = down * Math.Abs((float)UpPower) * -1;
+                        up_power = up * Math.Abs((float)UpPower);
+                    }
+                }
+                SetThrustOverridePersent(up + up_power, down + down_power, left + left_power, right + right_power, forward + forward_power, backward + backward_power);
             }
             public void Horizon()
             {
