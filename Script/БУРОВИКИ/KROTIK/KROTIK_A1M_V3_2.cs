@@ -674,11 +674,9 @@ namespace KROTIK_A1M_V3_2
             public double UpBrakingDistances { get; private set; }          // тормозной путь при подъеме вверх
             public double DownBrakingDistances { get; private set; }        // тормозной путь при движении вниз
             public double DeltaHorizont { get; private set; }               // разница по горизонтале
-
-
-            public float KVRL { get; private set; } = 0.2f;                 // Коэф. гашения боковых скоростей
-            public float KVFB { get; private set; } = 0.2f;                 // Коэф. гашения вперед\назад
-            public float KVUD { get; private set; } = 0.2f;                 // Коэф. гашения вверх\вниз
+            public float KVRL { get; private set; } = 1.0f;                 // Коэф. гашения боковых скоростей
+            public float KVFB { get; private set; } = 1.0f;                 // Коэф. гашения вперед\назад
+            public float KVUD { get; private set; } = 1.0f;                 // Коэф. гашения вверх\вниз
 
             public double MinHeight { get; private set; } = 0.5f;           // растояние с которого начинается точный полет
             public double MinHorizont { get; private set; } = 0.5f;         // растояние с которого начинается точный полет
@@ -791,7 +789,10 @@ namespace KROTIK_A1M_V3_2
                 LinearVelocity = remote_control.GetShipVelocities().LinearVelocity;
                 // Компенсация
                 ShipWeight = GravityVector * PhysicalMass;
-                HoverThrust = Vector3D.Normalize(GravityVector) * PhysicalMass;
+                //HoverThrust = Vector3D.Normalize(GravityVector) * PhysicalMass;
+                HoverThrust = Vector3D.Normalize(GravityVector) * ShipWeight;
+                //HoverThrust = GravityVector * ShipWeight;
+                //HoverThrust = ShipWeight;
                 //VelocityThrust = HoverThrust * LinearVelocity;
 
                 // 
@@ -912,6 +913,7 @@ namespace KROTIK_A1M_V3_2
                         TaskVector = camera_course.WorldMatrix.Forward; // задали курс
                         aim_vector = true;
                         curent_mode = mode.fly;
+                        compensate = true;
 
                     }
                 }
@@ -952,7 +954,8 @@ namespace KROTIK_A1M_V3_2
                         curent_programm = programm.none;
                     }
                 }
-                if (curent_mode== mode.clr_speed) {
+                if (curent_mode == mode.clr_speed)
+                {
                     if (compensate)
                     {
                         clear_velocity_forward = true;
@@ -1014,20 +1017,25 @@ namespace KROTIK_A1M_V3_2
 
                 if (clear_velocity_forward)
                 {
-                    ForwardVelocityThrust = HoverThrust * ForwVelocityVector * KVFB;
+                    ForwardVelocityThrust = HoverThrust * LinearVelocity * KVFB;
+                    //ForwardVelocityThrust = LinearVelocity * KVFB;
                 }
                 if (clear_velocity_up)
                 {
-                    UpVelocityThrust = HoverThrust * UpVelocityVector * KVUD;
+                    UpVelocityThrust = HoverThrust * LinearVelocity * KVUD;
+                    //UpVelocityThrust = LinearVelocity * KVUD;
                 }
-                else {
-                    if (curent_mode == mode.fly_horizont) {
-                        UpVelocityThrust = HoverThrust * DeltaHeight * 10f;
+                else
+                {
+                    if (curent_mode == mode.fly_horizont)
+                    {
+                        UpVelocityThrust = Vector3D.Normalize(GravityVector) * PhysicalMass * -(DeltaHeight * 8 - SpeedHeight) * 10;//HoverThrust * DeltaHeight * 1f;
                     }
                 }
                 if (clear_velocity_left)
                 {
-                    LeftVelocityThrust = HoverThrust * LeftVelocityVector * KVRL;
+                    LeftVelocityThrust = HoverThrust * LinearVelocity * KVRL;
+                    //LeftVelocityThrust = LinearVelocity * KVRL;
                 }
                 if (clear_velocity_forward && clear_velocity_up && clear_velocity_left && LinearVelocity.Length() < 0.1f)
                 {
@@ -1091,10 +1099,9 @@ namespace KROTIK_A1M_V3_2
                 values.Append("ЭТАП: " + name_mode[(int)curent_mode] + "\n");
                 //values.Append("К.ВЫСОТЫ   : " + (height ? "ВКЛ" : "ВЫК") + "\n");
                 //values.Append("К.КУРСА    : " + (curse ? "ВКЛ" : "ВЫК") + "\n");
-                values.Append("СБРОС-forward: " + (clear_velocity_forward  ? green.ToString() : red.ToString()) + "\n");
+                values.Append("СБРОС-forward: " + (clear_velocity_forward ? green.ToString() : red.ToString()) + "\n");
                 values.Append("СБРОС-up     : " + (clear_velocity_up ? green.ToString() : red.ToString()) + "\n");
                 values.Append("СБРОС-left   : " + (clear_velocity_left ? green.ToString() : red.ToString()) + "\n");
-
                 values.Append("T1: " + PText.GetGPS("Target1", Target1) + "\n");
                 values.Append("T2: " + PText.GetGPS("Target2", Target2) + "\n");
                 return values.ToString();
@@ -1106,6 +1113,7 @@ namespace KROTIK_A1M_V3_2
                 //values.Append("PhysicalMass: " + Math.Round(PhysicalMass, 2) + "\n");
                 //values.Append("ShipWeight: " + Math.Round(ShipWeight.Length(), 2) + "\n");
                 //values.Append("LeftV : " + Math.Round(LeftVelocityVector.Length(), 2) + "\n");
+                values.Append("LeftV: " + PText.GetGPS("LeftV", LinearVelocity) + "\n");
                 values.Append("move_horizont : " + move_ud + "\n");
                 values.Append("DeltaHorizont  : " + Math.Round(DeltaHorizont, 2) + "\n");
                 values.Append("UpVelocity     : " + Math.Round(UpVelocityVector.Length(), 2) + "\n");
