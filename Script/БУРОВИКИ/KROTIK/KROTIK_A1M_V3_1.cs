@@ -899,6 +899,7 @@ namespace KROTIK_A1M_V3_1
                     {
                         TaskVector = camera_course.WorldMatrix.Forward; // задали курс
                         aim_vector = true;
+                        compensate = true;
                         curent_mode = mode.fly;
 
                     }
@@ -936,6 +937,7 @@ namespace KROTIK_A1M_V3_1
                     {
                         aim_vector = false;
                         aim_point = false;
+                        compensate = false;
                         curent_mode = mode.none;
                         curent_programm = programm.none;
                     }
