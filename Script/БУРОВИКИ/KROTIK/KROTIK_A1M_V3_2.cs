@@ -1120,12 +1120,40 @@ namespace KROTIK_A1M_V3_2
                 BackwardThrust = -ForwardThrust;
                 RightThrust = -LeftThrust;
                 DownThrust = -UpThrust;
-                float forward = (float)(ForwardThrust + (ForwardPower < 0 ? ForwardThrust * Math.Abs((float)ForwardPower) : 0) / ForwardThrMax);
-                float backward = (float)(BackwardThrust + (ForwardPower > 0 ? BackwardThrust * Math.Abs((float)ForwardPower) : 0) / BackwardThrMax);
-                float left = (float)(LeftThrust + (LeftPower < 0 ? LeftThrust * Math.Abs((float)LeftPower) : 0) / LeftThrMax);
-                float right = (float)(RightThrust + (LeftPower > 0 ? RightThrust * Math.Abs((float)LeftPower) : 0) / RightThrMax);
-                float up = (float)(UpThrust + (UpPower < 0 ? UpThrust * Math.Abs((float)UpPower) : 0) / UpThrMax);
-                float down = (float)(DownThrust + (UpPower > 0 ? DownThrust * Math.Abs((float)UpPower) : 0) / DownThrMax);
+                float up = (float)(UpThrust / UpThrMax);
+                float down = (float)(DownThrust / DownThrMax); 
+                float forward = (float)(ForwardThrust / ForwardThrMax);
+                float backward = (float)(BackwardThrust / BackwardThrMax);
+
+                if (ForwardPower < 0)
+                {
+                    forward = (float)(ForwardThrust + (ForwardThrust * Math.Abs((float)ForwardPower)) / ForwardThrMax);
+                    backward = 0;
+                }
+                else if (ForwardPower > 0)
+                {
+                    forward = 0;
+                    backward = (float)(BackwardThrust + (BackwardThrust * Math.Abs((float)ForwardPower)) / BackwardThrMax);
+
+                }
+                if (UpPower < 0)
+                {
+                    // вниз
+                    up = (float)(UpThrust + (UpThrust * Math.Abs((float)UpPower)) / UpThrMax);
+                    down = 0;
+                }
+                else if (UpPower > 0)
+                {
+                    // вверх
+                    up = 0;
+                    down = (float)(DownThrust + (DownThrust * Math.Abs((float)UpPower)) / DownThrMax);
+                }
+                //float forward = (float)((ForwardThrust + (ForwardPower < 0 ? ForwardThrust * Math.Abs((float)ForwardPower) : 0)) / ForwardThrMax);
+                //float backward = (float)((BackwardThrust + (ForwardPower > 0 ? BackwardThrust * Math.Abs((float)ForwardPower) : 0)) / BackwardThrMax);
+                float left = (float)((LeftThrust + (LeftPower < 0 ? LeftThrust * Math.Abs((float)LeftPower) : 0)) / LeftThrMax);
+                float right = (float)((RightThrust + (LeftPower > 0 ? RightThrust * Math.Abs((float)LeftPower) : 0)) / RightThrMax);
+                //float up = (float)((UpThrust + (UpPower < 0 ? UpThrust * Math.Abs((float)UpPower) : 0)) / UpThrMax);
+                //float down = (float)((DownThrust + (UpPower > 0 ? DownThrust * Math.Abs((float)UpPower) : 0)) / DownThrMax);
                 SetThrustOverridePersent(up, down, left, right, forward, backward);
             }
             public void Horizon()
@@ -1184,15 +1212,17 @@ namespace KROTIK_A1M_V3_2
                 //values.Append("PhysicalMass: " + Math.Round(PhysicalMass, 2) + "\n");
                 //values.Append("ShipWeight: " + Math.Round(ShipWeight.Length(), 2) + "\n");
                 //values.Append("LeftV : " + Math.Round(LeftVelocityVector.Length(), 2) + "\n");
-                values.Append("LeftV: " + PText.GetGPS("LeftV", LinearVelocity) + "\n");
+                //values.Append("LeftV: " + PText.GetGPS("LeftV", LinearVelocity) + "\n");
                 values.Append("move_horizont : " + move_ud + "\n");
-                values.Append("DeltaHorizont  : " + Math.Round(DeltaHorizont, 2) + "\n");
+                values.Append("UpPower    : " + UpPower + "\n");
+                values.Append("ForwardPower    : " + ForwardPower + "\n");
+                values.Append("DeltaHeight    : " + Math.Round(DeltaHeight, 2) + "\n");
                 values.Append("UpVelocity     : " + Math.Round(UpVelocityVector.Length(), 2) + "\n");
                 values.Append("SpeedHeight     : " + Math.Round(SpeedHeight, 2) + "\n");
                 values.Append("Down-торм:     : " + Math.Round(DownBrakingDistances, 2) + "\n");
                 values.Append("Up-торм        : " + Math.Round(UpBrakingDistances, 2) + "\n");
                 values.Append("-----------------------------------------------\n");
-                values.Append("DeltaHeight    : " + Math.Round(DeltaHeight, 2) + "\n");
+                values.Append("DeltaHorizont  : " + Math.Round(DeltaHorizont, 2) + "\n");
                 values.Append("-----------------------------------------------\n");
                 values.Append("Yaw-target  : " + Math.Round(YawTarget, 2) + "\n");
                 values.Append("Yaw-curse   : " + Math.Round(YawVector, 2) + "\n");

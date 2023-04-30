@@ -556,7 +556,7 @@ namespace SETUP
 
         //info:NASTYA1-info [door-info] [factory]
         //replace:КЛЕПА3-|[KLEPA_H1]-
-        //add:[BASE-EA1]
+        //add:[MUL-H2]-
         void Main(string argument, UpdateType updateSource)
         {
             StringBuilder values_info = new StringBuilder();
