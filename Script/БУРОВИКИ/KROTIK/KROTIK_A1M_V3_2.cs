@@ -674,21 +674,23 @@ namespace KROTIK_A1M_V3_2
             public double MaxSpeedHeight { get; private set; } = 100f;      // макс ускорение по высоте
             public double UpBrakingDistances { get; private set; }          // тормозной путь при подъеме вверх
             public double DownBrakingDistances { get; private set; }        // тормозной путь при движении вниз
-            public double DeltaHorizont { get; private set; }               // разница по горизонтале
+            public double DeltaCurse { get; private set; }                  // разница по горизонтале
+            public double VectorCurse { get; private set; }                 // длина вектора
             public float KVRL { get; private set; } = 1.0f;                 // Коэф. гашения боковых скоростей
             public float KVFB { get; private set; } = 1.0f;                 // Коэф. гашения вперед\назад
             public float KVUD { get; private set; } = 1.0f;                 // Коэф. гашения вверх\вниз
 
             public double MinHeight { get; private set; } = 0.5f;           // растояние с которого начинается точный полет
-            public double MinHorizont { get; private set; } = 0.5f;         // растояние с которого начинается точный полет
+            public double MinCurse { get; private set; } = 0.5f;            // растояние с которого начинается точный полет
             public double MinDeltaHeight { get; private set; } = 100f;      // растояние с которого начинается точный полет
-            public double MinDeltaHorizont { get; private set; } = 100f;    // растояние с которого начинается точный полет
+            public double MinDeltaCurse { get; private set; } = 100f;    // растояние с которого начинается точный полет
 
             public Vector3D? TaskVector { get; private set; } = null;       // Вектор направления (лететь по курсу)
             public Vector3D? TackTarget { get; private set; } = null;       // Точка прицеливания (лететь на точку)
             //public Vector3D? TackTargetCalcPoint { get; private set; }      // Расчетная точка растояния к вектору (от центра к точке прицеливания)
 
             public string move_ud { get; private set; }
+            public string move_fb { get; private set; }
 
             public Vector3D PlanetCentr = new Vector3D(0.50, 0.50, 0.50);
             public Vector3D Target1 = new Vector3D(53634.1408339977, -26848.4945197565, 11835.781022294); // GPS:Target1:53634.1408339977:-26848.4945197565:11835.781022294:
@@ -823,7 +825,8 @@ namespace KROTIK_A1M_V3_2
                     //if (SpeedHeight > 0) UpBrakingDistances = GetBrakingDistances(DownThrMax, Math.Abs(SpeedHeight));
                     // Контроль курса приближения
                     Vector3D VectorShipTarget = GetTackTargetCalcVector((Vector3D)TackTarget);
-                    DeltaHorizont = (VectorShipTarget).Length();
+                    VectorCurse = VectorShipTarget.Dot(remote_control.WorldMatrix.Forward);
+                    DeltaCurse = (VectorShipTarget).Length();
 
                 }
                 YawVector = 0;
@@ -928,7 +931,7 @@ namespace KROTIK_A1M_V3_2
                 }
                 if (curent_mode == mode.fly)
                 {
-                    if (DeltaHeight >= -MinHeight && DeltaHeight <= MinHeight && DeltaHorizont <= MinHorizont)
+                    if (DeltaHeight >= -MinHeight && DeltaHeight <= MinHeight && DeltaCurse <= MinCurse)
                     {
                         // точка достигнута
                         curent_mode = mode.braking;
@@ -938,7 +941,7 @@ namespace KROTIK_A1M_V3_2
                         // высота
                         curent_mode = mode.fly_horizont;
                     }
-                    else if (DeltaHorizont > MinHorizont)
+                    else if (DeltaCurse > MinCurse)
                     {
                         // по курсу
                         curent_mode = mode.fly_curse;
@@ -1078,7 +1081,18 @@ namespace KROTIK_A1M_V3_2
             }
             public bool FlyCurse()
             {
-                return true;
+                if (DeltaCurse >= -MinCurse && DeltaCurse <= MinCurse)
+                {
+                    return true;
+                }
+                else
+                {
+                    if (DeltaCurse > MinCurse) {
+                        move_fb = "Разгон";
+                        ForwardPower = 0.4f;
+                    }
+                }
+                return false;
             }
             public Vector3D GetTackTargetCalcVector(Vector3D TackTarget)
             {
@@ -1113,7 +1127,6 @@ namespace KROTIK_A1M_V3_2
                     UpPower = 0;
                     LeftPower = 0;
                 }
-
                 ForwardThrust = (ShipWeight + ForwardVelocityThrust).Dot(remote_control.WorldMatrix.Forward);
                 LeftThrust = (ShipWeight + LeftVelocityThrust).Dot(remote_control.WorldMatrix.Left);
                 UpThrust = (ShipWeight + UpVelocityThrust).Dot(remote_control.WorldMatrix.Up);
@@ -1121,9 +1134,11 @@ namespace KROTIK_A1M_V3_2
                 RightThrust = -LeftThrust;
                 DownThrust = -UpThrust;
                 float up = (float)(UpThrust / UpThrMax);
-                float down = (float)(DownThrust / DownThrMax); 
+                float down = (float)(DownThrust / DownThrMax);
                 float forward = (float)(ForwardThrust / ForwardThrMax);
                 float backward = (float)(BackwardThrust / BackwardThrMax);
+                float left = (float)(LeftThrust / LeftThrMax);
+                float right = (float)(RightThrust / RightThrMax);
 
                 if (ForwardPower < 0)
                 {
@@ -1148,12 +1163,18 @@ namespace KROTIK_A1M_V3_2
                     up = 0;
                     down = (float)(DownThrust + (DownThrust * Math.Abs((float)UpPower)) / DownThrMax);
                 }
-                //float forward = (float)((ForwardThrust + (ForwardPower < 0 ? ForwardThrust * Math.Abs((float)ForwardPower) : 0)) / ForwardThrMax);
-                //float backward = (float)((BackwardThrust + (ForwardPower > 0 ? BackwardThrust * Math.Abs((float)ForwardPower) : 0)) / BackwardThrMax);
-                float left = (float)((LeftThrust + (LeftPower < 0 ? LeftThrust * Math.Abs((float)LeftPower) : 0)) / LeftThrMax);
-                float right = (float)((RightThrust + (LeftPower > 0 ? RightThrust * Math.Abs((float)LeftPower) : 0)) / RightThrMax);
-                //float up = (float)((UpThrust + (UpPower < 0 ? UpThrust * Math.Abs((float)UpPower) : 0)) / UpThrMax);
-                //float down = (float)((DownThrust + (UpPower > 0 ? DownThrust * Math.Abs((float)UpPower) : 0)) / DownThrMax);
+                if (LeftPower < 0)
+                {
+                    // вниз
+                    left = (float)(LeftThrust + (LeftThrust * Math.Abs((float)LeftPower)) / LeftThrMax);
+                    right = 0;
+                }
+                else if (LeftPower > 0)
+                {
+                    // вверх
+                    left = 0;
+                    right = (float)(RightThrust + (RightThrust * Math.Abs((float)LeftPower)) / RightThrMax);
+                }
                 SetThrustOverridePersent(up, down, left, right, forward, backward);
             }
             public void Horizon()
@@ -1214,6 +1235,7 @@ namespace KROTIK_A1M_V3_2
                 //values.Append("LeftV : " + Math.Round(LeftVelocityVector.Length(), 2) + "\n");
                 //values.Append("LeftV: " + PText.GetGPS("LeftV", LinearVelocity) + "\n");
                 values.Append("move_horizont : " + move_ud + "\n");
+                values.Append("move_curse : " + move_fb + "\n");
                 values.Append("UpPower    : " + UpPower + "\n");
                 values.Append("ForwardPower    : " + ForwardPower + "\n");
                 values.Append("DeltaHeight    : " + Math.Round(DeltaHeight, 2) + "\n");
@@ -1222,7 +1244,8 @@ namespace KROTIK_A1M_V3_2
                 values.Append("Down-торм:     : " + Math.Round(DownBrakingDistances, 2) + "\n");
                 values.Append("Up-торм        : " + Math.Round(UpBrakingDistances, 2) + "\n");
                 values.Append("-----------------------------------------------\n");
-                values.Append("DeltaHorizont  : " + Math.Round(DeltaHorizont, 2) + "\n");
+                values.Append("DeltaCurse  : " + Math.Round(DeltaCurse, 2) + "\n");
+                values.Append("VectorCurse  : " + Math.Round(VectorCurse, 2) + "\n");
                 values.Append("-----------------------------------------------\n");
                 values.Append("Yaw-target  : " + Math.Round(YawTarget, 2) + "\n");
                 values.Append("Yaw-curse   : " + Math.Round(YawVector, 2) + "\n");
