@@ -649,7 +649,7 @@ namespace KROTIK_A1M
             public Vector3D PlanetCentr = new Vector3D(0.50, 0.50, 0.50);
             public Vector3D Target1 = new Vector3D(53634.1408339977, -26848.4945197565, 11835.781022294); // GPS:Target1:53634.1408339977:-26848.4945197565:11835.781022294:
             public Vector3D Target2 = new Vector3D(54247.1045229673, -28025.4557401103, 9975.66911975904);  // GPS:Target2:54247.1045229673:-28025.4557401103:9975.66911975904:
-
+            public Vector3D TargetConnector = new Vector3D();
 
             public Navigation(Cockpit cockpit, string NameObj, string NameRemoteControl, string NameCameraCourse)
             {

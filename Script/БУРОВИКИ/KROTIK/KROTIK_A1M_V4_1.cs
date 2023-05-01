@@ -590,6 +590,7 @@ namespace KROTIK_A1M_V4_1
             List<IMyThrust> thrusts = new List<IMyThrust>();
             List<IMyGyro> gyros = new List<IMyGyro>();
             public bool compensate { get; private set; } = false;   // компенсируем вес
+            public bool compensate_old { get; private set; } = false;   // компенсируем вес предыдущий
             public bool horizont { get; private set; } = false;     // держим горизонтальное направление
             public bool aim_point { get; private set; } = false;     // прицелится на точку
             public bool aim_vector { get; private set; } = false;     // прицелится по вектору
@@ -656,9 +657,9 @@ namespace KROTIK_A1M_V4_1
             public double RightThrust { get; private set; } = 0;
             public double DownThrust { get; private set; } = 0;
             //
-            public float ap_forward { get; private set; } = 0;  // Ускорение процент вперед-назад
-            public float ap_left { get; private set; } = 0;  // Ускорение процент влево-вправо
-            public float ap_up { get; private set; } = 0;  // Ускорение процент вверх-вниз
+            public float? ap_forward { get; private set; } = null;  // Ускорение процент вперед-назад
+            public float? ap_left { get; private set; } = null;  // Ускорение процент влево-вправо
+            public float? ap_up { get; private set; } = null;  // Ускорение процент вверх-вниз
 
             //public float up { get; private set; } = 0;
             //public float down { get; private set; } = 0;
@@ -698,6 +699,7 @@ namespace KROTIK_A1M_V4_1
             public Vector3D PlanetCentr = new Vector3D(0.50, 0.50, 0.50);
             public Vector3D Target1 = new Vector3D(53634.1408339977, -26848.4945197565, 11835.781022294); // GPS:Target1:53634.1408339977:-26848.4945197565:11835.781022294:
             public Vector3D Target2 = new Vector3D(54247.1045229673, -28025.4557401103, 9975.66911975904);  // GPS:Target2:54247.1045229673:-28025.4557401103:9975.66911975904:
+            public Vector3D TargetConnector = new Vector3D();
             public Navigation(Cockpit cockpit, string NameObj, string NameRemoteControl, string NameCameraCourse)
             {
                 this.cockpit = cockpit;
@@ -799,18 +801,6 @@ namespace KROTIK_A1M_V4_1
             }
             public void SetThrustOverridePersent(string axis, float value)
             {
-                ForwardThrust = (ShipWeight).Dot(remote_control.WorldMatrix.Forward);
-                LeftThrust = (ShipWeight).Dot(remote_control.WorldMatrix.Left);
-                UpThrust = (ShipWeight).Dot(remote_control.WorldMatrix.Up);
-                BackwardThrust = -ForwardThrust;
-                RightThrust = -LeftThrust;
-                DownThrust = -UpThrust;
-                float up = (float)(UpThrust / UpThrMax);
-                float down = (float)(DownThrust / DownThrMax);
-                float forward = (float)(ForwardThrust / ForwardThrMax);
-                float backward = (float)(BackwardThrust / BackwardThrMax);
-                float left = (float)(LeftThrust / LeftThrMax);
-                float right = (float)(RightThrust / RightThrMax);
                 Matrix ThrusterMatrix = new MatrixD();
                 foreach (IMyThrust thrust in this.thrusts)
                 {
@@ -818,33 +808,32 @@ namespace KROTIK_A1M_V4_1
                     //Y
                     if (ThrusterMatrix.Forward == CockpitMatrix.Up && axis == "U")
                     {
-                        thrust.ThrustOverridePercentage = up + value;
+                        thrust.ThrustOverridePercentage = value;
                     }
                     else if (ThrusterMatrix.Forward == CockpitMatrix.Down && axis == "D")
                     {
-                        thrust.ThrustOverridePercentage = down + value;
+                        thrust.ThrustOverridePercentage = value;
                     }
                     //X
                     else if (ThrusterMatrix.Forward == CockpitMatrix.Left && axis == "L")
                     {
-                        thrust.ThrustOverridePercentage = left + value;
+                        thrust.ThrustOverridePercentage = value;
                     }
                     else if (ThrusterMatrix.Forward == CockpitMatrix.Right && axis == "R")
                     {
-                        thrust.ThrustOverridePercentage = right + value;
+                        thrust.ThrustOverridePercentage = value;
                     }
                     //Z
                     else if (ThrusterMatrix.Forward == CockpitMatrix.Forward && axis == "F")
                     {
-                        thrust.ThrustOverridePercentage = forward + value;
+                        thrust.ThrustOverridePercentage = value;
                     }
                     else if (ThrusterMatrix.Forward == CockpitMatrix.Backward && axis == "B")
                     {
-                        thrust.ThrustOverridePercentage = backward + value;
+                        thrust.ThrustOverridePercentage = value;
                     }
                 }
             }
-
             public void Update()
             {
                 GravityVector = remote_control.GetNaturalGravity();
@@ -901,7 +890,7 @@ namespace KROTIK_A1M_V4_1
                     if (ForwVelocity > 0)
                     {
                         double res = GetBrakingDistances(ForwardThrMax, Math.Abs(ForwVelocity));
-                        ForwardBrakingDistances = res > 0.1f ? res + 100f : 0;
+                        ForwardBrakingDistances = res > 0.1f ? res + 50f : 0;
                     }
                     // Контроль курса приближения
                     Vector3D VectorShipTarget = GetTackTargetCalcVector((Vector3D)TackTarget);
@@ -990,11 +979,25 @@ namespace KROTIK_A1M_V4_1
                 }
                 else
                 {
+                    //if (!aim_point && curent_mode != mode.aim_point && curent_mode != mode.none && Math.Abs(YawTarget) > 0.01f)
+                    //{
+                    //    //compensate = false; //
+                    //    //if (remote_control.GetShipSpeed() < 0.1f)
+                    //    //{
+                    //    //    aim_vector = false;
+                    //    //    aim_point = true;
+                    //    //    curent_mode = mode.aim_point;
+                    //    //}
+                    //    curent_mode = mode.none;
+                    //}
+                    //else
+                    //{
                     if (curent_mode == mode.none)
                     {
                         compensate = false; //
                         if (remote_control.GetShipSpeed() < 0.1f)
                         {
+                            aim_vector = false;
                             aim_point = true;
                             curent_mode = mode.aim_point;
                         }
@@ -1012,23 +1015,35 @@ namespace KROTIK_A1M_V4_1
                     if (curent_mode == mode.fly_horizont && FlyHorizont())
                     {
                         //curent_mode = mode.fly;
-                        compensate = false;
-                        aim_point = true;
-                        curent_mode = mode.aim_point;
+                        compensate = false; //
+                        if (remote_control.GetShipSpeed() < 0.1f)
+                        {
+                            aim_vector = false;
+                            aim_point = true;
+                            curent_mode = mode.aim_point;
+                        }
                     }
                     if (curent_mode == mode.fly_curse && FlyCurse(MinCurse + 50))
                     {
                         //curent_mode = mode.fly;
-                        compensate = false;
-                        aim_point = true;
-                        curent_mode = mode.aim_point;
+                        compensate = false; //
+                        if (remote_control.GetShipSpeed() < 0.1f)
+                        {
+                            aim_vector = false;
+                            aim_point = true;
+                            curent_mode = mode.aim_point;
+                        }
                     }
                     if (curent_mode == mode.fly_curse1 && FlyCurse(MinCurse))
                     {
                         //curent_mode = mode.fly;
-                        compensate = false;
-                        aim_point = true;
-                        curent_mode = mode.aim_point;
+                        compensate = false; //
+                        if (remote_control.GetShipSpeed() < 0.1f)
+                        {
+                            aim_vector = false;
+                            aim_point = true;
+                            curent_mode = mode.aim_point;
+                        }
                     }
                     if (curent_mode == mode.fly)
                     {
@@ -1048,10 +1063,14 @@ namespace KROTIK_A1M_V4_1
                             curent_mode = mode.fly_curse1;
                         }
                     }
+                    //}
                 }
                 if (curent_mode == mode.braking)
                 {
-                    ClearThrustOverridePersent();
+                    //ClearThrustOverridePersent();
+                    ap_forward = null;
+                    ap_left = null;
+                    ap_up = null;
                     compensate = false;
                     if (remote_control.GetShipSpeed() < 0.1f)
                     {
@@ -1070,16 +1089,18 @@ namespace KROTIK_A1M_V4_1
                     horizont = true;
                     if (YawTarget != 0.0f)
                     {
-                        if (Math.Abs(YawTarget) < 0.01f)
+                        if (Math.Abs(YawTarget) <= 0.01f)
                         {
                             aim_point = false;
                         }
                     }
                 }
             }
-            // 
             public bool FlyHorizont()
             {
+                ap_forward = null;
+                ap_left = null;
+                ap_up = null;
                 if (DeltaHeight >= -MinHeight && DeltaHeight <= MinHeight)
                 {
                     move_ud = "Стоп";
@@ -1095,7 +1116,6 @@ namespace KROTIK_A1M_V4_1
                         {
                             // ускорение вниз, надо тормозить
                             move_ud = "надо вверз-тормоз";
-                            ClearThrustOverridePersent();
                             compensate = false;
                         }
                         else if (UpVelocity > 0.5)
@@ -1106,22 +1126,19 @@ namespace KROTIK_A1M_V4_1
                                 {
                                     // Ускоримся вверх
                                     move_ud = "Ускоримся вверх";
-                                    compensate = false;
-                                    SetThrustOverridePersent(0f, (Math.Abs(DeltaHeight) > 50 ? 1.0f : 0.4f), 0f, 0f, 0f, 0f);
+                                    compensate = true;
+                                    ap_up = (Math.Abs(DeltaHeight) > 50 ? 1.0f : 0.4f);
                                 }
                                 else
                                 {
                                     move_ud = "Летим с комп -вверх";
-                                    ClearThrustOverridePersent();
                                     compensate = true;
                                 }
                             }
                             else
                             {
                                 move_ud = "Тормозной путь-вверх";
-                                ClearThrustOverridePersent();
                                 compensate = false;
-
                             }
                         }
                         else
@@ -1129,7 +1146,7 @@ namespace KROTIK_A1M_V4_1
                             // Ускоримся вверх
                             move_ud = "Ускоримся вверх, скорость 0";
                             compensate = false;
-                            SetThrustOverridePersent(0f, (Math.Abs(DeltaHeight) > 50 ? 1.0f : 0.4f), 0f, 0f, 0f, 0f);
+                            ap_up = (Math.Abs(DeltaHeight) > 50 ? 1.0f : 0.4f);
                         }
                     }
                     else if (DeltaHeight > MinHeight)
@@ -1138,7 +1155,6 @@ namespace KROTIK_A1M_V4_1
                         if (UpVelocity > 0.5)
                         {
                             move_ud = "надо вниз-тормоз";
-                            ClearThrustOverridePersent();
                             compensate = false;
                         }
                         else if (UpVelocity < -0.5)
@@ -1149,29 +1165,26 @@ namespace KROTIK_A1M_V4_1
                                 {
                                     // Ускоримся вниз
                                     move_ud = "Ускоримся вниз";
-                                    compensate = false;
-                                    SetThrustOverridePersent((Math.Abs(DeltaHeight) > 50 ? 1.0f : 0.4f), 0f, 0f, 0f, 0f, 0f);
+                                    compensate = true;
+                                    ap_up = -(Math.Abs(DeltaHeight) > 50 ? 1.0f : 0.4f);
                                 }
                                 else
                                 {
                                     move_ud = "Летим с комп -вниз";
-                                    ClearThrustOverridePersent();
                                     compensate = true;
-
                                 }
                             }
                             else
                             {
                                 move_ud = "Тормозной путь";
-                                ClearThrustOverridePersent();
                                 compensate = false;
                             }
                         }
                         else
                         {
                             move_ud = "Ускоримся вниз,  скорость 0";
-                            compensate = false;
-                            SetThrustOverridePersent((Math.Abs(DeltaHeight) > 50 ? 1.0f : 0.4f), 0f, 0f, 0f, 0f, 0f);
+                            compensate = true;
+                            ap_up = -(Math.Abs(DeltaHeight) > 50 ? 1.0f : 0.4f);
                         }
                     }
                 }
@@ -1179,15 +1192,17 @@ namespace KROTIK_A1M_V4_1
             }
             public bool FlyCurse(double MinCurse)
             {
+                ap_forward = null;
+                ap_left = null;
+                ap_up = null;
                 if (VectorCurse >= -MinCurse && VectorCurse <= MinCurse || (DeltaHeight < -(MinHeight + 10) || DeltaHeight > MinHeight + 10))
                 {
                     move_fb = "Стоп";
-                    //compensate = false;
+                    compensate = false;
                     return true;
                 }
                 else
                 {
-
                     if (VectorCurse < -MinCurse)
                     {
                         // надо вперед
@@ -1195,8 +1210,7 @@ namespace KROTIK_A1M_V4_1
                         {
                             // ускорение назад, надо тормозить
                             move_fb = "надо вперед-тормоз";
-                            ClearThrustOverridePersent();
-                            //compensate = false;
+                            compensate = false;
                         }
                         else if (ForwVelocity > 0.5)
                         {
@@ -1206,32 +1220,27 @@ namespace KROTIK_A1M_V4_1
                                 {
                                     // Ускоримся вперед
                                     move_fb = "Ускоримся вперед";
-                                    //compensate = false;
-                                    SetThrustOverridePersent("B", (Math.Abs(VectorCurse) > 50 ? 1.0f : 0.2f));
+                                    compensate = true;
+                                    ap_forward = (Math.Abs(VectorCurse) > 50 ? 1.0f : 0.2f);
                                 }
                                 else
                                 {
                                     move_fb = "Летим с комп -вперед";
-                                    SetThrustOverridePersent("B", 0f);
-                                    //ClearThrustOverridePersent();
-                                    //compensate = true;
+                                    compensate = true;
                                 }
                             }
                             else
                             {
                                 move_fb = "Тормозной путь-вперед";
-                                SetThrustOverridePersent("F", (Math.Abs(VectorCurse) > 50 ? 1.0f : 0.2f));
-                                //ClearThrustOverridePersent();
-                                //compensate = false;
-
+                                compensate = false;
                             }
                         }
                         else
                         {
                             // Ускоримся вперед
                             move_fb = "Ускоримся вперед, скорость 0";
-                            //compensate = false;
-                            SetThrustOverridePersent("B", (Math.Abs(VectorCurse) > 50 ? 1.0f : 0.2f));
+                            compensate = true;
+                            ap_forward = (Math.Abs(VectorCurse) > 50 ? 1.0f : 0.2f);
                         }
                     }
                     else if (VectorCurse > MinCurse)
@@ -1240,9 +1249,7 @@ namespace KROTIK_A1M_V4_1
                         if (ForwVelocity > 0.5)
                         {
                             move_fb = "надо назад-тормоз";
-                            //ClearThrustOverridePersent();
-                            //compensate = false;
-                            SetThrustOverridePersent("F", (Math.Abs(VectorCurse) > 50 ? 1.0f : 0.2f));
+                            compensate = false;
                         }
                         else if (ForwVelocity < -0.5)
                         {
@@ -1252,37 +1259,32 @@ namespace KROTIK_A1M_V4_1
                                 {
                                     // Ускоримся назад
                                     move_fb = "Ускоримся назад";
-                                    //compensate = false;
-                                    SetThrustOverridePersent("F", (Math.Abs(VectorCurse) > 50 ? 1.0f : 0.2f));
+                                    compensate = true;
+                                    ap_forward = -(Math.Abs(VectorCurse) > 50 ? 1.0f : 0.2f);
                                 }
                                 else
                                 {
                                     move_fb = "Летим с комп -назад";
-                                    SetThrustOverridePersent("F", 0f);
-                                    //ClearThrustOverridePersent();
-                                    //compensate = true;
-
+                                    compensate = true;
                                 }
                             }
                             else
                             {
                                 move_fb = "Тормозной путь-назад";
-                                SetThrustOverridePersent("B", (Math.Abs(VectorCurse) > 50 ? 1.0f : 0.2f));
-                                //ClearThrustOverridePersent();
-                                //compensate = false;
+                                compensate = false;
                             }
                         }
                         else
                         {
                             move_fb = "Ускоримся назад,  скорость 0";
-                            //compensate = false;
-                            SetThrustOverridePersent("F", (Math.Abs(VectorCurse) > 50 ? 1.0f : 0.2f));
+                            compensate = true;
+                            ap_forward = -(Math.Abs(VectorCurse) > 50 ? 1.0f : 0.2f);
                         }
                     }
                 }
                 return false;
             }
-            public void CompensateWeight()
+            public void UpdateThrust()
             {
                 ForwardThrust = (ShipWeight).Dot(remote_control.WorldMatrix.Forward);
                 LeftThrust = (ShipWeight).Dot(remote_control.WorldMatrix.Left);
@@ -1296,7 +1298,28 @@ namespace KROTIK_A1M_V4_1
                 float backward = (float)(BackwardThrust / BackwardThrMax);
                 float left = (float)(LeftThrust / LeftThrMax);
                 float right = (float)(RightThrust / RightThrMax);
-                SetThrustOverridePersent(up, down, left, right, forward, backward);
+                if (ap_forward > 0f) { backward += (float)ap_forward; forward = 0f; } else if (ap_forward < 0f) { forward += (float)ap_forward; backward = 0f; }
+                if (ap_left > 0f) { right += (float)ap_left; left = 0f; } else if (ap_left < 0f) { left += (float)ap_left; right = 0f; }
+                if (ap_up > 0f) { down += (float)ap_up; up = 0f; } else if (ap_up < 0f) { up += (float)ap_up; down = 0f; }
+                if (compensate)
+                {
+                    SetThrustOverridePersent(up, down, left, right, forward, backward);
+                }
+                else
+                {
+                    if (ap_forward != null)
+                    {
+                        SetThrustOverridePersent(ap_forward > 0f ? "B" : "F", Math.Abs(ap_forward > 0f ? (float)backward : (float)forward));
+                    }
+                    if (ap_left != null)
+                    {
+                        SetThrustOverridePersent(ap_left > 0f ? "R" : "L", Math.Abs(ap_left > 0f ? (float)right : (float)left));
+                    }
+                    if (ap_up != null)
+                    {
+                        SetThrustOverridePersent(ap_up > 0f ? "D" : "U", Math.Abs(ap_up > 0f ? (float)down : (float)up));
+                    }
+                }
             }
             public void Horizon()
             {
@@ -1340,6 +1363,7 @@ namespace KROTIK_A1M_V4_1
                 values.Append("ЭТАП: " + name_mode[(int)curent_mode] + "\n");
                 //values.Append("К.ВЫСОТЫ   : " + (height ? "ВКЛ" : "ВЫК") + "\n");
                 //values.Append("К.КУРСА    : " + (curse ? "ВКЛ" : "ВЫК") + "\n");
+                values.Append("T0: " + PText.GetGPS("TargetConnector", TargetConnector) + "\n");
                 values.Append("T1: " + PText.GetGPS("Target1", Target1) + "\n");
                 values.Append("T2: " + PText.GetGPS("Target2", Target2) + "\n");
                 return values.ToString();
@@ -1354,8 +1378,8 @@ namespace KROTIK_A1M_V4_1
                 //values.Append("UpVelocity: " + Math.Round(UpVelocity) + "\n");
                 //values.Append("ForwVelocity: " + Math.Round(ForwVelocity) + "\n");
                 //values.Append("LeftVelocity: " + Math.Round(LeftVelocity) + "\n");
-                values.Append("move_horizont : " + move_ud + "\n");
-                values.Append("move_curse : " + move_fb + "\n");
+                values.Append("move_horizont : " + move_ud + "ap_up      :" + ap_up + "\n");
+                values.Append("move_curse    : " + move_fb + "ap_forward :" + ap_forward + "\n");
                 values.Append("-----------------------------------------------\n");
                 //values.Append("DeltaCurse  : " + Math.Round(DeltaCurse, 2) + "\n");
                 values.Append("VectorCurse  : " + Math.Round(VectorCurse, 2) + "\n");
@@ -1394,6 +1418,9 @@ namespace KROTIK_A1M_V4_1
             {
                 switch (argument)
                 {
+                    case "base_connection":
+                        TargetConnector = remote_control.GetPosition();
+                        break;
                     case "compensate_on":
                         compensate = true;
                         horizont = true;
@@ -1411,6 +1438,10 @@ namespace KROTIK_A1M_V4_1
                         curse_target = false;
                         curent_programm = programm.none;
                         curent_mode = mode.none;
+                        remote_control.DampenersOverride = true;
+                        ap_forward = null;
+                        ap_left = null;
+                        ap_up = null;
                         ClearThrustOverridePersent();
                         break;
                     case "horizont_on":
@@ -1462,6 +1493,11 @@ namespace KROTIK_A1M_V4_1
                         TackTarget = Target2;
                         curent_programm = programm.fly_target;
                         break;
+                    case "FT3":
+                        //clear_velocity = false;
+                        TackTarget = TargetConnector;
+                        curent_programm = programm.fly_target;
+                        break;
                     default:
                         break;
                 }
@@ -1478,20 +1514,28 @@ namespace KROTIK_A1M_V4_1
                     {
                         TakeAim();
                     }
-                    remote_control.DampenersOverride = !compensate;
-                    if (compensate)
-                    {
-                        CompensateWeight();
-                    }
                     if (curent_programm != programm.none)
                     {
                         UpdateProgramm();
                     }
+                    if (!compensate && compensate_old)
+                    {
+                        ClearThrustOverridePersent();
+                        remote_control.DampenersOverride = true;
+                    }
+                    if (compensate && !compensate_old)
+                    {
+                        remote_control.DampenersOverride = false;
+                    }
+                    UpdateThrust();
+                    compensate_old = compensate;
                 }
             }
         }
     }
 }
-// 1. Вернуть работу с компенсацией.
-// 2. В каждых контрольных точках останов до 0.
+
+
 // 3. Чем ближе к точке убирать чувсвительность гироскопа
+// T0: GPS:TargetConnector:53567.3705051079:-26769.2952025845:11925.7372278272:
+// 
