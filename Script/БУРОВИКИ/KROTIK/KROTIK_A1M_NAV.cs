@@ -470,6 +470,19 @@ namespace KROTIK_A1M_NAV
             {
                 obj.Disconnect();
             }
+            public long? getRemoteConnector()
+            {
+                List<IMyShipConnector> list_conn = new List<IMyShipConnector>();
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn);
+                //return list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).Count().ToString();
+                foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList())
+                {
+                    //_scr.Echo("remote_control: " + conn.DisplayNameText);
+                    //if (conn.DisplayNameText.Trim() != conn.DisplayNameText.Trim() && (conn.GetPosition() - this.GetPosition()).Length() < 2) return conn.DisplayNameText;
+                    if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 2) return conn.EntityId;
+                }
+                return null;
+            }
         }
         public class ShipDrill : BaseListTerminalBlock<IMyShipDrill>
         {
@@ -680,14 +693,17 @@ namespace KROTIK_A1M_NAV
             public Vector3D Target1 = new Vector3D(53634.1408339977, -26848.4945197565, 11835.781022294); // GPS:Target1:53634.1408339977:-26848.4945197565:11835.781022294:
             public Vector3D Target2 = new Vector3D(54247.1045229673, -28025.4557401103, 9975.66911975904);  // GPS:Target2:54247.1045229673:-28025.4557401103:9975.66911975904:
             public Vector3D TargetConnector = new Vector3D();
-
-
             public float dist_h_conn { get; private set; } = 100f;  // дист от коннектора по горизонтали (+ для космоса)
             public float dist_v_conn { get; private set; } = 200f;  // дист от коннектора по вертикали
-            List<Vector3D> list_connector_base1 = new List<Vector3D>();
-            List<Vector3D> list_connector_base2 = new List<Vector3D>();
 
+            public class ConnectorBase
+            {
+                public long? id { get; set; }
+                public List<Vector3D> list_point = new List<Vector3D>();
+            }
 
+            ConnectorBase connector_base1 = new ConnectorBase();
+            ConnectorBase connector_base2 = new ConnectorBase();
             public Navigation(Cockpit cockpit, Connector connector, string NameObj, string NameRemoteControl, string NameCameraCourse)
             {
                 this.cockpit = cockpit;
@@ -1046,12 +1062,12 @@ namespace KROTIK_A1M_NAV
                     }
                     if (curent_mode == mode.fly)
                     {
-                        if (DeltaHeight < -MinHeight)
+                        if (DeltaHeight < -MinHeight || DeltaHeight > MinHeight)
                         {
                             // высота (сначала подъем)
                             curent_mode = mode.fly_horizont;
                         }
-                        else if (DeltaCurse < -(MinCurse + 50) || DeltaCurse > MinCurse + 50)
+                        else if (DeltaCurse < -(MinCurse + 50) || DeltaCurse > (MinCurse + 50))
                         {
                             // по курсу
                             curent_mode = mode.fly_curse;
@@ -1060,11 +1076,6 @@ namespace KROTIK_A1M_NAV
                         {
                             // по курсу точно
                             curent_mode = mode.fly_curse1;
-                        }
-                        else if (DeltaHeight > MinHeight)
-                        {
-                            // высота (в конце опустимся)
-                            curent_mode = mode.fly_horizont;
                         }
                     }
                     //}
@@ -1090,7 +1101,7 @@ namespace KROTIK_A1M_NAV
                 ap_forward = null;
                 ap_left = null;
                 ap_up = null;
-                if (DeltaHeight >= -MinHeight && DeltaHeight <= MinHeight)
+                if (DeltaHeight >= -MinHeight && DeltaHeight <= MinHeight) //
                 {
                     move_ud = "Стоп";
                     compensate = false;
@@ -1184,7 +1195,7 @@ namespace KROTIK_A1M_NAV
                 ap_forward = null;
                 ap_left = null;
                 ap_up = null;
-                if (DeltaCurse >= -MinCurse && DeltaCurse <= MinCurse || (DeltaHeight < -(MinHeight + 10) || DeltaHeight > MinHeight + 10))
+                if (DeltaCurse >= -MinCurse && DeltaCurse <= MinCurse || (DeltaHeight < -(MinHeight + 10) || DeltaHeight > MinHeight + 10))//
                 {
                     move_fb = "Стоп";
                     compensate = false;
@@ -1320,29 +1331,31 @@ namespace KROTIK_A1M_NAV
                 SetGyro(YawInput, PitchInput, RollInput);
             }
             //-------------------------------------
-            public void SetPointConnection(ref List<Vector3D> list)
+            public void SetPointConnection(ref ConnectorBase connector_base)
             {
                 if (this.connector.Connected)
                 {
-                    list.Clear();
+                    connector_base.list_point.Clear();
+                    connector_base.id = this.connector.getRemoteConnector();
                     Vector3D GravNorm = Vector3D.Normalize(GravityVector);
                     double vc = GravNorm.Dot(remote_control.WorldMatrix.Forward);
                     Vector3D point = remote_control.GetPosition();
-                    list.Add(point);
+                    connector_base.list_point.Add(point);
                     if (Math.Abs(vc) < 0.01f)
                     {
                         // коннектор горизонт земле 
                         Vector3D vector = remote_control.WorldMatrix.Backward;
                         point += (vector * dist_h_conn);
-                        list.Add(point);
+                        connector_base.list_point.Add(point);
                         point += (-GravNorm * dist_v_conn);
-                        list.Add(point);
+                        connector_base.list_point.Add(point);
                     }
                     else
                     {
                         // коннектор горизонт земле 
                         Vector3D vector = remote_control.WorldMatrix.Backward;
                         point += (vector * dist_v_conn);
+                        connector_base.list_point.Add(point);
                     }
                 }
             }
@@ -1381,17 +1394,17 @@ namespace KROTIK_A1M_NAV
                 values.Append("|- Roll        : " + Math.Round(RollInput, 2) + "\n");
                 values.Append("|- Pitch       : " + Math.Round(PitchInput, 2) + "\n");
                 values.Append("-----------------------------------------------\n");
-                values.Append("base1 [" + list_connector_base1.Count() + "]\n");
+                values.Append("base1 id=" + connector_base1.id + " [" + connector_base1.list_point.Count() + "]\n");
                 int index = 0;
-                foreach (Vector3D p in list_connector_base1)
+                foreach (Vector3D p in connector_base1.list_point)
                 {
                     values.Append(PText.GetGPS("T" + index, p) + "\n");
                     index++;
                 }
                 values.Append("-----------------------------------------------\n");
-                values.Append("base2 [" + list_connector_base2.Count() + "]\n");
+                values.Append("base1 id=" + connector_base2.id + " [" + connector_base2.list_point.Count() + "]\n");
                 index = 0;
-                foreach (Vector3D p in list_connector_base2)
+                foreach (Vector3D p in connector_base2.list_point)
                 {
                     values.Append(PText.GetGPS("T" + index, p) + "\n");
                     index++;
@@ -1410,10 +1423,10 @@ namespace KROTIK_A1M_NAV
                 switch (argument)
                 {
                     case "set_base1":
-                        SetPointConnection(ref list_connector_base1);
+                        SetPointConnection(ref connector_base1);
                         break;
                     case "set_base2":
-                        SetPointConnection(ref list_connector_base2);
+                        SetPointConnection(ref connector_base2);
                         break;
                     case "compensate_on":
                         compensate = true;
@@ -1500,7 +1513,8 @@ namespace KROTIK_A1M_NAV
 
 
 // 0. Чем ближе к точке убирать чувсвительность гироскопа
-// Тестим- Наладить полет сначало выыровнятся по верхней точке а затем к цели
+// 1. изменение матрицы направления полета
+// ?- Наладить полет сначало выыровнятся по верхней точке а затем к цели
 // 2. Выполнить команду полет и конектор+
 // 3. Выполнить команду коннектор- отлет
 // 4. Выполнить команду полет к точкам с точностью (например увеличение и уменшение точности)
@@ -1509,5 +1523,11 @@ namespace KROTIK_A1M_NAV
 // 7. Получение параметров % заряда и заполнения контейнеров
 // 8. режим полета на коннектор, точку бурения.
 // 9. Режим бурения
+
 // T0: GPS:TargetConnector:53567.3705051079:-26769.2952025845:11925.7372278272:
-//
+//GPS:T0:53567.3682644915:-26769.3032342576:11925.7283974891:
+
+//GPS: T1: 53567.327347393:-26810.0214231395:11834.3936969047:
+
+//GPS: T2: 53742.7857451991:-26897.7059714201:11873.4548109712:
+
