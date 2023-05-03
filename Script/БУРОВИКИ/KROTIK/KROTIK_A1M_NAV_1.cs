@@ -876,7 +876,7 @@ namespace KROTIK_A1M_NAV_1
                 // 
                 MyPositionHeightCentr = (PlanetCentr - MyPos).Length();
                 // Рыскание на точку
-                YawTarget = 0;
+                //YawTarget = 0;
                 if (TackTarget != null)
                 {
                     Vector3D T = Vector3D.Normalize((Vector3D)TackTarget - MyPos);
@@ -891,7 +891,7 @@ namespace KROTIK_A1M_NAV_1
                     if (UpVelocity < 0)
                     {
                         double res = GetBrakingDistances(DownThrMax, Math.Abs(UpVelocity));
-                        DownBrakingDistances = res > 0.1f ? res + 100f : 0;
+                        DownBrakingDistances = res > 0.1f ? res + 50f : 0;
                     }
                     if (UpVelocity > 0) UpBrakingDistances = GetBrakingDistances(UpThrMax, Math.Abs(UpVelocity));
                     if (ForwVelocity < 0)
@@ -902,7 +902,7 @@ namespace KROTIK_A1M_NAV_1
                     if (ForwVelocity > 0)
                     {
                         double res = GetBrakingDistances(ForwardThrMax, Math.Abs(ForwVelocity));
-                        ForwardBrakingDistances = res > 0.1f ? res + 50f : 0;
+                        ForwardBrakingDistances = res > 0.1f ? res + 30f : 0;
                     }
                     // Контроль курса приближения
                     Vector3D VectorShipTarget = GetTackTargetCalcVector((Vector3D)TackTarget);
@@ -975,7 +975,7 @@ namespace KROTIK_A1M_NAV_1
                 float backward = (float)(BackwardThrust / BackwardThrMax);
                 float left = (float)(LeftThrust / LeftThrMax);
                 float right = (float)(RightThrust / RightThrMax);
-                if (ap_forward > 0f) { backward += (float)ap_forward; forward = 0f; } else if (ap_forward < 0f) { forward += (float)ap_forward; backward = 0f; }
+                if (ap_forward > 0f) { backward += (float)ap_forward; forward = 0f; } else if (ap_forward < 0f) { forward -= (float)ap_forward; backward = 0f; }
                 if (ap_left > 0f) { right += (float)ap_left; left = 0f; } else if (ap_left < 0f) { left += (float)ap_left; right = 0f; }
                 if (ap_up > 0f) { down += (float)ap_up; up = 0f; } else if (ap_up < 0f) { up += (float)ap_up; down = 0f; }
                 if (compensate)
@@ -1104,7 +1104,7 @@ namespace KROTIK_A1M_NAV_1
             public bool FlyCurse()
             {
                 ap_forward = null;
-                if (DeltaCurse >= -MinCurse && DeltaCurse <= MinCurse || (DeltaHeight < -(MinHeight + 10) || DeltaHeight > MinHeight + 10))//
+                if (DeltaCurse >= -MinCurse && DeltaCurse <= MinCurse)//|| (DeltaHeight < -(MinHeight + 10) || DeltaHeight > MinHeight + 10)
                 {
                     move_fb = "Стоп";
                     compensate = false; // Тормоз
@@ -1198,6 +1198,8 @@ namespace KROTIK_A1M_NAV_1
                 ap_forward = null;
                 ap_left = null;
                 ap_up = null;
+                control_curs = false;
+                control_horizont = false;
                 if ((DeltaHeight >= -MinHeight && DeltaHeight <= MinHeight && DeltaCurse >= -MinCurse && DeltaCurse <= MinCurse) || TackTarget == null)
                 {
                     // точка достигнута
@@ -1207,7 +1209,7 @@ namespace KROTIK_A1M_NAV_1
                     control_horizont = false;
                     control_curs = false;
                     compensate = false; // Тормоз
-                    if (remote_control.GetShipSpeed() < 0.1f)
+                    if (remote_control.GetShipSpeed() < 0.01f)
                     {
                         aim_vector = false;
                         aim_point = false;
@@ -1219,33 +1221,41 @@ namespace KROTIK_A1M_NAV_1
                 else
                 {
                     // Погнали, прицел не сбился
-                    if (Math.Abs(YawTarget) > 0.02f || aim_point || !aim_vector)
+                    if ((Math.Abs(YawTarget) > 0.02f && DeltaCurse < -(MinCurse + 5)) || aim_point || (!aim_vector && !compensate))
                     {
                         // надо целится или целимся
                         aim_vector = false;
                         compensate = false; // Тормоз
-                        if (remote_control.GetShipSpeed() < 0.1f)
+                        if (remote_control.GetShipSpeed() < 0.01f)
                         {
-                            // Надо прицелится
-                            aim_point = true;
-                        }
 
+                            if (Math.Abs(YawTarget) <= 0.01f)
+                            {
+                                TaskVector = WM_Forward; //camera_course.WorldMatrix.Forward; // задали курс
+                                aim_vector = true;
+                            }
+                            else
+                            {
+                                // Надо прицелится
+                                aim_point = true;
+                            }
+                        }
                     }
-                    else if (aim_vector)
+                    else if (aim_vector && !aim_point)
                     {
-                        control_curs = false;
-                        control_horizont = false;
-                        // погнали регулировать
-                        if (DeltaHeight < -MinHeight || DeltaHeight > MinHeight && !control_curs)
+                        if (compensate || (!compensate && remote_control.GetShipSpeed() < 0.01f))
                         {
-                            // высота
-                            control_horizont = true;
-
-                        }
-                        if (DeltaCurse < -MinCurse || DeltaCurse > MinCurse && !control_horizont)
-                        {
-                            // по курсу точно
-                            control_curs = true;
+                            // погнали регулировать
+                            if ((DeltaHeight > -(MinHeight + 10) && DeltaHeight < MinHeight + 10) && (DeltaCurse < -MinCurse || DeltaCurse > MinCurse) && !control_horizont)
+                            {
+                                // по курсу
+                                control_curs = true;
+                            }
+                            if ((DeltaHeight < -MinHeight || DeltaHeight > MinHeight) && !control_curs)
+                            {
+                                // высота
+                                control_horizont = true;
+                            }
                         }
                     }
                 }
@@ -1260,8 +1270,6 @@ namespace KROTIK_A1M_NAV_1
                         if (Math.Abs(YawTarget) <= 0.01f)
                         {
                             aim_point = false;
-                            TaskVector = WM_Forward; //camera_course.WorldMatrix.Forward; // задали курс
-                            aim_vector = true;
                         }
                     }
                 }
@@ -1346,18 +1354,19 @@ namespace KROTIK_A1M_NAV_1
                 StringBuilder values = new StringBuilder();
                 values.Append("move_horizont : " + move_ud + ",  ap_up      :" + ap_up + "\n");
                 values.Append("move_curse    : " + move_fb + ",  ap_forward :" + ap_forward + "\n");
+                values.Append("LeftVelocity  : " + Math.Round(LeftVelocity, 2) + "\n");
                 values.Append("КУРС ---------------------------------------\n");
-                values.Append("|- DeltaCurse               : " + Math.Round(DeltaCurse, 2) + "\n");
+                values.Append("|- DeltaCurse               : " + Math.Round(DeltaCurse, 2) + ", C : " + (control_curs ? green.ToString() : red.ToString()) + "\n");
                 values.Append("|- ForwVelocity             : " + Math.Round(ForwVelocity, 2) + "\n");
                 values.Append("|- ForwardBrakingDistances  : " + Math.Round(ForwardBrakingDistances, 2) + "\n");
                 values.Append("|- BackwardBrakingDistances : " + Math.Round(BackwardBrakingDistances, 2) + "\n");
                 values.Append("ВЫСОТА -------------------------------------\n");
-                values.Append("|- DeltaHeight              : " + Math.Round(DeltaHeight, 2) + "\n");
+                values.Append("|- DeltaHeight              : " + Math.Round(DeltaHeight, 2) + ", H : " + (control_horizont ? green.ToString() : red.ToString()) + "\n");
                 values.Append("|- UpVelocity               : " + Math.Round(UpVelocity, 2) + "\n");
                 values.Append("|- UpBrakingDistances       : " + Math.Round(UpBrakingDistances, 2) + "\n");
                 values.Append("|- DownBrakingDistances     : " + Math.Round(DownBrakingDistances, 2) + "\n");
                 values.Append("ГИРОСКОПЫ ----------------------------------\n");
-                values.Append("|- Yaw-target  : " + Math.Round(YawTarget, 2) + "\n");
+                values.Append("|- Yaw-target  : " + Math.Round(YawTarget, 2) + ", T : " + (aim_point ? green.ToString() : red.ToString()) + ",  V : " + (aim_vector ? green.ToString() : red.ToString()) + "\n");
                 values.Append("|- Yaw-curse   : " + Math.Round(YawVector, 2) + "\n");
                 values.Append("|- Yaw         : " + Math.Round(YawInput, 2) + "\n");
                 values.Append("|- Roll        : " + Math.Round(RollInput, 2) + "\n");
@@ -1412,6 +1421,8 @@ namespace KROTIK_A1M_NAV_1
                         curent_programm = programm.none;
                         curent_mode = mode.none;
                         remote_control.DampenersOverride = true;
+                        control_horizont = false;
+                        control_curs = false;
                         ap_forward = null;
                         ap_left = null;
                         ap_up = null;
@@ -1456,15 +1467,16 @@ namespace KROTIK_A1M_NAV_1
                     {
                         FlyTarget();
                     }
+                    if (aim_point)
+                    {
+                        TakeAim();
+                    }
                     GyroOver(horizont);
                     if (horizont)
                     {
                         Horizon();
                     }
-                    if (aim_point)
-                    {
-                        TakeAim();
-                    }
+
                     if (control_curs)
                     {
                         FlyCurse();
