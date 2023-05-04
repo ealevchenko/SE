@@ -19,7 +19,7 @@ using VRageMath;
 /// <summary>
 /// v4.0
 /// </summary>
-namespace KROTIK_A1M_NAV_2
+namespace KROTIK_A1M_NAV_3
 {
     public sealed class Program : MyGridProgram
     {
@@ -696,7 +696,7 @@ namespace KROTIK_A1M_NAV_2
             public double MinDeltaHeight { get; private set; } = 100f;      // мин высота + тормозному пути
             //---------------------------------------------------------
             public double DeltaCurse { get; private set; }                  // разница по курсу
-            public double MaxSpeedCurse { get; private set; } = 100f;       // макс ускорение по курсу
+            public double MaxSpeedCurse { get; private set; } = 50f;        // макс ускорение по курсу
             public double MinCurse { get; private set; } = 1.0f;            // мин разница по курсу (цель достигнута)
             public double MinDeltaCurse { get; private set; } = 50f;        // мин растояние по курсу точки + тормозному пути
             //---------------------------------------------------------
@@ -905,6 +905,7 @@ namespace KROTIK_A1M_NAV_2
                     // Контроль курса приближения
                     Vector3D VectorShipTarget = GetTackTargetCalcVector((Vector3D)TackTarget);
                     DeltaCurse = -VectorShipTarget.Dot(WM_Forward);
+                    if (DeltaCurse < -10f) { DeltaCurse += 10.0; }
                 }
                 if (TackHeight != null)
                 {
@@ -914,9 +915,14 @@ namespace KROTIK_A1M_NAV_2
                 if (UpVelocity < 0)
                 {
                     double res = GetBrakingDistances(DownThrMax, Math.Abs(UpVelocity));
-                    DownBrakingDistances = res > 0.1f ? res + 100f : 0; //(Math.Abs(DeltaHeight) > 100f ? 100f: 0)
+                    DownBrakingDistances = res > 0.1f ? res + (Math.Abs(DeltaHeight) > 100f ? 100f : 0) : 0; //(Math.Abs(DeltaHeight) > 100f ? 100f: 0)
                 }
-                if (UpVelocity > 0) UpBrakingDistances = GetBrakingDistances(UpThrMax, Math.Abs(UpVelocity));
+                if (UpVelocity > 0)
+                {
+                    double res = GetBrakingDistances(UpThrMax, Math.Abs(UpVelocity));
+                    UpBrakingDistances = res > 0.1f ? res + (Math.Abs(DeltaHeight) > 100f ? 100f : 0) : 0;
+                }
+
                 if (ForwVelocity < 0)
                 {
                     double res = GetBrakingDistances(BackwardThrMax, Math.Abs(ForwVelocity));
@@ -1248,27 +1254,11 @@ namespace KROTIK_A1M_NAV_2
                 else
                 {
                     // Погнали, прицел не сбился
-                    if ((Math.Abs(YawTarget) > 0.02f && DeltaCurse < -(MinCurse + 5)) || aim_point || (!aim_vector && !compensate))
+                    if (Math.Abs(YawTarget) != 0.0 && (DeltaCurse < -(MinCurse) || DeltaCurse > (MinCurse)))// 
                     {
-                        // надо целится или целимся
-                        aim_vector = false;
-                        compensate = false; // Тормоз
-                        if (remote_control.GetShipSpeed() < 0.01f)
-                        {
-
-                            if (Math.Abs(YawTarget) <= 0.01f)
-                            {
-                                TaskVector = WM_Forward; //camera_course.WorldMatrix.Forward; // задали курс
-                                aim_vector = true;
-                            }
-                            else
-                            {
-                                // Надо прицелится
-                                aim_point = true;
-                            }
-                        }
+                        aim_point = true;
                     }
-                    else if (aim_vector && !aim_point)
+                    if (aim_vector) // && !aim_point
                     {
                         // Летим или тормозим
                         if (compensate || (!compensate && remote_control.GetShipSpeed() < 0.01f))
@@ -1302,6 +1292,8 @@ namespace KROTIK_A1M_NAV_2
                         if (Math.Abs(YawTarget) <= 0.01f)
                         {
                             aim_point = false;
+                            TaskVector = WM_Forward; //camera_course.WorldMatrix.Forward; // задали курс
+                            aim_vector = true;
                         }
                     }
                 }
