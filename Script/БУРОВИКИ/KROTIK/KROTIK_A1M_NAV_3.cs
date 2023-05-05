@@ -33,9 +33,6 @@ namespace KROTIK_A1M_NAV_3
 
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
 
-        static public double Kv { get; private set; } = 1;            //Коэффициент Kv, характеризующий пропорциональную зависимость между разностью требуемой и текущей высот и необходимой вертикальной скоростью
-        static public double Ka { get; private set; } = 5;            //Коэффициент Ka, характеризующий пропорциональную зависимость между разностью требуемой и текущей верт. скоростей и желаемым ускорением
-
         const char green = '\uE001';
         const char blue = '\uE002';
         const char red = '\uE003';
@@ -482,11 +479,8 @@ namespace KROTIK_A1M_NAV_3
             {
                 List<IMyShipConnector> list_conn = new List<IMyShipConnector>();
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn);
-                //return list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).Count().ToString();
                 foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList())
                 {
-                    //_scr.Echo("remote_control: " + conn.DisplayNameText);
-                    //if (conn.DisplayNameText.Trim() != conn.DisplayNameText.Trim() && (conn.GetPosition() - this.GetPosition()).Length() < 2) return conn.DisplayNameText;
                     if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 2) return conn.EntityId;
                 }
                 return null;
@@ -617,12 +611,15 @@ namespace KROTIK_A1M_NAV_3
             public bool aim_point { get; private set; } = false;        // прицелится на точку
             public bool aim_vector { get; private set; } = false;       // прицелится по вектору
             public bool fly_target { get; private set; } = false;       // Летим на точку
-            public bool control_horizont { get; private set; } = false; // выравниваем горизонт
-            public bool control_curs { get; private set; } = false;     // летим по курсу
+            public bool control_horizont { get; private set; } = false; // контролируем горизонт
+            public bool control_curs { get; private set; } = false;     // контролируем по курсу
             public Vector3D HoverThrust { get; private set; } = new Vector3D();
             public bool hover { get; private set; } = false;            // летим в режиме "Hover"
-            //public double Kv { get; private set; } = 8;            //Коэффициент Kv, характеризующий пропорциональную зависимость между разностью требуемой и текущей высот и необходимой вертикальной скоростью
-            //public double Ka { get; private set; } = 10;            //Коэффициент Ka, характеризующий пропорциональную зависимость между разностью требуемой и текущей верт. скоростей и желаемым ускорением
+            public double Kv { get; private set; } = 1;                 //Коэффициент Kv, характеризующий пропорциональную зависимость между разностью требуемой и текущей высот и необходимой вертикальной скоростью
+            public double Ka { get; private set; } = 5;                 //Коэффициент Ka, характеризующий пропорциональную зависимость между разностью требуемой и текущей верт. скоростей и желаемым ускорением
+            public double MinHover { get; private set; } = 30;         // Минимальный диапазон включения или откл режима Hover
+
+
             public enum programm : int
             {
                 none = 0,
@@ -698,7 +695,8 @@ namespace KROTIK_A1M_NAV_3
             public double DeltaCurse { get; private set; }                  // разница по курсу
             public double MaxSpeedCurse { get; private set; } = 50f;        // макс ускорение по курсу
             public double MinCurse { get; private set; } = 1.0f;            // мин разница по курсу (цель достигнута)
-            public double MinDeltaCurse { get; private set; } = 50f;        // мин растояние по курсу точки + тормозному пути
+            public double AccuracyDeltaCurse { get; private set; } = 5f;   // точность подлета к цели (влияет на точность оставшегося расстояния до цели)
+            public double MinDeltaCurse { get; private set; } = 100f;       // мин растояние по курсу точки + тормозному пути
             //---------------------------------------------------------
             public double UpBrakingDistances { get; private set; }          // тормозной путь при подъеме вверх
             public double DownBrakingDistances { get; private set; }        // тормозной путь при движении вниз
@@ -716,7 +714,7 @@ namespace KROTIK_A1M_NAV_3
             public Vector3D Target1 = new Vector3D(53634.1408339977, -26848.4945197565, 11835.781022294); // GPS:Target1:53634.1408339977:-26848.4945197565:11835.781022294:
             public Vector3D Target2 = new Vector3D(54247.1045229673, -28025.4557401103, 9975.66911975904);  // GPS:Target2:54247.1045229673:-28025.4557401103:9975.66911975904:
             public Vector3D TargetConnector = new Vector3D(53567.3682644915, -26769.3032342576, 11925.7283974891); //GPS:T0:53567.3682644915:-26769.3032342576:11925.7283974891:
-            public float dist_h_conn { get; private set; } = 100f;  // дист от коннектора по горизонтали (+ для космоса)
+            public float dist_h_conn { get; private set; } = 50f;  // дист от коннектора по горизонтали (+ для космоса)
             public float dist_v_conn { get; private set; } = 200f;  // дист от коннектора по вертикали
 
             public class ConnectorBase
@@ -727,6 +725,9 @@ namespace KROTIK_A1M_NAV_3
 
             ConnectorBase connector_base1 = new ConnectorBase();
             ConnectorBase connector_base2 = new ConnectorBase();
+            ConnectorBase current_connector_base = null;   // текущий коннектор на который летим
+            int? current_point_index = null;
+
             public Navigation(Cockpit cockpit, Connector connector, string NameObj, string NameRemoteControl, string NameCameraCourse)
             {
                 this.cockpit = cockpit;
@@ -905,7 +906,7 @@ namespace KROTIK_A1M_NAV_3
                     // Контроль курса приближения
                     Vector3D VectorShipTarget = GetTackTargetCalcVector((Vector3D)TackTarget);
                     DeltaCurse = -VectorShipTarget.Dot(WM_Forward);
-                    if (DeltaCurse < -10f) { DeltaCurse += 10.0; }
+                    if (DeltaCurse < -10f) { DeltaCurse += AccuracyDeltaCurse; }
                 }
                 if (TackHeight != null)
                 {
@@ -915,12 +916,12 @@ namespace KROTIK_A1M_NAV_3
                 if (UpVelocity < 0)
                 {
                     double res = GetBrakingDistances(DownThrMax, Math.Abs(UpVelocity));
-                    DownBrakingDistances = res > 0.1f ? res + (Math.Abs(DeltaHeight) > 100f ? 100f : 0) : 0; //(Math.Abs(DeltaHeight) > 100f ? 100f: 0)
+                    DownBrakingDistances = res > 0.1f ? res + (Math.Abs(DeltaHeight) > MinDeltaHeight ? MinDeltaHeight : 0) : 0;
                 }
                 if (UpVelocity > 0)
                 {
                     double res = GetBrakingDistances(UpThrMax, Math.Abs(UpVelocity));
-                    UpBrakingDistances = res > 0.1f ? res + (Math.Abs(DeltaHeight) > 100f ? 100f : 0) : 0;
+                    UpBrakingDistances = res > 0.1f ? res + (Math.Abs(DeltaHeight) > MinDeltaHeight ? MinDeltaHeight : 0) : 0;
                 }
 
                 if (ForwVelocity < 0)
@@ -931,7 +932,7 @@ namespace KROTIK_A1M_NAV_3
                 if (ForwVelocity > 0)
                 {
                     double res = GetBrakingDistances(ForwardThrMax, Math.Abs(ForwVelocity));
-                    ForwardBrakingDistances = res > 0.1f ? res + (Math.Abs(DeltaCurse) > 100f ? 100f : 0) : 0;
+                    ForwardBrakingDistances = res > 0.1f ? res + (Math.Abs(DeltaCurse) > MinDeltaCurse ? MinDeltaCurse : 0) : 0;
                 }
                 //YawVector = 0;
                 if (TaskVector != null)
@@ -1038,6 +1039,11 @@ namespace KROTIK_A1M_NAV_3
             {
                 switch (curent_programm)
                 {
+                    case programm.fly_connect:
+                        {
+                            FlyConnector();
+                            break;
+                        }
                     default:
                         {
                             curent_programm = programm.none;
@@ -1235,11 +1241,11 @@ namespace KROTIK_A1M_NAV_3
                 if ((DeltaHeight >= -MinHeight && DeltaHeight <= MinHeight && DeltaCurse >= -MinCurse && DeltaCurse <= MinCurse) || TackTarget == null)
                 {
                     // точка достигнута
-                    ap_forward = null;
-                    ap_left = null;
-                    ap_up = null;
-                    control_horizont = false;
-                    control_curs = false;
+                    //ap_forward = null;
+                    //ap_left = null;
+                    //ap_up = null;
+                    //control_horizont = false;
+                    //control_curs = false;
                     compensate = false; // Тормоз
                     if (remote_control.GetShipSpeed() < 0.01f)
                     {
@@ -1258,13 +1264,13 @@ namespace KROTIK_A1M_NAV_3
                     {
                         aim_point = true;
                     }
-                    if (aim_vector) // && !aim_point
+                    if (aim_vector)
                     {
                         // Летим или тормозим
                         if (compensate || (!compensate && remote_control.GetShipSpeed() < 0.01f))
                         {
                             // погнали регулировать
-                            if (DeltaHeight < -(MinHeight + 20) || DeltaHeight > (MinHeight + 20))
+                            if (DeltaHeight < -(MinHeight + MinHover) || DeltaHeight > (MinHeight + MinHover))
                             {
                                 control_horizont = true;
                                 hover = false;
@@ -1274,10 +1280,34 @@ namespace KROTIK_A1M_NAV_3
                                 hover = true;
                                 if (DeltaCurse < -MinCurse || DeltaCurse > MinCurse && DeltaHeight > -MinHeight && DeltaHeight < MinHeight)
                                 {
-                                    //hover = false;
                                     control_curs = true;
                                 }
                             }
+                        }
+                    }
+                }
+            }
+            public void FlyConnector()
+            {
+                if (current_connector_base != null)
+                {
+                    if (current_point_index == null)
+                    {
+                        current_point_index = current_connector_base.list_point.Count() - 1;
+                        TackTarget = current_connector_base.list_point[(int)current_point_index];
+                        fly_target = true;
+                    }
+                    else
+                    {
+                        if (!fly_target)
+                        {
+                            current_point_index--;
+                            if (current_point_index == 0)
+                            {
+                                // последняя точка
+                            }
+                            TackTarget = current_connector_base.list_point[(int)current_point_index];
+                            fly_target = true;
                         }
                     }
                 }
@@ -1437,6 +1467,10 @@ namespace KROTIK_A1M_NAV_3
                     case "set_base1":
                         SetPointConnection(ref connector_base1);
                         break;
+                    case "connect_base1":
+                        current_connector_base = connector_base1;
+                        curent_programm = programm.fly_connect;
+                        break;
                     case "set_base2":
                         SetPointConnection(ref connector_base2);
                         break;
@@ -1452,6 +1486,7 @@ namespace KROTIK_A1M_NAV_3
                         compensate = false;
                         horizont = false;
                         fly_target = false;
+                        current_connector_base = null;
                         curent_programm = programm.none;
                         curent_mode = mode.none;
                         remote_control.DampenersOverride = true;
@@ -1520,10 +1555,10 @@ namespace KROTIK_A1M_NAV_3
                     {
                         FlyHorizont();
                     }
-                    //if (curent_programm != programm.none)
-                    //{
-                    //    UpdateProgramm();
-                    //}
+                    if (curent_programm != programm.none)
+                    {
+                        UpdateProgramm();
+                    }
                     if (!compensate && compensate_old)
                     {
                         ClearThrustOverridePersent();
