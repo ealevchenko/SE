@@ -20,7 +20,7 @@ using VRageMath;
 /// <summary>
 /// v4.0
 /// </summary>
-namespace KROTIK_A1M_NAV_3
+namespace KROTIK_A1M_NAV_4
 {
     public sealed class Program : MyGridProgram
     {
@@ -722,14 +722,18 @@ namespace KROTIK_A1M_NAV_3
                 public Vector3D vector = new Vector3D();
                 public bool? position = false;
             }
-            ConnectorBase connector_base1 = new ConnectorBase();
+            ConnectorBase connector_base1 = new ConnectorBase() {
+                id = 79876025562437155,
+                point = new Vector3D(53567.3705051079, -26769.2952025845, 11925.7372278272),
+                vector = new Vector3D(0, 0.41, 0.91), 
+                position = false
+            };
             ConnectorBase connector_base2 = new ConnectorBase();
             ConnectorBase current_connector_base = null;   // текущий коннектор на который летим
 
             int? current_point_index = null;
             int count = 0;
             List<Vector3D> current_list_points = new List<Vector3D>();
-
             public Navigation(Cockpit cockpit, Connector connector, string NameObj, string NameRemoteControl, string NameCameraCourse)
             {
                 this.cockpit = cockpit;
@@ -908,7 +912,7 @@ namespace KROTIK_A1M_NAV_3
                     // Контроль курса приближения
                     Vector3D VectorShipTarget = GetTackTargetCalcVector((Vector3D)TackTarget);
                     DeltaCurse = -VectorShipTarget.Dot(WM_Forward);
-                    if (DeltaCurse < -10f) { DeltaCurse += AccuracyDeltaCurse; }
+                    //if (DeltaCurse < -10f) { DeltaCurse += AccuracyDeltaCurse; }
                 }
                 // тормозной путь
                 if (UpVelocity < 0)
@@ -921,7 +925,6 @@ namespace KROTIK_A1M_NAV_3
                     double res = GetBrakingDistances(UpThrMax, Math.Abs(UpVelocity));
                     UpBrakingDistances = res > 0.1f ? res + (Math.Abs(DeltaHeight) > MinDeltaHeight ? MinDeltaHeight : 0) : 0;
                 }
-
                 if (ForwVelocity < 0)
                 {
                     double res = GetBrakingDistances(BackwardThrMax, Math.Abs(ForwVelocity));
@@ -1082,7 +1085,7 @@ namespace KROTIK_A1M_NAV_3
                                     // Ускоримся вверх
                                     move_ud = "Ускоримся вверх";
                                     compensate = true;
-                                    ap_up = (Math.Abs(DeltaHeight) > 50 ? 1.0f : 0.4f);
+                                    ap_up = (Math.Abs(DeltaHeight) > 100f ? 1.0f : 0.4f);
                                 }
                                 else
                                 {
@@ -1101,7 +1104,7 @@ namespace KROTIK_A1M_NAV_3
                             // Ускоримся вверх
                             move_ud = "Ускоримся вверх, скорость 0";
                             compensate = true;
-                            ap_up = (Math.Abs(DeltaHeight) > 50 ? 1.0f : 0.4f);
+                            ap_up = (Math.Abs(DeltaHeight) > 100f ? 1.0f : 0.4f);
                         }
                     }
                     else if (DeltaHeight > MinHeight)
@@ -1121,7 +1124,7 @@ namespace KROTIK_A1M_NAV_3
                                     // Ускоримся вниз
                                     move_ud = "Ускоримся вниз";
                                     compensate = true;
-                                    ap_up = -(Math.Abs(DeltaHeight) > 50 ? 1.0f : 0.4f);
+                                    ap_up = -(Math.Abs(DeltaHeight) > 100f ? 1.0f : 0.4f);
                                 }
                                 else
                                 {
@@ -1139,7 +1142,7 @@ namespace KROTIK_A1M_NAV_3
                         {
                             move_ud = "Ускоримся вниз,  скорость 0";
                             compensate = true;
-                            ap_up = -(Math.Abs(DeltaHeight) > 50 ? 1.0f : 0.4f);
+                            ap_up = -(Math.Abs(DeltaHeight) > 100f ? 1.0f : 0.4f);
                         }
                     }
                 }
@@ -1172,7 +1175,7 @@ namespace KROTIK_A1M_NAV_3
                                     // Ускоримся вперед
                                     move_fb = "Ускоримся вперед";
                                     compensate = true;
-                                    ap_forward = (Math.Abs(DeltaCurse) > 50 ? 1.0f : 0.2f);
+                                    ap_forward = (Math.Abs(DeltaCurse) > 100f ? 1.0f : 0.2f);
                                 }
                                 else
                                 {
@@ -1191,7 +1194,7 @@ namespace KROTIK_A1M_NAV_3
                             // Ускоримся вперед
                             move_fb = "Ускоримся вперед, скорость 0";
                             compensate = true;
-                            ap_forward = (Math.Abs(DeltaCurse) > 50 ? 1.0f : 0.2f);
+                            ap_forward = (Math.Abs(DeltaCurse) > 100f ? 1.0f : 0.2f);
                         }
                     }
                     else if (DeltaCurse > MinCurse)
@@ -1211,7 +1214,7 @@ namespace KROTIK_A1M_NAV_3
                                     // Ускоримся назад
                                     move_fb = "Ускоримся назад";
                                     compensate = true;
-                                    ap_forward = -(Math.Abs(DeltaCurse) > 50 ? 1.0f : 0.2f);
+                                    ap_forward = -(Math.Abs(DeltaCurse) > 100f ? 1.0f : 0.2f);
                                 }
                                 else
                                 {
@@ -1229,7 +1232,7 @@ namespace KROTIK_A1M_NAV_3
                         {
                             move_fb = "Ускоримся назад,  скорость 0";
                             compensate = true;
-                            ap_forward = -(Math.Abs(DeltaCurse) > 50 ? 1.0f : 0.2f);
+                            ap_forward = -(Math.Abs(DeltaCurse) > 100f ? 1.0f : 0.2f);
                         }
                     }
                 }
@@ -1241,50 +1244,41 @@ namespace KROTIK_A1M_NAV_3
                 ap_up = null;
                 control_curs = false;
                 control_horizont = false;
+                hover = false;
                 if ((DeltaHeight >= -MinHeight && DeltaHeight <= MinHeight && DeltaCurse >= -MinCurse && DeltaCurse <= MinCurse) || TackTarget == null)
                 {
                     // точка достигнута
-                    //ap_forward = null;
-                    //ap_left = null;
-                    //ap_up = null;
-                    //control_horizont = false;
-                    //control_curs = false;
                     compensate = false; // Тормоз
                     if (remote_control.GetShipSpeed() < 0.01f)
                     {
                         aim_vector = false;
                         aim_point = false;
                         hover = false;
-                        //curent_mode = mode.none;
-                        //curent_programm = programm.none;
                         fly_target = false;
                     }
                 }
                 else
                 {
-                    // Погнали, прицел не сбился
-                    if (Math.Abs(YawTarget) != 0.0 && (DeltaCurse < -(MinCurse) || DeltaCurse > (MinCurse)))// 
+                    if (DeltaHeight < -(MinHeight + MinHover) || DeltaHeight > (MinHeight + MinHover))
                     {
-                        aim_point = true;
+                        control_horizont = true;
+                        hover = false;
                     }
-                    if (aim_vector)
+                    else
                     {
-                        // Летим или тормозим
-                        if (compensate || (!compensate && remote_control.GetShipSpeed() < 0.01f))
+                        if (Math.Abs(YawTarget) > 0.01f && (DeltaCurse < -(MinCurse + 10) || DeltaCurse > (MinCurse + 10)))
                         {
-                            // погнали регулировать
-                            if (DeltaHeight < -(MinHeight + MinHover) || DeltaHeight > (MinHeight + MinHover))
+                            compensate = false; // Тормоз
+                            aim_point = true;
+                        }
+                        // Летим или тормозим
+                        if (compensate || (!compensate && Math.Abs(LeftVelocity)  < 0.01f))
+                        {
+                            hover = true;
+                            if (DeltaCurse < -MinCurse || DeltaCurse > MinCurse)
                             {
-                                control_horizont = true;
-                                hover = false;
-                            }
-                            else
-                            {
-                                hover = true;
-                                if (DeltaCurse < -MinCurse || DeltaCurse > MinCurse && DeltaHeight > -MinHeight && DeltaHeight < MinHeight)
-                                {
-                                    control_curs = true;
-                                }
+                                MaxSpeedCurse = 50.0f;
+                                control_curs = true;
                             }
                         }
                     }
@@ -1332,38 +1326,112 @@ namespace KROTIK_A1M_NAV_3
             }
             public void FlyConnector()
             {
-                if (current_connector_base != null)
+                if (current_connector_base != null && current_list_points != null && current_list_points.Count() > 0)
                 {
-                    TackTarget = current_connector_base.point;
-                    compensate = true; // Тормоз
-                    ap_forward = null;
-                    ap_left = null;
-                    ap_up = null;
-                    control_curs = false;
-                    control_horizont = false;
-                    if (this.connector.Connectable)
+                    if (current_point_index != null && !fly_target)
                     {
-                        fly_target = false;
-                        curent_programm = programm.none;
-                        compensate = false; // Тормоз
-                        aim_vector = false;
-                        aim_point = false;
-                        hover = false;
+                        count++;
+                        if (count > 5)
+                        {
+                            current_point_index--;
+                            count = 0;
+                        }
+                        // долител
+                        if (current_point_index < 0)
+                        {
+                            fly_target = false;
+
+                            //
+                            TackTarget = current_connector_base.point;
+                            compensate = true; // Тормоз
+                            ap_forward = null;
+                            ap_left = null;
+                            ap_up = null;
+                            control_curs = false;
+                            control_horizont = false;
+                            if (this.connector.Connectable)
+                            {
+                                fly_target = false;
+                                curent_programm = programm.none;
+                                current_point_index = null;
+                                current_list_points.Clear();
+                                compensate = false; // Тормоз
+                                aim_vector = false;
+                                aim_point = false;
+                                hover = false;
+                            }
+                            else
+                            {
+                                // Погнали, прицел не сбился
+                                if (Math.Abs(YawTarget) != 0.0 && DeltaCurse < -(MinCurse))// 
+                                {
+                                    compensate = false; // Тормоз
+                                    aim_point = true;
+                                }
+                                // Летим или тормозим
+                                if (compensate || (!compensate && Math.Abs(LeftVelocity) < 0.01f))
+                                {
+                                    hover = true;
+                                    if (DeltaCurse < -MinCurse || DeltaCurse > MinCurse)
+                                    {
+                                        MaxSpeedCurse = 2.0f;
+                                        control_curs = true;
+                                    }
+                                }
+                            }
+                            //---------------
+                        }
+                        else
+                        {
+                            TackTarget = current_list_points[(int)current_point_index];
+                            fly_target = true;
+                        }
                     }
-                    else
+                    else if (current_point_index == null && !fly_target)
                     {
-                        // Погнали, прицел не сбился
-                        if (Math.Abs(YawTarget) != 0.0 && DeltaCurse < -(MinCurse))// 
-                        {
-                            aim_point = true;
-                        }
-                        hover = true;
-                        if (DeltaCurse < -MinCurse || DeltaCurse > MinCurse)
-                        {
-                            control_curs = true;
-                        }
+                        current_point_index = current_list_points.Count() - 1;
+                        TackTarget = current_list_points[(int)current_point_index];
+                        fly_target = true;
                     }
                 }
+                //if (current_connector_base != null)
+                //{
+                //    TackTarget = current_connector_base.point;
+                //    compensate = true; // Тормоз
+                //    ap_forward = null;
+                //    ap_left = null;
+                //    ap_up = null;
+                //    control_curs = false;
+                //    control_horizont = false;
+                //    if (this.connector.Connectable)
+                //    {
+                //        fly_target = false;
+                //        curent_programm = programm.none;
+                //        compensate = false; // Тормоз
+                //        aim_vector = false;
+                //        aim_point = false;
+                //        hover = false;
+                //    }
+                //    else
+                //    {
+                //        // Погнали, прицел не сбился
+                //        if (Math.Abs(YawTarget) != 0.0 && DeltaCurse < -(MinCurse))// 
+                //        {
+                //            compensate = false; // Тормоз
+                //            aim_point = true;
+                //        }
+                //        // Летим или тормозим
+                //        if (compensate || (!compensate && Math.Abs(LeftVelocity) < 0.01f))
+                //        {
+                //            hover = true;
+                //            if (DeltaCurse < -MinCurse || DeltaCurse > MinCurse)
+                //            {
+                //                MaxSpeedCurse = 2.0f;
+                //                control_curs = true;
+                //            }
+                //        }
+                //    }
+                //}
             }
             public void TakeAim()
             {
@@ -1412,6 +1480,17 @@ namespace KROTIK_A1M_NAV_3
                     YawInput = YawVector;
                 }
                 SetGyro(YawInput, PitchInput, RollInput);
+            }
+            public void Connector1() {
+                current_connector_base = connector_base1;
+                Vector3D GravNorm = Vector3D.Normalize(GravityVector);
+                Vector3D p0 = current_connector_base.point - (current_connector_base.vector * dist_h_conn);
+                Vector3D p1 = p0 + (-GravNorm * dist_v_conn);
+                current_point_index = null;
+                current_list_points.Clear();
+                current_list_points.Add(p0);
+                current_list_points.Add(p1);
+                curent_programm = programm.fly_connect;
             }
             //-------------------------------------
             public void SetPointConnection(ref ConnectorBase connector_base)
@@ -1510,8 +1589,9 @@ namespace KROTIK_A1M_NAV_3
                         SetPointConnection(ref connector_base1);
                         break;
                     case "connect_base1":
-                        current_connector_base = connector_base1;
-                        curent_programm = programm.fly_connect;
+                        Connector1();
+                        //current_connector_base = connector_base1;
+                        //curent_programm = programm.fly_connect;
                         break;
                     case "set_base2":
                         SetPointConnection(ref connector_base2);
@@ -1639,4 +1719,13 @@ namespace KROTIK_A1M_NAV_3
 //GPS: T1: 53567.327347393:-26810.0214231395:11834.3936969047:
 
 //GPS: T2: 53742.7857451991:-26897.7059714201:11873.4548109712:
+
+
+//BASE - 1 id = 79876025562437155 positionFalse
+
+//GPS:| -Point::53567.35 : -26769.33 : 11925.75:
+
+//GPS:| -Vector::0 : 0.41 : 0.91:
+
+//BASE - 2 id = positionFalse
 
