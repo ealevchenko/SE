@@ -14,6 +14,7 @@ using System.Runtime.Remoting.Messaging;
 using System.Text;
 using System.Threading.Tasks;
 using System.Timers;
+using System.Xml.Linq;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
 using VRageMath;
@@ -687,11 +688,13 @@ namespace KROTIK_A1M_NAV_4
             public double MyPositionHeightCentr { get; private set; }       // высота от центра земли к кораблю
             public double TargetPositionHeightCentr { get; private set; }   // высота от центра земли к точке
             public double DeltaHeight { get; private set; }                 // разница по высоте
+            public float TaskHeightSpeed { get; private set; }              // разница по высоте
             public double MaxSpeedHeight { get; private set; } = 100f;      // макс ускорение по высоте
             public double MinHeight { get; private set; } = 1.0f;           // мин разница высоты (цель достигнута)
             public double MinDeltaHeight { get; private set; } = 100f;      // мин высота + тормозному пути
             //---------------------------------------------------------
             public double DeltaCurse { get; private set; }                  // разница по курсу
+            public float TaskCurseSpeed { get; private set; }               // разница по высоте
             public double MaxSpeedCurse { get; private set; } = 50f;        // макс ускорение по курсу
             public double MinCurse { get; private set; } = 1.0f;            // мин разница по курсу (цель достигнута)
             public double AccuracyDeltaCurse { get; private set; } = 10f;   // точность подлета к цели (влияет на точность оставшегося расстояния до цели)
@@ -721,12 +724,15 @@ namespace KROTIK_A1M_NAV_4
                 public Vector3D point = new Vector3D();
                 public Vector3D vector = new Vector3D();
                 public bool? position = false;
+                public bool? load = false;
             }
-            ConnectorBase connector_base1 = new ConnectorBase() {
+            ConnectorBase connector_base1 = new ConnectorBase()
+            {
                 id = 79876025562437155,
                 point = new Vector3D(53567.3705051079, -26769.2952025845, 11925.7372278272),
-                vector = new Vector3D(0, 0.41, 0.91), 
-                position = false
+                vector = new Vector3D(0, 0.41, 0.91),
+                position = false,
+                load = false
             };
             ConnectorBase connector_base2 = new ConnectorBase();
             ConnectorBase current_connector_base = null;   // текущий коннектор на который летим
@@ -944,6 +950,11 @@ namespace KROTIK_A1M_NAV_4
                     double tL = T.Dot(WM_Left);
                     YawVector = -(float)Math.Atan2(tL, tF);
                 }
+                //
+                // Определим скорость
+                TaskHeightSpeed = (float)Math.Sqrt(2 * Math.Abs(DeltaHeight) * GravityVector.Length()) / 2;
+                TaskCurseSpeed = (float)Math.Sqrt(2 * Math.Abs(DeltaCurse) * GravityVector.Length()) / 2;
+
                 // Орентация коробля
                 Matrix CPMatrix = new MatrixD();
                 Matrix ThrusterMatrix = new MatrixD();
@@ -1040,11 +1051,6 @@ namespace KROTIK_A1M_NAV_4
             {
                 switch (curent_programm)
                 {
-                    case programm.fly_targets:
-                        {
-                            FlyPoints();
-                            break;
-                        }
                     case programm.fly_connect:
                         {
                             FlyConnector();
@@ -1272,19 +1278,18 @@ namespace KROTIK_A1M_NAV_4
                             aim_point = true;
                         }
                         // Летим или тормозим
-                        if (compensate || (!compensate && Math.Abs(LeftVelocity)  < 0.01f))
+                        if (compensate || (!compensate && Math.Abs(LeftVelocity) < 0.01f))
                         {
                             hover = true;
                             if (DeltaCurse < -MinCurse || DeltaCurse > MinCurse)
                             {
-                                MaxSpeedCurse = 50.0f;
                                 control_curs = true;
                             }
                         }
                     }
                 }
             }
-            public void FlyPoints()
+            public bool FlyPoints(bool clear)
             {
                 if (current_list_points != null && current_list_points.Count() > 0)
                 {
@@ -1299,139 +1304,68 @@ namespace KROTIK_A1M_NAV_4
                         // долител
                         if (current_point_index < 0)
                         {
+                            fly_target = false;
+                            if (clear)
+                            {
+                                current_point_index = null;
+                                current_list_points.Clear();
+                            }
+                            return true;
+                        }
+                        else
+                        {
+                            TackTarget = current_list_points[(int)current_point_index];
+                            fly_target = true;
+                            if (current_point_index == 0)
+                            {
+                                MinCurse = 1.0f;
+                            }
+                            else
+                            {
+                                MinCurse = 2.0f;
+                            }
 
+                            MaxSpeedCurse = 50.0f;
+                        }
+                    }
+                    else if (current_point_index == null && !fly_target)
+                    {
+                        current_point_index = current_list_points.Count() - 1;
+                        TackTarget = current_list_points[(int)current_point_index];
+                        fly_target = true;
+                        MinCurse = 2.0f;
+                        MaxSpeedCurse = 50.0f;
+                    }
+                }
+                return false;
+            }
+            public void FlyConnector()
+            {
+                if (current_connector_base != null)
+                {
+                    if (FlyPoints(false))
+                    {
+                        if (!fly_target)
+                        {
+                            // Зададим коннектор
+                            TackTarget = current_connector_base.point;
+                            fly_target = true;
+                            MinCurse = 1.0f;
+                            MaxSpeedCurse = 2.0f;
+                        }
+                        if (this.connector.Connectable)
+                        {
                             fly_target = false;
                             curent_programm = programm.none;
                             current_point_index = null;
                             current_list_points.Clear();
+                            compensate = false; // Тормоз
+                            aim_vector = false;
+                            aim_point = false;
+                            hover = false;
                         }
-                        else
-                        {
-                            //if (current_point_index == 0)
-                            //{ AccuracyDeltaCurse = 5f; }
-                            //else { AccuracyDeltaCurse = 10f; }
-                            TackTarget = current_list_points[(int)current_point_index];
-                            fly_target = true;
-                            //count = 0;
-                        }
-                    }
-                    else if (current_point_index == null && !fly_target)
-                    {
-                        current_point_index = current_list_points.Count() - 1;
-                        TackTarget = current_list_points[(int)current_point_index];
-                        fly_target = true;
-                        //count = 0;
                     }
                 }
-            }
-            public void FlyConnector()
-            {
-                if (current_connector_base != null && current_list_points != null && current_list_points.Count() > 0)
-                {
-                    if (current_point_index != null && !fly_target)
-                    {
-                        count++;
-                        if (count > 5)
-                        {
-                            current_point_index--;
-                            count = 0;
-                        }
-                        // долител
-                        if (current_point_index < 0)
-                        {
-                            fly_target = false;
-
-                            //
-                            TackTarget = current_connector_base.point;
-                            compensate = true; // Тормоз
-                            ap_forward = null;
-                            ap_left = null;
-                            ap_up = null;
-                            control_curs = false;
-                            control_horizont = false;
-                            if (this.connector.Connectable)
-                            {
-                                fly_target = false;
-                                curent_programm = programm.none;
-                                current_point_index = null;
-                                current_list_points.Clear();
-                                compensate = false; // Тормоз
-                                aim_vector = false;
-                                aim_point = false;
-                                hover = false;
-                            }
-                            else
-                            {
-                                // Погнали, прицел не сбился
-                                if (Math.Abs(YawTarget) != 0.0 && DeltaCurse < -(MinCurse))// 
-                                {
-                                    compensate = false; // Тормоз
-                                    aim_point = true;
-                                }
-                                // Летим или тормозим
-                                if (compensate || (!compensate && Math.Abs(LeftVelocity) < 0.01f))
-                                {
-                                    hover = true;
-                                    if (DeltaCurse < -MinCurse || DeltaCurse > MinCurse)
-                                    {
-                                        MaxSpeedCurse = 2.0f;
-                                        control_curs = true;
-                                    }
-                                }
-                            }
-                            //---------------
-                        }
-                        else
-                        {
-                            TackTarget = current_list_points[(int)current_point_index];
-                            fly_target = true;
-                        }
-                    }
-                    else if (current_point_index == null && !fly_target)
-                    {
-                        current_point_index = current_list_points.Count() - 1;
-                        TackTarget = current_list_points[(int)current_point_index];
-                        fly_target = true;
-                    }
-                }
-                //if (current_connector_base != null)
-                //{
-                //    TackTarget = current_connector_base.point;
-                //    compensate = true; // Тормоз
-                //    ap_forward = null;
-                //    ap_left = null;
-                //    ap_up = null;
-                //    control_curs = false;
-                //    control_horizont = false;
-                //    if (this.connector.Connectable)
-                //    {
-                //        fly_target = false;
-                //        curent_programm = programm.none;
-                //        compensate = false; // Тормоз
-                //        aim_vector = false;
-                //        aim_point = false;
-                //        hover = false;
-                //    }
-                //    else
-                //    {
-                //        // Погнали, прицел не сбился
-                //        if (Math.Abs(YawTarget) != 0.0 && DeltaCurse < -(MinCurse))// 
-                //        {
-                //            compensate = false; // Тормоз
-                //            aim_point = true;
-                //        }
-                //        // Летим или тормозим
-                //        if (compensate || (!compensate && Math.Abs(LeftVelocity) < 0.01f))
-                //        {
-                //            hover = true;
-                //            if (DeltaCurse < -MinCurse || DeltaCurse > MinCurse)
-                //            {
-                //                MaxSpeedCurse = 2.0f;
-                //                control_curs = true;
-                //            }
-                //        }
-                //    }
-                //}
             }
             public void TakeAim()
             {
@@ -1481,7 +1415,8 @@ namespace KROTIK_A1M_NAV_4
                 }
                 SetGyro(YawInput, PitchInput, RollInput);
             }
-            public void Connector1() {
+            public void Connector1()
+            {
                 current_connector_base = connector_base1;
                 Vector3D GravNorm = Vector3D.Normalize(GravityVector);
                 Vector3D p0 = current_connector_base.point - (current_connector_base.vector * dist_h_conn);
@@ -1505,6 +1440,13 @@ namespace KROTIK_A1M_NAV_4
                     connector_base.position = Math.Abs(vc) < 0.01f ? false : true;
                 }
             }
+
+            public void DrawLocalVectors()
+            {
+                Vector3D LocX = new Vector3D(remote_control.WorldMatrix.M11, remote_control.WorldMatrix.M12, remote_control.WorldMatrix.M13) + remote_control.GetPosition();
+                Vector3D LocY = new Vector3D(remote_control.WorldMatrix.M21, remote_control.WorldMatrix.M22, remote_control.WorldMatrix.M23) + remote_control.GetPosition();
+                Vector3D LocZ = new Vector3D(remote_control.WorldMatrix.M31, remote_control.WorldMatrix.M32, remote_control.WorldMatrix.M33) + remote_control.GetPosition();
+            }
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
@@ -1521,7 +1463,14 @@ namespace KROTIK_A1M_NAV_4
             }
             public string TextTEST()
             {
+                Vector3D LocX = new Vector3D(remote_control.WorldMatrix.M11, remote_control.WorldMatrix.M12, remote_control.WorldMatrix.M13) + remote_control.GetPosition();
+                Vector3D LocY = new Vector3D(remote_control.WorldMatrix.M21, remote_control.WorldMatrix.M22, remote_control.WorldMatrix.M23) + remote_control.GetPosition();
+                Vector3D LocZ = new Vector3D(remote_control.WorldMatrix.M31, remote_control.WorldMatrix.M32, remote_control.WorldMatrix.M33) + remote_control.GetPosition();
+
                 StringBuilder values = new StringBuilder();
+                values.Append(PText.GetGPS("X :", LocX, 2) + "\n");
+                values.Append(PText.GetGPS("Y :", LocY, 2) + "\n");
+                values.Append(PText.GetGPS("Z :", LocZ, 2) + "\n");
                 //values.Append(PText.GetGPS("HoverThrust", HoverThrust, 2) + "\n");
                 //values.Append("UP       : " + PText.GetThrust((float)UpThrust) + "\t, MAX : " + PText.GetThrust((float)UpThrMax) + "\n");
                 //values.Append("DOWN     : " + PText.GetThrust((float)DownThrust) + "\t, MAX : " + PText.GetThrust((float)DownThrMax) + "\n");
@@ -1537,12 +1486,12 @@ namespace KROTIK_A1M_NAV_4
                 values.Append("LeftVelocity  : " + Math.Round(LeftVelocity, 2) + "\n");
                 values.Append("КУРС ---------------------------------------\n");
                 values.Append("|- DeltaCurse               : " + Math.Round(DeltaCurse, 2) + ", C : " + (control_curs ? green.ToString() : red.ToString()) + "\n");
-                values.Append("|- ForwVelocity             : " + Math.Round(ForwVelocity, 2) + "\n");
+                values.Append("|- ForwVelocity             : " + Math.Round(ForwVelocity, 2) + " TASK: " + Math.Round(TaskCurseSpeed, 2) + "\n");
                 values.Append("|- ForwardBrakingDistances  : " + Math.Round(ForwardBrakingDistances, 2) + "\n");
                 values.Append("|- BackwardBrakingDistances : " + Math.Round(BackwardBrakingDistances, 2) + "\n");
                 values.Append("ВЫСОТА -------------------------------------\n");
                 values.Append("|- DeltaHeight              : " + Math.Round(DeltaHeight, 2) + ", H : " + (control_horizont ? green.ToString() : red.ToString()) + ", Hower : " + (hover ? green.ToString() : red.ToString()) + "\n");
-                values.Append("|- UpVelocity               : " + Math.Round(UpVelocity, 2) + "\n");
+                values.Append("|- UpVelocity               : " + Math.Round(UpVelocity, 2) + " TASK: " + Math.Round(TaskHeightSpeed, 2) + "\n");
                 values.Append("|- UpBrakingDistances       : " + Math.Round(UpBrakingDistances, 2) + "\n");
                 values.Append("|- DownBrakingDistances     : " + Math.Round(DownBrakingDistances, 2) + "\n");
                 values.Append("ГИРОСКОПЫ ----------------------------------\n");
