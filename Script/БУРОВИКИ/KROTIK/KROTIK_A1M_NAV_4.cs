@@ -953,8 +953,9 @@ namespace KROTIK_A1M_NAV_4
                 //
                 // Определим скорость
                 TaskHeightSpeed = (float)Math.Sqrt(2 * Math.Abs(DeltaHeight) * GravityVector.Length()) / 2;
+                MaxSpeedHeight = TaskHeightSpeed;
                 TaskCurseSpeed = (float)Math.Sqrt(2 * Math.Abs(DeltaCurse) * GravityVector.Length()) / 2;
-
+                MaxSpeedCurse = TaskCurseSpeed;
                 // Орентация коробля
                 Matrix CPMatrix = new MatrixD();
                 Matrix ThrusterMatrix = new MatrixD();
@@ -1278,14 +1279,14 @@ namespace KROTIK_A1M_NAV_4
                             aim_point = true;
                         }
                         // Летим или тормозим
-                        if (compensate || (!compensate && Math.Abs(LeftVelocity) < 0.01f))
-                        {
+                        //if (compensate || (!compensate && Math.Abs(LeftVelocity) < 0.01f))
+                        //{
                             hover = true;
                             if (DeltaCurse < -MinCurse || DeltaCurse > MinCurse)
                             {
                                 control_curs = true;
                             }
-                        }
+                        //}
                     }
                 }
             }
@@ -1463,14 +1464,14 @@ namespace KROTIK_A1M_NAV_4
             }
             public string TextTEST()
             {
-                Vector3D LocX = new Vector3D(remote_control.WorldMatrix.M11, remote_control.WorldMatrix.M12, remote_control.WorldMatrix.M13) + remote_control.GetPosition();
-                Vector3D LocY = new Vector3D(remote_control.WorldMatrix.M21, remote_control.WorldMatrix.M22, remote_control.WorldMatrix.M23) + remote_control.GetPosition();
-                Vector3D LocZ = new Vector3D(remote_control.WorldMatrix.M31, remote_control.WorldMatrix.M32, remote_control.WorldMatrix.M33) + remote_control.GetPosition();
+                //Vector3D LocX = new Vector3D(remote_control.WorldMatrix.M11, remote_control.WorldMatrix.M12, remote_control.WorldMatrix.M13) + remote_control.GetPosition();
+                //Vector3D LocY = new Vector3D(remote_control.WorldMatrix.M21, remote_control.WorldMatrix.M22, remote_control.WorldMatrix.M23) + remote_control.GetPosition();
+                //Vector3D LocZ = new Vector3D(remote_control.WorldMatrix.M31, remote_control.WorldMatrix.M32, remote_control.WorldMatrix.M33) + remote_control.GetPosition();
 
                 StringBuilder values = new StringBuilder();
-                values.Append(PText.GetGPS("X :", LocX, 2) + "\n");
-                values.Append(PText.GetGPS("Y :", LocY, 2) + "\n");
-                values.Append(PText.GetGPS("Z :", LocZ, 2) + "\n");
+                //values.Append(PText.GetGPS("X :", LocX, 2) + "\n");
+                //values.Append(PText.GetGPS("Y :", LocY, 2) + "\n");
+                //values.Append(PText.GetGPS("Z :", LocZ, 2) + "\n");
                 //values.Append(PText.GetGPS("HoverThrust", HoverThrust, 2) + "\n");
                 //values.Append("UP       : " + PText.GetThrust((float)UpThrust) + "\t, MAX : " + PText.GetThrust((float)UpThrMax) + "\n");
                 //values.Append("DOWN     : " + PText.GetThrust((float)DownThrust) + "\t, MAX : " + PText.GetThrust((float)DownThrMax) + "\n");
