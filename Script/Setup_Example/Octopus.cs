@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using VRage.Game.ModAPI.Ingame;
 using VRageMath;
 
 namespace Octopus
@@ -955,17 +956,17 @@ namespace Octopus
                     ScrObj.ShowPublicTextOnScreen();
                     ScrObj.GetActionWithName("OnOff_On").Apply(ScrObj);
                 }
-                public MatrixD GetTransMatrixFromMyPos()
-                {
-                    MatrixD mRot;
-                    Vector3D V3Dcenter = RemCon.GetPosition();
-                    Vector3D V3Dfow = RemCon.WorldMatrix.Forward;
-                    Vector3D V3Dup = RemCon.WorldMatrix.Up;
-                    Vector3D V3Dleft = RemCon.WorldMatrix.Left;
-                    mRot = new MatrixD(V3Dleft.GetDim(0), V3Dleft.GetDim(1), V3Dleft.GetDim(2), 0, V3Dup.GetDim(0), V3Dup.GetDim(1), V3Dup.GetDim(2), 0, V3Dfow.GetDim(0), V3Dfow.GetDim(1), V3Dfow.GetDim(2), 0, 0, 0, 0, 1);
-                    mRot = MatrixD.Invert(mRot);
-                    return new MatrixD(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -V3Dcenter.GetDim(0), -V3Dcenter.GetDim(1), -V3Dcenter.GetDim(2), 1) * mRot;
-                }
+                //public MatrixD GetTransMatrixFromMyPos()
+                //{
+                //    MatrixD mRot;
+                //    Vector3D V3Dcenter = RemCon.GetPosition();
+                //    Vector3D V3Dfow = RemCon.WorldMatrix.Forward;
+                //    Vector3D V3Dup = RemCon.WorldMatrix.Up;
+                //    Vector3D V3Dleft = RemCon.WorldMatrix.Left;
+                //    mRot = new MatrixD(V3Dleft.GetDim(0), V3Dleft.GetDim(1), V3Dleft.GetDim(2), 0, V3Dup.GetDim(0), V3Dup.GetDim(1), V3Dup.GetDim(2), 0, V3Dfow.GetDim(0), V3Dfow.GetDim(1), V3Dfow.GetDim(2), 0, 0, 0, 0, 1);
+                //    mRot = MatrixD.Invert(mRot);
+                //    return new MatrixD(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -V3Dcenter.GetDim(0), -V3Dcenter.GetDim(1), -V3Dcenter.GetDim(2), 1) * mRot;
+                //}
                 public MatrixD GetNormTransMatrixFromMyPos()
                 {
                     MatrixD mRot;
@@ -1719,9 +1720,9 @@ namespace Octopus
                         for (int i = 0; i < CargoGroup.Count; i++)
                         {
                             var containerInvOwner = CargoGroup[i];
-                            var containerInv = containerInvOwner.GetInventory(0);
-                            var containerItems = containerInv.GetItems();
-                            for (int j = 0; j < containerItems.Count; j++)
+                            IMyInventory containerInv = containerInvOwner.GetInventory(0);
+                            var containerItems = containerInv.ItemCount;
+                            for (int j = 0; j < containerItems; j++)
                             {
                                 containerInv.TransferItemTo(Destination, 0, null, true, null);
                             }
@@ -1753,32 +1754,33 @@ namespace Octopus
                             CurrentVolume += (int)CargoOwner.GetInventory(0).CurrentVolume;
                             CurrentMass += (int)CargoOwner.GetInventory(0).CurrentMass;
 
-                            var crateItems = CargoOwner.GetInventory(0).GetItems();
+                            IMyInventory crateItems = CargoOwner.GetInventory(0);//.GetItems();
 
-                            for (int j = crateItems.Count - 1; j >= 0; j--)
+                            for (int j = crateItems.ItemCount - 1; j >= 0; j--)
                             {
-                                if (crateItems[j].Content.SubtypeName == "Iron")
-                                    FeAmount += (int)crateItems[j].Amount;
-                                else if (crateItems[j].Content.SubtypeName == "Cobalt")
-                                    CbAmount += (int)crateItems[j].Amount;
-                                else if (crateItems[j].Content.SubtypeName == "Nickel")
-                                    NiAmount += (int)crateItems[j].Amount;
-                                else if (crateItems[j].Content.SubtypeName == "Magnesium")
-                                    MgAmount += (int)crateItems[j].Amount;
-                                else if (crateItems[j].Content.SubtypeName == "Gold")
-                                    AuAmount += (int)crateItems[j].Amount;
-                                else if (crateItems[j].Content.SubtypeName == "Silver")
-                                    AgAmount += (int)crateItems[j].Amount;
-                                else if (crateItems[j].Content.SubtypeName == "Platinum")
-                                    PtAmount += (int)crateItems[j].Amount;
-                                else if (crateItems[j].Content.SubtypeName == "Silicon")
-                                    SiAmount += (int)crateItems[j].Amount;
-                                else if (crateItems[j].Content.SubtypeName == "Uranium")
-                                    UAmount += (int)crateItems[j].Amount;
-                                else if (crateItems[j].Content.SubtypeName == "Stone")
-                                    StoneAmount += (int)crateItems[j].Amount;
-                                else if (crateItems[j].Content.SubtypeName == "Ice")
-                                    IceAmount += (int)crateItems[j].Amount;
+                                //MyInventoryItem itm = crateItems.GetItemAt(j);
+                                //if (itm.Content.SubtypeName == "Iron")
+                                //    FeAmount += (int)crateItems[j].Amount;
+                                //else if (crateItems[j].Content.SubtypeName == "Cobalt")
+                                //    CbAmount += (int)crateItems[j].Amount;
+                                //else if (crateItems[j].Content.SubtypeName == "Nickel")
+                                //    NiAmount += (int)crateItems[j].Amount;
+                                //else if (crateItems[j].Content.SubtypeName == "Magnesium")
+                                //    MgAmount += (int)crateItems[j].Amount;
+                                //else if (crateItems[j].Content.SubtypeName == "Gold")
+                                //    AuAmount += (int)crateItems[j].Amount;
+                                //else if (crateItems[j].Content.SubtypeName == "Silver")
+                                //    AgAmount += (int)crateItems[j].Amount;
+                                //else if (crateItems[j].Content.SubtypeName == "Platinum")
+                                //    PtAmount += (int)crateItems[j].Amount;
+                                //else if (crateItems[j].Content.SubtypeName == "Silicon")
+                                //    SiAmount += (int)crateItems[j].Amount;
+                                //else if (crateItems[j].Content.SubtypeName == "Uranium")
+                                //    UAmount += (int)crateItems[j].Amount;
+                                //else if (crateItems[j].Content.SubtypeName == "Stone")
+                                //    StoneAmount += (int)crateItems[j].Amount;
+                                //else if (crateItems[j].Content.SubtypeName == "Ice")
+                                //    IceAmount += (int)crateItems[j].Amount;
                             }
                         }
                     }

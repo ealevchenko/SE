@@ -84,10 +84,10 @@
             TP.WritePublicText("GPS:Z:" + LocZ.X + ":" + LocZ.Y + ":" + LocZ.Z + ":\n", true);
         }
 
-        public void TestDrive(Vector3D Thr)
-        {
-            myThr.SetThrA(Thr);
-        }
+        //public void TestDrive(Vector3D Thr)
+        //{
+        //    myThr.SetThrA(Thr);
+        //}
 
         public void TestHover()
         {
@@ -158,8 +158,6 @@
             {
                 myWeapons.Fire();
             }
-
-
         }
 
         public void GoToPos(Vector3D Pos)
@@ -424,7 +422,6 @@
                     }
                 }
             }
-
             private void SetGroupThrust(List<IMyThrust> ThrList, float Thr)
             {
                 for (int i = 0; i < ThrList.Count; i++)
@@ -433,7 +430,6 @@
                     ThrList[i].ThrustOverridePercentage = Thr;
                 }
             }
-
             public void SetThrF(Vector3D ThrVec)
             {
                 SetGroupThrust(AllThrusters, 0f);

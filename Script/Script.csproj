@@ -84,11 +84,13 @@
   <ItemGroup>
     <Compile Include="OSS\OSS_BM_UPR.cs" />
     <Compile Include="OSS\OSS_BM_DORS.cs" />
+    <Compile Include="Setup_Example\Octopus1.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_NAV_4.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_NAV_3.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_NAV_2.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_NAV_1.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_NAV.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_NAV_My.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_NAV_P.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_V4_ok1.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_V4.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_V3_2.cs" />
