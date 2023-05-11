@@ -84,31 +84,31 @@
   <ItemGroup>
     <Compile Include="OSS\OSS_BM_UPR.cs" />
     <Compile Include="OSS\OSS_BM_DORS.cs" />
-    <Compile Include="Setup_Example\Octopus1.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_NAV_4.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_NAV_3.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_NAV_2.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_NAV_1.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_NAV_My.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_NAV_P.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_V4_ok1.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_V4.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_V3_2.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_V3_1.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_V3.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M_V2.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M1.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1M.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1K21.cs" />
+    <Compile Include="OCTOPUS\Octopus1.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1M_NAV_4.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1M_NAV_3.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1M_NAV_2.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1M_NAV_1.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1M_NAV_My.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1P.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1M_V4_ok1.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1M_V4.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1M_V3_2.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1M_V3_1.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1M_V3.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1M_V2.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1M1.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1M.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1K21.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\KROTIK_H1.cs" />
     <Compile Include="КОРАБЛИ\APOLN1.cs" />
     <Compile Include="Setup_Example\Primary_bur.cs" />
     <Compile Include="Basa_Earth\BASE_EARTH_PROJECTOR_SG.cs" />
-    <Compile Include="Setup_Example\Octopus.cs" />
+    <Compile Include="OCTOPUS\Octopus.cs" />
     <Compile Include="Setup_Example\Connection.cs" />
     <Compile Include="Setup_Example\gorizontcs.cs" />
     <Compile Include="СВАРЩИКИ\KLEPA3.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_old1.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_old1.cs" />
     <Compile Include="СВАРЩИКИ\KLEPA\KLEPA_H1.cs" />
     <Compile Include="СВАРЩИКИ\KLEPA\KLEPA_A1.cs" />
     <Compile Include="ТЯГАЧИ\MUL_CARGO.cs" />
@@ -128,6 +128,9 @@
     <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\.editorconfig">
+      <Link>.editorconfig</Link>
+    </None>
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup />

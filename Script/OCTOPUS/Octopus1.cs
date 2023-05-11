@@ -63,7 +63,6 @@ namespace Octopus1
             public const int BaseOperations = 28;
             public const int PullUp = 29;
         }
-
         void Main(string argument)
         {
             if (thisDriller == null)

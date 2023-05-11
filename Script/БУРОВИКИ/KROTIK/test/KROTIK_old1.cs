@@ -10,7 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using VRageMath;
 
-namespace KROTIK1
+namespace KROTIK_A1P
 {
     public sealed class Program : MyGridProgram
     {
