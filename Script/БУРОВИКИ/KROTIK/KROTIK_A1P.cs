@@ -710,7 +710,7 @@ namespace KROTIK_A1M_NAV_My
 
             public StringBuilder Status = new StringBuilder();
 
-            private double FlyHeight = 61300;
+            public double FlyHeight;
 
             public bool StoneDumpNeeded { get; private set; } // Признак нужно сбросить груз
             public bool CriticalMassReached { get; private set; }// Признак критической массы
@@ -1148,14 +1148,15 @@ namespace KROTIK_A1M_NAV_My
                 ClearThrustOverridePersent();
                 SetOverride(false, 1);
                 curent_mode = mode.none;
+                SaveToStorage();
             }
             public bool ToBase()
             {
                 bool Complete = false;
                 float MaxUSpeed, MaxFSpeed;
-                //Vector3D gyrAng = GetNavAngles(BaseDockPoint, DockMatrix);
+                Vector3D gyrAng = GetNavAngles(BaseDockPoint, DockMatrix);
                 Vector3D point_to_base = connector_base1.point - (connector_base1.vector * connector_distance);
-                Vector3D gyrAng = GetNavAngles(point_to_base);
+                //Vector3D gyrAng = GetNavAngles(point_to_base);
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, DockMatrix);
                 Distance = (float)(BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(FlyHeight - (MyPos - PlanetCenter).Length()) * YMaxA) / 1.2f;
@@ -1207,8 +1208,8 @@ namespace KROTIK_A1M_NAV_My
                 bool Complete = false;
                 float MaxUSpeed, MaxLSpeed, MaxFSpeed;
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, DockMatrix);
-                //Vector3D gyrAng = GetNavAngles(ConnectorPoint, DockMatrix);
-                Vector3D gyrAng = GetNavAngles(connector_base1.point);
+                Vector3D gyrAng = GetNavAngles(ConnectorPoint, DockMatrix);
+                //Vector3D gyrAng = GetNavAngles(connector_base1.point);
                 Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
 
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 2;
@@ -1288,8 +1289,8 @@ namespace KROTIK_A1M_NAV_My
                 if (!connector.Connected)
                 {
                     Vector3D MyPosCon = Vector3D.Transform(MyPos, DockMatrix);
-                    Vector3D gyrAng = GetNavAngles(connector_base1.point);
-                    //Vector3D gyrAng = GetNavAngles(ConnectorPoint, DockMatrix);
+                    //Vector3D gyrAng = GetNavAngles(connector_base1.point);
+                    Vector3D gyrAng = GetNavAngles(ConnectorPoint, DockMatrix);
                     Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
                     SetOverride(true, gyrAng * GyroMult, 1);
                     SetOverridePercent("U", 0);
@@ -1299,6 +1300,7 @@ namespace KROTIK_A1M_NAV_My
                     SetOverrideAccel("B", 3);
                     if (Distance > 50)
                     {
+                        SetOverrideAccel("B", 0);
                         Complete = true;
                     }
                 }
@@ -1320,8 +1322,8 @@ namespace KROTIK_A1M_NAV_My
             {
                 bool Complete = false;
                 float MaxUSpeed, MaxFSpeed;
-                //Vector3D gyrAng = GetNavAngles(new Vector3D(0, 0, 0), DrillMatrix);
-                Vector3D gyrAng = GetNavAngles(point_start_drill);
+                Vector3D gyrAng = GetNavAngles(new Vector3D(0, 0, 0), DrillMatrix);
+                //Vector3D gyrAng = GetNavAngles(point_start_drill);
                 Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix);
                 Distance = (float)(DrillPoint - new Vector3D(MyPosDrill.GetDim(0), 0, MyPosDrill.GetDim(2))).Length();
 
@@ -1641,6 +1643,17 @@ namespace KROTIK_A1M_NAV_My
                 }
                 return Convert.ToInt32(val);
             }
+            public long GetValInt64(string Key, string str)
+            {
+                string val = "0";
+                string pattern = @"(" + Key + "):([^:^;]+);";
+                System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(str.Replace("\n", ""), pattern);
+                if (match.Success)
+                {
+                    val = match.Groups[2].Value;
+                }
+                return Convert.ToInt64(val);
+            }
             public bool GetValBool(string Key, string str)
             {
                 string val = "False";
@@ -1659,7 +1672,7 @@ namespace KROTIK_A1M_NAV_My
                 curent_mode = (mode)GetValInt("curent_mode", str.ToString());
                 FlyHeight = GetVal("FlyHeight", str.ToString());
                 ShaftN = GetValInt("ShaftN", str.ToString());
-                connector_base1.id = GetValInt("CB1_id", str.ToString());
+                connector_base1.id = GetValInt64("CB1_id", str.ToString());
                 connector_base1.point = new Vector3D(GetVal("CB1_X", str.ToString()), GetVal("CB1_Y", str.ToString()), GetVal("CB1_Z", str.ToString()));
                 connector_base1.vector = new Vector3D(GetVal("CBV1_X", str.ToString()), GetVal("CBV1_Y", str.ToString()), GetVal("CBV1_Z", str.ToString()));
                 connector_base1.load = GetValBool("CB1_load", str.ToString());
@@ -1681,22 +1694,22 @@ namespace KROTIK_A1M_NAV_My
             public void SaveToStorage()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("curent_programm: " + ((int)curent_programm).ToString() + "\n");
-                values.Append("curent_mode: " + ((int)curent_mode).ToString() + "\n");
-                values.Append("Height: " + Math.Round(FlyHeight, 0) + "\n");
-                values.Append("ShaftN: " + ShaftN.ToString() + "\n");
+                values.Append("curent_programm: " + ((int)curent_programm).ToString() + ";\n");
+                values.Append("curent_mode: " + ((int)curent_mode).ToString() + ";\n");
+                values.Append("FlyHeight: " + Math.Round(FlyHeight, 0) + ";\n");
+                values.Append("ShaftN: " + ShaftN.ToString() + ";\n");
                 //
-                values.Append("CB1_id: " + connector_base1.id.ToString() + "\n");
-                values.Append(connector_base1.point.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "CB1_X").Replace("Y", "CB1_Y").Replace("Z", "CB1_Z") + "\n");
-                values.Append(connector_base1.vector.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "CBV1_X").Replace("Y", "CB1V_Y").Replace("Z", "CB1V_Z") + "\n");
-                values.Append("CB1_load: " + connector_base1.load.ToString() + "\n");
-                values.Append("CB1_position: " + connector_base1.position.ToString() + "\n");
+                values.Append("CB1_id: " + connector_base1.id.ToString() + ";\n");
+                values.Append(connector_base1.point.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "CB1_X").Replace("Y", "CB1_Y").Replace("Z", "CB1_Z") + ";\n");
+                values.Append(connector_base1.vector.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "CBV1_X").Replace("Y", "CBV1_Y").Replace("Z", "CBV1_Z") + ";\n");
+                values.Append("CB1_load: " + connector_base1.load.ToString() + ";\n");
+                values.Append("CB1_position: " + connector_base1.position.ToString() + ";\n");
                 //
-                values.Append(point_start_drill.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PSD_X").Replace("Y", "PSD_Y").Replace("Z", "PSD_Z") + "\n");
+                values.Append(point_start_drill.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PSD_X").Replace("Y", "PSD_Y").Replace("Z", "PSD_Z") + ";\n");
                 //
-                values.Append(DockMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "MC") + "\n");
-                values.Append(DrillMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "MD") + "\n");
-                values.Append(PlanetCenter.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PX").Replace("Y", "PY").Replace("Z", "PZ") + "\n");
+                values.Append(DockMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "MC"));
+                values.Append(DrillMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "MD"));
+                values.Append(PlanetCenter.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PX").Replace("Y", "PY").Replace("Z", "PZ") + ";\n");
 
                 cockpit.OutText(values, 2);
             }
