@@ -630,7 +630,10 @@ namespace KROTIK_A1M_NAV_My
             float TargetSize = 100;
             float DrillSpeedLimit = 0.5f;
             float DrillAccel = 0.5f;
-            float DrillDepth = 20;
+            float DrillDepth = 20;      // глубина шахты
+            int MaxShafts = 50;         // макс кол 
+            float DrillFrameWidth = 8f; // размеры буровика
+            float DrillFrameLength = 7f;
 
             public enum programm : int
             {
@@ -649,8 +652,11 @@ namespace KROTIK_A1M_NAV_My
                 dock = 3,
                 to_drill = 4,
                 drill_align = 5,
+                drill = 6,
+                pull_up = 7,
+                pull_out = 8,
             };
-            public static string[] name_mode = { "", "РАСТЫКОВКА", "К БАЗЕ", "СТЫКОВКА", "К ШАХТЕ", "ВЫРАВНИВАНИЕ", };
+            public static string[] name_mode = { "", "РАСТЫКОВКА", "К БАЗЕ", "СТЫКОВКА", "К ШАХТЕ", "НА ТОЧКУ БУРЕНИЯ", "БУРИМ", "ОСТАНОВИТЬ БУР", "ВЫТАЩИТЬ БУР" };
 
             mode curent_mode = mode.none;
             //------------------------------
@@ -687,7 +693,7 @@ namespace KROTIK_A1M_NAV_My
 
             private Vector3D point_start_drill = new Vector3D(0, 0, 0);
             public int ShaftN { get; private set; }
-            public bool PullUpNeeded { get; private set; }
+            public bool PullUpNeeded { get; private set; } // Требуется подтянуть
             public class ConnectorBase
             {
                 public long? id { get; set; }
@@ -714,6 +720,10 @@ namespace KROTIK_A1M_NAV_My
 
             public bool StoneDumpNeeded { get; private set; } // Признак нужно сбросить груз
             public bool CriticalMassReached { get; private set; }// Признак критической массы
+            public bool EmergencyReturn = false;
+
+            public bool go_home = false; // вернутся домой и остатся
+            public bool pause = false;
 
             public Navigation(Cockpit cockpit, Connector connector, Batterys batterys, ShipDrill drills, string NameObj, string NameRemoteControl, string NameCameraCourse)
             {
@@ -772,6 +782,7 @@ namespace KROTIK_A1M_NAV_My
                 BaseDockPoint = new Vector3D(0, 0, -200);
                 SaveToStorage();
             }
+            //---------------------------------------------
             public void SetOverride(bool OverrideOnOff, Vector3 settings, float Power = 1)
             {
                 foreach (IMyGyro Gyro in gyros)
@@ -810,17 +821,34 @@ namespace KROTIK_A1M_NAV_My
                 V3Dleft = (Vector3D.Transform(V3Dleft, InvMatrix)) - V3Dcenter;
                 GravNorm = Vector3D.Normalize((Vector3D.Transform(GravNorm, InvMatrix)) - V3Dcenter - new Vector3D(sfiftX, 0, shiftZ));
 
-                Vector3D TargetNorm = Vector3D.Normalize(Vector3D.Reject(Target - V3Dcenter, GravNorm));
+                //Vector3D TargetNorm = Vector3D.Normalize(Vector3D.Reject(Target - V3Dcenter, GravNorm));
 
-                double TargetPitch = Vector3D.Dot(V3Dfow, Vector3D.Normalize(Vector3D.Reject(-GravNorm, V3Dleft)));
-                TargetPitch = Math.Acos(TargetPitch) - Math.PI / 2;
+                //double TargetPitch = Vector3D.Dot(V3Dfow, Vector3D.Normalize(Vector3D.Reject(-GravNorm, V3Dleft)));
+                //TargetPitch = Math.Acos(TargetPitch) - Math.PI / 2;
 
-                double TargetRoll = Vector3D.Dot(V3Dleft, Vector3D.Reject(-GravNorm, V3Dfow));
-                TargetRoll = Math.Acos(TargetRoll) - Math.PI / 2;
+                //double TargetRoll = Vector3D.Dot(V3Dleft, Vector3D.Reject(-GravNorm, V3Dfow));
+                //TargetRoll = Math.Acos(TargetRoll) - Math.PI / 2;
 
-                double TargetYaw = Math.Acos(Vector3D.Dot(V3Dfow, TargetNorm));
-                if ((V3Dleft - TargetNorm).Length() < Math.Sqrt(2))
-                    TargetYaw = -TargetYaw;
+                //double TargetYaw = Math.Acos(Vector3D.Dot(V3Dfow, TargetNorm));
+                //if ((V3Dleft - TargetNorm).Length() < Math.Sqrt(2))
+                //    TargetYaw = -TargetYaw;
+
+                //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
+                double gF = GravNorm.Dot(V3Dfow);
+                double gL = GravNorm.Dot(V3Dleft);
+                double gU = GravNorm.Dot(V3Dup);
+                //Получаем сигналы по тангажу и крены операцией atan2
+                double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
+                double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+
+                Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
+                //Vector3D TargetNorm = Vector3D.Normalize(Vector3D.Reject(Target - V3Dcenter, GravNorm));
+
+                //Рысканием прицеливаемся на точку Target.
+                double tF = TargetNorm.Dot(V3Dfow);
+                double tL = TargetNorm.Dot(V3Dleft);
+                double TargetYaw = -(float)Math.Atan2(tL, tF);
+
 
                 if (double.IsNaN(TargetYaw)) TargetYaw = 0;
                 if (double.IsNaN(TargetPitch)) TargetPitch = 0;
@@ -852,6 +880,7 @@ namespace KROTIK_A1M_NAV_My
                 return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
                 //return new Vector3D(0, 0, 0);
             }
+            //------------------------------------------------
             public void SetThrustOverridePersent(float up, float down, float left, float right, float forward, float backward)
             {
                 Matrix ThrusterMatrix = new MatrixD();
@@ -1047,7 +1076,8 @@ namespace KROTIK_A1M_NAV_My
                     {
                         curent_mode = mode.un_dock;
                     }
-                    else {
+                    else
+                    {
                         curent_mode = mode.to_drill;
                     }
                 }
@@ -1061,9 +1091,11 @@ namespace KROTIK_A1M_NAV_My
                     curent_programm = programm.none;
                 }
             }
-            public void StartDrill() {
+            public void StartDrill()
+            {
                 if (curent_mode == mode.none)
                 {
+                    go_home = false;
                     if (connector.Connected)
                     {
                         curent_mode = mode.un_dock;
@@ -1073,13 +1105,53 @@ namespace KROTIK_A1M_NAV_My
                         curent_mode = mode.to_drill;
                     }
                 }
-                if (curent_mode == mode.un_dock && UnDock())
+                else
                 {
-                    curent_mode = mode.to_drill;
-                }
-                if (curent_mode == mode.to_drill && ToDrillPoint())
-                {
-
+                    if (curent_mode == mode.un_dock && UnDock())
+                    {
+                        curent_mode = mode.to_drill;
+                    }
+                    if (curent_mode == mode.to_drill && ToDrillPoint())
+                    {
+                        curent_mode = mode.drill_align;
+                    }
+                    if (curent_mode == mode.drill_align && DrillAlign())
+                    {
+                        curent_mode = mode.drill;
+                    }
+                    if (curent_mode == mode.drill && Drill(out EmergencyReturn))
+                    {
+                        if (PullUpNeeded)
+                            curent_mode = mode.pull_up;
+                        else
+                            curent_mode = mode.pull_out;
+                    }
+                    if (curent_mode == mode.pull_up && PullUp())
+                    {
+                        curent_mode = mode.drill;
+                    }
+                    if (curent_mode == mode.pull_out && PullOut())
+                    {
+                        if (EmergencyReturn || go_home) // || GoHome
+                            curent_mode = mode.to_base;
+                        else
+                        {
+                            SetNewShaft();
+                            if (ShaftN >= MaxShafts)
+                                curent_mode = mode.to_base;
+                            else
+                                curent_mode = mode.drill_align;
+                        }
+                    }
+                    if (curent_mode == mode.to_base && ToBase())
+                    {
+                        curent_mode = mode.dock;
+                    }
+                    if (curent_mode == mode.dock && Dock())
+                    {
+                        Clear();
+                        curent_programm = programm.none;
+                    }
                 }
             }
             //-----------------------------------------------
@@ -1621,6 +1693,47 @@ namespace KROTIK_A1M_NAV_My
                 return Complete;
             }
             //-------------------------------------------------
+            public int SetNewShaft()
+            {
+                ShaftN++;
+                DrillPoint = GetSpiralXY(ShaftN, DrillFrameWidth, DrillFrameLength);
+                return ShaftN;
+            }
+            private Vector3D GetSpiralXY(int p, float W, float L, int n = 20)
+            {
+                int positionX = 0, positionY = 0, direction = 0, stepsCount = 1, stepPosition = 0, stepChange = 0;
+                int X = 0;
+                int Y = 0;
+                for (int i = 0; i < n * n; i++)
+                {
+                    if (i == p)
+                    {
+                        X = positionX;
+                        Y = positionY;
+                        break;
+                    }
+                    if (stepPosition < stepsCount)
+                    {
+                        stepPosition++;
+                    }
+                    else
+                    {
+                        stepPosition = 1;
+                        if (stepChange == 1)
+                        {
+                            stepsCount++;
+                        }
+                        stepChange = (stepChange + 1) % 2;
+                        direction = (direction + 1) % 4;
+                    }
+                    if (direction == 0) { positionY++; }
+                    else if (direction == 1) { positionX--; }
+                    else if (direction == 2) { positionY--; }
+                    else if (direction == 3) { positionX++; }
+                }
+                return new Vector3D(X * W, 0, Y * L);
+            }
+            //-------------------------------------------------
             public double GetVal(string Key, string str)
             {
                 string val = "0";
@@ -1811,6 +1924,13 @@ namespace KROTIK_A1M_NAV_My
                         curent_programm = programm.start_drill;
                         SaveToStorage();
                         break;
+                    case "go_home":
+                        {
+                            go_home = true;
+                            //if (thisDriller.Paused)
+                            //    thisDriller.Pause();
+                            break;
+                        }
                     case "to_base":
                         curent_mode = mode.to_base;
                         SaveToStorage();
@@ -1829,6 +1949,10 @@ namespace KROTIK_A1M_NAV_My
                         break;
                     case "drill_align":
                         curent_mode = mode.drill_align;
+                        SaveToStorage();
+                        break;
+                    case "drill":
+                        curent_mode = mode.drill;
                         SaveToStorage();
                         break;
                     default:
@@ -1881,6 +2005,27 @@ namespace KROTIK_A1M_NAV_My
                     if (curent_mode == mode.drill_align)
                     {
                         if (DrillAlign() && curent_programm == programm.none)
+                        {
+                            curent_mode = mode.none;
+                        }
+                    }
+                    if (curent_mode == mode.drill)
+                    {
+                        if (Drill(out EmergencyReturn) && curent_programm == programm.none)
+                        {
+                            curent_mode = mode.none;
+                        }
+                    }
+                    if (curent_mode == mode.pull_up)
+                    {
+                        if (PullUp() && curent_programm == programm.none)
+                        {
+                            curent_mode = mode.none;
+                        }
+                    }
+                    if (curent_mode == mode.pull_out)
+                    {
+                        if (PullOut() && curent_programm == programm.none)
                         {
                             curent_mode = mode.none;
                         }

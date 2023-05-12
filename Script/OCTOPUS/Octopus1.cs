@@ -194,7 +194,6 @@ namespace Octopus1
                 batteryBlock = new MyBatteries(this);
                 navBlock = new MyNavigation(this);
             }
-
             public void FindPlanetCenter()
             {
                 navBlock.FindPlanetCenter();
@@ -839,7 +838,6 @@ namespace Octopus1
                 public int MaxRocks { get; private set; }
                 public int Status { get; private set; }
                 public bool PullUpNeeded { get; private set; }
-
                 public MyNavigation(MyDriller mdr)
                 {
                     List<IMyTerminalBlock> blocks = new List<IMyTerminalBlock>();
@@ -1009,7 +1007,6 @@ namespace Octopus1
                 {
                     DockMatrix = GetNormTransMatrixFromMyPos();
                 }
-
                 public void SetDrillMatrixDepo()
                 {
                     DrillMatrix = GetNormTransMatrixFromMyPos();
