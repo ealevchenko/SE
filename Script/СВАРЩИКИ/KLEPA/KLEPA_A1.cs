@@ -769,12 +769,18 @@ namespace KLEPA_A1
                 SmallTube = 12,
                 SteelPlate = 13,
                 Superconductor = 14,
+                GravityGenerator = 15,
+                Medical = 16,
+                Reactor = 17,
+                SolarCell = 18,
+                Thrust = 19,
             };
 
             string current_special = "";
 
             List<MyComp> list_all = new List<MyComp>() {
                 new MyComp() { component = Component.BulletproofGlass, value = 500 },
+                new MyComp() { component = Component.SolarCell, value = 500 },
                 new MyComp() { component = Component.Computer, value = 500 },
                 new MyComp() { component = Component.Construction, value = 5000 },
                 new MyComp() { component = Component.Detector, value = 50 },
@@ -790,6 +796,8 @@ namespace KLEPA_A1
                 new MyComp() { component = Component.SteelPlate, value = 5000 }
             };
             List<MyComp> list_base = new List<MyComp>() {
+                new MyComp() { component = Component.BulletproofGlass, value = 500 },
+                new MyComp() { component = Component.SolarCell, value = 500 },
                 new MyComp() { component = Component.Display, value = 500 },
                 new MyComp() { component = Component.Motor, value = 2000 },
                 new MyComp() { component = Component.Computer, value = 500 },

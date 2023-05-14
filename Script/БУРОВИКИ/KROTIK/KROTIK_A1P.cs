@@ -32,7 +32,7 @@ namespace KROTIK_A1M_NAV_My
         string NameConnector = "[KROTIK_A1]-Коннектор парковка";
         string NameCameraCourse = "[KROTIK_A1]-Камера парковка";
         string NameLCDInfo = "[KROTIK_A1]-LCD-INFO";
-
+        string NameLCDDebug = "[KROTIK_A1]-LCD-DEBUG";
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
 
         const char green = '\uE001';
@@ -42,6 +42,7 @@ namespace KROTIK_A1M_NAV_My
         const char darkGrey = '\uE00F';
 
         static LCD lcd_info;
+        static LCD lcd_debug;
         Batterys bats;
         Connector connector;
         ShipDrill drill;
@@ -258,6 +259,7 @@ namespace KROTIK_A1M_NAV_My
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
             _scr = this;
             lcd_info = new LCD(NameLCDInfo);
+            lcd_debug = new LCD(NameLCDDebug);
             bats = new Batterys(NameObj);
             connector = new Connector(NameConnector);
             drill = new ShipDrill(NameObj);
@@ -287,18 +289,17 @@ namespace KROTIK_A1M_NAV_My
             {
 
             }
-            //values_info.Append(bats.TextInfo());
+            values_info.Append(bats.TextInfo());
             values_info.Append(connector.TextInfo());
             values_info.Append(drill.TextInfo());
-            values_info.Append(navigation.TextInfo());
+            values_info.Append(navigation.TextInfo1());
             cockpit.OutText(values_info, 0);
+            StringBuilder values_info1 = new StringBuilder();
+            values_info1.Append(navigation.TextInfo2());
+            cockpit.OutText(values_info1, 1);
             //StringBuilder test_info = new StringBuilder();
-            //cockpit.OutText(test_info, 1);
-
-            StringBuilder test_info = new StringBuilder();
-            test_info.Append(navigation.TextTEST());
-            lcd_info.OutText(test_info);
-
+            //test_info.Append(navigation.TextTEST());
+            //lcd_info.OutText(test_info);
             //lcd_info.OutText(test_info);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
@@ -325,6 +326,15 @@ namespace KROTIK_A1M_NAV_My
                     base.obj.WriteText(text, append);
                 }
             }
+            public StringBuilder GetText()
+            {
+                StringBuilder values = new StringBuilder();
+                if (base.obj != null)
+                {
+                    base.obj.ReadText(values);
+                }
+                return values;
+            }
         }
         public class Batterys : BaseListTerminalBlock<IMyBatteryBlock>
         {
@@ -350,6 +360,10 @@ namespace KROTIK_A1M_NAV_My
             public float CurrentPower()
             {
                 return base.list_obj.Select(b => b.CurrentStoredPower).Sum();
+            }
+            public float CurrentPersent()
+            {
+                return base.list_obj.Select(b => b.CurrentStoredPower).Sum() / base.list_obj.Select(b => b.MaxStoredPower).Sum();
             }
             public int CountCharger()
             {
@@ -462,7 +476,7 @@ namespace KROTIK_A1M_NAV_My
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("КОННЕКТОР: [" + GetInfoStatus() + "]" + "\n");
+                values.Append("КОННЕКТОР: " + (Connected ? green.ToString() : (Connectable ? yellow.ToString() : red.ToString())) + "\n");
                 return values.ToString();
             }
             public void Connect()
@@ -499,7 +513,7 @@ namespace KROTIK_A1M_NAV_My
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("БУРЫ: " + (base.Enabled() ? "ВКЛ" : "ОТК") + "\n");
+                values.Append("БУРЫ: " + (base.Enabled() ? green.ToString() : red.ToString()) + "\n");
                 return values.ToString();
             }
         }
@@ -623,17 +637,20 @@ namespace KROTIK_A1M_NAV_My
             IMyCameraBlock camera_course;
             List<IMyThrust> thrusts = new List<IMyThrust>();
             List<IMyGyro> gyros = new List<IMyGyro>();
+            List<IMyTerminalBlock> cargos = new List<IMyTerminalBlock>();
             //---------------------------
             float GyroMult = 1f;
             float AlignAccelMult = 0.3f;
-            float DrillGyroMult = 14f;
+            float DrillGyroMult = 1f;
             float TargetSize = 100;
+            float ReturnOnCharge = 0.2f;// Процент заряда
+            float ReturnOffCharge = 0.9f;// Процент заряда
             float DrillSpeedLimit = 0.5f;
             float DrillAccel = 0.5f;
-            float DrillDepth = 20;      // глубина шахты
-            int MaxShafts = 50;         // макс кол 
-            float DrillFrameWidth = 8f; // размеры буровика
-            float DrillFrameLength = 7f;
+            float DrillDepth = 25;      // глубина шахты
+            int MaxShafts = 50;         // макс кол ва
+            float DrillFrameWidth = 10f; // размеры буровика
+            float DrillFrameLength = 10f;
 
             public enum programm : int
             {
@@ -647,16 +664,17 @@ namespace KROTIK_A1M_NAV_My
             public enum mode : int
             {
                 none = 0,
-                un_dock = 1,
-                to_base = 2,
-                dock = 3,
-                to_drill = 4,
-                drill_align = 5,
-                drill = 6,
-                pull_up = 7,
-                pull_out = 8,
+                base_operation = 1,
+                un_dock = 2,
+                to_base = 3,
+                dock = 4,
+                to_drill = 5,
+                drill_align = 6,
+                drill = 7,
+                pull_up = 8,
+                pull_out = 9,
             };
-            public static string[] name_mode = { "", "РАСТЫКОВКА", "К БАЗЕ", "СТЫКОВКА", "К ШАХТЕ", "НА ТОЧКУ БУРЕНИЯ", "БУРИМ", "ОСТАНОВИТЬ БУР", "ВЫТАЩИТЬ БУР" };
+            public static string[] name_mode = { "", "БАЗА", "РАСТЫКОВКА", "К БАЗЕ", "СТЫКОВКА", "К ШАХТЕ", "НА ТОЧКУ БУРЕНИЯ", "БУРИМ", "ОСТАНОВИТЬ БУР", "ВЫТАЩИТЬ БУР" };
 
             mode curent_mode = mode.none;
             //------------------------------
@@ -678,6 +696,13 @@ namespace KROTIK_A1M_NAV_My
             public double ForwardThrMax { get; private set; } = 0;
             public double BackwardThrMax { get; private set; } = 0;
             //---------------------------------------------------
+            public double ForwardThrust { get; private set; } = 0;
+            public double LeftThrust { get; private set; } = 0;
+            public double UpThrust { get; private set; } = 0;
+            public double BackwardThrust { get; private set; } = 0;
+            public double RightThrust { get; private set; } = 0;
+            public double DownThrust { get; private set; } = 0;
+            //
             public float XMaxA { get; private set; }
             public float YMaxA { get; private set; }
             public float ZMaxA { get; private set; }
@@ -718,12 +743,19 @@ namespace KROTIK_A1M_NAV_My
 
             public double FlyHeight;
 
+            //public int MaxVolume { get; private set; }
+            public int CriticalMass { get; private set; } = 400000;
+            public int CurrentVolume { get; private set; }
+            public int CurrentMass { get; private set; }
             public bool StoneDumpNeeded { get; private set; } // Признак нужно сбросить груз
+
             public bool CriticalMassReached { get; private set; }// Признак критической массы
             public bool EmergencyReturn = false;
 
             public bool go_home = false; // вернутся домой и остатся
             public bool pause = false;
+
+            public float UpAccel { get; private set; }
 
             public Navigation(Cockpit cockpit, Connector connector, Batterys batterys, ShipDrill drills, string NameObj, string NameRemoteControl, string NameCameraCourse)
             {
@@ -739,7 +771,39 @@ namespace KROTIK_A1M_NAV_My
                 _scr.Echo("camera_course: " + ((camera_course != null) ? ("Ок") : ("not block")));
                 _scr.Echo("thrusts: " + ((thrusts.Count() > 0) ? thrusts.Count().ToString() + "шт." : ("not block")));
                 _scr.Echo("gyros: " + ((gyros.Count() > 0) ? gyros.Count().ToString() + "шт." : ("not block")));
+
+                List<IMyTerminalBlock> cargos_block = new List<IMyTerminalBlock>();
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyTerminalBlock>(cargos_block, r => (r.CustomName.Contains(NameObj)));
+                foreach (IMyTerminalBlock tb in cargos_block)
+                {
+                    if ((tb is IMyShipDrill) || (tb is IMyCargoContainer) || (tb is IMyShipConnector))
+                    {
+                        cargos.Add(tb);
+                    }
+                }
+                _scr.Echo("cargos: " + ((cargos.Count() > 0) ? cargos.Count().ToString() + "шт." : ("not block")));
                 LoadFromStorage();
+
+
+            }
+            //
+            public void UpdateCargo()
+            {
+                CurrentVolume = 0;
+                CurrentMass = 0;
+                foreach (IMyTerminalBlock tb in cargos)
+                {
+                    CurrentVolume += (int)tb.GetInventory(0).CurrentVolume;
+                    CurrentMass += (int)tb.GetInventory(0).CurrentMass;
+                }
+                if (PhysicalMass > CriticalMass)
+                {
+                    CriticalMassReached = true;
+                }
+                else
+                {
+                    CriticalMassReached = false;
+                }
             }
             //-------------------------------------
             public MatrixD GetNormTransMatrixFromMyPos()
@@ -774,7 +838,7 @@ namespace KROTIK_A1M_NAV_My
                 DrillMatrix = GetNormTransMatrixFromMyPos();
                 ShaftN = 0;
                 DrillPoint = new Vector3D(0, 0, 0);
-                point_start_drill = remote_control.GetPosition();
+                //point_start_drill = remote_control.GetPosition();
             }
             public void SetFlyHeight()
             {
@@ -959,6 +1023,12 @@ namespace KROTIK_A1M_NAV_My
             {
                 double MaxThrust = 0;
                 float Value = 0;
+                ForwardThrust = 0;
+                LeftThrust = 0;
+                UpThrust = 0;
+                BackwardThrust = 0;
+                RightThrust = 0;
+                DownThrust = 0;
                 if (axis == "D") { MaxThrust = UpThrMax; SetOverridePercent("U", 0f); }
                 else if (axis == "U") { MaxThrust = DownThrMax; SetOverridePercent("D", 0f); }
                 else if (axis == "B") { MaxThrust = ForwardThrMax; SetOverridePercent("F", 0f); }
@@ -981,35 +1051,29 @@ namespace KROTIK_A1M_NAV_My
                     //Y
                     if (ThrusterMatrix.Forward == OrientationCocpit.Up)
                     {
-                        if (axis == "D") { thrust.ThrustOverridePercentage = Value; }
+                        if (axis == "D") { thrust.ThrustOverridePercentage = Value; UpThrust = Value; }
                     }
                     else if (ThrusterMatrix.Forward == OrientationCocpit.Down)
                     {
-                        if (axis == "U") { thrust.ThrustOverridePercentage = Value; }
+                        if (axis == "U") { thrust.ThrustOverridePercentage = Value; DownThrust = Value; }
                     }
                     //X
                     else if (ThrusterMatrix.Forward == OrientationCocpit.Left)
                     {
-                        if (axis == "R") { thrust.ThrustOverridePercentage = Value; }
+                        if (axis == "R") { thrust.ThrustOverridePercentage = Value; LeftThrust = Value; }
                     }
                     else if (ThrusterMatrix.Forward == OrientationCocpit.Right)
                     {
-                        if (axis == "L") { thrust.ThrustOverridePercentage = Value; }
+                        if (axis == "L") { thrust.ThrustOverridePercentage = Value; RightThrust = Value; }
                     }
                     //Z
                     else if (ThrusterMatrix.Forward == OrientationCocpit.Forward)
                     {
-                        if (axis == "B")
-                        {
-                            thrust.ThrustOverridePercentage = Value;
-                        }
+                        if (axis == "B") { thrust.ThrustOverridePercentage = Value; ForwardThrust = Value; }
                     }
                     else if (ThrusterMatrix.Forward == OrientationCocpit.Backward)
                     {
-                        if (axis == "F")
-                        {
-                            thrust.ThrustOverridePercentage = Value;
-                        }
+                        if (axis == "F") { thrust.ThrustOverridePercentage = Value; BackwardThrust = Value; }
                     }
                 }
             }
@@ -1057,15 +1121,18 @@ namespace KROTIK_A1M_NAV_My
                 if (curent_mode == mode.none)
                 {
                     curent_mode = mode.to_base;
+                    SaveToStorage();
                 }
                 if (curent_mode == mode.to_base && ToBase())
                 {
                     curent_mode = mode.dock;
+                    SaveToStorage();
                 }
                 if (curent_mode == mode.dock && Dock())
                 {
                     Clear();
                     curent_programm = programm.none;
+                    SaveToStorage();
                 }
             }
             public void FlyDrill()
@@ -1075,20 +1142,24 @@ namespace KROTIK_A1M_NAV_My
                     if (connector.Connected)
                     {
                         curent_mode = mode.un_dock;
+                        SaveToStorage();
                     }
                     else
                     {
                         curent_mode = mode.to_drill;
+                        SaveToStorage();
                     }
                 }
                 if (curent_mode == mode.un_dock && UnDock())
                 {
                     curent_mode = mode.to_drill;
+                    SaveToStorage();
                 }
                 if (curent_mode == mode.to_drill && ToDrillPoint())
                 {
                     Clear();
                     curent_programm = programm.none;
+                    SaveToStorage();
                 }
             }
             public void StartDrill()
@@ -1099,10 +1170,12 @@ namespace KROTIK_A1M_NAV_My
                     if (connector.Connected)
                     {
                         curent_mode = mode.un_dock;
+                        SaveToStorage();
                     }
                     else
                     {
                         curent_mode = mode.to_drill;
+                        SaveToStorage();
                     }
                 }
                 else
@@ -1110,14 +1183,17 @@ namespace KROTIK_A1M_NAV_My
                     if (curent_mode == mode.un_dock && UnDock())
                     {
                         curent_mode = mode.to_drill;
+                        SaveToStorage();
                     }
                     if (curent_mode == mode.to_drill && ToDrillPoint())
                     {
                         curent_mode = mode.drill_align;
+                        SaveToStorage();
                     }
                     if (curent_mode == mode.drill_align && DrillAlign())
                     {
                         curent_mode = mode.drill;
+                        SaveToStorage();
                     }
                     if (curent_mode == mode.drill && Drill(out EmergencyReturn))
                     {
@@ -1125,10 +1201,12 @@ namespace KROTIK_A1M_NAV_My
                             curent_mode = mode.pull_up;
                         else
                             curent_mode = mode.pull_out;
+                        SaveToStorage();
                     }
                     if (curent_mode == mode.pull_up && PullUp())
                     {
                         curent_mode = mode.drill;
+                        SaveToStorage();
                     }
                     if (curent_mode == mode.pull_out && PullOut())
                     {
@@ -1142,15 +1220,35 @@ namespace KROTIK_A1M_NAV_My
                             else
                                 curent_mode = mode.drill_align;
                         }
+                        SaveToStorage();
                     }
                     if (curent_mode == mode.to_base && ToBase())
                     {
                         curent_mode = mode.dock;
+                        SaveToStorage();
                     }
                     if (curent_mode == mode.dock && Dock())
                     {
-                        Clear();
-                        curent_programm = programm.none;
+                        curent_mode = mode.base_operation;
+                        SaveToStorage();
+                    }
+                    if (curent_mode == mode.base_operation)
+                    {
+                        batterys.Charger();
+                        ClearThrustOverridePersent();
+                        if (go_home || ShaftN >= MaxShafts)
+                        {
+                            Stop();
+                        }
+                        else
+                        {
+                            if (batterys.CurrentPersent() >= ReturnOffCharge && CurrentMass == 0f)
+                            {
+                                curent_mode = mode.un_dock;
+                                batterys.Auto();
+                                SaveToStorage();
+                            }
+                        }
                     }
                 }
             }
@@ -1211,15 +1309,26 @@ namespace KROTIK_A1M_NAV_My
                     }
                 }
                 //-------------------
-                YMaxA = (float)Math.Min(UpThrMax / PhysicalMass - GravVector.Length(), DownThrMax / PhysicalMass + GravVector.Length());
+                YMaxA = Math.Abs((float)Math.Min(UpThrMax / PhysicalMass - GravVector.Length(), DownThrMax / PhysicalMass + GravVector.Length()));
                 ZMaxA = (float)Math.Min(ForwardThrMax, BackwardThrMax) / PhysicalMass;
                 XMaxA = (float)Math.Min(RightThrMax, LeftThrMax) / PhysicalMass;
+                UpdateCargo();
             }
             public void Clear()
             {
                 ClearThrustOverridePersent();
                 SetOverride(false, 1);
                 curent_mode = mode.none;
+                SaveToStorage();
+            }
+            public void Stop()
+            {
+                ClearThrustOverridePersent();
+                SetOverride(false, 1);
+                curent_mode = mode.none;
+                curent_programm = programm.none;
+                go_home = false;
+                pause = false;
                 SaveToStorage();
             }
             public bool ToBase()
@@ -1263,16 +1372,7 @@ namespace KROTIK_A1M_NAV_My
                     curent_mode = mode.none;
                     Complete = true;
                 }
-                Status.Clear();
-                Status.Append(" STATUS\n");
-                Status.Append("Task: To base\n");
-                Status.Append("gyrAng: " + gyrAng.ToString() + "\n");
-                Status.Append("YMaxA: " + Math.Round(YMaxA, 2).ToString() + "\n");
-                Status.Append("ZMaxA: " + Math.Round(ZMaxA, 2).ToString() + "\n");
-                Status.Append("MaxUSpeed: " + Math.Round(MaxUSpeed, 2).ToString() + "\n");
-                Status.Append("MaxFSpeed: " + Math.Round(MaxFSpeed, 2).ToString() + "\n");
-                Status.Append("Height: " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(FlyHeight).ToString() + "\n");
-                Status.Append("Distance: " + Math.Round(Distance).ToString() + "\n");
+                OutStatusMode(MaxFSpeed, MaxUSpeed, 0);
                 return Complete;
             }
             public bool Dock()
@@ -1337,20 +1437,7 @@ namespace KROTIK_A1M_NAV_My
                         Complete = true;
                     }
                 }
-                //string strStatus = " STATUS\n";
-                //if (myDriller.Command == Commands.DepoDrill)
-                //    strStatus += "Cycle: Ore field mining\n";
-                //else if (myDriller.Command == Commands.RockDrill)
-                //    strStatus += "Cycle: Rock scavenging\n";
-                //strStatus += "Task: Docking \n";
-                //strStatus += "Ship Mass: " + myDriller.thrustBlock.TotalMass.ToString() + "\n";
-                //strStatus += "Battery charge: " + Math.Round(myDriller.batteryBlock.StoredPower * 100 / myDriller.batteryBlock.MaxPower, 2).ToString() + " % \n";
-                //strStatus += "XY shifts: " + Math.Round(MyPosCon.GetDim(0), 2).ToString() + " / " + Math.Round(MyPosCon.GetDim(1), 2).ToString() + "\n";
-                //strStatus += "Distance: " + Math.Round(Distance).ToString() + "\n";
-                //strStatus += "Connector: " + (Complete ? "Locked" : "Unlocked") + "\n";
-                //strStatus += "Shafts drilled: " + ShaftN.ToString() + " / " + ParentProgram.MaxShafts.ToString() + "\n";
-                //myDriller.TextOutput("TP_Status", strStatus);
-                //return false;           
+                OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed);
                 return Complete;
             }
             public bool UnDock()
@@ -1376,18 +1463,7 @@ namespace KROTIK_A1M_NAV_My
                         Complete = true;
                     }
                 }
-                //string strStatus = " STATUS\n";
-                //if (myDriller.Command == Commands.DepoDrill)
-                //    strStatus += "Cycle: Ore field mining\n";
-                //else if (myDriller.Command == Commands.RockDrill)
-                //    strStatus += "Cycle: Rock scavenging\n";
-                //strStatus += "Task: Undocking\n";
-                //strStatus += "Ship Mass: " + myDriller.thrustBlock.TotalMass.ToString() + "\n";
-                //strStatus += "Battery charge: " + Math.Round(myDriller.batteryBlock.StoredPower * 100 / myDriller.batteryBlock.MaxPower, 2).ToString() + " % \n";
-                //strStatus += "Connector: " + (myDriller.connectorBlock.Locked ? "Locked" : "Unlocked") + "\n";
-                //strStatus += "Shafts drilled: " + ShaftN.ToString() + " / " + ParentProgram.MaxShafts.ToString() + "\n";
-                //strStatus += "Distance: " + Math.Round(Distance).ToString() + "\n";
-                //myDriller.TextOutput("TP_Status", strStatus);
+                OutStatusMode(0, 0, 0);
                 return Complete;
             }
             public bool ToDrillPoint()
@@ -1429,18 +1505,7 @@ namespace KROTIK_A1M_NAV_My
                 {
                     Complete = true;
                 }
-                //string strStatus = " STATUS\n";
-                //if (myDriller.Command == Commands.DepoDrill)
-                //    strStatus += "Cycle: Ore field mining\n";
-                //else if (myDriller.Command == Commands.RockDrill)
-                //    strStatus += "Cycle: Rock scavenging\n";
-
-                //strStatus += "Task: To drilling point\n";
-                //strStatus += "Battery charge: " + Math.Round(myDriller.batteryBlock.StoredPower * 100 / myDriller.batteryBlock.MaxPower, 2).ToString() + " % \n";
-                //strStatus += "Height: " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(FlyHeight).ToString() + "\n";
-                //strStatus += "Distance: " + Math.Round(Distance).ToString() + "\n";
-                //strStatus += "Shafts drilled: " + ShaftN.ToString() + " / " + ParentProgram.MaxShafts.ToString() + "\n";
-                //myDriller.TextOutput("TP_Status", strStatus);
+                OutStatusMode(MaxFSpeed, MaxUSpeed, 0);
                 return Complete;
             }
             public bool DrillAlign()
@@ -1455,6 +1520,7 @@ namespace KROTIK_A1M_NAV_My
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 2;
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(1)) * YMaxA) / 2;
                 MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(2)) * ZMaxA) / 2;
+                if (double.IsNaN(MaxUSpeed)) MaxUSpeed = 0.1f;
                 if (Math.Abs(MyPosDrill.GetDim(1)) < 1)
                     MaxUSpeed = 0.1f;
                 if (LeftVelocityVector.Length() < MaxLSpeed)
@@ -1473,7 +1539,7 @@ namespace KROTIK_A1M_NAV_My
                 }
                 if (UpVelocityVector.Length() < MaxUSpeed)
                 {
-                    float UpAccel = -(float)(MyPosDrill.GetDim(1) * AlignAccelMult);
+                    UpAccel = -(float)(MyPosDrill.GetDim(1) * AlignAccelMult);
                     float minUpAccel = 0.3f;
                     if ((UpAccel < 0) && (UpAccel > -minUpAccel))
                         UpAccel = -minUpAccel;
@@ -1489,20 +1555,7 @@ namespace KROTIK_A1M_NAV_My
                 {
                     Complete = true;
                 }
-
-                //string strStatus = " STATUS\n";
-                //if (myDriller.Command == Commands.DepoDrill)
-                //    strStatus += "Cycle: Ore field mining\n";
-                //else if (myDriller.Command == Commands.RockDrill)
-                //    strStatus += "Cycle: Rock scavenging\n";
-                //strStatus += "Task: Alligning \n";
-                //strStatus += "Ship Mass: " + myDriller.thrustBlock.TotalMass.ToString() + "\n";
-                //strStatus += "Battery charge: " + Math.Round(myDriller.batteryBlock.StoredPower * 100 / myDriller.batteryBlock.MaxPower, 2).ToString() + " % \n";
-                //strStatus += "Y shift: " + Math.Round(MyPosDrill.GetDim(1), 2).ToString() + "\n";
-                //strStatus += "XZ shifts: " + Math.Round(MyPosDrill.GetDim(0), 2).ToString() + " / " + Math.Round(MyPosDrill.GetDim(2), 2).ToString() + "\n";
-                //strStatus += "Shafts drilled: " + ShaftN.ToString() + " / " + ParentProgram.MaxShafts.ToString() + "\n";
-                //myDriller.TextOutput("TP_Status", strStatus);
-
+                OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed);
                 return Complete;
             }
             public bool Drill(out bool Emergency)
@@ -1565,25 +1618,12 @@ namespace KROTIK_A1M_NAV_My
                 {
                     Complete = true;
                 }
-                else if (CriticalMassReached) // || myDriller.batteryBlock.LowPower // Нижний придел зарядки
+                else if (CriticalMassReached || batterys.CurrentPersent() <= ReturnOnCharge) // || myDriller.batteryBlock.LowPower // Нижний придел зарядки
                 {
                     Complete = true;
                     Emergency = true;
                 }
-
-                //string strStatus = " STATUS\n";
-                //if (myDriller.Command == Commands.DepoDrill)
-                //    strStatus += "Cycle: Ore field mining\n";
-                //else if (myDriller.Command == Commands.RockDrill)
-                //    strStatus += "Cycle: Rock scavenging\n";
-                //strStatus += "Task: Drilling\n";
-                //strStatus += "Ship Mass: " + myDriller.thrustBlock.TotalMass.ToString() + "\n";
-                //strStatus += "Battery charge: " + Math.Round(myDriller.batteryBlock.StoredPower * 100 / myDriller.batteryBlock.MaxPower, 2).ToString() + " % \n";
-                //strStatus += "Depth: " + Math.Round(-MyPosDrill.GetDim(1), 2).ToString() + " / " + Math.Round(((myDriller.Command == Commands.DepoDrill) ? (ParentProgram.DrillDepth) : 16), 2).ToString() + "\n";
-                //strStatus += "XZ shifts: " + Math.Round(MyPosDrill.GetDim(0), 2).ToString() + " / " + Math.Round(MyPosDrill.GetDim(2), 2).ToString() + "\n";
-                //strStatus += "Shafts drilled: " + ShaftN.ToString() + " / " + ParentProgram.MaxShafts.ToString() + "\n";
-                //myDriller.TextOutput("TP_Status", strStatus);
-
+                OutStatusMode(MaxFSpeed, 0, MaxLSpeed); // DrillAccel
                 return Complete;
             }
             public bool PullUp()
@@ -1626,19 +1666,6 @@ namespace KROTIK_A1M_NAV_My
                     Complete = true;
                     PullUpNeeded = false;
                 }
-                //string strStatus = " STATUS\n";
-                //if (myDriller.Command == Commands.DepoDrill)
-                //    strStatus += "Cycle: Ore field mining\n";
-                //else if (myDriller.Command == Commands.RockDrill)
-                //    strStatus += "Cycle: Rock scavenging\n";
-                //strStatus += "Task: Pull Up\n";
-                //strStatus += "Cargo Mass: " + myDriller.cargoBlock.CurrentMass.ToString() + "\n";
-                //strStatus += "Battery charge: " + Math.Round(myDriller.batteryBlock.StoredPower * 100 / myDriller.batteryBlock.MaxPower, 2).ToString() + " % \n";
-                //strStatus += "Depth: " + Math.Round(-MyPosDrill.GetDim(1), 2).ToString() + " / " + Math.Round(((myDriller.Command == Commands.DepoDrill) ? (ParentProgram.DrillDepth) : 16), 2).ToString() + "\n";
-                //strStatus += "XZ shifts: " + Math.Round(MyPosDrill.GetDim(0), 2).ToString() + " / " + Math.Round(MyPosDrill.GetDim(2), 2).ToString() + "\n";
-                //strStatus += "Shafts drilled: " + ShaftN.ToString() + " / " + ParentProgram.MaxShafts.ToString() + "\n";
-                //myDriller.TextOutput("TP_Status", strStatus);
-
                 return Complete;
             }
             public bool PullOut()
@@ -1677,19 +1704,6 @@ namespace KROTIK_A1M_NAV_My
                 }
                 if (MyPosDrill.GetDim(1) > 0)
                     Complete = true;
-                //string strStatus = " STATUS\n";
-                //if (myDriller.Command == Commands.DepoDrill)
-                //    strStatus += "Cycle: Ore field mining\n";
-                //else if (myDriller.Command == Commands.RockDrill)
-                //    strStatus += "Cycle: Rock scavenging\n";
-                //strStatus += "Task: Pull Out\n";
-                //strStatus += "Cargo Mass: " + myDriller.cargoBlock.CurrentMass.ToString() + "\n";
-                //strStatus += "Battery charge: " + Math.Round(myDriller.batteryBlock.StoredPower * 100 / myDriller.batteryBlock.MaxPower, 2).ToString() + " % \n";
-                //strStatus += "Depth: " + Math.Round(-MyPosDrill.GetDim(1), 2).ToString() + " / " + Math.Round(((myDriller.Command == Commands.DepoDrill) ? (ParentProgram.DrillDepth) : 16), 2).ToString() + "\n";
-                //strStatus += "XZ shifts: " + Math.Round(MyPosDrill.GetDim(0), 2).ToString() + " / " + Math.Round(MyPosDrill.GetDim(2), 2).ToString() + "\n";
-                //strStatus += "Shafts drilled: " + ShaftN.ToString() + " / " + ParentProgram.MaxShafts.ToString() + "\n";
-                //myDriller.TextOutput("TP_Status", strStatus);
-
                 return Complete;
             }
             //-------------------------------------------------
@@ -1734,6 +1748,28 @@ namespace KROTIK_A1M_NAV_My
                 return new Vector3D(X * W, 0, Y * L);
             }
             //-------------------------------------------------
+            public void OutStatusMode(float MaxFSpeed, float MaxUSpeed, float MaxLSpeed)
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append(" STATUS\n");
+                values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
+                values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
+                values.Append("DeltaHeight: " + Math.Round(FlyHeight - (MyPos - PlanetCenter).Length()).ToString() + "\n");
+                //values.Append("Height: " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(FlyHeight).ToString() + "\n");
+                values.Append("Distance: " + Math.Round(Distance).ToString() + "\n");
+                values.Append("------------------------------------------\n");
+                values.Append("ZMaxA (F-B) : " + Math.Round(ZMaxA, 2).ToString() + "MaxFSpeed: " + Math.Round(MaxFSpeed, 2).ToString() + "\n");
+                values.Append("YMaxA (U-D) : " + Math.Round(YMaxA, 2).ToString() + "MaxUSpeed: " + Math.Round(MaxUSpeed, 2).ToString() + "\n");
+                values.Append("XMaxA (L-R) : " + Math.Round(XMaxA, 2).ToString() + "MaxLSpeed: " + Math.Round(MaxLSpeed, 2).ToString() + "\n");
+                values.Append("------------------------------------------\n");
+                values.Append("UP       : " + PText.GetThrust((float)UpThrust) + "\t, MAX : " + PText.GetThrust((float)UpThrMax) + "\n");
+                values.Append("DOWN     : " + PText.GetThrust((float)DownThrust) + "\t, MAX : " + PText.GetThrust((float)DownThrMax) + "\n");
+                values.Append("Forward  : " + PText.GetThrust((float)ForwardThrust) + "\t, MAX : " + PText.GetThrust((float)ForwardThrMax) + "\n");
+                values.Append("Backward : " + PText.GetThrust((float)BackwardThrust) + "\t, MAX : " + PText.GetThrust((float)BackwardThrMax) + "\n");
+                values.Append("Left     : " + PText.GetThrust((float)LeftThrust) + "\t, MAX : " + PText.GetThrust((float)LeftThrMax) + "\n");
+                values.Append("Right    : " + PText.GetThrust((float)RightThrust) + "\t, MAX : " + PText.GetThrust((float)RightThrMax) + "\n");
+                //lcd_debug.OutText(values);
+            }
             public double GetVal(string Key, string str)
             {
                 string val = "0";
@@ -1780,18 +1816,22 @@ namespace KROTIK_A1M_NAV_My
             }
             public void LoadFromStorage()
             {
-                StringBuilder str = cockpit.GetText(2);
+
+                StringBuilder str = lcd_info.GetText();
                 curent_programm = (programm)GetValInt("curent_programm", str.ToString());
                 curent_mode = (mode)GetValInt("curent_mode", str.ToString());
+                pause = GetValBool("pause", str.ToString());
+                go_home = GetValBool("go_home", str.ToString());
                 FlyHeight = GetVal("FlyHeight", str.ToString());
                 ShaftN = GetValInt("ShaftN", str.ToString());
+                EmergencyReturn = GetValBool("EmergencyReturn", str.ToString());
                 connector_base1.id = GetValInt64("CB1_id", str.ToString());
                 connector_base1.point = new Vector3D(GetVal("CB1_X", str.ToString()), GetVal("CB1_Y", str.ToString()), GetVal("CB1_Z", str.ToString()));
                 connector_base1.vector = new Vector3D(GetVal("CBV1_X", str.ToString()), GetVal("CBV1_Y", str.ToString()), GetVal("CBV1_Z", str.ToString()));
                 connector_base1.load = GetValBool("CB1_load", str.ToString());
                 connector_base1.position = GetValBool("CB1_position", str.ToString());
                 //
-                point_start_drill = new Vector3D(GetVal("PSD_X", str.ToString()), GetVal("PSD_Y", str.ToString()), GetVal("PSD_Z", str.ToString()));
+                //point_start_drill = new Vector3D(GetVal("PSD_X", str.ToString()), GetVal("PSD_Y", str.ToString()), GetVal("PSD_Z", str.ToString()));
                 //
                 DockMatrix = new MatrixD(GetVal("MC11", str.ToString()), GetVal("MC12", str.ToString()), GetVal("MC13", str.ToString()), GetVal("MC14", str.ToString()),
                 GetVal("MC21", str.ToString()), GetVal("MC22", str.ToString()), GetVal("MC23", str.ToString()), GetVal("MC24", str.ToString()),
@@ -1803,14 +1843,19 @@ namespace KROTIK_A1M_NAV_My
                 GetVal("MD41", str.ToString()), GetVal("MD42", str.ToString()), GetVal("MD43", str.ToString()), GetVal("MD44", str.ToString()));
                 PlanetCenter = new Vector3D(GetVal("PX", str.ToString()), GetVal("PY", str.ToString()), GetVal("PZ", str.ToString()));
                 BaseDockPoint = new Vector3D(0, 0, -200);
+                DrillPoint = GetSpiralXY(ShaftN, DrillFrameWidth, DrillFrameLength);
             }
             public void SaveToStorage()
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("curent_programm: " + ((int)curent_programm).ToString() + ";\n");
                 values.Append("curent_mode: " + ((int)curent_mode).ToString() + ";\n");
+                values.Append("pause: " + pause.ToString() + ";\n");
+                values.Append("go_home: " + go_home.ToString() + ";\n");
+
                 values.Append("FlyHeight: " + Math.Round(FlyHeight, 0) + ";\n");
                 values.Append("ShaftN: " + ShaftN.ToString() + ";\n");
+                values.Append("EmergencyReturn: " + EmergencyReturn.ToString() + ";\n");
                 //
                 values.Append("CB1_id: " + connector_base1.id.ToString() + ";\n");
                 values.Append(connector_base1.point.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "CB1_X").Replace("Y", "CB1_Y").Replace("Z", "CB1_Z") + ";\n");
@@ -1818,86 +1863,58 @@ namespace KROTIK_A1M_NAV_My
                 values.Append("CB1_load: " + connector_base1.load.ToString() + ";\n");
                 values.Append("CB1_position: " + connector_base1.position.ToString() + ";\n");
                 //
-                values.Append(point_start_drill.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PSD_X").Replace("Y", "PSD_Y").Replace("Z", "PSD_Z") + ";\n");
+                //values.Append(point_start_drill.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PSD_X").Replace("Y", "PSD_Y").Replace("Z", "PSD_Z") + ";\n");
                 //
                 values.Append(DockMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "MC"));
                 values.Append(DrillMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "MD"));
                 values.Append(PlanetCenter.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PX").Replace("Y", "PY").Replace("Z", "PZ") + ";\n");
 
-                cockpit.OutText(values, 2);
+                lcd_info.OutText(values);
             }
-            public string TextInfo()
+            public string TextInfo1()
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("СКОРОСТЬ    : " + Math.Round(remote_control.GetShipSpeed(), 2) + "\n");
-                values.Append("Height: " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(FlyHeight).ToString() + "\n");
-                values.Append("Distance: " + Math.Round(Distance).ToString() + "\n");
-                //values.Append("ГОРИЗОНТ    : " + (horizont ? green.ToString() : red.ToString()) + ",  T : " + (aim_point ? green.ToString() : red.ToString()) + ",  V : " + (aim_vector ? green.ToString() : red.ToString()) + "\n");
-                //values.Append("КОМПЕНСАЦИЯ : " + (compensate ? green.ToString() : red.ToString()) + "\n");
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
-                values.Append("T0: " + PText.GetGPS("BaseDockPoint", BaseDockPoint) + "\n");
-                values.Append("T1: " + PText.GetGPS("BasePoint", connector_base1.point) + "\n");
-                values.Append("DockMatrix: " + DockMatrix.ToString() + "\n");
-                values.Append("DrillMatrix: " + DrillMatrix.ToString() + "\n");
+                return values.ToString();
+            }
+            public string TextInfo2()
+            {
+                StringBuilder values = new StringBuilder();
+                //values.Append("СКОРОСТЬ    : " + Math.Round(remote_control.GetShipSpeed(), 2) + "\n");
+                values.Append("Height            : " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(FlyHeight).ToString() + "\n");
+                values.Append("Distance          : " + Math.Round(Distance).ToString() + "\n");
+                values.Append("Phys./Crit.(Mass) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + "\n");
+                values.Append("CurrentVolume     : " + CurrentVolume + "\n");
+                values.Append("CurrentMass       : " + CurrentMass + "\n");
+                values.Append("Глубина шахты     : " + DrillDepth + "\n");
+                values.Append("UpAccel     : " + UpAccel + "\n");
                 return values.ToString();
             }
             public string TextTEST()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append(Status);
-                //
-                //values.Append("move_curse    : " + move_fb + "ap_forward :" + ap_forward + "\n");
-                //values.Append("КУРС ---------------------------------------\n");
-                //values.Append("|- DeltaCurse               : " + Math.Round(DeltaCurse, 2) + "\n");
-                //values.Append("|- ForwVelocity             : " + Math.Round(ForwVelocity, 2) + "\n");
-                //values.Append("|- ForwardBrakingDistances  : " + Math.Round(ForwardBrakingDistances, 2) + "\n");
-                //values.Append("|- BackwardBrakingDistances : " + Math.Round(BackwardBrakingDistances, 2) + "\n");
-                //values.Append("ВЫСОТА -------------------------------------\n");
-                //values.Append("|- DeltaHeight              : " + Math.Round(DeltaHeight, 2) + "\n");
-                //values.Append("|- UpVelocity               : " + Math.Round(UpVelocity, 2) + "\n");
-                //values.Append("|- UpBrakingDistances       : " + Math.Round(UpBrakingDistances, 2) + "\n");
-                //values.Append("|- DownBrakingDistances     : " + Math.Round(DownBrakingDistances, 2) + "\n");
-                //values.Append("ГИРОСКОПЫ ----------------------------------\n");
-                //values.Append("|- Yaw-target  : " + Math.Round(YawTarget, 2) + "\n");
-                //values.Append("|- Yaw-curse   : " + Math.Round(YawVector, 2) + "\n");
-                //values.Append("|- Yaw         : " + Math.Round(YawInput, 2) + "\n");
-                //values.Append("|- Roll        : " + Math.Round(RollInput, 2) + "\n");
-                //values.Append("|- Pitch       : " + Math.Round(PitchInput, 2) + "\n");
-                //values.Append("-----------------------------------------------\n");
-                //values.Append("base1 id=" + connector_base1.id + " [" + connector_base1.list_point.Count() + "]\n");
-                //int index = 0;
-                //foreach (Vector3D p in connector_base1.list_point)
-                //{
-                //    values.Append(PText.GetGPS("T" + index, p) + "\n");
-                //    index++;
-                //}
-                //values.Append("-----------------------------------------------\n");
-                //values.Append("base1 id=" + connector_base2.id + " [" + connector_base2.list_point.Count() + "]\n");
-                //index = 0;
-                //foreach (Vector3D p in connector_base2.list_point)
-                //{
-                //    values.Append(PText.GetGPS("T" + index, p) + "\n");
-                //    index++;
-                //}
-                //values.Append("UP       : " + PText.GetThrust((float)UpThrust) + "\t, MAX : " + PText.GetThrust((float)UpThrMax) + "\n");
-                //values.Append("DOWN     : " + PText.GetThrust((float)DownThrust) + "\t, MAX : " + PText.GetThrust((float)DownThrMax) + "\n");
-                //values.Append("Forward  : " + PText.GetThrust((float)ForwardThrust) + "\t, MAX : " + PText.GetThrust((float)ForwardThrMax) + "\n");
-                //values.Append("Backward : " + PText.GetThrust((float)BackwardThrust) + "\t, MAX : " + PText.GetThrust((float)BackwardThrMax) + "\n");
-                //values.Append("Left     : " + PText.GetThrust((float)LeftThrust) + "\t, MAX : " + PText.GetThrust((float)LeftThrMax) + "\n");
-                //values.Append("Right    : " + PText.GetThrust((float)RightThrust) + "\t, MAX : " + PText.GetThrust((float)RightThrMax) + "\n");
-
                 return values.ToString();
             }
             public void Logic(string argument, UpdateType updateSource)
             {
                 switch (argument)
                 {
+                    case "+":
+                        SetOverridePercent("U", 0.4f);
+                        break;
+                    case "-":
+                        SetOverridePercent("U", 0);
+                        break;
                     case "load":
                         LoadFromStorage();
                         break;
                     case "save":
                         SaveToStorage();
+                        break;
+                    case "stop":
+                        Stop();
                         break;
                     case "clear":
                         Clear();
