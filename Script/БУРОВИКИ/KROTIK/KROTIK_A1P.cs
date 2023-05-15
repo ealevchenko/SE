@@ -1768,7 +1768,7 @@ namespace KROTIK_A1M_NAV_My
                 values.Append("Backward : " + PText.GetThrust((float)BackwardThrust) + "\t, MAX : " + PText.GetThrust((float)BackwardThrMax) + "\n");
                 values.Append("Left     : " + PText.GetThrust((float)LeftThrust) + "\t, MAX : " + PText.GetThrust((float)LeftThrMax) + "\n");
                 values.Append("Right    : " + PText.GetThrust((float)RightThrust) + "\t, MAX : " + PText.GetThrust((float)RightThrMax) + "\n");
-                //lcd_debug.OutText(values);
+                lcd_debug.OutText(values);
             }
             public double GetVal(string Key, string str)
             {

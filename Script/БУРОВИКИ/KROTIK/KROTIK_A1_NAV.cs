@@ -256,9 +256,7 @@ namespace KROTIK_A1_NAV
         }
         public class BaseController
         {
-
             public IMyShipController obj;
-
             private double current_height = 0;
             public double CurrentHeight { get { return this.current_height; } }
             public Matrix GetCockpitMatrix()
@@ -317,6 +315,12 @@ namespace KROTIK_A1_NAV
                 }
                 return values;
             }
+            public double GetCurrentHeight()
+            {
+                double cur_h = 0;
+                this.obj.TryGetPlanetElevation(MyPlanetElevation.Surface, out cur_h);
+                return cur_h;
+            }
             public void Logic(string argument, UpdateType updateSource)
             {
                 switch (argument)
@@ -327,7 +331,7 @@ namespace KROTIK_A1_NAV
                 if (updateSource == UpdateType.Update10)
                 {
                     // Получить высоту над поверхностью
-                    this.obj.TryGetPlanetElevation(MyPlanetElevation.Surface, out current_height);
+                    current_height = GetCurrentHeight();
                 }
             }
             public string TextInfo()
@@ -367,6 +371,7 @@ namespace KROTIK_A1_NAV
             StringBuilder values_info = new StringBuilder();
             bats.Logic(argument, updateSource);
             navigation.Logic(argument, updateSource);
+
 
             switch (argument)
             {
@@ -737,35 +742,35 @@ namespace KROTIK_A1_NAV
                     //Y
                     if (ThrusterMatrix.Forward == OrientationCocpit.Up)
                     {
-                        DownThrMax += thrust.MaxEffectiveThrust;
-                        DownThrusters.Add(thrust);
+                        UpThrMax += thrust.MaxEffectiveThrust;
+                        UpThrusters.Add(thrust);
                     }
                     else if (ThrusterMatrix.Forward == OrientationCocpit.Down)
                     {
-                        UpThrMax += thrust.MaxEffectiveThrust;
-                        UpThrusters.Add(thrust);
+                        DownThrMax += thrust.MaxEffectiveThrust;
+                        DownThrusters.Add(thrust);
                     }
                     //X
                     else if (ThrusterMatrix.Forward == OrientationCocpit.Left)
                     {
-                        RightThrMax += thrust.MaxEffectiveThrust;
-                        RightThrusters.Add(thrust);
+                        LeftThrMax += thrust.MaxEffectiveThrust;
+                        LeftThrusters.Add(thrust);
                     }
                     else if (ThrusterMatrix.Forward == OrientationCocpit.Right)
                     {
-                        LeftThrMax += thrust.MaxEffectiveThrust;
-                        LeftThrusters.Add(thrust);
+                        RightThrMax += thrust.MaxEffectiveThrust;
+                        RightThrusters.Add(thrust);
                     }
                     //Z
                     else if (ThrusterMatrix.Forward == OrientationCocpit.Forward)
                     {
-                        BackwardThrMax += thrust.MaxEffectiveThrust;
-                        BackwardThrusters.Add(thrust);
+                        ForwardThrMax += thrust.MaxEffectiveThrust;
+                        ForwardThrusters.Add(thrust);
                     }
                     else if (ThrusterMatrix.Forward == OrientationCocpit.Backward)
                     {
-                        ForwardThrMax += thrust.MaxEffectiveThrust;
-                        ForwardThrusters.Add(thrust);
+                        BackwardThrMax += thrust.MaxEffectiveThrust;
+                        BackwardThrusters.Add(thrust);
                     }
                 }
             }
@@ -786,43 +791,43 @@ namespace KROTIK_A1_NAV
                     tr.ThrustOverridePercentage = persent;
                 }
             }
-            public void SetOverridePercent(string axis, float OverrideValue)
+            public void SetOverridePercent(string axis, float persentValue)
             {
                 if (axis == "U")
                 {
-                    SetOverridePercent(UpThrusters, OverrideValue / 100);
+                    SetOverridePercent(DownThrusters, persentValue);
                 }
                 else if (axis == "D")
                 {
-                    SetOverridePercent(DownThrusters, OverrideValue / 100);
+                    SetOverridePercent(UpThrusters, persentValue);
                 }
                 else if (axis == "L")
                 {
-                    SetOverridePercent(LeftThrusters, OverrideValue / 100);
+                    SetOverridePercent(RightThrusters, persentValue);
                 }
                 else if (axis == "R")
                 {
-                    SetOverridePercent(RightThrusters, OverrideValue / 100);
+                    SetOverridePercent(LeftThrusters, persentValue);
                 }
                 else if (axis == "F")
                 {
-                    SetOverridePercent(ForwardThrusters, OverrideValue / 100);
+                    SetOverridePercent(BackwardThrusters, persentValue);
                 }
                 else if (axis == "B")
                 {
-                    SetOverridePercent(BackwardThrusters, OverrideValue / 100);
+                    SetOverridePercent(ForwardThrusters, persentValue);
                 }
             }
             public void SetOverrideN(string axis, float OverrideValue)
             {
                 double MaxThrust = 0;
                 float Value = 0;
-                if (axis == "D") { MaxThrust = DownThrMax; SetOverridePercent("U", 0f); }
-                else if (axis == "U") { MaxThrust = UpThrMax; SetOverridePercent("D", 0f); }
-                else if (axis == "F") { MaxThrust = ForwardThrMax; SetOverridePercent("B", 0f); }
-                else if (axis == "B") { MaxThrust = BackwardThrMax; SetOverridePercent("F", 0f); }
-                else if (axis == "R") { MaxThrust = RightThrMax; SetOverridePercent("L", 0f); }
-                else if (axis == "L") { MaxThrust = LeftThrMax; SetOverridePercent("R", 0f); }
+                if (axis == "D") { MaxThrust = UpThrMax; SetOverridePercent("U", 0f); }
+                else if (axis == "U") { MaxThrust = DownThrMax; SetOverridePercent("D", 0f); }
+                else if (axis == "F") { MaxThrust = BackwardThrMax; SetOverridePercent("B", 0f); }
+                else if (axis == "B") { MaxThrust = ForwardThrMax; SetOverridePercent("F", 0f); }
+                else if (axis == "R") { MaxThrust = LeftThrMax; SetOverridePercent("L", 0f); }
+                else if (axis == "L") { MaxThrust = RightThrMax; SetOverridePercent("R", 0f); }
                 if (OverrideValue == 0)
                 {
                     Value = 0;
@@ -874,7 +879,15 @@ namespace KROTIK_A1_NAV
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
+                values.Append("PhysicalMass : " + Math.Round(this.remote_control.obj.CalculateShipMass().PhysicalMass) + "\n");
+                values.Append("Grav         : " + Math.Round(this.remote_control.obj.GetNaturalGravity().Length()) + "\n");
                 values.Append("------------------------------------------\n");
+                values.Append("UP MAX       : " + PText.GetThrust((float)UpThrMax) + "\n");
+                values.Append("DOWN MAX     : " + PText.GetThrust((float)DownThrMax) + "\n");
+                values.Append("Forward MAX  : " + PText.GetThrust((float)ForwardThrMax) + "\n");
+                values.Append("Backward MAX : " + PText.GetThrust((float)BackwardThrMax) + "\n");
+                values.Append("Left MAX     : " + PText.GetThrust((float)LeftThrMax) + "\n");
+                values.Append("Right MAX    : " + PText.GetThrust((float)RightThrMax) + "\n");
                 //values.Append("UP       : " + PText.GetThrust((float)UpThrust) + "\t, MAX : " + PText.GetThrust((float)UpThrMax) + "\n");
                 //values.Append("DOWN     : " + PText.GetThrust((float)DownThrust) + "\t, MAX : " + PText.GetThrust((float)DownThrMax) + "\n");
                 //values.Append("Forward  : " + PText.GetThrust((float)ForwardThrust) + "\t, MAX : " + PText.GetThrust((float)ForwardThrMax) + "\n");
@@ -985,8 +998,6 @@ namespace KROTIK_A1_NAV
             public StringBuilder Status = new StringBuilder();
 
             public double FlyHeight;
-
-            //public int MaxVolume { get; private set; }
             public int CriticalMass { get; private set; } = 400000;
             public int CurrentVolume { get; private set; }
             public int CurrentMass { get; private set; }
@@ -1083,7 +1094,7 @@ namespace KROTIK_A1_NAV
             }
             public void FindPlanetCenter()
             {
-                if ((cockpit as IMyShipController).TryGetPlanetPosition(out PlanetCenter))
+                if (cockpit.obj.TryGetPlanetPosition(out PlanetCenter))
                 {
                     SaveToStorage();
                 }
@@ -1300,10 +1311,10 @@ namespace KROTIK_A1_NAV
                 ForwVelocityVector = WMCocpit.Forward * Vector3D.Dot(VelocityVector, WMCocpit.Forward);
                 LeftVelocityVector = WMCocpit.Left * Vector3D.Dot(VelocityVector, WMCocpit.Left);
                 // Орентация коробля
-                Matrix ThrusterMatrix = new MatrixD();
+                //Matrix ThrusterMatrix = new MatrixD();
                 OrientationCocpit = remote_control.GetCockpitMatrix();
                 //-------------------
-                YMaxA = Math.Abs((float)Math.Min(thrusts.DownThrMax / PhysicalMass - GravVector.Length(), thrusts.UpThrMax / PhysicalMass + GravVector.Length()));
+                YMaxA = Math.Abs((float)Math.Min(thrusts.UpThrMax / PhysicalMass - GravVector.Length(), thrusts.DownThrMax / PhysicalMass + GravVector.Length()));
                 ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
                 XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
                 UpdateCargo();
@@ -1323,6 +1334,7 @@ namespace KROTIK_A1_NAV
                 curent_programm = programm.none;
                 go_home = false;
                 pause = false;
+                drills.Off();
                 SaveToStorage();
             }
             public bool ToBase()
@@ -1755,8 +1767,8 @@ namespace KROTIK_A1_NAV
                 values.Append("ZMaxA (F-B) : " + Math.Round(ZMaxA, 2).ToString() + "MaxFSpeed: " + Math.Round(MaxFSpeed, 2).ToString() + "\n");
                 values.Append("YMaxA (U-D) : " + Math.Round(YMaxA, 2).ToString() + "MaxUSpeed: " + Math.Round(MaxUSpeed, 2).ToString() + "\n");
                 values.Append("XMaxA (L-R) : " + Math.Round(XMaxA, 2).ToString() + "MaxLSpeed: " + Math.Round(MaxLSpeed, 2).ToString() + "\n");
-
-                //lcd_debug.OutText(values);
+                values.Append(thrusts.TextInfo());
+                lcd_debug.OutText(values);
             }
             public double GetVal(string Key, string str)
             {
@@ -1863,6 +1875,7 @@ namespace KROTIK_A1_NAV
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("СКОРОСТЬ    : " + Math.Round(remote_control.obj.GetShipSpeed(), 2) + "\n");
+                values.Append("ВЫСОТА    : " + Math.Round(cockpit.CurrentHeight, 2) + "\n");
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
                 return values.ToString();
@@ -1870,13 +1883,12 @@ namespace KROTIK_A1_NAV
             public string TextInfo2()
             {
                 StringBuilder values = new StringBuilder();
-                //values.Append("СКОРОСТЬ    : " + Math.Round(remote_control.GetShipSpeed(), 2) + "\n");
                 values.Append("Height            : " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(FlyHeight).ToString() + "\n");
                 values.Append("Distance          : " + Math.Round(Distance).ToString() + "\n");
-                values.Append("Phys./Crit.(Mass) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + "\n");
-                values.Append("CurrentVolume     : " + CurrentVolume + "\n");
-                values.Append("CurrentMass       : " + CurrentMass + "\n");
-                values.Append("Глубина шахты     : " + DrillDepth + "\n");
+                values.Append("Макс. Шахты       : " + DrillDepth + "\n");                
+                values.Append("Phys./Crit.(Mass) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? red.ToString() : green.ToString()) + "\n");
+                values.Append("Volume/Mass       : " + CurrentVolume + " / " + CurrentMass + "\n");
+                values.Append("Батарея %         : " + PText.GetPersent(batterys.CurrentPersent()) + " " + (batterys.CurrentPersent() <= ReturnOnCharge ? red.ToString() : green.ToString()) + "\n");
                 return values.ToString();
             }
             public string TextTEST()
@@ -1888,12 +1900,6 @@ namespace KROTIK_A1_NAV
             {
                 switch (argument)
                 {
-                    case "+":
-                        thrusts.SetOverridePercent("U", 0.4f);
-                        break;
-                    case "-":
-                        thrusts.SetOverridePercent("U", 0);
-                        break;
                     case "load":
                         LoadFromStorage();
                         break;
@@ -1964,6 +1970,22 @@ namespace KROTIK_A1_NAV
                 }
                 if (updateSource == UpdateType.Update10)
                 {
+                    cockpit.Logic(argument, updateSource);
+                    if (!connector.Connected)
+                    {
+                        if (cockpit.CurrentHeight > 5.0f)
+                        {
+                            batterys.Auto();
+                            thrusts.On();
+                        }
+                    }
+                    else
+                    {
+                        // Припаркован
+                        drills.Off();
+                        batterys.Charger();
+                        thrusts.Off();
+                    }
                     // Обновим состояние навигации
                     UpdateCalc();
                     if (curent_programm == programm.fly_connect_base)
