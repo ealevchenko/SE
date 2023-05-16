@@ -18,7 +18,6 @@ using System.Timers;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
 using VRageMath;
-using static KROTIK_A1_NAV.Program;
 /// <summary>
 /// v4.0
 /// </summary>
@@ -48,6 +47,7 @@ namespace KROTIK_A1_NAV
         static int MaxShafts = 50;         // макс кол ва
         static float DrillFrameWidth = 10f; // размеры буровика
         static float DrillFrameLength = 10f;
+        static int CriticalMass = 2300;     // Критическая масса
 
         const char green = '\uE001';
         const char blue = '\uE002';
@@ -1105,7 +1105,7 @@ namespace KROTIK_A1_NAV
             public int connector_distance { get; private set; } = 200;
 
             public double FlyHeight;
-            public int CriticalMass { get; private set; } = 400000;
+            //public int CriticalMass { get; private set; } = 400000;
             public int CurrentVolume { get; private set; }
             public int CurrentMass { get; private set; }
             public bool StoneDumpNeeded { get; private set; } // Признак нужно сбросить груз
@@ -1392,6 +1392,7 @@ namespace KROTIK_A1_NAV
                     }
                     if (curent_mode == mode.base_operation)
                     {
+                        this.cargos.UnLoad();
                         this.batterys.Charger();
                         this.thrusts.Off();
                         thrusts.ClearThrustOverridePersent();
@@ -1437,13 +1438,23 @@ namespace KROTIK_A1_NAV
                 cargos.Update();
                 if (PhysicalMass > CriticalMass) { CriticalMassReached = true; } else { CriticalMassReached = false; }
             }
-            public void Pause()
+            public void Pause(bool enable)
             {
-                thrusts.ClearThrustOverridePersent();
-                gyros.SetOverride(false, 1);
-                this.drills.Off();
-                this.reflectors_light.Off();
-                paused = true;
+                if (enable)
+                {
+                    thrusts.ClearThrustOverridePersent();
+                    gyros.SetOverride(false, 1);
+                    this.drills.Off();
+                    this.reflectors_light.Off();
+                    paused = true;
+                }
+                else
+                {
+                    paused = false;
+                }
+
+
+
                 SaveToStorage();
             }
             public void Clear()
@@ -2002,6 +2013,7 @@ namespace KROTIK_A1_NAV
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
                 values.Append("ПАУЗА : " + (paused ? green.ToString() : red.ToString()) + "\n");
+                values.Append("ДОМОЙ : " + (go_home ? green.ToString() : red.ToString()) + "\n");
                 return values.ToString();
             }
             public string TextInfo2()
@@ -2044,7 +2056,7 @@ namespace KROTIK_A1_NAV
                         SaveToStorage();
                         break;
                     case "pause":
-                        Pause();
+                        Pause(!paused);
                         break;
                     case "stop":
                         Stop();
@@ -2142,71 +2154,68 @@ namespace KROTIK_A1_NAV
                             reflectors_light.On();
                         }
                     }
-                    if (!paused)
+                    if (curent_programm == programm.fly_connect_base && !paused)
                     {
-                        if (curent_programm == programm.fly_connect_base)
-                        {
-                            FlyConnectBase();
-                        }
-                        if (curent_programm == programm.fly_drill)
-                        {
-                            FlyDrill();
-                        }
-                        if (curent_programm == programm.start_drill)
-                        {
-                            StartDrill();
-                        }
+                        FlyConnectBase();
                     }
-                    if (curent_mode == mode.un_dock)
+                    if (curent_programm == programm.fly_drill && !paused)
+                    {
+                        FlyDrill();
+                    }
+                    if (curent_programm == programm.start_drill && !paused)
+                    {
+                        StartDrill();
+                    }
+                    if (curent_mode == mode.un_dock && !paused)
                     {
                         if (UnDock() && curent_programm == programm.none)
                         {
                             curent_mode = mode.none;
                         }
                     }
-                    if (curent_mode == mode.to_base)
+                    if (curent_mode == mode.to_base && !paused)
                     {
                         if (ToBase() && curent_programm == programm.none)
                         {
                             curent_mode = mode.none;
                         }
                     }
-                    if (curent_mode == mode.dock)
+                    if (curent_mode == mode.dock && !paused)
                     {
                         if (Dock() && curent_programm == programm.none)
                         {
                             curent_mode = mode.none;
                         }
                     }
-                    if (curent_mode == mode.to_drill)
+                    if (curent_mode == mode.to_drill && !paused)
                     {
                         if (ToDrillPoint() && curent_programm == programm.none)
                         {
                             curent_mode = mode.none;
                         }
                     }
-                    if (curent_mode == mode.drill_align)
+                    if (curent_mode == mode.drill_align && !paused)
                     {
                         if (DrillAlign() && curent_programm == programm.none)
                         {
                             curent_mode = mode.none;
                         }
                     }
-                    if (curent_mode == mode.drill)
+                    if (curent_mode == mode.drill && !paused)
                     {
                         if (Drill(out EmergencyReturn) && curent_programm == programm.none)
                         {
                             curent_mode = mode.none;
                         }
                     }
-                    if (curent_mode == mode.pull_up)
+                    if (curent_mode == mode.pull_up && !paused)
                     {
                         if (PullUp() && curent_programm == programm.none)
                         {
                             curent_mode = mode.none;
                         }
                     }
-                    if (curent_mode == mode.pull_out)
+                    if (curent_mode == mode.pull_out && !paused)
                     {
                         if (PullOut() && curent_programm == programm.none)
                         {
