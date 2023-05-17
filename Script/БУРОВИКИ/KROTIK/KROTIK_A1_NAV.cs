@@ -25,29 +25,29 @@ namespace KROTIK_A1_NAV
 {
     public sealed class Program : MyGridProgram
     {
-        // m.v3
+        // m.v10
         string NameObj = "[KROTIK_A1]";
         string NameCockpit = "[KROTIK_A1]-Промышленный кокпит [LCD]";
         string NameRemoteControl = "[KROTIK_A1]-ДУ Парковка";
         string NameConnector = "[KROTIK_A1]-Коннектор парковка";
         string NameCameraCourse = "[KROTIK_A1]-Камера парковка";
-        string NameLCDInfo = "[KROTIK_A1]-LCD-INFO";
-        string NameLCDDebug = "[KROTIK_A1]-LCD-DEBUG";
-        static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
+        string NameLCDStorage = "[KROTIK_A1]-LCD-Storage";      // Экран для сохранения настроек
+        string NameLCDDebug = "[KROTIK_A1]-LCD-DEBUG";          
+        static string tag_batterys_duty = "[batterys_duty]";    // дежурная батарея
 
         static float GyroMult = 1f;
         static float AlignAccelMult = 0.3f;
         static float DrillGyroMult = 1f;
         static float TargetSize = 100;
-        static float ReturnOnCharge = 0.2f;// Процент заряда
-        static float ReturnOffCharge = 0.9f;// Процент заряда
+        static float ReturnOnCharge = 0.2f;     // Процент заряда
+        static float ReturnOffCharge = 0.9f;    // Процент заряда
         static float DrillSpeedLimit = 0.5f;
         static float DrillAccel = 0.5f;
-        static float DrillDepth = 25;      // глубина шахты
-        static int MaxShafts = 50;         // макс кол ва
-        static float DrillFrameWidth = 10f; // размеры буровика
+        static float DrillDepth = 25;           // глубина шахты
+        static int MaxShafts = 50;              // макс кол дыр
+        static float DrillFrameWidth = 10f;     // размеры буровика
         static float DrillFrameLength = 10f;
-        static int CriticalMass = 2300;     // Критическая масса
+        static int CriticalMass = 400000;       // Критическая масса
 
         const char green = '\uE001';
         const char blue = '\uE002';
@@ -55,7 +55,7 @@ namespace KROTIK_A1_NAV
         const char yellow = '\uE004';
         const char darkGrey = '\uE00F';
 
-        static LCD lcd_info;
+        static LCD lcd_storage;
         static LCD lcd_debug;
         Batterys bats;
         Connector connector;
@@ -363,7 +363,7 @@ namespace KROTIK_A1_NAV
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
             _scr = this;
-            lcd_info = new LCD(NameLCDInfo);
+            lcd_storage = new LCD(NameLCDStorage);
             lcd_debug = new LCD(NameLCDDebug);
             bats = new Batterys(NameObj);
             connector = new Connector(NameConnector);
@@ -1159,7 +1159,6 @@ namespace KROTIK_A1_NAV
                     connector_base1.position = Math.Abs(vc) < 0.01f ? false : true;
                     SaveToStorage();
                 }
-
             }
             public void SetDrillMatrixDepo()
             {
@@ -1950,7 +1949,7 @@ namespace KROTIK_A1_NAV
             }
             public void LoadFromStorage()
             {
-                StringBuilder str = lcd_info.GetText();
+                StringBuilder str = lcd_storage.GetText();
                 curent_programm = (programm)GetValInt("curent_programm", str.ToString());
                 curent_mode = (mode)GetValInt("curent_mode", str.ToString());
                 paused = GetValBool("pause", str.ToString());
@@ -2002,7 +2001,7 @@ namespace KROTIK_A1_NAV
                 values.Append(DrillMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "MD"));
                 values.Append(PlanetCenter.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PX").Replace("Y", "PY").Replace("Z", "PZ") + ";\n");
 
-                lcd_info.OutText(values);
+                lcd_storage.OutText(values);
             }
             public string TextInfo1()
             {
@@ -2036,6 +2035,22 @@ namespace KROTIK_A1_NAV
             {
                 switch (argument)
                 {
+                    case "depth+":
+                        DrillDepth++;
+                        if (DrillDepth > 150) DrillDepth = 150;
+                        break;
+                    case "depth-":
+                        DrillDepth--;
+                        if (DrillDepth < 5) DrillDepth = 5;
+                        break;
+                    case "ms+":
+                        MaxShafts++;
+                        if (MaxShafts > 50) MaxShafts = 50;
+                        break;
+                    case "ms-":
+                        DrillDepth--;
+                        if (MaxShafts < 4) MaxShafts = 4;
+                        break;                        
                     case "horizont":
                         if (curent_programm == programm.none)
                         {

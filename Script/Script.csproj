@@ -85,7 +85,7 @@
     <Compile Include="OSS\OSS_BM_UPR.cs" />
     <Compile Include="OSS\OSS_BM_DORS.cs" />
     <Compile Include="OCTOPUS\Octopus1.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_A1P.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1P.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1M_NAV_4.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1M_NAV_3.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1M_NAV_2.cs" />
