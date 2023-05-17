@@ -21,18 +21,12 @@ using VRageMath;
 /// <summary>
 /// v4.0
 /// </summary>
-namespace KROTIK_A1_NAV
+namespace MINER_A1_NAV
 {
     public sealed class Program : MyGridProgram
     {
-        // m.v10
+        // m.v1
         string NameObj = "[MINER_A1]";
-        string NameCockpit = "[KROTIK_A1]-Промышленный кокпит [LCD]";
-        string NameRemoteControl = "[KROTIK_A1]-ДУ Парковка";
-        string NameConnector = "[KROTIK_A1]-Коннектор парковка";
-        string NameCameraCourse = "[KROTIK_A1]-Камера парковка";
-        string NameLCDStorage = "[KROTIK_A1]-LCD-Storage";      // Экран для сохранения настроек
-        string NameLCDDebug = "[KROTIK_A1]-LCD-DEBUG";
         static string tag_batterys_duty = "[batterys_duty]";    // дежурная батарея
 
         static float GyroMult = 1f;
@@ -45,9 +39,9 @@ namespace KROTIK_A1_NAV
         static float DrillAccel = 0.5f;
         static float DrillDepth = 25;           // глубина шахты
         static int MaxShafts = 50;              // макс кол дыр
-        static float DrillFrameWidth = 10f;     // размеры буровика
-        static float DrillFrameLength = 10f;
-        static int CriticalMass = 400000;       // Критическая масса
+        static float DrillFrameWidth = 6f;     // размеры буровика
+        static float DrillFrameLength = 7f;
+        static int CriticalMass = 180000;       // Критическая масса
 
         const char green = '\uE001';
         const char blue = '\uE002';
@@ -363,20 +357,20 @@ namespace KROTIK_A1_NAV
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
             _scr = this;
-            lcd_storage = new LCD(NameLCDStorage);
-            lcd_debug = new LCD(NameLCDDebug);
+            lcd_storage = new LCD(NameObj + "-LCD [storage]");
+            lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
             bats = new Batterys(NameObj);
-            connector = new Connector(NameConnector);
+            connector = new Connector(NameObj + "-Connector parking");
             drill = new ShipDrill(NameObj);
             drill.Off();
             reflectors_light = new ReflectorsLight(NameObj);
             reflectors_light.Off();
-            cockpit = new Cockpit(NameCockpit);
-            remote_control = new RemoteControl(NameRemoteControl);
+            cockpit = new Cockpit(NameObj + "-Cocpit [LCD]");
+            remote_control = new RemoteControl(NameObj + "-RC parking");
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj);
             cargos = new Cargos(NameObj);
-            navigation = new Navigation(cockpit, remote_control, gyros, thrusts, connector, bats, drill, reflectors_light, cargos, NameCameraCourse);
+            navigation = new Navigation(cockpit, remote_control, gyros, thrusts, connector, bats, drill, reflectors_light, cargos);
         }
         public void Save()
         {
@@ -1030,7 +1024,6 @@ namespace KROTIK_A1_NAV
             Gyros gyros;
             Thrusts thrusts;
             Cargos cargos;
-            IMyCameraBlock camera_course;
             //---------------------------
             public bool horizont { get; private set; } = false;  // держим горизонтальное направление
             public Vector3D? TackVector { get; set; } = null;
@@ -1105,7 +1098,6 @@ namespace KROTIK_A1_NAV
             public int connector_distance { get; private set; } = 200;
 
             public double FlyHeight;
-            //public int CriticalMass { get; private set; } = 400000;
             public int CurrentVolume { get; private set; }
             public int CurrentMass { get; private set; }
             public bool StoneDumpNeeded { get; private set; } // Признак нужно сбросить груз
@@ -1115,7 +1107,7 @@ namespace KROTIK_A1_NAV
 
             public bool go_home = false; // вернутся домой и остатся
             public bool paused = false;
-            public Navigation(Cockpit cockpit, RemoteControl remote_control, Gyros gyros, Thrusts thrusts, Connector connector, Batterys batterys, ShipDrill drills, ReflectorsLight reflectors_light, Cargos cargos, string NameCameraCourse)
+            public Navigation(Cockpit cockpit, RemoteControl remote_control, Gyros gyros, Thrusts thrusts, Connector connector, Batterys batterys, ShipDrill drills, ReflectorsLight reflectors_light, Cargos cargos)
             {
                 this.cockpit = cockpit;
                 this.connector = connector;
@@ -1127,9 +1119,6 @@ namespace KROTIK_A1_NAV
                 this.cargos = cargos;
                 this.thrusts = thrusts;
                 this.thrusts.InitThrusts(remote_control); // Привяжем трастеры к контроллеру
-                camera_course = _scr.GridTerminalSystem.GetBlockWithName(NameCameraCourse) as IMyCameraBlock;
-                _scr.Echo("camera_course: " + ((camera_course != null) ? ("Ок") : ("not block")));
-
                 LoadFromStorage();
                 FindPlanetCenter();
             }
