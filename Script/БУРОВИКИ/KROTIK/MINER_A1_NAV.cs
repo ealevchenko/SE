@@ -26,9 +26,9 @@ namespace MINER_A1_NAV
     public sealed class Program : MyGridProgram
     {
         // m.v1
-        string NameObj = "[MINER_A1]";
-        static string tag_batterys_duty = "[batterys_duty]";    // дежурная батарея
-
+        string NameObj = "[MINER_A1_X]";
+        static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
+        static string tag_ejector = "[ejector]"; // дежурная батарея
         static float GyroMult = 1f;
         static float AlignAccelMult = 0.3f;
         static float DrillGyroMult = 1f;
@@ -38,19 +38,18 @@ namespace MINER_A1_NAV
         static float DrillSpeedLimit = 0.5f;
         static float DrillAccel = 0.5f;
         static float DrillDepth = 25;           // глубина шахты
-        static int MaxShafts = 50;              // макс кол дыр
+        static int MaxShafts = 20;              // макс кол дыр
         static float DrillFrameWidth = 6f;     // размеры буровика
         static float DrillFrameLength = 7f;
         static int CriticalMass = 180000;       // Критическая масса
-
         const char green = '\uE001';
         const char blue = '\uE002';
         const char red = '\uE003';
         const char yellow = '\uE004';
         const char darkGrey = '\uE00F';
-
         static LCD lcd_storage;
         static LCD lcd_debug;
+        static LCD lcd_name;
         Batterys bats;
         Connector connector;
         ShipDrill drill;
@@ -60,8 +59,8 @@ namespace MINER_A1_NAV
         Gyros gyros;
         Thrusts thrusts;
         Cargos cargos;
+        Ejector ejector;
         Navigation navigation;
-
         static Program _scr;
         public class PText
         {
@@ -359,6 +358,7 @@ namespace MINER_A1_NAV
             _scr = this;
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
+            lcd_name = new LCD(NameObj + "-LCD-Name");
             bats = new Batterys(NameObj);
             connector = new Connector(NameObj + "-Connector parking");
             drill = new ShipDrill(NameObj);
@@ -370,7 +370,8 @@ namespace MINER_A1_NAV
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj);
             cargos = new Cargos(NameObj);
-            navigation = new Navigation(cockpit, remote_control, gyros, thrusts, connector, bats, drill, reflectors_light, cargos);
+            ejector = new Ejector(NameObj, tag_ejector);ejector.ThrowOut(false);
+            navigation = new Navigation(cockpit, remote_control, gyros, thrusts, connector, bats, drill, reflectors_light, cargos, ejector);
         }
         public void Save()
         {
@@ -388,7 +389,7 @@ namespace MINER_A1_NAV
             }
             if (updateSource == UpdateType.Update10)
             {
-
+                lcd_name.OutText(NameObj, false);
             }
             values_info.Append(bats.TextInfo());
             values_info.Append(connector.TextInfo());
@@ -398,10 +399,6 @@ namespace MINER_A1_NAV
             StringBuilder values_info1 = new StringBuilder();
             values_info1.Append(navigation.TextInfo2());
             cockpit.OutText(values_info1, 1);
-            //StringBuilder test_info = new StringBuilder();
-            //test_info.Append(navigation.TextTEST());
-            //lcd_info.OutText(test_info);
-            //lcd_info.OutText(test_info);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
@@ -1013,6 +1010,15 @@ namespace MINER_A1_NAV
                 Update();
             }
         }
+        public class Ejector : BaseListTerminalBlock<IMyShipConnector> {
+            public Ejector(string name_obj) : base(name_obj) { }
+            public Ejector(string name_obj, string tag) : base(name_obj, tag) { }
+            public void ThrowOut(bool enable) {
+                foreach (IMyShipConnector enj in base.list_obj) {
+                    enj.ThrowOut =enable;
+                }
+            }
+        }
         public class Navigation
         {
             Cockpit cockpit;
@@ -1024,6 +1030,7 @@ namespace MINER_A1_NAV
             Gyros gyros;
             Thrusts thrusts;
             Cargos cargos;
+            Ejector ejector;
             //---------------------------
             public bool horizont { get; private set; } = false;  // держим горизонтальное направление
             public Vector3D? TackVector { get; set; } = null;
@@ -1062,7 +1069,6 @@ namespace MINER_A1_NAV
             public float PhysicalMass { get; private set; } // Физическая масса
             public MatrixD WMCocpit { get; private set; } //
             public MatrixD OrientationCocpit { get; private set; } //
-            //
             public float XMaxA { get; private set; }
             public float YMaxA { get; private set; }
             public float ZMaxA { get; private set; }
@@ -1096,18 +1102,13 @@ namespace MINER_A1_NAV
                 //load = false
             };
             public int connector_distance { get; private set; } = 200;
-
             public double FlyHeight;
-            public int CurrentVolume { get; private set; }
-            public int CurrentMass { get; private set; }
             public bool StoneDumpNeeded { get; private set; } // Признак нужно сбросить груз
-
             public bool CriticalMassReached { get; private set; }// Признак критической массы
             public bool EmergencyReturn = false;
-
             public bool go_home = false; // вернутся домой и остатся
             public bool paused = false;
-            public Navigation(Cockpit cockpit, RemoteControl remote_control, Gyros gyros, Thrusts thrusts, Connector connector, Batterys batterys, ShipDrill drills, ReflectorsLight reflectors_light, Cargos cargos)
+            public Navigation(Cockpit cockpit, RemoteControl remote_control, Gyros gyros, Thrusts thrusts, Connector connector, Batterys batterys, ShipDrill drills, ReflectorsLight reflectors_light, Cargos cargos, Ejector ejector)
             {
                 this.cockpit = cockpit;
                 this.connector = connector;
@@ -1119,6 +1120,7 @@ namespace MINER_A1_NAV
                 this.cargos = cargos;
                 this.thrusts = thrusts;
                 this.thrusts.InitThrusts(remote_control); // Привяжем трастеры к контроллеру
+                this.ejector = ejector;
                 LoadFromStorage();
                 FindPlanetCenter();
             }
@@ -1130,7 +1132,6 @@ namespace MINER_A1_NAV
                 Vector3D V3Dup = -Vector3D.Normalize(GravVector);
                 Vector3D V3Dleft = Vector3D.Normalize(Vector3D.Reject(WMCocpit.Left, V3Dup));
                 Vector3D V3Dfow = Vector3D.Normalize(Vector3D.Cross(V3Dleft, V3Dup));
-
                 mRot = new MatrixD(V3Dleft.GetDim(0), V3Dleft.GetDim(1), V3Dleft.GetDim(2), 0, V3Dup.GetDim(0), V3Dup.GetDim(1), V3Dup.GetDim(2), 0, V3Dfow.GetDim(0), V3Dfow.GetDim(1), V3Dfow.GetDim(2), 0, 0, 0, 0, 1);
                 mRot = MatrixD.Invert(mRot);
                 return new MatrixD(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -V3Dcenter.GetDim(0), -V3Dcenter.GetDim(1), -V3Dcenter.GetDim(2), 1) * mRot;
@@ -1163,10 +1164,7 @@ namespace MINER_A1_NAV
             }
             public void FindPlanetCenter()
             {
-                if (cockpit.obj.TryGetPlanetPosition(out PlanetCenter))
-                {
-                    SaveToStorage();
-                }
+                if (cockpit.obj.TryGetPlanetPosition(out PlanetCenter)) { SaveToStorage(); }
             }
             //---------------------------------------------
             public Vector3D GetNavAngles(Vector3D Target, MatrixD InvMatrix, double sfiftX = 0, double shiftZ = 0)
@@ -1176,13 +1174,11 @@ namespace MINER_A1_NAV
                 Vector3D V3Dup = remote_control.obj.WorldMatrix.Up + V3Dcenter;
                 Vector3D V3Dleft = remote_control.obj.WorldMatrix.Left + V3Dcenter;
                 Vector3D GravNorm = Vector3D.Normalize(GravVector) + V3Dcenter;
-
                 V3Dcenter = Vector3D.Transform(V3Dcenter, InvMatrix);
                 V3Dfow = (Vector3D.Transform(V3Dfow, InvMatrix)) - V3Dcenter;
                 V3Dup = (Vector3D.Transform(V3Dup, InvMatrix)) - V3Dcenter;
                 V3Dleft = (Vector3D.Transform(V3Dleft, InvMatrix)) - V3Dcenter;
                 GravNorm = Vector3D.Normalize((Vector3D.Transform(GravNorm, InvMatrix)) - V3Dcenter - new Vector3D(sfiftX, 0, shiftZ));
-
                 //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
                 double gF = GravNorm.Dot(V3Dfow);
                 double gL = GravNorm.Dot(V3Dleft);
@@ -1190,18 +1186,14 @@ namespace MINER_A1_NAV
                 //Получаем сигналы по тангажу и крены операцией atan2
                 double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
                 double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
-
                 Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
-
                 //Рысканием прицеливаемся на точку Target.
                 double tF = TargetNorm.Dot(V3Dfow);
                 double tL = TargetNorm.Dot(V3Dleft);
                 double TargetYaw = -(float)Math.Atan2(tL, tF);
-
                 if (double.IsNaN(TargetYaw)) TargetYaw = 0;
                 if (double.IsNaN(TargetPitch)) TargetPitch = 0;
                 if (double.IsNaN(TargetRoll)) TargetRoll = 0;
-
                 return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
             }
             public Vector3D GetNavAngles(Vector3D? Vector)
@@ -1380,6 +1372,7 @@ namespace MINER_A1_NAV
                     }
                     if (curent_mode == mode.base_operation)
                     {
+                        this.ejector.ThrowOut(false);
                         this.cargos.UnLoad();
                         this.batterys.Charger();
                         this.thrusts.Off();
@@ -1390,11 +1383,11 @@ namespace MINER_A1_NAV
                         }
                         else
                         {
-                            if (batterys.CurrentPersent() >= ReturnOffCharge && CurrentMass == 0f)
+                            if (batterys.CurrentPersent() >= ReturnOffCharge && cargos.CurrentMass == 0f)
                             {
-
                                 this.batterys.Auto();
                                 this.thrusts.On();
+                                this.ejector.ThrowOut(true);
                                 curent_mode = mode.un_dock;
                                 SaveToStorage();
                             }
@@ -1407,22 +1400,17 @@ namespace MINER_A1_NAV
             {
                 MyPrevPos = MyPos;
                 MyPos = remote_control.obj.GetPosition();
-
                 GravVector = remote_control.obj.GetNaturalGravity();
                 PhysicalMass = remote_control.obj.CalculateShipMass().PhysicalMass;
                 WMCocpit = remote_control.obj.WorldMatrix;
-                //
                 VelocityVector = (MyPos - MyPrevPos) * 6;
                 UpVelocityVector = WMCocpit.Up * Vector3D.Dot(VelocityVector, WMCocpit.Up);
                 ForwVelocityVector = WMCocpit.Forward * Vector3D.Dot(VelocityVector, WMCocpit.Forward);
                 LeftVelocityVector = WMCocpit.Left * Vector3D.Dot(VelocityVector, WMCocpit.Left);
-                // Орентация коробля
                 OrientationCocpit = remote_control.GetCockpitMatrix();
-                //-------------------
                 YMaxA = Math.Abs((float)Math.Min(thrusts.UpThrMax / PhysicalMass - GravVector.Length(), thrusts.DownThrMax / PhysicalMass + GravVector.Length()));
                 ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
                 XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
-                //
                 cargos.Update();
                 if (PhysicalMass > CriticalMass) { CriticalMassReached = true; } else { CriticalMassReached = false; }
             }
@@ -1436,13 +1424,7 @@ namespace MINER_A1_NAV
                     this.reflectors_light.Off();
                     paused = true;
                 }
-                else
-                {
-                    paused = false;
-                }
-
-
-
+                else { paused = false; }
                 SaveToStorage();
             }
             public void Clear()
@@ -1477,7 +1459,6 @@ namespace MINER_A1_NAV
                 gyros.SetOverride(true, gyrAng * GyroMult, 1);
                 thrusts.SetOverridePercent("R", 0);
                 thrusts.SetOverridePercent("L", 0);
-
                 if (UpVelocityVector.Length() < MaxUSpeed)
                     thrusts.SetOverrideAccel("U", (float)((FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
                 else
@@ -1536,13 +1517,9 @@ namespace MINER_A1_NAV
                     UpAccel = -minUpAccel;
                 if ((UpAccel > 0) && (UpAccel < minUpAccel))
                     UpAccel = minUpAccel;
-
                 if (UpVelocityVector.Length() < MaxUSpeed)
                     thrusts.SetOverrideAccel("U", UpAccel);
-                else
-                {
-                    thrusts.SetOverridePercent("U", 0);
-                }
+                else { thrusts.SetOverridePercent("U", 0); }
                 if (((Distance > 100) || ((Math.Abs(MyPosCon.GetDim(0)) < (Distance / 10 + 0.2f)) && (Math.Abs(MyPosCon.GetDim(1)) < (Distance / 10 + 0.2f)))) && (ForwVelocityVector.Length() < MaxFSpeed))
                 {
                     thrusts.SetOverrideAccel("F", (float)(Distance * AlignAccelMult));
@@ -1555,7 +1532,6 @@ namespace MINER_A1_NAV
                 }
                 if (Distance < 6)
                 {
-                    //myDriller.connectorBlock.Turn("On");
                     if (connector.Status == MyShipConnectorStatus.Connectable)
                     {
                         connector.Connect();
@@ -1603,20 +1579,17 @@ namespace MINER_A1_NAV
                 Vector3D gyrAng = GetNavAngles(new Vector3D(0, 0, 0), DrillMatrix);
                 Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix);
                 Distance = (float)(DrillPoint - new Vector3D(MyPosDrill.GetDim(0), 0, MyPosDrill.GetDim(2))).Length();
-
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(FlyHeight - (MyPos - PlanetCenter).Length()) * YMaxA) / 1.2f;
                 MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 1.2f;
                 gyros.SetOverride(true, gyrAng * GyroMult, 1);
                 thrusts.SetOverridePercent("R", 0);
                 thrusts.SetOverridePercent("L", 0);
-
                 if (UpVelocityVector.Length() < MaxUSpeed)
                     thrusts.SetOverrideAccel("U", (float)((FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
                 else
                 {
                     thrusts.SetOverridePercent("U", 0);
                 }
-                //myDriller.TextOutput("TP1", "\n" + MaxFSpeed.ToString() + "\n" + ForwVelocityVector.Length().ToString() + "\n" + Distance.ToString());           
                 if (Distance > TargetSize)
                 {
                     if (ForwVelocityVector.Length() < MaxFSpeed)
@@ -1644,7 +1617,6 @@ namespace MINER_A1_NAV
                 Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
                 Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrix);
                 gyros.SetOverride(true, gyrAng * GyroMult, 1);
-
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 2;
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(1)) * YMaxA) / 2;
                 MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(2)) * ZMaxA) / 2;
@@ -1688,25 +1660,21 @@ namespace MINER_A1_NAV
             }
             public bool Drill(out bool Emergency)
             {
+                this.ejector.ThrowOut(true);
                 bool Complete = false;
                 Emergency = false;
-
                 float MaxLSpeed, MaxFSpeed;
                 Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
-
                 double shiftX = MyPosDrill.GetDim(0) / 2;
                 if (shiftX < 0) shiftX = Math.Max(shiftX, -0.1);
                 else shiftX = Math.Min(shiftX, 0.1);
                 double shiftZ = MyPosDrill.GetDim(2) / 2;
                 if (shiftZ < 0) shiftZ = Math.Max(shiftZ, -0.1);
                 else shiftZ = Math.Min(shiftZ, 0.1);
-
                 Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrix, shiftX, shiftZ);
                 gyros.SetOverride(true, gyrAng * DrillGyroMult, 1);
-
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 5;
                 MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(2)) * ZMaxA) / 5;
-
                 if (LeftVelocityVector.Length() < MaxLSpeed)
                     thrusts.SetOverrideAccel("R", (float)(MyPosDrill.GetDim(0) * 10));
                 else
@@ -1721,12 +1689,10 @@ namespace MINER_A1_NAV
                     thrusts.SetOverridePercent("F", 0);
                     thrusts.SetOverridePercent("B", 0);
                 }
-
                 if (StoneDumpNeeded && drills.Enabled())
                     drills.Off();
                 else if (!StoneDumpNeeded && !drills.Enabled())
                     drills.On();
-
                 if ((UpVelocityVector.Length() < DrillSpeedLimit) && (!StoneDumpNeeded))
                 {
                     if ((Math.Abs(MyPosDrill.GetDim(0)) < 1) && (Math.Abs(MyPosDrill.GetDim(2)) < 1))
@@ -1761,12 +1727,8 @@ namespace MINER_A1_NAV
                 Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
                 Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrix);
                 gyros.SetOverride(true, gyrAng * DrillGyroMult, 1);
-                //myDriller.drillBlock.Turn("Off");           
-
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 4;
                 MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(2)) * ZMaxA) / 4;
-
-
                 if (LeftVelocityVector.Length() < MaxLSpeed)
                     thrusts.SetOverrideAccel("R", (float)(MyPosDrill.GetDim(0) * 0.5));
                 else
@@ -1788,7 +1750,6 @@ namespace MINER_A1_NAV
                 {
                     thrusts.SetOverridePercent("U", 0);
                 }
-
                 if ((MyPosDrill.GetDim(1) > 0) || ((MyPosDrill.GetDim(0) < 0.15) && (MyPosDrill.GetDim(2) < 0.15)))
                 {
                     Complete = true;
@@ -1804,11 +1765,8 @@ namespace MINER_A1_NAV
                 Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrix);
                 gyros.SetOverride(true, gyrAng * DrillGyroMult, 1);
                 drills.Off();
-
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 2;
                 MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(2)) * ZMaxA) / 2;
-
-
                 if (LeftVelocityVector.Length() < MaxLSpeed)
                     thrusts.SetOverrideAccel("R", (float)(MyPosDrill.GetDim(0) * 1));
                 else
@@ -1823,7 +1781,6 @@ namespace MINER_A1_NAV
                     thrusts.SetOverridePercent("F", 0);
                     thrusts.SetOverridePercent("B", 0);
                 }
-
                 if ((UpVelocityVector.Length() < DrillSpeedLimit * 5) && (MyPosDrill.GetDim(0) < 0.5) && (MyPosDrill.GetDim(2) < 0.5))
                     thrusts.SetOverrideAccel("U", (DrillAccel * 2));
                 else
@@ -1883,7 +1840,6 @@ namespace MINER_A1_NAV
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
                 values.Append("DeltaHeight: " + Math.Round(FlyHeight - (MyPos - PlanetCenter).Length()).ToString() + "\n");
-                //values.Append("Height: " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(FlyHeight).ToString() + "\n");
                 values.Append("Distance: " + Math.Round(Distance).ToString() + "\n");
                 values.Append("------------------------------------------\n");
                 values.Append("ZMaxA (F-B) : " + Math.Round(ZMaxA, 2).ToString() + "MaxFSpeed: " + Math.Round(MaxFSpeed, 2).ToString() + "\n");
@@ -1946,14 +1902,13 @@ namespace MINER_A1_NAV
                 FlyHeight = GetVal("FlyHeight", str.ToString());
                 ShaftN = GetValInt("ShaftN", str.ToString());
                 EmergencyReturn = GetValBool("EmergencyReturn", str.ToString());
+                DrillDepth = (float)GetVal("DrillDepth", str.ToString());
+                MaxShafts = GetValInt("DrillDepth", MaxShafts.ToString());
                 connector_base1.id = GetValInt64("CB1_id", str.ToString());
                 connector_base1.point = new Vector3D(GetVal("CB1_X", str.ToString()), GetVal("CB1_Y", str.ToString()), GetVal("CB1_Z", str.ToString()));
                 connector_base1.vector = new Vector3D(GetVal("CBV1_X", str.ToString()), GetVal("CBV1_Y", str.ToString()), GetVal("CBV1_Z", str.ToString()));
                 connector_base1.load = GetValBool("CB1_load", str.ToString());
                 connector_base1.position = GetValBool("CB1_position", str.ToString());
-                //
-                //point_start_drill = new Vector3D(GetVal("PSD_X", str.ToString()), GetVal("PSD_Y", str.ToString()), GetVal("PSD_Z", str.ToString()));
-                //
                 DockMatrix = new MatrixD(GetVal("MC11", str.ToString()), GetVal("MC12", str.ToString()), GetVal("MC13", str.ToString()), GetVal("MC14", str.ToString()),
                 GetVal("MC21", str.ToString()), GetVal("MC22", str.ToString()), GetVal("MC23", str.ToString()), GetVal("MC24", str.ToString()),
                 GetVal("MC31", str.ToString()), GetVal("MC32", str.ToString()), GetVal("MC33", str.ToString()), GetVal("MC34", str.ToString()),
@@ -1973,23 +1928,19 @@ namespace MINER_A1_NAV
                 values.Append("curent_mode: " + ((int)curent_mode).ToString() + ";\n");
                 values.Append("pause: " + paused.ToString() + ";\n");
                 values.Append("go_home: " + go_home.ToString() + ";\n");
-
                 values.Append("FlyHeight: " + Math.Round(FlyHeight, 0) + ";\n");
                 values.Append("ShaftN: " + ShaftN.ToString() + ";\n");
                 values.Append("EmergencyReturn: " + EmergencyReturn.ToString() + ";\n");
-                //
+                values.Append("DrillDepth: " + Math.Round(DrillDepth, 0) + ";\n");
+                values.Append("MaxShafts: " + MaxShafts.ToString() + ";\n");
                 values.Append("CB1_id: " + connector_base1.id.ToString() + ";\n");
                 values.Append(connector_base1.point.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "CB1_X").Replace("Y", "CB1_Y").Replace("Z", "CB1_Z") + ";\n");
                 values.Append(connector_base1.vector.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "CBV1_X").Replace("Y", "CBV1_Y").Replace("Z", "CBV1_Z") + ";\n");
                 values.Append("CB1_load: " + connector_base1.load.ToString() + ";\n");
                 values.Append("CB1_position: " + connector_base1.position.ToString() + ";\n");
-                //
-                //values.Append(point_start_drill.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PSD_X").Replace("Y", "PSD_Y").Replace("Z", "PSD_Z") + ";\n");
-                //
                 values.Append(DockMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "MC"));
                 values.Append(DrillMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "MD"));
                 values.Append(PlanetCenter.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PX").Replace("Y", "PY").Replace("Z", "PZ") + ";\n");
-
                 lcd_storage.OutText(values);
             }
             public string TextInfo1()
@@ -2011,7 +1962,7 @@ namespace MINER_A1_NAV
                 values.Append("Distance          : " + Math.Round(Distance).ToString() + "\n");
                 values.Append("Глубина шахты     : " + DrillDepth + ", кол. шахт : " + MaxShafts + "\n");
                 values.Append("Phys./Crit.(Mass) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? red.ToString() : green.ToString()) + "\n");
-                values.Append("Volume/Mass       : " + CurrentVolume + " / " + CurrentMass + "\n");
+                values.Append("Volume/Mass       : " + cargos.CurrentVolume + " / " + cargos.CurrentMass + "\n");
                 values.Append("Батарея %         : " + PText.GetPersent(batterys.CurrentPersent()) + " " + (batterys.CurrentPersent() <= ReturnOnCharge ? red.ToString() : green.ToString()) + "\n");
                 return values.ToString();
             }
@@ -2027,18 +1978,22 @@ namespace MINER_A1_NAV
                     case "depth+":
                         DrillDepth++;
                         if (DrillDepth > 150) DrillDepth = 150;
+                        SaveToStorage();
                         break;
                     case "depth-":
                         DrillDepth--;
                         if (DrillDepth < 5) DrillDepth = 5;
+                        SaveToStorage();
                         break;
                     case "ms+":
                         MaxShafts++;
                         if (MaxShafts > 50) MaxShafts = 50;
+                        SaveToStorage();
                         break;
                     case "ms-":
                         MaxShafts--;
                         if (MaxShafts < 4) MaxShafts = 4;
+                        SaveToStorage();
                         break;
                     case "horizont":
                         if (curent_programm == programm.none)

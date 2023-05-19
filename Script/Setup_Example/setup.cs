@@ -555,7 +555,7 @@ namespace SETUP
         }
 
         //info:NASTYA1-info [door-info] [factory]
-        //replace:Octopus1|[MINER_A1]-
+        //replace:[KROTIK_A1]-|[KROTIK_A1_1]-
         //add:[EA-DR1]-
         void Main(string argument, UpdateType updateSource)
         {
