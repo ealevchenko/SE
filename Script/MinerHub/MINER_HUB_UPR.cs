@@ -562,7 +562,7 @@ namespace MINER_HUB_UPR
         }
         public class Batterys : BaseListTerminalBlock<IMyBatteryBlock>
         {
-            public bool charger { get; private set; } = false;
+            //public bool charger { get; private set; } = false;
             public InpResurs res_inp { get; private set; }
             public OutResurs res_out { get; private set; }
             public int count_work_batterys { get { return list_obj.Where(n => !((IMyTerminalBlock)n).CustomName.Contains(tag_batterys_duty)).Count(); } }
@@ -574,10 +574,10 @@ namespace MINER_HUB_UPR
             {
 
             }
-            public void init()
-            {
-                charger = IsCharger();
-            }
+            //public void init()
+            //{
+            //    charger = IsCharger();
+            //}
             public float MaxPower()
             {
                 return base.list_obj.Select(b => b.MaxStoredPower).Sum();
@@ -632,7 +632,7 @@ namespace MINER_HUB_UPR
                         obj.ChargeMode = ChargeMode.Recharge;
                     }
                 }
-                charger = IsCharger();
+                //charger = IsCharger();
             }
             public void Auto()
             {
@@ -640,7 +640,7 @@ namespace MINER_HUB_UPR
                 {
                     obj.ChargeMode = ChargeMode.Auto;
                 }
-                charger = IsCharger();
+                //charger = IsCharger();
             }
             public void Update()
             {
@@ -651,15 +651,6 @@ namespace MINER_HUB_UPR
             {
                 switch (argument)
                 {
-                    case "bat_charger":
-                        Charger();
-                        break;
-                    case "bat_auto":
-                        Auto();
-                        break;
-                    case "bat_toggle":
-                        if (charger) { Auto(); } else { Charger(); }
-                        break;
                     default:
                         break;
                 }
@@ -996,22 +987,28 @@ namespace MINER_HUB_UPR
 // Накопленно : CurrentPower() / MaxPower()
 // Зарядка : CurrentInput / MaxInput 
 
-//Батареи:       (IN 4.4 MW / OUT 88.5 kW)
+//Батареи:       (IN 4.4 MW / OUT 88.5 kW) CurrentInput/CurrentOutput
 
 //  Накоплено: 45 MWh / 48 MWh
-//[|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||| ''''']  93.7%
+//[|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||| ''''']  93.7%[16] [А-16 З-0][ 45MW / 48MW]
 
-//  Потребление: 88.5 kW / 192 MW
+//  Потребление: 88.5 kW / 192 MW    CurrentOutput/MaxOutput
 //[''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''']   0.0%
 
-//  Зарядка: 4.4 MW / 192 MW
+//  Зарядка: 4.4 MW / 192 MW     CurrentInput/
 //[| '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''']    2.3 %
 //Общее потребление: 4.4 MW / 196.4 MW
 //[| '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''']   2.2 %
 //Время зарядки: 42m 32s
 
-//БАТАРЕЯ: [16] [А-16 З-0][ 45MW / 48MW]
-//| -ЗАР:  [||||||||||||||||||||||||||||||||||||||''] -93.8 %
+//|- ЗАРЯД: [16] [ 45MW / 48MW]
+//|  [||||||||||||||||||||||||||||||||||||||''] -93.8 %
+//|- IN   : [0] [ 4.4 MW / 192 MW ]
+//|  [||||||||||||||||||||||||||||||||||||||''] -93.8 %
+//|- OUT  : [0] [ 88.5 kW / 192 MW ]
+//|  [||||||||||||||||||||||||||||||||||||||''] -93.8 %
+
+
 //| -ВХ :  [|'''''''''''''''''''''''''''''''''''''''] - 2.3%[ 0.3MW / 12MW ]
 //|- ВЫХ:  [''''''''''''''''''''''''''''''''''''''''] -0 %[5.5kW / 12MW]
 //| -CurrentInput:  4.4MW
