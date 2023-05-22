@@ -1,25 +1,16 @@
-﻿using Sandbox.Definitions;
+﻿
 using Sandbox.Game.EntityComponents;
-using Sandbox.Game.GameSystems;
-using Sandbox.Game.WorldEnvironment.Modules;
 using Sandbox.ModAPI.Ingame;
 using Sandbox.ModAPI.Interfaces;
 using SpaceEngineers.Game.ModAPI.Ingame;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.ConstrainedExecution;
-using System.Runtime.Remoting.Messaging;
 using System.Text;
-using System.Threading.Tasks;
-using System.Timers;
 using VRage.Game;
 using VRage.Game.ModAPI.Ingame;
-using VRage.Noise.Combiners;
 using VRageMath;
+using static MINER_HUB_UPR.Program;
 /// <summary>
 /// v1.0
 /// </summary>
@@ -27,7 +18,6 @@ namespace MINER_HUB_UPR
 {
     public sealed class Program : MyGridProgram
     {
-        // v1
         string NameObj = "[MINER_HUB]";
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
         const char green = '\uE001';
@@ -38,12 +28,23 @@ namespace MINER_HUB_UPR
         static LCD lcd_storage;
         static LCD lcd_debug;
         static LCD lcd_name;
-        Batterys bats;
+        //
+        static Batterys bats;
+        static HydrogenEngines hydrogenengines;
+        static SolarPanel solarpanel;
+        //
+        static GasGenerators gas_generators;
+        static GasTanks gastanks;
+        static RemoteControls remotecontrols;
+        static Refinerys refinery;
+        static ProgrammableBlocks pb;
+        //static CameraBlocks camerablocks;
+        //
         //Connector connector;
-        ReflectorsLight reflectors_light;
-        Cockpit cockpit;
-        Cargos cargos;
-        Power power;
+        static ReflectorsLight reflectors_light;
+        static Cockpit cockpit;
+        static Cargos cargos;
+        static Power power;
         static Program _scr;
         public class PText
         {
@@ -69,10 +70,6 @@ namespace MINER_HUB_UPR
                 prog += "]" + GetPersent(perse);
                 return prog;
             }
-            //static public string GetCurrentOfMax(float cur, float max, string units)
-            //{
-            //    return "[ " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]";
-            //}
             static public string GetValueOfUnits(float value, string units)
             {
                 if (value < 0.1)
@@ -339,7 +336,7 @@ namespace MINER_HUB_UPR
             }
             public Vector3D GetPosition()
             {
-                return ((IMyEntity)obj).GetPosition();
+                return ((IMyEntity)obj).GetPosition(); 
             }
             // Команды включения\выключения
             public void Off()
@@ -500,6 +497,15 @@ namespace MINER_HUB_UPR
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
             lcd_name = new LCD(NameObj + "-LCD-Name");
             bats = new Batterys(NameObj);
+            hydrogenengines = new HydrogenEngines(NameObj);
+            gas_generators = new GasGenerators(NameObj);
+            solarpanel = new SolarPanel(NameObj);
+
+            gastanks = new GasTanks(NameObj);
+            remotecontrols = new RemoteControls(NameObj);
+            refinery = new Refinerys(NameObj);
+            pb = new ProgrammableBlocks(NameObj);
+            //camerablocks = new CameraBlocks(NameObj);
             //connector = new Connector(NameObj + "-Connector parking");
             reflectors_light = new ReflectorsLight(NameObj);
             reflectors_light.Off();
@@ -514,7 +520,7 @@ namespace MINER_HUB_UPR
         public void Main(string argument, UpdateType updateSource)
         {
             StringBuilder values_info = new StringBuilder();
-            bats.Logic(argument, updateSource);
+            power.Logic(argument, updateSource);
             switch (argument)
             {
                 default:
@@ -522,10 +528,9 @@ namespace MINER_HUB_UPR
             }
             if (updateSource == UpdateType.Update100)
             {
-                bats.TextInfo();
-                bats.Update();
+
             }
-            lcd_debug.OutText(bats.TextInfo(), false);
+            //lcd_debug.OutText(bats.TextInfo(), false);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
@@ -560,6 +565,144 @@ namespace MINER_HUB_UPR
                 return values;
             }
         }
+        public class GasGenerators : BaseListTerminalBlock<IMyGasGenerator>
+        {
+            public InpResurs res_inp { get; private set; }
+            public GasGenerators(string name_obj) : base(name_obj)
+            {
+            }
+            public GasGenerators(string name_obj, string tag) : base(name_obj, tag)
+            {
+
+            }
+            public void Update()
+            {
+                res_inp = GetInpResurs("Electricity").FirstOrDefault();
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("ГЕНЕРАТОР ГАЗА :[" + Count + "]" + "\n");
+                values.Append("|- IN: " + PText.GetCurrentOfMax(res_inp.current, res_inp.max, "W") + "\n");
+                values.Append("   " + PText.GetScalePersent(res_inp.max > 0f ? res_inp.current / res_inp.max : 0f, 40) + "\n");
+                return values.ToString();
+            }
+        }
+        public class GasTanks : BaseListTerminalBlock<IMyGasTank>
+        {
+            public InpResurs res_inp { get; private set; }
+            public GasTanks(string name_obj) : base(name_obj)
+            {
+            }
+            public GasTanks(string name_obj, string tag) : base(name_obj, tag)
+            {
+
+            }
+            public void Update()
+            {
+                res_inp = GetInpResurs("Electricity").FirstOrDefault();
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("БАКИ :[" + Count + "]" + "\n");
+                values.Append("|- IN: " + PText.GetCurrentOfMax(res_inp.current, res_inp.max, "W") + "\n");
+                values.Append("   " + PText.GetScalePersent(res_inp.max > 0f ? res_inp.current / res_inp.max : 0f, 40) + "\n");
+                return values.ToString();
+            }
+        }
+        public class RemoteControls : BaseListTerminalBlock<IMyRemoteControl>
+        {
+            public InpResurs res_inp { get; private set; }
+            public RemoteControls(string name_obj) : base(name_obj)
+            {
+            }
+            public RemoteControls(string name_obj, string tag) : base(name_obj, tag)
+            {
+
+            }
+            public void Update()
+            {
+                res_inp = GetInpResurs("Electricity").FirstOrDefault();
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("УДАЛЕННЫЙ КОНТРОЛЬ :[" + Count + "]" + "\n");
+                values.Append("|- IN: " + PText.GetCurrentOfMax(res_inp.current, res_inp.max, "W") + "\n");
+                values.Append("   " + PText.GetScalePersent(res_inp.max > 0f ? res_inp.current / res_inp.max : 0f, 40) + "\n");
+                return values.ToString();
+            }
+        }
+        public class Refinerys : BaseListTerminalBlock<IMyRefinery>
+        {
+            public InpResurs res_inp { get; private set; }
+            public Refinerys(string name_obj) : base(name_obj)
+            {
+            }
+            public Refinerys(string name_obj, string tag) : base(name_obj, tag)
+            {
+
+            }
+            public void Update()
+            {
+                res_inp = GetInpResurs("Electricity").FirstOrDefault();
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("ОЧИСТИТЕЛЬ :[" + Count + "]" + "\n");
+                values.Append("|- IN: " + PText.GetCurrentOfMax(res_inp.current, res_inp.max, "W") + "\n");
+                values.Append("   " + PText.GetScalePersent(res_inp.max > 0f ? res_inp.current / res_inp.max : 0f, 40) + "\n");
+                return values.ToString();
+            }
+        }
+        public class ProgrammableBlocks : BaseListTerminalBlock<IMyProgrammableBlock>
+        {
+            public InpResurs res_inp { get; private set; }
+            public ProgrammableBlocks(string name_obj) : base(name_obj)
+            {
+            }
+            public ProgrammableBlocks(string name_obj, string tag) : base(name_obj, tag)
+            {
+
+            }
+            public void Update()
+            {
+                res_inp = GetInpResurs("Electricity").FirstOrDefault();
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("ПРОГРАММНЫЙ БЛОК :[" + Count + "]" + "\n");
+                values.Append("|- IN: " + PText.GetCurrentOfMax(res_inp.current, res_inp.max, "W") + "\n");
+                values.Append("   " + PText.GetScalePersent(res_inp.max > 0f ? res_inp.current / res_inp.max : 0f, 40) + "\n");
+                return values.ToString();
+            }
+        }
+        //public class CameraBlocks : BaseListTerminalBlock<IMyCameraBlock>
+        //{
+        //    public InpResurs res_inp { get; private set; }
+        //    public CameraBlocks(string name_obj) : base(name_obj)
+        //    {
+        //    }
+        //    public CameraBlocks(string name_obj, string tag) : base(name_obj, tag)
+        //    {
+        //    }
+        //    public void Update()
+        //    {
+        //        res_inp = GetInpResurs("Electricity").FirstOrDefault();
+        //    }
+        //    public string TextInfo()
+        //    {
+        //        StringBuilder values = new StringBuilder();
+        //        values.Append("КАМЕРА :[" + Count + "]" + "\n");
+        //        values.Append("|- IN: " + PText.GetCurrentOfMax(res_inp.current, res_inp.max, "W") + "\n");
+        //        values.Append("   " + PText.GetScalePersent(res_inp.max > 0f ? res_inp.current / res_inp.max : 0f, 40) + "\n");
+        //        return values.ToString();
+        //    }
+        //}
+        // --------
         public class Batterys : BaseListTerminalBlock<IMyBatteryBlock>
         {
             //public bool charger { get; private set; } = false;
@@ -581,6 +724,10 @@ namespace MINER_HUB_UPR
             public float MaxPower()
             {
                 return base.list_obj.Select(b => b.MaxStoredPower).Sum();
+            }
+            public float MaxInput()
+            {
+                return base.list_obj.Select(b => b.MaxInput).Sum();
             }
             public float MaxOutput()
             {
@@ -663,19 +810,128 @@ namespace MINER_HUB_UPR
             }
             public string TextInfo()
             {
+                //|- ЗАРЯД: [16] [ 45MW / 48MW]
+                //|  [||||||||||||||||||||||||||||||||||||||''] -93.8 %
+                //|- IN   : [0] [ 4.4 MW / 192 MW ]
+                //|  [||||||||||||||||||||||||||||||||||||||''] -93.8 %
+                //|- OUT  : [0] [ 88.5 kW / 192 MW ]
+                //|  [||||||||||||||||||||||||||||||||||||||''] -93.8 %
                 StringBuilder values = new StringBuilder();
-                //БАТАРЕЯ: [10 - 10] [0.0MW / 0.0MW]
-                //|- ЗАР:  [''''''''''''''''''''''''']-0%
-                values.Append("БАТАРЕЯ: [" + Count + "] [А-" + CountAuto() + " З-" + CountCharger() + "]" + PText.GetCurrentOfMax(CurrentPower(), MaxPower(), "W") + "\n");
-                values.Append("|- ЗАР:  " + PText.GetScalePersent(CurrentPower() / MaxPower(), 40) + "\n");
-                if (res_inp != null) { values.Append("|- ВХ :  " + PText.GetScalePersent(res_inp.current / res_inp.max, 40) + PText.GetCurrentOfMax(res_inp.current, res_inp.max, "W") + "\n"); }
-                if (res_out != null) { values.Append("|- ВЫХ:  " + PText.GetScalePersent(res_out.current / res_out.max, 40) + PText.GetCurrentOfMax(res_out.current, res_out.max, "W") + "\n"); }
-                values.Append("|- CurrentInput:  " + PText.GetValueOfUnits(CurrentInput(),"W") + "\n"); 
-                values.Append("|- MaxOutput:  " + PText.GetValueOfUnits(MaxOutput(),"W") + "\n");  
-                values.Append("|- CurrentOutput:  " + PText.GetValueOfUnits(CurrentOutput(),"W") + "\n");                 
+                values.Append("БАТАРЕЯ :[" + Count + "]" + "\n");
+                values.Append("|- ЗАРЯД: " + PText.GetCurrentOfMax(CurrentPower(), MaxPower(), "W") + "\n");
+                float max = MaxPower();
+                values.Append("|  " + PText.GetScalePersent(max > 0f ? CurrentPower() / MaxPower() : 0f, 40) + "\n");
+                int count = CountCharger();
+                values.Append("|- IN   : [" + count + "] " + (count > 0 ? green.ToString() : yellow.ToString()) + " " + PText.GetCurrentOfMax(CurrentInput(), MaxInput(), "W") + "\n");
+                max = MaxInput();
+                values.Append("|  " + PText.GetScalePersent(max > 0f ? CurrentInput() / MaxInput() : 0f, 40) + "\n");
+                count = CountAuto();
+                values.Append("|- OUT  : [" + count + "] " + (count > 0 ? green.ToString() : yellow.ToString()) + " " + PText.GetCurrentOfMax(CurrentOutput(), MaxOutput(), "W") + "\n");
+                max = MaxOutput();
+                values.Append("|  " + PText.GetScalePersent(max > 0f ? CurrentOutput() / MaxOutput() : 0f, 40) + "\n");
                 return values.ToString();
             }
         }
+        public class HydrogenEngines : BaseListTerminalBlock<IMyPowerProducer>
+        {
+            public InpResurs res_inp { get; private set; }
+            public OutResurs res_out { get; private set; }
+            public HydrogenEngines(string name_obj) : base(name_obj)
+            {
+            }
+            public HydrogenEngines(string name_obj, string tag) : base(name_obj, tag)
+            {
+
+            }
+            public float MaxOutput()
+            {
+                return base.list_obj.Select(b => b.MaxOutput).Sum();
+            }
+            public float CurrentOutput()
+            {
+                return base.list_obj.Select(b => b.CurrentOutput).Sum();
+            }
+            public void Update()
+            {
+                res_out = GetOutResurs("Electricity").FirstOrDefault();
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("ГЕНЕРАТОР :[" + Count + "]" + "\n");
+                values.Append("|- OUT  : [" + Count + "] " + (Count > 0 ? green.ToString() : yellow.ToString()) + " " + PText.GetCurrentOfMax(CurrentOutput(), MaxOutput(), "W") + "\n");
+                float max = MaxOutput();
+                values.Append("|  " + PText.GetScalePersent(max > 0f ? CurrentOutput() / max : 0f, 40) + "\n");
+                return values.ToString();
+            }
+        }
+        public class SolarPanel : BaseListTerminalBlock<IMySolarPanel>
+        {
+            public InpResurs res_inp { get; private set; }
+            public OutResurs res_out { get; private set; }
+            public SolarPanel(string name_obj) : base(name_obj)
+            {
+            }
+            public SolarPanel(string name_obj, string tag) : base(name_obj, tag)
+            {
+
+            }
+            public float MaxOutput()
+            {
+                return base.list_obj.Select(b => b.MaxOutput).Sum();
+            }
+            public float CurrentOutput()
+            {
+                return base.list_obj.Select(b => b.CurrentOutput).Sum();
+            }
+            public void Update()
+            {
+                res_out = GetOutResurs("Electricity").FirstOrDefault();
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("СОЛНЕЧНАЯ ПАНЕЛЬ :[" + Count + "]" + "\n");
+                values.Append("|- OUT  : [" + Count + "] " + (Count > 0 ? green.ToString() : yellow.ToString()) + " " + PText.GetCurrentOfMax(CurrentOutput(), MaxOutput(), "W") + "\n");
+                float max = MaxOutput();
+                values.Append("|  " + PText.GetScalePersent(max > 0f ? CurrentOutput() / max : 0f, 40) + "\n");
+                return values.ToString();
+            }
+        }
+        //public class WindTurbines : BaseListTerminalBlock<imywind>
+        //{
+        //    public InpResurs res_inp { get; private set; }
+        //    public OutResurs res_out { get; private set; }
+        //    public WindTurbines(string name_obj) : base(name_obj)
+        //    {
+        //    }
+        //    public WindTurbines(string name_obj, string tag) : base(name_obj, tag)
+        //    {
+
+        //    }
+        //    public float MaxOutput()
+        //    {
+        //        return base.list_obj.Select(b => b.MaxOutput).Sum();
+        //    }
+        //    public float CurrentOutput()
+        //    {
+        //        return base.list_obj.Select(b => b.CurrentOutput).Sum();
+        //    }
+        //    public void Update()
+        //    {
+        //        res_out = GetOutResurs("Electricity").FirstOrDefault();
+        //    }
+        //    public string TextInfo()
+        //    {
+        //        StringBuilder values = new StringBuilder();
+        //        values.Append("СОЛНЕЧНАЯ ПАНЕЛЬ :[" + Count + "]" + "\n");
+        //        values.Append("|- OUT  : [" + Count + "] " + (Count > 0 ? green.ToString() : yellow.ToString()) + " " + PText.GetCurrentOfMax(CurrentOutput(), MaxOutput(), "W") + "\n");
+        //        float max = MaxOutput();
+        //        values.Append("|  " + PText.GetScalePersent(max > 0f ? CurrentOutput() / max : 0f, 40) + "\n");
+        //        return values.ToString();
+        //    }
+        //}
+        // --------
         public class Connector : BaseTerminalBlock<IMyShipConnector>
         {
             public MyShipConnectorStatus Status { get { return base.obj.Status; } }
@@ -865,21 +1121,8 @@ namespace MINER_HUB_UPR
                 Update();
             }
         }
-        public class PowerResurs
-        {
-            public IMyTerminalBlock myTerminalBlock { get; set; }
-            public string TyepID { get; set; }
-            public string SubtyepID { get; set; }
-            public float cur_input { get; set; } = 0;
-            public float max_input { get; set; } = 0;
-            public bool is_power_by { get; set; } = false;
-            public float max_output { get; set; } = 0;
-            public float cur_output { get; set; } = 0;
-        }
         public class Power
         {
-            private List<IMyTerminalBlock> list = new List<IMyTerminalBlock>();
-            public List<PowerResurs> power_resurses = new List<PowerResurs>();
             public string name_obj;
             public float sum_cur_input { get; private set; } = 0;
             public float sum_max_input { get; private set; } = 0;
@@ -888,82 +1131,51 @@ namespace MINER_HUB_UPR
             public Power(string name_obj)
             {
                 this.name_obj = name_obj;
+
                 //_scr.Echo("Найдено power_resurses : " + power_resurses.Count());
             }
             public void Update()
             {
-                power_resurses.Clear();
                 sum_cur_input = 0;
                 sum_max_input = 0;
                 sum_max_output = 0;
                 sum_cur_output = 0;
-                _scr.GridTerminalSystem.GetBlocksOfType(list, r => r.CustomName.Contains(name_obj));
-                foreach (IMyTerminalBlock tb in list)
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                //bats.Logic(argument, updateSource);
+                switch (argument)
                 {
-                    bool power_inp = false;
-                    bool power_out = false;
-                    float cur_input = 0;
-                    float max_input = 0;
-                    bool is_power_by = false;
-                    float max_output = 0;
-                    float cur_output = 0;
-                    // Потребляемый ресурсы
-                    MyResourceSinkComponent sink;
-                    tb.Components.TryGet<MyResourceSinkComponent>(out sink);
-                    if (sink != null)
-                    {
-                        var list = sink.AcceptedResources;
-                        foreach (MyDefinitionId def in list)
-                        {
-                            is_power_by = false;
-                            if (def.SubtypeId.ToString() == "Electricity")
-                                power_inp = true;
-                            cur_input = sink.CurrentInputByType(def);
-                            is_power_by = sink.IsPoweredByType(def);
-                            max_input = sink.MaxRequiredInputByType(def);
-                        }
-                    }
-                    // Выдает ресурсы
-                    MyResourceSourceComponent source;
-                    tb.Components.TryGet<MyResourceSourceComponent>(out source);
-                    if (source != null)
-                    {
-                        var list = source.ResourceTypes;
-                        foreach (MyDefinitionId def in list)
-                        {
-                            if (def.SubtypeId.ToString() == "Electricity")
-                                power_out = true;
-                            max_output = source.DefinedOutputByType(def);
-                            cur_output = source.CurrentOutputByType(def);
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
 
-                        }
-                    }
-                    if (power_inp || power_out)
-                    {
-                        if (power_inp)
-                        {
-                            sum_cur_input += cur_input;
-                            sum_max_input += max_input;
+                }
+                if (updateSource == UpdateType.Update100)
+                {
+                    bats.Update();
+                    hydrogenengines.Update();
+                    solarpanel.Update();
 
-                        }
-                        if (power_out)
-                        {
-                            sum_max_output += max_output;
-                            sum_cur_output += cur_output;
-                        }
-                        PowerResurs pr = new PowerResurs()
-                        {
-                            myTerminalBlock = tb,
-                            TyepID = tb.BlockDefinition.TypeIdString,
-                            SubtyepID = tb.BlockDefinition.SubtypeId,
-                            is_power_by = power_inp ? is_power_by : false,
-                            cur_input = power_inp ? cur_input : 0,
-                            max_input = power_inp ? max_input : 0,
-                            cur_output = power_out ? cur_output : 0,
-                            max_output = power_out ? max_output : 0,
-                        };
-                        power_resurses.Add(pr);
-                    }
+                    gas_generators.Update();
+                    gastanks.Update();
+                    remotecontrols.Update();
+                    refinery.Update();
+                    pb.Update();
+                    //camerablocks.Update();
+
+                    lcd_debug.OutText(bats.TextInfo(), false);
+                    lcd_debug.OutText(hydrogenengines.TextInfo(), true);
+                    lcd_debug.OutText(solarpanel.TextInfo(), true);
+
+                    lcd_debug.OutText(gas_generators.TextInfo(), true);
+                    lcd_debug.OutText(gastanks.TextInfo(), true);
+                    lcd_debug.OutText(remotecontrols.TextInfo(), true);
+                    lcd_debug.OutText(refinery.TextInfo(), true);
+                    lcd_debug.OutText(pb.TextInfo(), true);
+                    //lcd_debug.OutText(camerablocks.TextInfo(), false);
                 }
             }
             public string TextInfo()
@@ -971,19 +1183,43 @@ namespace MINER_HUB_UPR
                 StringBuilder values = new StringBuilder();
                 values.Append("ВЫХОД       : " + PText.GetCurrentOfMax(sum_cur_output, sum_max_output, "MW") + "\n");
                 values.Append("ПОТРЕБЛЕНИЕ : " + PText.GetCurrentOfMax(sum_cur_input, sum_max_input, "MW") + "\n");
-
-                foreach (PowerResurs pr in power_resurses)
-                {
-                    values.Append("------------------------------- \n");
-                    values.Append(pr.TyepID + ", " + pr.SubtyepID + "\n");
-                    values.Append("max_input : " + pr.max_input + ", cur_input : " + pr.cur_input + ", is_power_by : " + pr.is_power_by + "\n");
-                    values.Append("max_output : " + pr.max_output + ", cur_output : " + pr.cur_output + "\n");
-                }
                 return values.ToString();
             }
         }
     }
 }
+//БАТАРЕЯ: [16]
+//| -ЗАРЯД: [ 47.4MW / 48MW]
+//|  [||||||||||||||||||||||||||||||||||||||| '] - 98.7%
+//| -IN   : [0]  [ 4.4MW / 192MW]
+//|  [| '''''''''''''''''''''''''''''''''''''''] - 2.3%
+//| -OUT  : [16]  [ 88.5kW / 192MW]
+//|  [''''''''''''''''''''''''''''''''''''''''] - 0 %
+//ГЕНЕРАТОР :[48]
+//| -OUT  : [48]  [ 4.4MW / 236.4MW]
+//|  [| '''''''''''''''''''''''''''''''''''''''] - 1.9%
+//СОЛНЕЧНАЯ ПАНЕЛЬ:[12]
+//| -OUT  : [12]  [ 0kW / 0kW]
+//|  [''''''''''''''''''''''''''''''''''''''''] - 0 %
+//ГЕНЕРАТОР ГАЗА: [4]
+//| -IN: [ 0kW / 0.5MW]
+//[''''''''''''''''''''''''''''''''''''''''] -0 %
+//БАКИ :[2]
+//| -IN: [ 0kW / 1kW]
+//[''''''''''''''''''''''''''''''''''''''''] -0.1 %
+//УДАЛЕННЫЙ КОНТРОЛЬ: [1]
+//| -IN: [ 0kW / 10kW]
+//[''''''''''''''''''''''''''''''''''''''''] -0 %
+//ОЧИСТИТЕЛЬ :[2]
+//| -IN: [ 0kW / 0.6MW]
+//[''''''''''''''''''''''''''''''''''''''''] -0 %
+//ПРОГРАММНЫЙ БЛОК: [2]
+//| -IN: [ 0.5kW / 0.5kW]
+//[||||||||||||||||||||||||||||||||||||||||] -100 %
+
+
+
+
 // Накопленно : CurrentPower() / MaxPower()
 // Зарядка : CurrentInput / MaxInput 
 
