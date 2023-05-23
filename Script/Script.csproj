@@ -82,6 +82,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MinerHub\MINER_HUB_UPR_V2.cs" />
     <Compile Include="MinerHub\MINER_HUB_UPR.cs" />
     <Compile Include="OSS\OSS_BM_UPR.cs" />
     <Compile Include="OSS\OSS_BM_DORS.cs" />
