@@ -1,12 +1,12 @@
-﻿using System;
+﻿using Sandbox.Game.EntityComponents;
+using Sandbox.ModAPI.Ingame;
+using Sandbox.ModAPI.Interfaces;
+using SpaceEngineers.Game.ModAPI.Ingame;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using Sandbox.Game.EntityComponents;
-using Sandbox.ModAPI.Ingame;
-using Sandbox.ModAPI.Interfaces;
-using SpaceEngineers.Game.ModAPI.Ingame;
 using VRage.Game;
 using VRage.Game.ModAPI.Ingame;
 using VRageMath;
@@ -431,7 +431,7 @@ namespace MINER_HUB_UPR_V2
         }
         public void Main(string argument, UpdateType updateSource)
         {
-            StringBuilder values_info = new StringBuilder();
+            //StringBuilder values_info = new StringBuilder();
             power.Logic(argument, updateSource);
             switch (argument)
             {
@@ -478,7 +478,7 @@ namespace MINER_HUB_UPR_V2
             public Power(string name_obj)
             {
                 this.name_obj = name_obj;
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyTerminalBlock>(list);
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyTerminalBlock>(list, r => r.CustomName.Contains(name_obj));
                 foreach (IMyTerminalBlock bl in list)
                 {
                     if (bl is IMyBatteryBlock) { batterys.Add((IMyBatteryBlock)bl); }
@@ -498,7 +498,12 @@ namespace MINER_HUB_UPR_V2
                         }
                     }
                 }
-                //_scr.Echo("Найдено power_resurses : " + power_resurses.Count());
+                _scr.Echo("Найдено hydrogen_engines : " + hydrogen_engines.Count());                
+                _scr.Echo("Найдено solar_panels : " + solar_panels.Count());
+                _scr.Echo("Найдено reactors : " + reactors.Count());
+                _scr.Echo("Найдено gas_generators : " + gas_generators.Count());
+                _scr.Echo("Найдено gas_tank : " + gas_tank.Count());
+                _scr.Echo("Найдено refinery : " + refinery.Count());
             }
             public List<InpResurs> GetInpResurs(IMyTerminalBlock obj, string name)
             {
@@ -550,7 +555,7 @@ namespace MINER_HUB_UPR_V2
                 }
                 return result;
             }
-            public List<InpResurs> GetInpResurs(List<IMyTerminalBlock> list_obj, string name)
+            public List<InpResurs> GetInpResurs<T>(List<T> list_obj, string name)
             {
                 List<InpResurs> result = new List<InpResurs>();
                 // Потребляемый ресурсы
@@ -589,7 +594,7 @@ namespace MINER_HUB_UPR_V2
                 }
                 return result;
             }
-            public List<OutResurs> GetOutResurs(List<IMyTerminalBlock> list_obj, string name)
+            public List<OutResurs> GetOutResurs<T>(List<T> list_obj, string name)
             {
                 List<OutResurs> result = new List<OutResurs>();
                 MyResourceSourceComponent source;
@@ -630,9 +635,19 @@ namespace MINER_HUB_UPR_V2
                 list_power_result.Clear();
                 list_power_result.Add(new power_result()
                 {
+                    TyepID = "s",
+                    count = 0,
+                    working = 0,
+                    out_cur = 0,
+                    out_max = 0,
+                    int_cur = 0,
+                    int_max = 0,
+                });
+                list_power_result.Add(new power_result()
+                {
                     TyepID = batterys.FirstOrDefault().BlockDefinition.TypeIdString,
-                    count = batterys.Count(), 
-                    working = batterys.Select(b => b.IsWorking==true).Count(),
+                    count = batterys.Count(),
+                    working = batterys.Select(b => b.IsWorking == true).Count(),
                     out_cur = batterys.Select(b => b.CurrentOutput).Sum(),
                     out_max = batterys.Select(b => b.MaxOutput).Sum(),
                     int_cur = batterys.Select(b => b.CurrentInput).Sum(),
@@ -646,30 +661,31 @@ namespace MINER_HUB_UPR_V2
                     out_cur = hydrogen_engines.Select(b => b.CurrentOutput).Sum(),
                     out_max = hydrogen_engines.Select(b => b.MaxOutput).Sum(),
                 });
-                list_power_result.Add(new power_result()
-                {
-                    TyepID = solar_panels.FirstOrDefault().BlockDefinition.TypeIdString,
-                    count = solar_panels.Count(),
-                    working = solar_panels.Select(b => b.IsWorking == true).Count(),
-                    out_cur = solar_panels.Select(b => b.CurrentOutput).Sum(),
-                    out_max = solar_panels.Select(b => b.MaxOutput).Sum(),
-                });
-                list_power_result.Add(new power_result()
-                {
-                    TyepID = reactors.FirstOrDefault().BlockDefinition.TypeIdString,
-                    count = reactors.Count(),
-                    out_cur = reactors.Select(b => b.CurrentOutput).Sum(),
-                    out_max = reactors.Select(b => b.MaxOutput).Sum(),
-                });
+                //list_power_result.Add(new power_result()
+                //{
+                //    TyepID = solar_panels.FirstOrDefault().BlockDefinition.TypeIdString,
+                //    count = solar_panels.Count(),
+                //    working = solar_panels.Select(b => b.IsWorking == true).Count(),
+                //    out_cur = solar_panels.Select(b => b.CurrentOutput).Sum(),
+                //    out_max = solar_panels.Select(b => b.MaxOutput).Sum(),
+                //});
+                //list_power_result.Add(new power_result()
+                //{
+                //    TyepID = reactors.FirstOrDefault().BlockDefinition.TypeIdString,
+                //    count = reactors.Count(),
+                //    working = reactors.Select(b => b.IsWorking == true).Count(),
+                //    out_cur = reactors.Select(b => b.CurrentOutput).Sum(),
+                //    out_max = reactors.Select(b => b.MaxOutput).Sum(),
+                //});
                 //
                 InpResurs inputs = GetInpResurs(gas_generators, "Electricity").FirstOrDefault();
                 list_power_result.Add(new power_result()
                 {
                     TyepID = gas_generators.FirstOrDefault().BlockDefinition.TypeIdString,
-                    count = gas_generators.Count(), 
-                    working = gas_generators.Select(b => b.IsWorking==true).Count(),
-                    int_cur = 0,
-                    int_max = 0,
+                    count = gas_generators.Count(),
+                    working = gas_generators.Select(b => b.IsWorking == true).Count(),
+                    int_cur = inputs.current,
+                    int_max = inputs.max,
                 });
             }
             public void Logic(string argument, UpdateType updateSource)
@@ -686,12 +702,17 @@ namespace MINER_HUB_UPR_V2
                 }
                 if (updateSource == UpdateType.Update100)
                 {
-
+                    Update();
+                    lcd_debug.OutText(TextInfo(), false);
                 }
+
             }
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
+                foreach (power_result pr in list_power_result) { 
+                    values.Append(pr.TyepID+ " - " + PText.GetCurrentOfMax(pr.int_cur, pr.int_max, "W") + "\n");
+                }
                 values.Append("ВЫХОД       : " + PText.GetCurrentOfMax(sum_cur_output, sum_max_output, "MW") + "\n");
                 values.Append("ПОТРЕБЛЕНИЕ : " + PText.GetCurrentOfMax(sum_cur_input, sum_max_input, "MW") + "\n");
                 return values.ToString();
