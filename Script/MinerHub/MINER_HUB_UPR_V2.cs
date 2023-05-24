@@ -59,18 +59,19 @@ namespace MINER_HUB_UPR_V2
             }
             static public string GetValueOfUnits(float value, string units)
             {
-                if (value < 0.1)
+                if (value > 1)
+                {
+                    return Math.Round(value, 1).ToString() + "M" + units;
+                }
+                else if (value > 0.0001f)
                 {
                     value = value * 1000; // K
                     return Math.Round(value, 1).ToString() + "k" + units;
-
                 }
-                else if (value < 0.001)
-                {
-                    value = value * 1000000; // K
-                    return Math.Round(value, 1).ToString() + units;
+                else { 
+                    value = value * 1000000; // 
+                    return Math.Round(value, 1).ToString() + units;                
                 }
-                return Math.Round(value, 1).ToString() + "M" + units;
             }
             static public string GetCurrentOfMax(float cur, float max, string units)
             {
@@ -510,7 +511,7 @@ namespace MINER_HUB_UPR_V2
                         }
                     }
                 }
-                List<IGrouping<string, IMyTerminalBlock>> group_inp = lis_inp.GroupBy(g => g.BlockDefinition.TypeIdString).ToList();
+                group_inp = lis_inp.GroupBy(g => g.BlockDefinition.TypeIdString).ToList();
 
                 _scr.Echo("Найдено hydrogen_engines : " + hydrogen_engines.Count());
                 _scr.Echo("Найдено wind_turbine : " + wind_turbine.Count());
@@ -649,6 +650,8 @@ namespace MINER_HUB_UPR_V2
             }
             public void Update()
             {
+                //StringBuilder values = new StringBuilder();
+
                 sum_cur_input = 0;
                 sum_max_input = 0;
                 sum_max_output = 0;
@@ -714,8 +717,10 @@ namespace MINER_HUB_UPR_V2
                     });
                 }
                 // Добавим потребителей электричества
+                //values.Append("IGrouping-" + group_inp.Count() + "\n");
                 foreach (IGrouping<string, IMyTerminalBlock> gr_inp in group_inp)
                 {
+                    //values.Append("-" + gr_inp.Key + "\n");
                     if (gr_inp.Count() > 0)
                     {
                         InpResurs inputs = GetInpResurs(gr_inp.ToList(), "Electricity").FirstOrDefault();
@@ -733,7 +738,7 @@ namespace MINER_HUB_UPR_V2
                 sum_max_input = list_power_result.Select(b => b.int_max).Sum();
                 sum_cur_output = list_power_result.Select(b => b.out_cur).Sum();
                 sum_max_output = list_power_result.Select(b => b.out_max).Sum();
-
+                //lcd_debug.OutText(values.ToString(), false);
             }
             public void Logic(string argument, UpdateType updateSource)
             {
@@ -757,26 +762,26 @@ namespace MINER_HUB_UPR_V2
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                foreach (power_result pr in list_power_result)
-                {
-                    values.Append(pr.TyepID.Replace("MyObjectBuilder_", "") + " [" + pr.count + "-" + pr.working + "]" + "\n");
-                    if (pr.out_max > 0)
-                    {
-                        values.Append("|- OUT: [" + PText.GetCurrentOfMax(pr.out_cur, pr.out_max, "W") + "\n");
-                        values.Append("|  " + PText.GetScalePersent(pr.out_max > 0f ? pr.out_cur / pr.out_max : 0f, 40) + "\n");
-                    }
-                    if (pr.int_max > 0)
-                    {
-                        values.Append("|- IN : [" + PText.GetCurrentOfMax(pr.int_cur, pr.int_max, "W") + "\n");
-                        values.Append("|  " + PText.GetScalePersent(pr.int_max > 0f ? pr.int_cur / pr.int_max : 0f, 40) + "\n");
-                    }
+                //foreach (power_result pr in list_power_result)
+                //{
+                //    values.Append(pr.TyepID.Replace("MyObjectBuilder_", "") + " [" + pr.count + "-" + pr.working + "]" + "\n");
+                //    if (pr.out_max > 0)
+                //    {
+                //        values.Append("|- OUT: [" + PText.GetCurrentOfMax(pr.out_cur, pr.out_max, "W") + "\n");
+                //        values.Append("|  " + PText.GetScalePersent(pr.out_max > 0f ? pr.out_cur / pr.out_max : 0f, 40) + "\n");
+                //    }
+                //    if (pr.int_max > 0)
+                //    {
+                //        values.Append("|- IN : [" + PText.GetCurrentOfMax(pr.int_cur, pr.int_max, "W") + "\n");
+                //        values.Append("|  " + PText.GetScalePersent(pr.int_max > 0f ? pr.int_cur / pr.int_max : 0f, 40) + "\n");
+                //    }
 
-                }
+                //}
                 values.Append("ВЫРАБОТКА   : " + PText.GetCurrentOfMax(sum_cur_output, sum_max_output, "W") + "\n");
                 values.Append("|  " + PText.GetScalePersent(sum_max_output > 0f ? sum_cur_output / sum_max_output : 0f, 40) + "\n");
                 values.Append("ПОТРЕБЛЕНИЕ : " + PText.GetCurrentOfMax(sum_cur_input, sum_max_input, "W") + "\n");
                 values.Append("|  " + PText.GetScalePersent(sum_max_input > 0f ? sum_cur_input / sum_max_input : 0f, 40) + "\n");
-                values.Append("ДОСТУПНО : " + PText.GetValueOfUnits(sum_cur_output- sum_cur_input, "W") + "\n");
+                values.Append("ДОСТУПНО : " + PText.GetValueOfUnits(sum_cur_output - sum_cur_input, "W") + "\n");
                 return values.ToString();
             }
         }
