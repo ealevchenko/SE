@@ -6,10 +6,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.ConstrainedExecution;
 using System.Text;
 using VRage.Game;
 using VRage.Game.ModAPI.Ingame;
 using VRageMath;
+using static System.Net.Mime.MediaTypeNames;
+using static VRage.Game.MyObjectBuilder_CurveDefinition;
 /// <summary>
 /// v1.0
 /// </summary>
@@ -458,19 +461,22 @@ namespace MINER_HUB_UPR_V2
                 public float out_max { get; set; } = 0;
             }
 
-            List<power_result> list_power_result = new List<power_result>();
+            private List<power_result> list_power_result = new List<power_result>();
             //
-            List<IMyTerminalBlock> list = new List<IMyTerminalBlock>();
-            List<IMyTerminalBlock> lis_inp = new List<IMyTerminalBlock>();
+            private List<IMyTerminalBlock> list = new List<IMyTerminalBlock>();
+            private List<IMyTerminalBlock> lis_inp = new List<IMyTerminalBlock>();
 
-            List<IMyBatteryBlock> batterys = new List<IMyBatteryBlock>();
-            List<IMyPowerProducer> hydrogen_engines = new List<IMyPowerProducer>();
-            List<IMySolarPanel> solar_panels = new List<IMySolarPanel>();
-            List<IMyReactor> reactors = new List<IMyReactor>();
+            private List<IMyBatteryBlock> batterys = new List<IMyBatteryBlock>();
+            private List<IMySolarPanel> solar_panels = new List<IMySolarPanel>();
+            private List<IMyReactor> reactors = new List<IMyReactor>();
+            private List<IMyPowerProducer> hydrogen_engines = new List<IMyPowerProducer>();
+            private List<IMyPowerProducer> wind_turbine = new List<IMyPowerProducer>();
+
+            private List<IGrouping<string, IMyTerminalBlock>> group_inp = new List<IGrouping<string, IMyTerminalBlock>>(); // Потребители
             //
-            List<IMyGasGenerator> gas_generators = new List<IMyGasGenerator>();
-            List<IMyGasTank> gas_tank = new List<IMyGasTank>();
-            List<IMyRefinery> refinery = new List<IMyRefinery>();
+            //List<IMyGasGenerator> gas_generators = new List<IMyGasGenerator>();
+            //List<IMyGasTank> gas_tank = new List<IMyGasTank>();
+            //List<IMyRefinery> refinery = new List<IMyRefinery>();
             public float sum_cur_input { get; private set; } = 0;
             public float sum_max_input { get; private set; } = 0;
             public float sum_max_output { get; private set; } = 0;
@@ -482,13 +488,19 @@ namespace MINER_HUB_UPR_V2
                 foreach (IMyTerminalBlock bl in list)
                 {
                     if (bl is IMyBatteryBlock) { batterys.Add((IMyBatteryBlock)bl); }
-                    else if (bl is IMyPowerProducer) { hydrogen_engines.Add((IMyPowerProducer)bl); }
                     else if (bl is IMySolarPanel) { solar_panels.Add((IMySolarPanel)bl); }
                     else if (bl is IMyReactor) { reactors.Add((IMyReactor)bl); }
+                    else if (bl is IMyPowerProducer)
+                    {
+                        if (bl.BlockDefinition.TypeIdString.Contains("HydrogenEngine"))
+                            hydrogen_engines.Add((IMyPowerProducer)bl);
+                        if (bl.BlockDefinition.TypeIdString.Contains("WindTurbine"))
+                            wind_turbine.Add((IMyPowerProducer)bl);
+                    }
                     //
-                    else if (bl is IMyGasGenerator) { gas_generators.Add((IMyGasGenerator)bl); }
-                    else if (bl is IMyGasTank) { gas_tank.Add((IMyGasTank)bl); }
-                    else if (bl is IMyRefinery) { refinery.Add((IMyRefinery)bl); }
+                    //else if (bl is IMyGasGenerator) { gas_generators.Add((IMyGasGenerator)bl); }
+                    //else if (bl is IMyGasTank) { gas_tank.Add((IMyGasTank)bl); }
+                    //else if (bl is IMyRefinery) { refinery.Add((IMyRefinery)bl); }
                     else
                     {
                         List<InpResurs> inputs = GetInpResurs(bl, "Electricity");
@@ -498,12 +510,17 @@ namespace MINER_HUB_UPR_V2
                         }
                     }
                 }
-                _scr.Echo("Найдено hydrogen_engines : " + hydrogen_engines.Count());                
+                List<IGrouping<string, IMyTerminalBlock>> group_inp = lis_inp.GroupBy(g => g.BlockDefinition.TypeIdString).ToList();
+
+                _scr.Echo("Найдено hydrogen_engines : " + hydrogen_engines.Count());
+                _scr.Echo("Найдено wind_turbine : " + wind_turbine.Count());
                 _scr.Echo("Найдено solar_panels : " + solar_panels.Count());
                 _scr.Echo("Найдено reactors : " + reactors.Count());
-                _scr.Echo("Найдено gas_generators : " + gas_generators.Count());
-                _scr.Echo("Найдено gas_tank : " + gas_tank.Count());
-                _scr.Echo("Найдено refinery : " + refinery.Count());
+                //_scr.Echo("Найдено gas_generators : " + gas_generators.Count());
+                //_scr.Echo("Найдено gas_tank : " + gas_tank.Count());
+                //_scr.Echo("Найдено refinery : " + refinery.Count());
+                _scr.Echo("Найдено др. потр. : " + lis_inp.Count());
+                _scr.Echo("Получено групп потр. : " + group_inp.Count());
             }
             public List<InpResurs> GetInpResurs(IMyTerminalBlock obj, string name)
             {
@@ -632,61 +649,91 @@ namespace MINER_HUB_UPR_V2
             }
             public void Update()
             {
+                sum_cur_input = 0;
+                sum_max_input = 0;
+                sum_max_output = 0;
+                sum_cur_output = 0;
+
                 list_power_result.Clear();
-                list_power_result.Add(new power_result()
+                // Добавим источники электричества
+                if (batterys.Count() > 0)
                 {
-                    TyepID = "s",
-                    count = 0,
-                    working = 0,
-                    out_cur = 0,
-                    out_max = 0,
-                    int_cur = 0,
-                    int_max = 0,
-                });
-                list_power_result.Add(new power_result()
+                    list_power_result.Add(new power_result()
+                    {
+                        TyepID = batterys.FirstOrDefault().BlockDefinition.TypeIdString,
+                        count = batterys.Count(),
+                        working = batterys.Select(b => b.IsWorking == true).Count(),
+                        out_cur = batterys.Select(b => b.CurrentOutput).Sum(),
+                        out_max = batterys.Select(b => b.MaxOutput).Sum(),
+                        int_cur = batterys.Select(b => b.CurrentInput).Sum(),
+                        int_max = batterys.Select(b => b.MaxInput).Sum(),
+                    });
+                }
+                if (hydrogen_engines.Count() > 0)
                 {
-                    TyepID = batterys.FirstOrDefault().BlockDefinition.TypeIdString,
-                    count = batterys.Count(),
-                    working = batterys.Select(b => b.IsWorking == true).Count(),
-                    out_cur = batterys.Select(b => b.CurrentOutput).Sum(),
-                    out_max = batterys.Select(b => b.MaxOutput).Sum(),
-                    int_cur = batterys.Select(b => b.CurrentInput).Sum(),
-                    int_max = batterys.Select(b => b.MaxInput).Sum(),
-                });
-                list_power_result.Add(new power_result()
+                    list_power_result.Add(new power_result()
+                    {
+                        TyepID = hydrogen_engines.FirstOrDefault().BlockDefinition.TypeIdString,
+                        count = hydrogen_engines.Count(),
+                        working = hydrogen_engines.Select(b => b.IsWorking == true).Count(),
+                        out_cur = hydrogen_engines.Select(b => b.CurrentOutput).Sum(),
+                        out_max = hydrogen_engines.Select(b => b.MaxOutput).Sum(),
+                    });
+                }
+                if (solar_panels.Count() > 0)
                 {
-                    TyepID = hydrogen_engines.FirstOrDefault().BlockDefinition.TypeIdString,
-                    count = hydrogen_engines.Count(),
-                    working = hydrogen_engines.Select(b => b.IsWorking == true).Count(),
-                    out_cur = hydrogen_engines.Select(b => b.CurrentOutput).Sum(),
-                    out_max = hydrogen_engines.Select(b => b.MaxOutput).Sum(),
-                });
-                //list_power_result.Add(new power_result()
-                //{
-                //    TyepID = solar_panels.FirstOrDefault().BlockDefinition.TypeIdString,
-                //    count = solar_panels.Count(),
-                //    working = solar_panels.Select(b => b.IsWorking == true).Count(),
-                //    out_cur = solar_panels.Select(b => b.CurrentOutput).Sum(),
-                //    out_max = solar_panels.Select(b => b.MaxOutput).Sum(),
-                //});
-                //list_power_result.Add(new power_result()
-                //{
-                //    TyepID = reactors.FirstOrDefault().BlockDefinition.TypeIdString,
-                //    count = reactors.Count(),
-                //    working = reactors.Select(b => b.IsWorking == true).Count(),
-                //    out_cur = reactors.Select(b => b.CurrentOutput).Sum(),
-                //    out_max = reactors.Select(b => b.MaxOutput).Sum(),
-                //});
-                //
-                InpResurs inputs = GetInpResurs(gas_generators, "Electricity").FirstOrDefault();
-                list_power_result.Add(new power_result()
+                    list_power_result.Add(new power_result()
+                    {
+                        TyepID = solar_panels.FirstOrDefault().BlockDefinition.TypeIdString,
+                        count = solar_panels.Count(),
+                        working = solar_panels.Select(b => b.IsWorking == true).Count(),
+                        out_cur = solar_panels.Select(b => b.CurrentOutput).Sum(),
+                        out_max = solar_panels.Select(b => b.MaxOutput).Sum(),
+                    });
+                }
+                if (wind_turbine.Count() > 0)
                 {
-                    TyepID = gas_generators.FirstOrDefault().BlockDefinition.TypeIdString,
-                    count = gas_generators.Count(),
-                    working = gas_generators.Select(b => b.IsWorking == true).Count(),
-                    int_cur = inputs.current,
-                    int_max = inputs.max,
-                });
+                    list_power_result.Add(new power_result()
+                    {
+                        TyepID = wind_turbine.FirstOrDefault().BlockDefinition.TypeIdString,
+                        count = wind_turbine.Count(),
+                        working = wind_turbine.Select(b => b.IsWorking == true).Count(),
+                        out_cur = wind_turbine.Select(b => b.CurrentOutput).Sum(),
+                        out_max = wind_turbine.Select(b => b.MaxOutput).Sum(),
+                    });
+                }
+                if (reactors.Count() > 0)
+                {
+                    list_power_result.Add(new power_result()
+                    {
+                        TyepID = reactors.FirstOrDefault().BlockDefinition.TypeIdString,
+                        count = reactors.Count(),
+                        working = reactors.Select(b => b.IsWorking == true).Count(),
+                        out_cur = reactors.Select(b => b.CurrentOutput).Sum(),
+                        out_max = reactors.Select(b => b.MaxOutput).Sum(),
+                    });
+                }
+                // Добавим потребителей электричества
+                foreach (IGrouping<string, IMyTerminalBlock> gr_inp in group_inp)
+                {
+                    if (gr_inp.Count() > 0)
+                    {
+                        InpResurs inputs = GetInpResurs(gr_inp.ToList(), "Electricity").FirstOrDefault();
+                        list_power_result.Add(new power_result()
+                        {
+                            TyepID = gr_inp.Key,
+                            count = gr_inp.Count(),
+                            working = gr_inp.Select(b => b.IsWorking == true).Count(),
+                            int_cur = inputs.current,
+                            int_max = inputs.max,
+                        });
+                    }
+                }
+                sum_cur_input = list_power_result.Select(b => b.int_cur).Sum();
+                sum_max_input = list_power_result.Select(b => b.int_max).Sum();
+                sum_cur_output = list_power_result.Select(b => b.out_cur).Sum();
+                sum_max_output = list_power_result.Select(b => b.out_max).Sum();
+
             }
             public void Logic(string argument, UpdateType updateSource)
             {
@@ -710,11 +757,26 @@ namespace MINER_HUB_UPR_V2
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                foreach (power_result pr in list_power_result) { 
-                    values.Append(pr.TyepID+ " - " + PText.GetCurrentOfMax(pr.int_cur, pr.int_max, "W") + "\n");
+                foreach (power_result pr in list_power_result)
+                {
+                    values.Append(pr.TyepID.Replace("MyObjectBuilder_", "") + " [" + pr.count + "-" + pr.working + "]" + "\n");
+                    if (pr.out_max > 0)
+                    {
+                        values.Append("|- OUT: [" + PText.GetCurrentOfMax(pr.out_cur, pr.out_max, "W") + "\n");
+                        values.Append("|  " + PText.GetScalePersent(pr.out_max > 0f ? pr.out_cur / pr.out_max : 0f, 40) + "\n");
+                    }
+                    if (pr.int_max > 0)
+                    {
+                        values.Append("|- IN : [" + PText.GetCurrentOfMax(pr.int_cur, pr.int_max, "W") + "\n");
+                        values.Append("|  " + PText.GetScalePersent(pr.int_max > 0f ? pr.int_cur / pr.int_max : 0f, 40) + "\n");
+                    }
+
                 }
-                values.Append("ВЫХОД       : " + PText.GetCurrentOfMax(sum_cur_output, sum_max_output, "MW") + "\n");
-                values.Append("ПОТРЕБЛЕНИЕ : " + PText.GetCurrentOfMax(sum_cur_input, sum_max_input, "MW") + "\n");
+                values.Append("ВЫРАБОТКА   : " + PText.GetCurrentOfMax(sum_cur_output, sum_max_output, "W") + "\n");
+                values.Append("|  " + PText.GetScalePersent(sum_max_output > 0f ? sum_cur_output / sum_max_output : 0f, 40) + "\n");
+                values.Append("ПОТРЕБЛЕНИЕ : " + PText.GetCurrentOfMax(sum_cur_input, sum_max_input, "W") + "\n");
+                values.Append("|  " + PText.GetScalePersent(sum_max_input > 0f ? sum_cur_input / sum_max_input : 0f, 40) + "\n");
+                values.Append("ДОСТУПНО : " + PText.GetValueOfUnits(sum_cur_output- sum_cur_input, "W") + "\n");
                 return values.ToString();
             }
         }
