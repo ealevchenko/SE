@@ -709,16 +709,16 @@ namespace MINER_HUB_UPR_V2
                         if (gr_inp.Count() > 0)
                         {
                             InpResurs inputs = GetInpResurs(gr_inp.ToList(), "Electricity").FirstOrDefault();
-                            list_power_result.Add(new power_result()
+                            list_ext_power_result.Add(new power_result()
                             {
                                 TyepID = gr_inp.Key,
                                 count = gr_inp.Count(),
                                 working = gr_inp.Select(b => b.IsWorking == true).Count(),
-                                count_power_by = inputs.count_power_by,
+                                count_power_by = inputs != null ? inputs.count_power_by : 0,
                                 out_cur = gr_inp.Select(b => b.CurrentOutput).Sum(),
                                 out_max = gr_inp.Select(b => b.MaxOutput).Sum(),
-                                int_cur = gr_inp.Key == "MyObjectBuilder_BatteryBlock" ? gr_inp.Select(b => ((IMyBatteryBlock)b).CurrentInput).Sum() : 0,
-                                int_max = gr_inp.Key == "MyObjectBuilder_BatteryBlock" ? gr_inp.Select(b => ((IMyBatteryBlock)b).MaxInput).Sum() : 0,
+                                //int_cur = gr_inp.Key == "MyObjectBuilder_BatteryBlock" ? gr_inp.Select(b => ((IMyBatteryBlock)b).CurrentInput).Sum() : 0,
+                                //int_max = gr_inp.Key == "MyObjectBuilder_BatteryBlock" ? gr_inp.Select(b => ((IMyBatteryBlock)b).MaxInput).Sum() : 0,
                             });
                         }
                     }
@@ -848,6 +848,7 @@ namespace MINER_HUB_UPR_V2
                 }
                 if (updateSource == UpdateType.Update100)
                 {
+                    UpdateExternal();
                     Update();
                     lcd_debug.OutText(TextInfo(), false);
                     lcd_debug.OutText(TextBatterysInfo(), true);
