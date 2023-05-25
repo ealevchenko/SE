@@ -11,6 +11,7 @@ using System.Text;
 using VRage.Game;
 using VRage.Game.ModAPI.Ingame;
 using VRageMath;
+using static MINER_HUB_UPR_V2.Program;
 using static System.Net.Mime.MediaTypeNames;
 using static VRage.Game.MyObjectBuilder_CurveDefinition;
 /// <summary>
@@ -29,8 +30,10 @@ namespace MINER_HUB_UPR_V2
         const char darkGrey = '\uE00F';
         static LCD lcd_storage;
         static LCD lcd_debug;
+        static LCD lcd_debug1;
         static LCD lcd_name;
 
+        static Connectors connectors;
         static Power power;
         static Program _scr;
         public class PText
@@ -68,9 +71,10 @@ namespace MINER_HUB_UPR_V2
                     value = value * 1000; // K
                     return Math.Round(value, 1).ToString() + "k" + units;
                 }
-                else { 
+                else
+                {
                     value = value * 1000000; // 
-                    return Math.Round(value, 1).ToString() + units;                
+                    return Math.Round(value, 1).ToString() + units;
                 }
             }
             static public string GetCurrentOfMax(float cur, float max, string units)
@@ -133,7 +137,7 @@ namespace MINER_HUB_UPR_V2
             public string SubtypeId { get; set; } = null;
             public float current { get; set; } = 0;
             public float max { get; set; } = 0;
-            public bool is_power_by { get; set; } = false;
+            public int count_power_by { get; set; } = 0;
         }
         public class OutResurs
         {
@@ -253,18 +257,20 @@ namespace MINER_HUB_UPR_V2
                                     resurs = new InpResurs()
                                     {
                                         SubtypeId = def.SubtypeId.ToString(),
-                                        is_power_by = sink.IsPoweredByType(def),
+                                        count_power_by = sink.IsPoweredByType(def) == true ? 1 : 0,
                                         max = sink.MaxRequiredInputByType(def),
                                         current = sink.CurrentInputByType(def)
                                     };
+                                    result.Add(resurs);
                                 }
                                 else
                                 {
                                     bool is_power_by = sink.IsPoweredByType(def);
+                                    if (is_power_by == true) resurs.count_power_by++;
                                     resurs.max = sink.MaxRequiredInputByType(def);
                                     resurs.current = sink.CurrentInputByType(def);
                                 }
-                                result.Add(resurs);
+
                             }
                         }
                     }
@@ -351,7 +357,7 @@ namespace MINER_HUB_UPR_V2
                             InpResurs resurs = new InpResurs()
                             {
                                 SubtypeId = def.SubtypeId.ToString(),
-                                is_power_by = sink.IsPoweredByType(def),
+                                count_power_by = sink.IsPoweredByType(def) == true ? 1 : 0,
                                 max = sink.MaxRequiredInputByType(def),
                                 current = sink.CurrentInputByType(def)
                             };
@@ -426,7 +432,9 @@ namespace MINER_HUB_UPR_V2
             _scr = this;
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
+            lcd_debug1 = new LCD(NameObj + "-LCD-DEBUG1");
             lcd_name = new LCD(NameObj + "-LCD-Name");
+            connectors = new Connectors(NameObj);
             power = new Power(NameObj);
         }
         public void Save()
@@ -448,6 +456,22 @@ namespace MINER_HUB_UPR_V2
             }
             //lcd_debug.OutText(bats.TextInfo(), false);
         }
+        public class Connectors : BaseListTerminalBlock<IMyShipConnector>
+        {
+            public Connectors(string name) : base(name) { }
+            public Connectors(string name_obj, string tag) : base(name_obj, tag) { }
+            public bool IsConected()
+            {
+                foreach (IMyShipConnector obj in base.list_obj)
+                {
+                    if (obj.Status == MyShipConnectorStatus.Connected)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
         public class Power
         {
             public string name_obj;
@@ -456,6 +480,7 @@ namespace MINER_HUB_UPR_V2
                 public string TyepID { get; set; } = null;
                 public int count { get; set; } = 0;
                 public int working { get; set; } = 0;
+                public int count_power_by { get; set; } = 0;
                 public float int_cur { get; set; } = 0;
                 public float int_max { get; set; } = 0;
                 public float out_cur { get; set; } = 0;
@@ -463,6 +488,7 @@ namespace MINER_HUB_UPR_V2
             }
 
             private List<power_result> list_power_result = new List<power_result>();
+            private List<power_result> list_ext_power_result = new List<power_result>();
             //
             private List<IMyTerminalBlock> list = new List<IMyTerminalBlock>();
             private List<IMyTerminalBlock> lis_inp = new List<IMyTerminalBlock>();
@@ -488,11 +514,14 @@ namespace MINER_HUB_UPR_V2
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyTerminalBlock>(list, r => r.CustomName.Contains(name_obj));
                 foreach (IMyTerminalBlock bl in list)
                 {
-                    if (bl is IMyBatteryBlock) { batterys.Add((IMyBatteryBlock)bl); }
-                    else if (bl is IMySolarPanel) { solar_panels.Add((IMySolarPanel)bl); }
-                    else if (bl is IMyReactor) { reactors.Add((IMyReactor)bl); }
-                    else if (bl is IMyPowerProducer)
+                    if (bl is IMyPowerProducer)
                     {
+                        if (bl.BlockDefinition.TypeIdString.Contains("BatteryBlock"))
+                            batterys.Add((IMyBatteryBlock)bl);
+                        if (bl.BlockDefinition.TypeIdString.Contains("SolarPanel"))
+                            solar_panels.Add((IMySolarPanel)bl);
+                        if (bl.BlockDefinition.TypeIdString.Contains("Reactor"))
+                            reactors.Add((IMyReactor)bl);
                         if (bl.BlockDefinition.TypeIdString.Contains("HydrogenEngine"))
                             hydrogen_engines.Add((IMyPowerProducer)bl);
                         if (bl.BlockDefinition.TypeIdString.Contains("WindTurbine"))
@@ -505,14 +534,13 @@ namespace MINER_HUB_UPR_V2
                     else
                     {
                         List<InpResurs> inputs = GetInpResurs(bl, "Electricity");
-                        if (inputs != null && inputs.Count() > 0)
+                        if (inputs != null && inputs.Count() > 0 && inputs[0].max > 0f)
                         {
                             lis_inp.Add(bl);
                         }
                     }
                 }
                 group_inp = lis_inp.GroupBy(g => g.BlockDefinition.TypeIdString).ToList();
-
                 _scr.Echo("Найдено hydrogen_engines : " + hydrogen_engines.Count());
                 _scr.Echo("Найдено wind_turbine : " + wind_turbine.Count());
                 _scr.Echo("Найдено solar_panels : " + solar_panels.Count());
@@ -539,7 +567,7 @@ namespace MINER_HUB_UPR_V2
                             InpResurs resurs = new InpResurs()
                             {
                                 SubtypeId = def.SubtypeId.ToString(),
-                                is_power_by = sink.IsPoweredByType(def),
+                                count_power_by = sink.IsPoweredByType(def) == true ? 1 : 0,
                                 max = sink.MaxRequiredInputByType(def),
                                 current = sink.CurrentInputByType(def)
                             };
@@ -594,18 +622,20 @@ namespace MINER_HUB_UPR_V2
                                     resurs = new InpResurs()
                                     {
                                         SubtypeId = def.SubtypeId.ToString(),
-                                        is_power_by = sink.IsPoweredByType(def),
+                                        count_power_by = sink.IsPoweredByType(def) == true ? 1 : 0,
                                         max = sink.MaxRequiredInputByType(def),
                                         current = sink.CurrentInputByType(def)
                                     };
+                                    result.Add(resurs);
                                 }
                                 else
                                 {
                                     bool is_power_by = sink.IsPoweredByType(def);
-                                    resurs.max = sink.MaxRequiredInputByType(def);
-                                    resurs.current = sink.CurrentInputByType(def);
+                                    if (is_power_by == true)
+                                        resurs.count_power_by++;
+                                    resurs.max += sink.MaxRequiredInputByType(def);
+                                    resurs.current += sink.CurrentInputByType(def);
                                 }
-                                result.Add(resurs);
                             }
                         }
                     }
@@ -638,8 +668,8 @@ namespace MINER_HUB_UPR_V2
                                 }
                                 else
                                 {
-                                    resurs.max = source.DefinedOutputByType(def);
-                                    resurs.current = source.CurrentOutputByType(def);
+                                    resurs.max += source.DefinedOutputByType(def);
+                                    resurs.current += source.CurrentOutputByType(def);
                                 }
                                 result.Add(resurs);
                             }
@@ -647,6 +677,68 @@ namespace MINER_HUB_UPR_V2
                     }
                 }
                 return result;
+            }
+            public void UpdateExternal()
+            {
+                list_ext_power_result.Clear();
+                if (connectors.IsConected())
+                {
+                    List<IMyTerminalBlock> list_ext = new List<IMyTerminalBlock>();
+                    List<IMyPowerProducer> list_ext_pp = new List<IMyPowerProducer>();
+                    List<IMyTerminalBlock> list_ext_inp = new List<IMyTerminalBlock>();
+
+                    _scr.GridTerminalSystem.GetBlocksOfType(list_ext, r => r.CustomName.Contains(this.name_obj) != true);
+                    foreach (IMyTerminalBlock bl in list_ext)
+                    {
+                        if (bl is IMyPowerProducer)
+                        {
+                            list_ext_pp.Add((IMyPowerProducer)bl);
+                        }
+                        else
+                        {
+                            List<InpResurs> inputs = GetInpResurs(bl, "Electricity");
+                            if (inputs != null && inputs.Count() > 0 && inputs[0].max > 0f)
+                            {
+                                list_ext_inp.Add(bl);
+                            }
+                        }
+                    }
+                    List<IGrouping<string, IMyPowerProducer>> group_ext_pp = list_ext_pp.GroupBy(g => ((IMyTerminalBlock)g).BlockDefinition.TypeIdString).ToList();
+                    foreach (IGrouping<string, IMyPowerProducer> gr_inp in group_ext_pp)
+                    {
+                        if (gr_inp.Count() > 0)
+                        {
+                            InpResurs inputs = GetInpResurs(gr_inp.ToList(), "Electricity").FirstOrDefault();
+                            list_power_result.Add(new power_result()
+                            {
+                                TyepID = gr_inp.Key,
+                                count = gr_inp.Count(),
+                                working = gr_inp.Select(b => b.IsWorking == true).Count(),
+                                count_power_by = inputs.count_power_by,
+                                out_cur = gr_inp.Select(b => b.CurrentOutput).Sum(),
+                                out_max = gr_inp.Select(b => b.MaxOutput).Sum(),
+                                int_cur = gr_inp.Key == "MyObjectBuilder_BatteryBlock" ? gr_inp.Select(b => ((IMyBatteryBlock)b).CurrentInput).Sum() : 0,
+                                int_max = gr_inp.Key == "MyObjectBuilder_BatteryBlock" ? gr_inp.Select(b => ((IMyBatteryBlock)b).MaxInput).Sum() : 0,
+                            });
+                        }
+                    }
+                    List<IGrouping<string, IMyTerminalBlock>> group_ext_inp = list_ext_inp.GroupBy(g => g.BlockDefinition.TypeIdString).ToList();
+                    foreach (IGrouping<string, IMyTerminalBlock> gr_inp in group_ext_inp)
+                    {
+                        if (gr_inp.Count() > 0)
+                        {
+                            InpResurs inputs = GetInpResurs(gr_inp.ToList(), "Electricity").FirstOrDefault();
+                            list_ext_power_result.Add(new power_result()
+                            {
+                                TyepID = gr_inp.Key,
+                                count = gr_inp.Count(),
+                                working = gr_inp.Select(b => b.IsWorking == true).Count(),
+                                int_cur = inputs.current,
+                                int_max = inputs.max,
+                            });
+                        }
+                    }
+                }
             }
             public void Update()
             {
@@ -661,11 +753,13 @@ namespace MINER_HUB_UPR_V2
                 // Добавим источники электричества
                 if (batterys.Count() > 0)
                 {
+                    InpResurs inputs = GetInpResurs(batterys.ToList(), "Electricity").FirstOrDefault();
                     list_power_result.Add(new power_result()
                     {
                         TyepID = batterys.FirstOrDefault().BlockDefinition.TypeIdString,
                         count = batterys.Count(),
                         working = batterys.Select(b => b.IsWorking == true).Count(),
+                        count_power_by = inputs.count_power_by,
                         out_cur = batterys.Select(b => b.CurrentOutput).Sum(),
                         out_max = batterys.Select(b => b.MaxOutput).Sum(),
                         int_cur = batterys.Select(b => b.CurrentInput).Sum(),
@@ -756,27 +850,34 @@ namespace MINER_HUB_UPR_V2
                 {
                     Update();
                     lcd_debug.OutText(TextInfo(), false);
+                    lcd_debug.OutText(TextBatterysInfo(), true);
+                    lcd_debug.OutText(TextInfoDetali(list_power_result), true);
+                    lcd_debug1.OutText(TextInfoDetali(list_ext_power_result), false);
                 }
+            }
+            public string TextInfoDetali(List<power_result> list_power_result)
+            {
+                StringBuilder values = new StringBuilder();
+                foreach (power_result pr in list_power_result)
+                {
+                    values.Append(pr.TyepID.Replace("MyObjectBuilder_", "") + "C-W-P: [" + pr.count + "-" + pr.working + "-" + pr.count_power_by + "]" + "\n");
+                    if (pr.out_max > 0)
+                    {
+                        values.Append("|- OUT: [" + PText.GetCurrentOfMax(pr.out_cur, pr.out_max, "W") + "\n");
+                        values.Append("|  " + PText.GetScalePersent(pr.out_max > 0f ? pr.out_cur / pr.out_max : 0f, 40) + "\n");
+                    }
+                    if (pr.int_max > 0)
+                    {
+                        values.Append("|- IN : [" + PText.GetCurrentOfMax(pr.int_cur, pr.int_max, "W") + "\n");
+                        values.Append("|  " + PText.GetScalePersent(pr.int_max > 0f ? pr.int_cur / pr.int_max : 0f, 40) + "\n");
+                    }
 
+                }
+                return values.ToString();
             }
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                //foreach (power_result pr in list_power_result)
-                //{
-                //    values.Append(pr.TyepID.Replace("MyObjectBuilder_", "") + " [" + pr.count + "-" + pr.working + "]" + "\n");
-                //    if (pr.out_max > 0)
-                //    {
-                //        values.Append("|- OUT: [" + PText.GetCurrentOfMax(pr.out_cur, pr.out_max, "W") + "\n");
-                //        values.Append("|  " + PText.GetScalePersent(pr.out_max > 0f ? pr.out_cur / pr.out_max : 0f, 40) + "\n");
-                //    }
-                //    if (pr.int_max > 0)
-                //    {
-                //        values.Append("|- IN : [" + PText.GetCurrentOfMax(pr.int_cur, pr.int_max, "W") + "\n");
-                //        values.Append("|  " + PText.GetScalePersent(pr.int_max > 0f ? pr.int_cur / pr.int_max : 0f, 40) + "\n");
-                //    }
-
-                //}
                 values.Append("ВЫРАБОТКА   : " + PText.GetCurrentOfMax(sum_cur_output, sum_max_output, "W") + "\n");
                 values.Append("|  " + PText.GetScalePersent(sum_max_output > 0f ? sum_cur_output / sum_max_output : 0f, 40) + "\n");
                 values.Append("ПОТРЕБЛЕНИЕ : " + PText.GetCurrentOfMax(sum_cur_input, sum_max_input, "W") + "\n");
@@ -784,7 +885,16 @@ namespace MINER_HUB_UPR_V2
                 values.Append("ДОСТУПНО : " + PText.GetValueOfUnits(sum_cur_output - sum_cur_input, "W") + "\n");
                 return values.ToString();
             }
+            public string TextBatterysInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("БАТАРЕЯ :[" + batterys.Count() + "]" + "\n");
+                float cur = batterys.Select(b => b.CurrentStoredPower).Sum();
+                float max = batterys.Select(b => b.MaxStoredPower).Sum();
+                values.Append("|- ЗАРЯД: " + PText.GetCurrentOfMax(cur, max, "W") + "\n");
+                values.Append("|  " + PText.GetScalePersent(max > 0f ? cur / max : 0f, 40) + "\n");
+                return values.ToString();
+            }
         }
     }
 }
-
