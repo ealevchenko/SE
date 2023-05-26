@@ -62,11 +62,11 @@ namespace MINER_HUB_UPR_V2
             }
             static public string GetValueOfUnits(float value, string units)
             {
-                if (value > 1)
+                if (value >= 1f)
                 {
                     return Math.Round(value, 1).ToString() + "M" + units;
                 }
-                else if (value > 0.0001f)
+                else if (value >= 0.001f)
                 {
                     value = value * 1000; // K
                     return Math.Round(value, 1).ToString() + "k" + units;
@@ -485,25 +485,16 @@ namespace MINER_HUB_UPR_V2
                 public float int_max { get; set; } = 0;
                 public float out_cur { get; set; } = 0;
                 public float out_max { get; set; } = 0;
+                public float power_cur { get; set; } = 0;
+                public float power_max { get; set; } = 0;
             }
 
             private List<power_result> list_power_result = new List<power_result>();
             private List<power_result> list_ext_power_result = new List<power_result>();
-            //
-            private List<IMyTerminalBlock> list = new List<IMyTerminalBlock>();
-            private List<IMyTerminalBlock> lis_inp = new List<IMyTerminalBlock>();
 
-            private List<IMyBatteryBlock> batterys = new List<IMyBatteryBlock>();
-            private List<IMySolarPanel> solar_panels = new List<IMySolarPanel>();
-            private List<IMyReactor> reactors = new List<IMyReactor>();
-            private List<IMyPowerProducer> hydrogen_engines = new List<IMyPowerProducer>();
-            private List<IMyPowerProducer> wind_turbine = new List<IMyPowerProducer>();
-
-            private List<IGrouping<string, IMyTerminalBlock>> group_inp = new List<IGrouping<string, IMyTerminalBlock>>(); // Потребители
+            private List<IGrouping<string, IMyPowerProducer>> group_pp = new List<IGrouping<string, IMyPowerProducer>>(); // Источники внутрение
+            private List<IGrouping<string, IMyTerminalBlock>> group_inp = new List<IGrouping<string, IMyTerminalBlock>>(); // Потребители внутрение
             //
-            //List<IMyGasGenerator> gas_generators = new List<IMyGasGenerator>();
-            //List<IMyGasTank> gas_tank = new List<IMyGasTank>();
-            //List<IMyRefinery> refinery = new List<IMyRefinery>();
             public float sum_cur_input { get; private set; } = 0;
             public float sum_max_input { get; private set; } = 0;
             public float sum_max_output { get; private set; } = 0;
@@ -511,45 +502,11 @@ namespace MINER_HUB_UPR_V2
             public Power(string name_obj)
             {
                 this.name_obj = name_obj;
+                List<IMyTerminalBlock> list = new List<IMyTerminalBlock>();
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyTerminalBlock>(list, r => r.CustomName.Contains(name_obj));
-                foreach (IMyTerminalBlock bl in list)
-                {
-                    if (bl is IMyPowerProducer)
-                    {
-                        if (bl.BlockDefinition.TypeIdString.Contains("BatteryBlock"))
-                            batterys.Add((IMyBatteryBlock)bl);
-                        if (bl.BlockDefinition.TypeIdString.Contains("SolarPanel"))
-                            solar_panels.Add((IMySolarPanel)bl);
-                        if (bl.BlockDefinition.TypeIdString.Contains("Reactor"))
-                            reactors.Add((IMyReactor)bl);
-                        if (bl.BlockDefinition.TypeIdString.Contains("HydrogenEngine"))
-                            hydrogen_engines.Add((IMyPowerProducer)bl);
-                        if (bl.BlockDefinition.TypeIdString.Contains("WindTurbine"))
-                            wind_turbine.Add((IMyPowerProducer)bl);
-                    }
-                    //
-                    //else if (bl is IMyGasGenerator) { gas_generators.Add((IMyGasGenerator)bl); }
-                    //else if (bl is IMyGasTank) { gas_tank.Add((IMyGasTank)bl); }
-                    //else if (bl is IMyRefinery) { refinery.Add((IMyRefinery)bl); }
-                    else
-                    {
-                        List<InpResurs> inputs = GetInpResurs(bl, "Electricity");
-                        if (inputs != null && inputs.Count() > 0 && inputs[0].max > 0f)
-                        {
-                            lis_inp.Add(bl);
-                        }
-                    }
-                }
-                group_inp = lis_inp.GroupBy(g => g.BlockDefinition.TypeIdString).ToList();
-                _scr.Echo("Найдено hydrogen_engines : " + hydrogen_engines.Count());
-                _scr.Echo("Найдено wind_turbine : " + wind_turbine.Count());
-                _scr.Echo("Найдено solar_panels : " + solar_panels.Count());
-                _scr.Echo("Найдено reactors : " + reactors.Count());
-                //_scr.Echo("Найдено gas_generators : " + gas_generators.Count());
-                //_scr.Echo("Найдено gas_tank : " + gas_tank.Count());
-                //_scr.Echo("Найдено refinery : " + refinery.Count());
-                _scr.Echo("Найдено др. потр. : " + lis_inp.Count());
-                _scr.Echo("Получено групп потр. : " + group_inp.Count());
+                InitPower(list, ref group_pp, ref group_inp);
+                _scr.Echo("Получено групп Out. : " + group_pp.Count());
+                _scr.Echo("Получено групп Inp. : " + group_inp.Count());
             }
             public List<InpResurs> GetInpResurs(IMyTerminalBlock obj, string name)
             {
@@ -617,12 +574,13 @@ namespace MINER_HUB_UPR_V2
                             if (String.IsNullOrWhiteSpace(name) || !String.IsNullOrWhiteSpace(name) && def.SubtypeId.ToString() == name)
                             {
                                 InpResurs resurs = result.Where(r => r.SubtypeId == def.SubtypeId.ToString()).FirstOrDefault();
+                                bool is_power_by = sink.IsPoweredByType(def);
                                 if (resurs == null)
                                 {
                                     resurs = new InpResurs()
                                     {
                                         SubtypeId = def.SubtypeId.ToString(),
-                                        count_power_by = sink.IsPoweredByType(def) == true ? 1 : 0,
+                                        count_power_by = is_power_by == true ? 1 : 0,
                                         max = sink.MaxRequiredInputByType(def),
                                         current = sink.CurrentInputByType(def)
                                     };
@@ -630,7 +588,7 @@ namespace MINER_HUB_UPR_V2
                                 }
                                 else
                                 {
-                                    bool is_power_by = sink.IsPoweredByType(def);
+
                                     if (is_power_by == true)
                                         resurs.count_power_by++;
                                     resurs.max += sink.MaxRequiredInputByType(def);
@@ -665,160 +623,71 @@ namespace MINER_HUB_UPR_V2
                                         max = source.DefinedOutputByType(def),
                                         current = source.CurrentOutputByType(def)
                                     };
+                                    result.Add(resurs);
                                 }
                                 else
                                 {
                                     resurs.max += source.DefinedOutputByType(def);
                                     resurs.current += source.CurrentOutputByType(def);
                                 }
-                                result.Add(resurs);
+
                             }
                         }
                     }
                 }
                 return result;
             }
-            public void UpdateExternal()
+            public void InitPower(List<IMyTerminalBlock> list, ref List<IGrouping<string, IMyPowerProducer>> group_pp, ref List<IGrouping<string, IMyTerminalBlock>> group_inp)
             {
-                list_ext_power_result.Clear();
-                if (connectors.IsConected())
+                List<IMyPowerProducer> list_pp = new List<IMyPowerProducer>();
+                List<IMyTerminalBlock> list_inp = new List<IMyTerminalBlock>();
+                foreach (IMyTerminalBlock bl in list)
                 {
-                    List<IMyTerminalBlock> list_ext = new List<IMyTerminalBlock>();
-                    List<IMyPowerProducer> list_ext_pp = new List<IMyPowerProducer>();
-                    List<IMyTerminalBlock> list_ext_inp = new List<IMyTerminalBlock>();
-
-                    _scr.GridTerminalSystem.GetBlocksOfType(list_ext, r => r.CustomName.Contains(this.name_obj) != true);
-                    foreach (IMyTerminalBlock bl in list_ext)
+                    if (bl is IMyPowerProducer)
                     {
-                        if (bl is IMyPowerProducer)
-                        {
-                            list_ext_pp.Add((IMyPowerProducer)bl);
-                        }
-                        else
-                        {
-                            List<InpResurs> inputs = GetInpResurs(bl, "Electricity");
-                            if (inputs != null && inputs.Count() > 0 && inputs[0].max > 0f)
-                            {
-                                list_ext_inp.Add(bl);
-                            }
-                        }
+                        list_pp.Add((IMyPowerProducer)bl);
                     }
-                    List<IGrouping<string, IMyPowerProducer>> group_ext_pp = list_ext_pp.GroupBy(g => ((IMyTerminalBlock)g).BlockDefinition.TypeIdString).ToList();
-                    foreach (IGrouping<string, IMyPowerProducer> gr_inp in group_ext_pp)
+                    else
                     {
-                        if (gr_inp.Count() > 0)
+                        List<InpResurs> inputs = GetInpResurs(bl, "Electricity");
+                        if (inputs != null && inputs.Count() > 0 && inputs[0].max > 0f)
                         {
-                            InpResurs inputs = GetInpResurs(gr_inp.ToList(), "Electricity").FirstOrDefault();
-                            list_ext_power_result.Add(new power_result()
-                            {
-                                TyepID = gr_inp.Key,
-                                count = gr_inp.Count(),
-                                working = gr_inp.Select(b => b.IsWorking == true).Count(),
-                                count_power_by = inputs != null ? inputs.count_power_by : 0,
-                                out_cur = gr_inp.Select(b => b.CurrentOutput).Sum(),
-                                out_max = gr_inp.Select(b => b.MaxOutput).Sum(),
-                                //int_cur = gr_inp.Key == "MyObjectBuilder_BatteryBlock" ? gr_inp.Select(b => ((IMyBatteryBlock)b).CurrentInput).Sum() : 0,
-                                //int_max = gr_inp.Key == "MyObjectBuilder_BatteryBlock" ? gr_inp.Select(b => ((IMyBatteryBlock)b).MaxInput).Sum() : 0,
-                            });
-                        }
-                    }
-                    List<IGrouping<string, IMyTerminalBlock>> group_ext_inp = list_ext_inp.GroupBy(g => g.BlockDefinition.TypeIdString).ToList();
-                    foreach (IGrouping<string, IMyTerminalBlock> gr_inp in group_ext_inp)
-                    {
-                        if (gr_inp.Count() > 0)
-                        {
-                            InpResurs inputs = GetInpResurs(gr_inp.ToList(), "Electricity").FirstOrDefault();
-                            list_ext_power_result.Add(new power_result()
-                            {
-                                TyepID = gr_inp.Key,
-                                count = gr_inp.Count(),
-                                working = gr_inp.Select(b => b.IsWorking == true).Count(),
-                                int_cur = inputs.current,
-                                int_max = inputs.max,
-                            });
+                            list_inp.Add(bl);
                         }
                     }
                 }
+                group_pp = list_pp.GroupBy(g => ((IMyTerminalBlock)g).BlockDefinition.TypeIdString).ToList();
+                group_inp = list_inp.GroupBy(g => g.BlockDefinition.TypeIdString).ToList();
             }
-            public void Update()
+            public void UpdatePower(List<IGrouping<string, IMyPowerProducer>> group_pp, List<IGrouping<string, IMyTerminalBlock>> group_inp, ref List<power_result> list_power)
             {
-                //StringBuilder values = new StringBuilder();
-
-                sum_cur_input = 0;
-                sum_max_input = 0;
-                sum_max_output = 0;
-                sum_cur_output = 0;
-
-                list_power_result.Clear();
-                // Добавим источники электричества
-                if (batterys.Count() > 0)
+                list_power.Clear();
+                foreach (IGrouping<string, IMyPowerProducer> gr_pp in group_pp)
                 {
-                    InpResurs inputs = GetInpResurs(batterys.ToList(), "Electricity").FirstOrDefault();
-                    list_power_result.Add(new power_result()
+                    if (gr_pp.Count() > 0)
                     {
-                        TyepID = batterys.FirstOrDefault().BlockDefinition.TypeIdString,
-                        count = batterys.Count(),
-                        working = batterys.Select(b => b.IsWorking == true).Count(),
-                        count_power_by = inputs.count_power_by,
-                        out_cur = batterys.Select(b => b.CurrentOutput).Sum(),
-                        out_max = batterys.Select(b => b.MaxOutput).Sum(),
-                        int_cur = batterys.Select(b => b.CurrentInput).Sum(),
-                        int_max = batterys.Select(b => b.MaxInput).Sum(),
-                    });
+                        InpResurs inputs = GetInpResurs(gr_pp.ToList(), "Electricity").FirstOrDefault();
+                        list_power.Add(new power_result()
+                        {
+                            TyepID = gr_pp.Key,
+                            count = gr_pp.Count(),
+                            working = gr_pp.Select(b => b.IsWorking == true).Count(),
+                            count_power_by = inputs != null ? inputs.count_power_by : 0,
+                            out_cur = gr_pp.Select(b => b.CurrentOutput).Sum(),
+                            out_max = gr_pp.Select(b => b.MaxOutput).Sum(),
+                            int_cur = gr_pp.Key == "MyObjectBuilder_BatteryBlock" ? gr_pp.Select(b => ((IMyBatteryBlock)b).CurrentInput).Sum() : 0,
+                            int_max = gr_pp.Key == "MyObjectBuilder_BatteryBlock" ? gr_pp.Select(b => ((IMyBatteryBlock)b).MaxInput).Sum() : 0,
+                            power_cur = gr_pp.Key == "MyObjectBuilder_BatteryBlock" ? gr_pp.Select(b => ((IMyBatteryBlock)b).CurrentStoredPower).Sum() : 0,
+                            power_max = gr_pp.Key == "MyObjectBuilder_BatteryBlock" ? gr_pp.Select(b => ((IMyBatteryBlock)b).MaxStoredPower).Sum() : 0,
+                        });
+                    }
                 }
-                if (hydrogen_engines.Count() > 0)
-                {
-                    list_power_result.Add(new power_result()
-                    {
-                        TyepID = hydrogen_engines.FirstOrDefault().BlockDefinition.TypeIdString,
-                        count = hydrogen_engines.Count(),
-                        working = hydrogen_engines.Select(b => b.IsWorking == true).Count(),
-                        out_cur = hydrogen_engines.Select(b => b.CurrentOutput).Sum(),
-                        out_max = hydrogen_engines.Select(b => b.MaxOutput).Sum(),
-                    });
-                }
-                if (solar_panels.Count() > 0)
-                {
-                    list_power_result.Add(new power_result()
-                    {
-                        TyepID = solar_panels.FirstOrDefault().BlockDefinition.TypeIdString,
-                        count = solar_panels.Count(),
-                        working = solar_panels.Select(b => b.IsWorking == true).Count(),
-                        out_cur = solar_panels.Select(b => b.CurrentOutput).Sum(),
-                        out_max = solar_panels.Select(b => b.MaxOutput).Sum(),
-                    });
-                }
-                if (wind_turbine.Count() > 0)
-                {
-                    list_power_result.Add(new power_result()
-                    {
-                        TyepID = wind_turbine.FirstOrDefault().BlockDefinition.TypeIdString,
-                        count = wind_turbine.Count(),
-                        working = wind_turbine.Select(b => b.IsWorking == true).Count(),
-                        out_cur = wind_turbine.Select(b => b.CurrentOutput).Sum(),
-                        out_max = wind_turbine.Select(b => b.MaxOutput).Sum(),
-                    });
-                }
-                if (reactors.Count() > 0)
-                {
-                    list_power_result.Add(new power_result()
-                    {
-                        TyepID = reactors.FirstOrDefault().BlockDefinition.TypeIdString,
-                        count = reactors.Count(),
-                        working = reactors.Select(b => b.IsWorking == true).Count(),
-                        out_cur = reactors.Select(b => b.CurrentOutput).Sum(),
-                        out_max = reactors.Select(b => b.MaxOutput).Sum(),
-                    });
-                }
-                // Добавим потребителей электричества
-                //values.Append("IGrouping-" + group_inp.Count() + "\n");
                 foreach (IGrouping<string, IMyTerminalBlock> gr_inp in group_inp)
                 {
-                    //values.Append("-" + gr_inp.Key + "\n");
                     if (gr_inp.Count() > 0)
                     {
                         InpResurs inputs = GetInpResurs(gr_inp.ToList(), "Electricity").FirstOrDefault();
-                        list_power_result.Add(new power_result()
+                        list_power.Add(new power_result()
                         {
                             TyepID = gr_inp.Key,
                             count = gr_inp.Count(),
@@ -828,6 +697,46 @@ namespace MINER_HUB_UPR_V2
                         });
                     }
                 }
+            }
+            public void UpdateExternal()
+            {
+                list_ext_power_result.Clear();
+                if (connectors.IsConected())
+                {
+                    List<IMyTerminalBlock> list_ext = new List<IMyTerminalBlock>();
+                    List<IGrouping<string, IMyPowerProducer>> group_pp = new List<IGrouping<string, IMyPowerProducer>>();
+                    List<IGrouping<string, IMyTerminalBlock>> group_inp = new List<IGrouping<string, IMyTerminalBlock>>();
+                    _scr.GridTerminalSystem.GetBlocksOfType(list_ext, r => r.CustomName.Contains(this.name_obj) != true);
+                    InitPower(list_ext, ref group_pp, ref group_inp);
+                    UpdatePower(group_pp, group_inp, ref list_ext_power_result);
+                }
+            }
+            public void UpdateInternal()
+            {
+                //StringBuilder values = new StringBuilder();
+
+                sum_cur_input = 0;
+                sum_max_input = 0;
+                sum_max_output = 0;
+                sum_cur_output = 0;
+                UpdatePower(group_pp, group_inp, ref list_power_result);
+
+                sum_cur_input = list_power_result.Select(b => b.int_cur).Sum();
+                sum_max_input = list_power_result.Select(b => b.int_max).Sum();
+                sum_cur_output = list_power_result.Select(b => b.out_cur).Sum();
+                sum_max_output = list_power_result.Select(b => b.out_max).Sum();
+                //lcd_debug.OutText(values.ToString(), false);
+            }
+            public void Update()
+            {
+                //StringBuilder values = new StringBuilder();
+
+                sum_cur_input = 0;
+                sum_max_input = 0;
+                sum_max_output = 0;
+                sum_cur_output = 0;
+                UpdateExternal();
+                UpdateInternal();
                 sum_cur_input = list_power_result.Select(b => b.int_cur).Sum();
                 sum_max_input = list_power_result.Select(b => b.int_max).Sum();
                 sum_cur_output = list_power_result.Select(b => b.out_cur).Sum();
@@ -836,7 +745,6 @@ namespace MINER_HUB_UPR_V2
             }
             public void Logic(string argument, UpdateType updateSource)
             {
-                //bats.Logic(argument, updateSource);
                 switch (argument)
                 {
                     default:
@@ -889,9 +797,10 @@ namespace MINER_HUB_UPR_V2
             public string TextBatterysInfo()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("БАТАРЕЯ :[" + batterys.Count() + "]" + "\n");
-                float cur = batterys.Select(b => b.CurrentStoredPower).Sum();
-                float max = batterys.Select(b => b.MaxStoredPower).Sum();
+                int count = list_power_result.Select(b => b.power_max > 0f).Count();
+                values.Append("БАТАРЕЯ :[" + count + "]" + "\n");
+                float cur = list_power_result.Select(b => b.power_cur).Sum();
+                float max = list_power_result.Select(b => b.power_max).Sum();
                 values.Append("|- ЗАРЯД: " + PText.GetCurrentOfMax(cur, max, "W") + "\n");
                 values.Append("|  " + PText.GetScalePersent(max > 0f ? cur / max : 0f, 40) + "\n");
                 return values.ToString();
