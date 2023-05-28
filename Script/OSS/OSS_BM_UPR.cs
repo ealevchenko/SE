@@ -16,6 +16,7 @@ using System.Text;
 using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
 using VRageMath;
+using static VRageMath.Base6Directions;
 
 /// <summary>
 /// v1.0
@@ -903,6 +904,16 @@ namespace OSS_BM_UPR
                 }
 
             }
+        }
+
+        public Vector3D GetNavAngles(Vector3D Vector)
+        {
+            double TargetYaw = 0;
+            //Рысканием прицеливаемся на точку Target.
+            double tF = Vector.Dot(cockpit.obj.WorldMatrix.Forward);
+            double tL = Vector.Dot(cockpit.obj.WorldMatrix.Left);
+            TargetYaw = -(float)Math.Atan2(tL, tF);
+            return new Vector3D(TargetYaw, tL, tF);
         }
     }
 }

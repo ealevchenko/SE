@@ -62,6 +62,7 @@ namespace MUL_H1_NAV
         Camera camera_connector;
         Navigation navigation;
         CollisionProtection collision_protection;
+        Vector3D V1, V2, Axis;
 
         static Program _scr;
 
@@ -94,9 +95,26 @@ namespace MUL_H1_NAV
                 prog += "]" + GetPersent(perse);
                 return prog;
             }
+            static public string GetValueOfUnits(float value, string units)
+            {
+                if (value >= 1f)
+                {
+                    return Math.Round(value, 1).ToString() + "M" + units;
+                }
+                else if (value >= 0.001f)
+                {
+                    value = value * 1000; // K
+                    return Math.Round(value, 1).ToString() + "k" + units;
+                }
+                else
+                {
+                    value = value * 1000000; // 
+                    return Math.Round(value, 1).ToString() + units;
+                }
+            }
             static public string GetCurrentOfMax(float cur, float max, string units)
             {
-                return "[ " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]";
+                return "[ " + GetValueOfUnits(cur, units) + " / " + GetValueOfUnits(max, units) + " ]";
             }
             static public string GetSign(int x, int y)
             {
@@ -143,6 +161,10 @@ namespace MUL_H1_NAV
                 }
                 result += "]";
                 return result;
+            }
+            static public string GetGPS(string name, Vector3D target)
+            {
+                return "GPS:" + name + ":" + target.GetDim(0) + ":" + target.GetDim(1) + ":" + target.GetDim(2) + ":\n";
             }
         }
         public class BaseListTerminalBlock<T> where T : class
@@ -309,10 +331,18 @@ namespace MUL_H1_NAV
             remote_control.Logic(argument, updateSource);
             navigation.Logic(argument, updateSource);
             connector_cargo.Logic(argument, updateSource);
-            values_info.Append("Connected: "+ connector_cargo.Connected+ "\n");
+            values_info.Append("Connected: " + connector_cargo.Connected + "\n");
             //collision_protection.GetDistance(cockpit.GetCockpitMatrix());
             switch (argument)
             {
+                case "V1":
+                    V1 = camera_course.GetVectorForward();
+                    break;
+                case "V2":
+                    V2 = camera_course.GetVectorForward();
+                    Axis = V1.Cross(V2);
+                    Axis = Vector3D.Normalize(Axis);
+                    break;
                 default:
                     break;
             }
@@ -352,20 +382,9 @@ namespace MUL_H1_NAV
             lcd_info_upr.OutText(values_info);
             ship_connect = connector_cargo.Connected; // сохраним состояние
             cargo_connect = connector_cargo.IsConnectorCargo(); // груз подключен
-            //StringBuilder test_info = new StringBuilder();
-            //test_info.Append("home1 : " + remote_control.home_position.ToString() + "\n");
-            //test_info.Append("home2 : " + remote_control.home_position1.ToString() + "\n");
-            //test_info.Append("home3 : " + remote_control.home_position2.ToString() + "\n");
-            //test_info.Append("ThrustsMax : " + thrusts.Forward_ThrustsMax / 1000 + "\n");
-            //test_info.Append("TotalMass : " + cockpit.TotalMass / 1000 + "\n");
-            //test_info.Append("ShipSpeed : " + cockpit.ShipSpeed + "\n");
-            //test_info.Append(navigation.TextTEST());
-            //test_info.Append("Scan :" + collision_protection.Scan);
-            //test_info.Append(collision_protection.TextInfo());
-            //test_info.Append("Цель: " + target.ToString() + "\n");
-            //test_info.Append("Растояние: " + cockpit.GetDistance(target_info.HitPosition != null ? (Vector3D)target_info.HitPosition : new Vector3D(0, 0, 0)).ToString() + "\n");
-            //test_info.Append("SCAN: " + camera.obj.CanScan(dist_scan) + "\n");
-            //lcd_info.OutText(test_info);
+            StringBuilder test_info = new StringBuilder();
+            test_info.Append(PText.GetGPS("Axis", Axis) + "\n");
+            lcd_info.OutText(test_info);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
