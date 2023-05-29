@@ -15,6 +15,7 @@ using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
+using VRage.Noise.Combiners;
 using VRageMath;
 
 /// <summary>
@@ -27,6 +28,9 @@ namespace MUL_H2_NAV
     {
         // v1
         string NameObj = "[MUL-H2]";
+        static float GyroMult = 1f;
+        static float AlignAccelMult = 0.3f;
+        static float TargetSize = 100;
 
         const char igreen = '\uE001';
         const char iblue = '\uE002';
@@ -39,7 +43,13 @@ namespace MUL_H2_NAV
 
         static LCD lcd_storage;
         static LCD lcd_debug;
-
+        static Cockpit cockpit;
+        static RemoteControl rc_d;
+        static RemoteControl rc_b;
+        static Connector con_d;
+        static Connector con_b;
+        static Thrusts thrusts;
+        static Gyros gyros;
         static Program _scr;
         public class PText
         {
@@ -238,12 +248,109 @@ namespace MUL_H2_NAV
                 if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_On");
             }
         }
+        public class BaseController
+        {
+            public IMyShipController obj;
+            private double current_height = 0;
+            public double CurrentHeight { get { return this.current_height; } }
+            public Matrix GetCockpitMatrix()
+            {
+                Matrix CockpitMatrix = new MatrixD();
+                this.obj.Orientation.GetMatrix(out CockpitMatrix);
+                return CockpitMatrix;
+            }
+            public BaseController(string name)
+            {
+                obj = _scr.GridTerminalSystem.GetBlockWithName(name) as IMyShipController;
+                _scr.Echo("base_controller:[" + name + "]: " + ((obj != null) ? ("Ок") : ("not Block")));
+            }
+            public void Dampeners(bool on)
+            {
+                this.obj.DampenersOverride = on;
+            }
+            public void OutText(StringBuilder values, int num_lcd)
+            {
+                if (this.obj is IMyTextSurfaceProvider)
+                {
+                    IMyTextSurfaceProvider ipp = this.obj as IMyTextSurfaceProvider;
+                    if (num_lcd > ipp.SurfaceCount) return;
+                    IMyTextSurface ts = ipp.GetSurface(num_lcd);
+                    if (ts != null)
+                    {
+                        ts.WriteText(values, false);
+                    }
+                }
+            }
+            public void OutText(string text, bool append, int num_lcd)
+            {
+                if (this.obj is IMyTextSurfaceProvider)
+                {
+                    IMyTextSurfaceProvider ipp = this.obj as IMyTextSurfaceProvider;
+                    if (num_lcd > ipp.SurfaceCount) return;
+                    IMyTextSurface ts = ipp.GetSurface(num_lcd);
+                    if (ts != null)
+                    {
+                        ts.WriteText(text, append);
+                    }
+                }
+            }
+            public StringBuilder GetText(int num_lcd)
+            {
+                StringBuilder values = new StringBuilder();
+                if (this.obj is IMyTextSurfaceProvider)
+                {
+                    IMyTextSurfaceProvider ipp = this.obj as IMyTextSurfaceProvider;
+                    if (num_lcd > ipp.SurfaceCount) return null;
+                    IMyTextSurface ts = ipp.GetSurface(num_lcd);
+                    if (ts != null)
+                    {
+                        ts.ReadText(values);
+                    }
+                }
+                return values;
+            }
+            public double GetCurrentHeight()
+            {
+                double cur_h = 0;
+                this.obj.TryGetPlanetElevation(MyPlanetElevation.Surface, out cur_h);
+                return cur_h;
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+                    // Получить высоту над поверхностью
+                    current_height = GetCurrentHeight();
+                }
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("Гравитация: " + this.obj.GetNaturalGravity().Length() + "\n");
+                values.Append("PhysicalMass: " + this.obj.CalculateShipMass().PhysicalMass + "\n");
+                values.Append("Скорость: " + this.obj.GetShipSpeed() + "\n");
+                values.Append("Высота: " + current_height + "\n");
+                return values.ToString();
+            }
+        }
         public Program()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
             _scr = this;
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
+            cockpit = new Cockpit(NameObj + "-Cocpit [LCD]");
+            rc_d = new RemoteControl(NameObj + "-RC parking down");
+            rc_b = new RemoteControl(NameObj + "-RC parking back");
+            con_d = new Connector(NameObj + "-Connector down");
+            con_b = new Connector(NameObj + "-Connector back");
+            gyros = new Gyros(NameObj);
+            thrusts = new Thrusts(NameObj);
         }
         public void Save()
         {
@@ -297,8 +404,690 @@ namespace MUL_H2_NAV
                 return values;
             }
         }
+        public class Cockpit : BaseController { public Cockpit(string name) : base(name) { } }
+        public class RemoteControl : BaseController { public RemoteControl(string name) : base(name) { } }
+        public class Thrusts : BaseListTerminalBlock<IMyThrust>
+        {
+            private BaseController remote_control;
+            //------------------------------------------------
+            public List<IMyThrust> UpThrusters = new List<IMyThrust>();
+            public List<IMyThrust> DownThrusters = new List<IMyThrust>();
+            public List<IMyThrust> LeftThrusters = new List<IMyThrust>();
+            public List<IMyThrust> RightThrusters = new List<IMyThrust>();
+            public List<IMyThrust> ForwardThrusters = new List<IMyThrust>();
+            public List<IMyThrust> BackwardThrusters = new List<IMyThrust>();
+            public double UpThrMax { get; private set; } = 0;
+            public double DownThrMax { get; private set; } = 0;
+            public double LeftThrMax { get; private set; } = 0;
+            public double RightThrMax { get; private set; } = 0;
+            public double ForwardThrMax { get; private set; } = 0;
+            public double BackwardThrMax { get; private set; } = 0;
+            public Thrusts(string name_obj) : base(name_obj)
+            {
+            }
+            public Thrusts(string name_obj, string tag) : base(name_obj, tag)
+            {
+
+            }
+            public void InitThrusts(BaseController remote_control)
+            {
+                this.remote_control = remote_control;
+                MatrixD OrientationCocpit = this.remote_control.GetCockpitMatrix();
+                // Максимальная эфиктивность двигателей
+                UpThrMax = 0;
+                DownThrMax = 0;
+                LeftThrMax = 0;
+                RightThrMax = 0;
+                ForwardThrMax = 0;
+                BackwardThrMax = 0;
+                // Список трастеров
+                UpThrusters.Clear();
+                DownThrusters.Clear();
+                LeftThrusters.Clear();
+                RightThrusters.Clear();
+                ForwardThrusters.Clear();
+                BackwardThrusters.Clear();
+                // Орентация трастеров
+                Matrix ThrusterMatrix = new MatrixD();
+                foreach (IMyThrust thrust in this.list_obj)
+                {
+                    thrust.Orientation.GetMatrix(out ThrusterMatrix);
+                    //Y
+                    if (ThrusterMatrix.Forward == OrientationCocpit.Up)
+                    {
+                        UpThrMax += thrust.MaxEffectiveThrust;
+                        UpThrusters.Add(thrust);
+                    }
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Down)
+                    {
+                        DownThrMax += thrust.MaxEffectiveThrust;
+                        DownThrusters.Add(thrust);
+                    }
+                    //X
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Left)
+                    {
+                        LeftThrMax += thrust.MaxEffectiveThrust;
+                        LeftThrusters.Add(thrust);
+                    }
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Right)
+                    {
+                        RightThrMax += thrust.MaxEffectiveThrust;
+                        RightThrusters.Add(thrust);
+                    }
+                    //Z
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Forward)
+                    {
+                        ForwardThrMax += thrust.MaxEffectiveThrust;
+                        ForwardThrusters.Add(thrust);
+                    }
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Backward)
+                    {
+                        BackwardThrMax += thrust.MaxEffectiveThrust;
+                        BackwardThrusters.Add(thrust);
+                    }
+                }
+            }
+            public void ClearThrustOverridePersent()
+            {
+                SetOverridePercent(UpThrusters, 0f);
+                SetOverridePercent(DownThrusters, 0f);
+                SetOverridePercent(LeftThrusters, 0f);
+                SetOverridePercent(RightThrusters, 0f);
+                SetOverridePercent(ForwardThrusters, 0f);
+                SetOverridePercent(BackwardThrusters, 0f);
+            }
+            public void SetOverridePercent(List<IMyThrust> Thrusts, float persent)
+            {
+
+                foreach (IMyThrust tr in Thrusts)
+                {
+                    tr.ThrustOverridePercentage = persent;
+                }
+            }
+            public void SetOverridePercent(string axis, float persentValue)
+            {
+                if (axis == "U")
+                {
+                    SetOverridePercent(DownThrusters, persentValue);
+                }
+                else if (axis == "D")
+                {
+                    SetOverridePercent(UpThrusters, persentValue);
+                }
+                else if (axis == "L")
+                {
+                    SetOverridePercent(RightThrusters, persentValue);
+                }
+                else if (axis == "R")
+                {
+                    SetOverridePercent(LeftThrusters, persentValue);
+                }
+                else if (axis == "F")
+                {
+                    SetOverridePercent(BackwardThrusters, persentValue);
+                }
+                else if (axis == "B")
+                {
+                    SetOverridePercent(ForwardThrusters, persentValue);
+                }
+            }
+            public void SetOverrideN(string axis, float OverrideValue)
+            {
+                double MaxThrust = 0;
+                float Value = 0;
+                if (axis == "D") { MaxThrust = UpThrMax; SetOverridePercent("U", 0f); }
+                else if (axis == "U") { MaxThrust = DownThrMax; SetOverridePercent("D", 0f); }
+                else if (axis == "F") { MaxThrust = BackwardThrMax; SetOverridePercent("B", 0f); }
+                else if (axis == "B") { MaxThrust = ForwardThrMax; SetOverridePercent("F", 0f); }
+                else if (axis == "R") { MaxThrust = LeftThrMax; SetOverridePercent("L", 0f); }
+                else if (axis == "L") { MaxThrust = RightThrMax; SetOverridePercent("R", 0f); }
+                if (OverrideValue == 0)
+                {
+                    Value = 0;
+                }
+                else
+                {
+                    Value = (float)Math.Max(OverrideValue / MaxThrust, 0.1f);
+                }
+                SetOverridePercent(axis, Value);
+            }
+            public void SetOverrideAccel(string axis, float OverrideValue)
+            {
+                switch (axis)
+                {
+                    case "U":
+                        OverrideValue += (float)this.remote_control.obj.GetNaturalGravity().Length();
+                        break;
+                    case "L":
+                        if (OverrideValue < 0)
+                        {
+                            axis = "R";
+                            OverrideValue = -OverrideValue;
+                        }
+                        break;
+                    case "R":
+                        if (OverrideValue < 0)
+                        {
+                            axis = "L";
+                            OverrideValue = -OverrideValue;
+                        }
+                        break;
+                    case "F":
+                        if (OverrideValue < 0)
+                        {
+                            axis = "B";
+                            OverrideValue = -OverrideValue;
+                        }
+                        break;
+                    case "B":
+                        if (OverrideValue < 0)
+                        {
+                            axis = "F";
+                            OverrideValue = -OverrideValue;
+                        }
+                        break;
+                }
+                SetOverrideN(axis, OverrideValue * this.remote_control.obj.CalculateShipMass().PhysicalMass);
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("PhysicalMass : " + Math.Round(this.remote_control.obj.CalculateShipMass().PhysicalMass) + "\n");
+                values.Append("Grav         : " + Math.Round(this.remote_control.obj.GetNaturalGravity().Length()) + "\n");
+                values.Append("------------------------------------------\n");
+                values.Append("UP MAX       : " + PText.GetThrust((float)UpThrMax) + "\n");
+                values.Append("DOWN MAX     : " + PText.GetThrust((float)DownThrMax) + "\n");
+                values.Append("Forward MAX  : " + PText.GetThrust((float)ForwardThrMax) + "\n");
+                values.Append("Backward MAX : " + PText.GetThrust((float)BackwardThrMax) + "\n");
+                values.Append("Left MAX     : " + PText.GetThrust((float)LeftThrMax) + "\n");
+                values.Append("Right MAX    : " + PText.GetThrust((float)RightThrMax) + "\n");
+                //values.Append("UP       : " + PText.GetThrust((float)UpThrust) + "\t, MAX : " + PText.GetThrust((float)UpThrMax) + "\n");
+                //values.Append("DOWN     : " + PText.GetThrust((float)DownThrust) + "\t, MAX : " + PText.GetThrust((float)DownThrMax) + "\n");
+                //values.Append("Forward  : " + PText.GetThrust((float)ForwardThrust) + "\t, MAX : " + PText.GetThrust((float)ForwardThrMax) + "\n");
+                //values.Append("Backward : " + PText.GetThrust((float)BackwardThrust) + "\t, MAX : " + PText.GetThrust((float)BackwardThrMax) + "\n");
+                //values.Append("Left     : " + PText.GetThrust((float)LeftThrust) + "\t, MAX : " + PText.GetThrust((float)LeftThrMax) + "\n");
+                //values.Append("Right    : " + PText.GetThrust((float)RightThrust) + "\t, MAX : " + PText.GetThrust((float)RightThrMax) + "\n");
+                return values.ToString();
+            }
+        }
+        public class Connector : BaseTerminalBlock<IMyShipConnector>
+        {
+            public MyShipConnectorStatus Status { get { return base.obj.Status; } }
+            public bool Connected { get { return base.obj.Status == MyShipConnectorStatus.Connected ? true : false; } }
+            public bool Unconnected { get { return base.obj.Status == MyShipConnectorStatus.Unconnected ? true : false; } }
+            public bool Connectable { get { return base.obj.Status == MyShipConnectorStatus.Connectable ? true : false; } }
+            public Connector(string name) : base(name) { if (base.obj != null) { } }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("КОННЕКТОР: " + (Connected ? green.ToString() : (Connectable ? yellow.ToString() : red.ToString())) + "\n");
+                return values.ToString();
+            }
+            public long? getRemoteConnector()
+            {
+                List<IMyShipConnector> list_conn = new List<IMyShipConnector>();
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn);
+                foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList())
+                { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 2) return conn.EntityId; }
+                return null;
+            }
+        }
+        public class Gyros : BaseListTerminalBlock<IMyGyro>
+        {
+            public Gyros(string name_obj) : base(name_obj) { }
+            public Gyros(string name_obj, string tag) : base(name_obj, tag) { }
+            public void SetOverride(bool OverrideOnOff, Vector3 settings, float Power = 1)
+            {
+                foreach (IMyGyro gyro in base.list_obj)
+                {
+                    if ((!gyro.GyroOverride) && OverrideOnOff)
+                        gyro.ApplyAction("Override");
+                    gyro.GyroPower = Power;
+                    gyro.Yaw = settings.GetDim(0);
+                    gyro.Pitch = settings.GetDim(1);
+                    gyro.Roll = settings.GetDim(2);
+                }
+            }
+            public void SetOverride(bool OverrideOnOff = true, float OverrideValue = 0, float Power = 1)
+            {
+                foreach (IMyGyro gyro in base.list_obj)
+                {
+                    if (((!gyro.GyroOverride) && OverrideOnOff) || ((gyro.GyroOverride) && !OverrideOnOff))
+                        gyro.ApplyAction("Override");
+                    gyro.GyroPower = Power;
+                    gyro.Yaw = OverrideValue;
+                    gyro.Pitch = OverrideValue;
+                    gyro.Roll = OverrideValue;
+                }
+            }
+            public string TextDebug()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("Yaw :" + base.list_obj.Select(g => g.Yaw).Average() + "\n");
+                values.Append("Pitch :" + base.list_obj.Select(g => g.Pitch).Average() + "\n");
+                values.Append("Roll :" + base.list_obj.Select(g => g.Roll).Average() + "\n");
+                return values.ToString();
+            }
+        }
         public class Navigation
         {
+            public enum programm : int
+            {
+                none = 0,
+                fly_connect_base1 = 1,   // лететь на базу1
+                fly_connect_base2 = 2,   // лететь на базу2
+            };
+            public static string[] name_programm = { "", "ПОЛЕТ НА БАЗУ 1", "ПОЛЕТ НА БАЗУ 2" };
+            programm curent_programm = programm.none;
+            public enum mode : int
+            {
+                none = 0,
+                base_operation = 1,
+                un_dock = 2,
+                to_base = 3,
+                dock = 4,
+            };
+            public static string[] name_mode = { "", "БАЗА", "РАСТЫКОВКА", "К БАЗЕ", "СТЫКОВКА" };
+            mode curent_mode = mode.none;
+            //------------------------------
+            public Vector3D MyPos { get; private set; }
+            public Vector3D MyPrevPos { get; private set; }
+            public Vector3D VelocityVector { get; private set; }
+            public Vector3D UpVelocityVector { get; private set; }
+            public Vector3D ForwVelocityVector { get; private set; }
+            public Vector3D LeftVelocityVector { get; private set; }
+            public Vector3D GravVector { get; private set; }
+            public float PhysicalMass { get; private set; } // Физическая масса
+            public MatrixD WMCocpit { get; private set; } //
+            public MatrixD OrientationCocpit { get; private set; } //
+            public float XMaxA { get; private set; }
+            public float YMaxA { get; private set; }
+            public float ZMaxA { get; private set; }
+            // ---------------------------------------
+            public double FlyHeight { get; set; }
+            public float Distance { get; private set; }
+            //----------------------------------------
+            public Vector3D PlanetCenter = new Vector3D(0.50, 0.50, 0.50);
+            //
+            private IMyShipController rc_current;
+            private string Curr_Connector { get; set; } = null;
+            private Vector3D Curr_BaseDockPoint = new Vector3D(0, 0, -200);
+            private Vector3D Curr_ConnectorPoint = new Vector3D(0, 0, 3);
+            public MatrixD Curr_DockMatrix { get; private set; }
+            //
+            private string ConnectorDockPoint1 { get; set; }
+            private Vector3D BaseDockPoint1 = new Vector3D(0, 0, -200);
+            private Vector3D ConnectorPoint1 = new Vector3D(0, 0, 3);
+            public MatrixD DockMatrix1 { get; private set; }
+            private string ConnectorDockPoint2 { get; set; }
+            private Vector3D BaseDockPoint2 = new Vector3D(0, 0, -200);
+            private Vector3D ConnectorPoint2 = new Vector3D(0, 0, 3);
+            public MatrixD DockMatrix2 { get; private set; }
+            public Navigation()
+            {
+                rc_current = (IMyShipController)cockpit;
+                thrusts.InitThrusts((BaseController)rc_current); // Привяжем трастеры к контроллеру
+                LoadFromStorage();
+                FindPlanetCenter();
+            }
+            public void UpdateCalc()
+            {
+                MyPrevPos = MyPos;
+                MyPos = rc_current.GetPosition();
+                GravVector = rc_current.GetNaturalGravity();
+                PhysicalMass = rc_current.CalculateShipMass().PhysicalMass;
+                WMCocpit = rc_current.WorldMatrix;
+                VelocityVector = (MyPos - MyPrevPos) * 6;
+                UpVelocityVector = WMCocpit.Up * Vector3D.Dot(VelocityVector, WMCocpit.Up);
+                ForwVelocityVector = WMCocpit.Forward * Vector3D.Dot(VelocityVector, WMCocpit.Forward);
+                LeftVelocityVector = WMCocpit.Left * Vector3D.Dot(VelocityVector, WMCocpit.Left);
+                OrientationCocpit = ((BaseController)rc_current).GetCockpitMatrix();
+                YMaxA = Math.Abs((float)Math.Min(thrusts.UpThrMax / PhysicalMass - GravVector.Length(), thrusts.DownThrMax / PhysicalMass + GravVector.Length()));
+                ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
+                XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
+                //cargos.Update();
+                //if (PhysicalMass > CriticalMass) { CriticalMassReached = true; } else { CriticalMassReached = false; }
+            }
+            //-------------------------------------
+            public Vector3D GetNavAngles(Vector3D Target, MatrixD InvMatrix, double sfiftX = 0, double shiftZ = 0)
+            {
+                Vector3D V3Dcenter = rc_current.GetPosition();
+                Vector3D V3Dfow = rc_current.WorldMatrix.Forward + V3Dcenter;
+                Vector3D V3Dup = rc_current.WorldMatrix.Up + V3Dcenter;
+                Vector3D V3Dleft = rc_current.WorldMatrix.Left + V3Dcenter;
+                Vector3D GravNorm = Vector3D.Normalize(GravVector) + V3Dcenter;
+                V3Dcenter = Vector3D.Transform(V3Dcenter, InvMatrix);
+                V3Dfow = (Vector3D.Transform(V3Dfow, InvMatrix)) - V3Dcenter;
+                V3Dup = (Vector3D.Transform(V3Dup, InvMatrix)) - V3Dcenter;
+                V3Dleft = (Vector3D.Transform(V3Dleft, InvMatrix)) - V3Dcenter;
+                GravNorm = Vector3D.Normalize((Vector3D.Transform(GravNorm, InvMatrix)) - V3Dcenter - new Vector3D(sfiftX, 0, shiftZ));
+                //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
+                double gF = GravNorm.Dot(V3Dfow);
+                double gL = GravNorm.Dot(V3Dleft);
+                double gU = GravNorm.Dot(V3Dup);
+                //Получаем сигналы по тангажу и крены операцией atan2
+                double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
+                double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+                Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
+                //Рысканием прицеливаемся на точку Target.
+                double tF = TargetNorm.Dot(V3Dfow);
+                double tL = TargetNorm.Dot(V3Dleft);
+                double TargetYaw = -(float)Math.Atan2(tL, tF);
+                if (double.IsNaN(TargetYaw)) TargetYaw = 0;
+                if (double.IsNaN(TargetPitch)) TargetPitch = 0;
+                if (double.IsNaN(TargetRoll)) TargetRoll = 0;
+                return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
+            }
+            public Vector3D GetNavAngles(Vector3D? Vector)
+            {
+                Vector3D GravNorm = Vector3D.Normalize(GravVector);
+                //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
+                double gF = GravNorm.Dot(rc_current.WorldMatrix.Forward);
+                double gL = GravNorm.Dot(rc_current.WorldMatrix.Left);
+                double gU = GravNorm.Dot(rc_current.WorldMatrix.Up);
+                //Получаем сигналы по тангажу и крены операцией atan2
+                double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
+                double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+                double TargetYaw = 0;
+                if (Vector != null)
+                {
+                    Vector3D TargetNorm = Vector3D.Normalize((Vector3D)Vector);
+                    //Рысканием прицеливаемся на точку Target.
+                    double tF = TargetNorm.Dot(rc_current.WorldMatrix.Forward);
+                    double tL = TargetNorm.Dot(rc_current.WorldMatrix.Left);
+                    TargetYaw = -(float)Math.Atan2(tL, tF);
+                }
+                if (double.IsNaN(TargetYaw)) TargetYaw = 0;
+                if (double.IsNaN(TargetPitch)) TargetPitch = 0;
+                if (double.IsNaN(TargetRoll)) TargetRoll = 0;
+                return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
+            }
+            //-------------------------------------
+            public MatrixD GetNormTransMatrixFromMyPos()
+            {
+                MatrixD mRot;
+                Vector3D V3Dcenter = MyPos;
+                Vector3D V3Dup = -Vector3D.Normalize(GravVector);
+                Vector3D V3Dleft = Vector3D.Normalize(Vector3D.Reject(WMCocpit.Left, V3Dup));
+                Vector3D V3Dfow = Vector3D.Normalize(Vector3D.Cross(V3Dleft, V3Dup));
+                mRot = new MatrixD(V3Dleft.GetDim(0), V3Dleft.GetDim(1), V3Dleft.GetDim(2), 0, V3Dup.GetDim(0), V3Dup.GetDim(1), V3Dup.GetDim(2), 0, V3Dfow.GetDim(0), V3Dfow.GetDim(1), V3Dfow.GetDim(2), 0, 0, 0, 0, 1);
+                mRot = MatrixD.Invert(mRot);
+                return new MatrixD(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -V3Dcenter.GetDim(0), -V3Dcenter.GetDim(1), -V3Dcenter.GetDim(2), 1) * mRot;
+            }
+            public void SetDockMatrix1()
+            {
+                if (con_d.Connected || con_b.Connected)
+                {
+                    DockMatrix1 = GetNormTransMatrixFromMyPos();
+                    ConnectorDockPoint1 = con_d.Connected ? "down" : "back";
+                    SaveToStorage();
+                }
+            }
+            public void SetDockMatrix2()
+            {
+                if (con_d.Connected || con_b.Connected)
+                {
+                    DockMatrix2 = GetNormTransMatrixFromMyPos();
+                    ConnectorDockPoint2 = con_d.Connected ? "down" : "back";
+                    SaveToStorage();
+                }
+            }
+            public void SetFlyHeight()
+            {
+                FlyHeight = (MyPos - PlanetCenter).Length();
+                BaseDockPoint1 = new Vector3D(0, 0, -200);
+                BaseDockPoint2 = new Vector3D(0, 0, -200);
+                SaveToStorage();
+            }
+            public void FindPlanetCenter()
+            {
+                if (cockpit.obj.TryGetPlanetPosition(out PlanetCenter)) { SaveToStorage(); }
+            }
+            //------------------------------------------------
+            public void GetCurrentBase(int num)
+            {
+                if (num == 1)
+                {
+                    Curr_Connector = ConnectorDockPoint1;
+                    Curr_BaseDockPoint = BaseDockPoint1;
+                    Curr_ConnectorPoint = ConnectorPoint1;
+                    Curr_DockMatrix = DockMatrix1;
+                }
+                else if (num == 2)
+                {
+                    Curr_Connector = ConnectorDockPoint2;
+                    Curr_BaseDockPoint = BaseDockPoint2;
+                    Curr_ConnectorPoint = ConnectorPoint2;
+                    Curr_DockMatrix = DockMatrix2;
+                }
+                else
+                {
+                    Curr_Connector = null;
+                    Curr_BaseDockPoint = Vector3D.Zero;
+                    Curr_ConnectorPoint = Vector3D.Zero;
+                    Curr_DockMatrix = MatrixD.Zero;
+                }
+                if (Curr_Connector == "down")
+                {
+                    rc_current = (IMyShipController)rc_d;
+                    thrusts.InitThrusts((BaseController)rc_current); // Привяжем трастеры к контроллеру
+                }
+                else if (Curr_Connector == "back")
+                {
+                    rc_current = (IMyShipController)rc_b;
+                    thrusts.InitThrusts((BaseController)rc_current); // Привяжем трастеры к контроллеру                
+                }
+                else
+                {
+                    rc_current = (IMyShipController)cockpit;
+                    thrusts.InitThrusts((BaseController)rc_current); // Привяжем трастеры к контроллеру
+                }
+            }
+            public bool ToBase()
+            {
+                bool Complete = false;
+                if (string.IsNullOrWhiteSpace(Curr_Connector)) return Complete;
+                float MaxUSpeed, MaxFSpeed;
+                Vector3D gyrAng = GetNavAngles(Curr_BaseDockPoint, Curr_DockMatrix);
+                Vector3D MyPosCon = Vector3D.Transform(MyPos, Curr_DockMatrix);
+                Distance = (float)(Curr_BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
+                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(FlyHeight - (MyPos - PlanetCenter).Length()) * YMaxA) / 1.2f;
+                MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 1.2f;
+                gyros.SetOverride(true, gyrAng * GyroMult, 1);
+                thrusts.SetOverridePercent("R", 0);
+                thrusts.SetOverridePercent("L", 0);
+                if (UpVelocityVector.Length() < MaxUSpeed)
+                    thrusts.SetOverrideAccel("U", (float)((FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
+                else
+                {
+                    thrusts.SetOverridePercent("U", 0);
+                }
+                if (Distance > TargetSize)
+                {
+                    if (ForwVelocityVector.Length() < MaxFSpeed)
+                    {
+                        thrusts.SetOverrideAccel("F", (float)(Distance * AlignAccelMult));
+                        thrusts.SetOverridePercent("B", 0);
+                    }
+                    else
+                    {
+                        thrusts.SetOverridePercent("F", 0);
+                        thrusts.SetOverridePercent("B", 0);
+                    }
+                }
+                else
+                {
+                    thrusts.ClearThrustOverridePersent();
+                    gyros.SetOverride(false, 1);
+                    curent_mode = mode.none;
+                    Complete = true;
+                }
+                OutStatusMode(MaxFSpeed, MaxUSpeed, 0);
+                return Complete;
+            }
+            public bool Dock()
+            {
+
+                bool Complete = false;
+                if (string.IsNullOrWhiteSpace(Curr_Connector)) return Complete;
+                float MaxUSpeed, MaxLSpeed, MaxFSpeed;
+                Vector3D MyPosCon = Vector3D.Transform(MyPos, Curr_DockMatrix);
+                Vector3D gyrAng = GetNavAngles(Curr_ConnectorPoint, Curr_DockMatrix);
+                Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, Curr_DockMatrix)))).Length() + Curr_ConnectorPoint.Length());
+
+                MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 2;
+                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 2;
+                MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 2;
+                if (Distance < 15)
+                    MaxFSpeed = MaxFSpeed / 5;
+                if (Math.Abs(MyPosCon.GetDim(1)) < 1)
+                    MaxUSpeed = 0.1f;
+                gyros.SetOverride(true, gyrAng * GyroMult, 1);
+                if (LeftVelocityVector.Length() < MaxLSpeed)
+                    thrusts.SetOverrideAccel("R", (float)(MyPosCon.GetDim(0) * AlignAccelMult));
+                else
+                {
+                    thrusts.SetOverridePercent("R", 0);
+                    thrusts.SetOverridePercent("L", 0);
+                }
+                float UpAccel = -(float)(MyPosCon.GetDim(1) * AlignAccelMult);
+                float minUpAccel = 0.3f;
+                if ((UpAccel < 0) && (UpAccel > -minUpAccel))
+                    UpAccel = -minUpAccel;
+                if ((UpAccel > 0) && (UpAccel < minUpAccel))
+                    UpAccel = minUpAccel;
+                if (UpVelocityVector.Length() < MaxUSpeed)
+                    thrusts.SetOverrideAccel("U", UpAccel);
+                else { thrusts.SetOverridePercent("U", 0); }
+                if (((Distance > 100) || ((Math.Abs(MyPosCon.GetDim(0)) < (Distance / 10 + 0.2f)) && (Math.Abs(MyPosCon.GetDim(1)) < (Distance / 10 + 0.2f)))) && (ForwVelocityVector.Length() < MaxFSpeed))
+                {
+                    thrusts.SetOverrideAccel("F", (float)(Distance * AlignAccelMult));
+                    thrusts.SetOverridePercent("B", 0);
+                }
+                else
+                {
+                    thrusts.SetOverridePercent("F", 0);
+                    thrusts.SetOverridePercent("B", 0);
+                }
+                if (Distance < 6)
+                {
+                    if (con_b.Status == MyShipConnectorStatus.Connectable)
+                    {
+                        con_b.obj.Connect();
+                    }
+                    if (con_d.Status == MyShipConnectorStatus.Connectable)
+                    {
+                        con_d.obj.Connect();
+                    }
+                    if (con_b.Status == MyShipConnectorStatus.Connected || con_d.Status == MyShipConnectorStatus.Connected)
+                    {
+                        thrusts.ClearThrustOverridePersent();
+                        gyros.SetOverride(false, 1);
+                        curent_mode = mode.none;
+                        Complete = true;
+                    }
+                }
+                OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed);
+                return Complete;
+            }
+            public bool UnDock()
+            {
+                bool Complete = false;
+                if (string.IsNullOrWhiteSpace(Curr_Connector)) return Complete;
+                Distance = 0;
+                if (con_b.Status == MyShipConnectorStatus.Connected) con_b.obj.Disconnect();
+                if (con_d.Status == MyShipConnectorStatus.Connected) con_d.obj.Disconnect();
+                if (con_b.Status != MyShipConnectorStatus.Connected && con_d.Status != MyShipConnectorStatus.Connected)
+                {
+                    Vector3D MyPosCon = Vector3D.Transform(MyPos, Curr_DockMatrix);
+                    Vector3D gyrAng = GetNavAngles(Curr_ConnectorPoint, Curr_DockMatrix);
+                    Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, Curr_DockMatrix)))).Length() + Curr_ConnectorPoint.Length());
+                    gyros.SetOverride(true, gyrAng * GyroMult, 1);
+                    thrusts.SetOverridePercent("U", 0);
+                    thrusts.SetOverridePercent("R", 0);
+                    thrusts.SetOverridePercent("L", 0);
+                    thrusts.SetOverridePercent("F", 0);
+                    thrusts.SetOverrideAccel("B", 3);
+                    if (Distance > 50)
+                    {
+                        thrusts.SetOverrideAccel("B", 0);
+                        Complete = true;
+                    }
+                }
+                OutStatusMode(0, 0, 0);
+                return Complete;
+            }
+            //------------------------------------------------
+            public void OutStatusMode(float MaxFSpeed, float MaxUSpeed, float MaxLSpeed)
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append(" STATUS\n");
+                values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
+                values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
+                values.Append("DeltaHeight: " + Math.Round(FlyHeight - (MyPos - PlanetCenter).Length()).ToString() + "\n");
+                values.Append("Distance: " + Math.Round(Distance).ToString() + "\n");
+                values.Append("------------------------------------------\n");
+                values.Append("ZMaxA (F-B) : " + Math.Round(ZMaxA, 2).ToString() + "MaxFSpeed: " + Math.Round(MaxFSpeed, 2).ToString() + "\n");
+                values.Append("YMaxA (U-D) : " + Math.Round(YMaxA, 2).ToString() + "MaxUSpeed: " + Math.Round(MaxUSpeed, 2).ToString() + "\n");
+                values.Append("XMaxA (L-R) : " + Math.Round(XMaxA, 2).ToString() + "MaxLSpeed: " + Math.Round(MaxLSpeed, 2).ToString() + "\n");
+                values.Append(thrusts.TextInfo());
+                lcd_debug.OutText(values);
+            }
+            public double GetVal(string Key, string str)
+            {
+                string val = "0";
+                string pattern = @"(" + Key + "):([^:^;]+);";
+                System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(str.Replace("\n", ""), pattern);
+                if (match.Success)
+                {
+                    val = match.Groups[2].Value;
+                }
+                return Convert.ToDouble(val);
+            }
+            public int GetValInt(string Key, string str)
+            {
+                string val = "0";
+                string pattern = @"(" + Key + "):([^:^;]+);";
+                System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(str.Replace("\n", ""), pattern);
+                if (match.Success)
+                {
+                    val = match.Groups[2].Value;
+                }
+                return Convert.ToInt32(val);
+            }
+            public long GetValInt64(string Key, string str)
+            {
+                string val = "0";
+                string pattern = @"(" + Key + "):([^:^;]+);";
+                System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(str.Replace("\n", ""), pattern);
+                if (match.Success)
+                {
+                    val = match.Groups[2].Value;
+                }
+                return Convert.ToInt64(val);
+            }
+            public bool GetValBool(string Key, string str)
+            {
+                string val = "False";
+                string pattern = @"(" + Key + "):([^:^;]+);";
+                System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(str.Replace("\n", ""), pattern);
+                if (match.Success)
+                {
+                    val = match.Groups[2].Value;
+                }
+                return Convert.ToBoolean(val);
+            }
+            public void LoadFromStorage()
+            {
+                StringBuilder str = lcd_storage.GetText();
+            }
+            public void SaveToStorage()
+            {
+                StringBuilder values = new StringBuilder();
+
+                lcd_storage.OutText(values);
+            }
+            //------------------------------------------------
         }
     }
 }

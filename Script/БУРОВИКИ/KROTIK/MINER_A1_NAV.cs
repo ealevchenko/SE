@@ -1451,7 +1451,7 @@ namespace MINER_A1_NAV
                 bool Complete = false;
                 float MaxUSpeed, MaxFSpeed;
                 Vector3D gyrAng = GetNavAngles(BaseDockPoint, DockMatrix);
-                Vector3D point_to_base = connector_base1.point - (connector_base1.vector * connector_distance);
+                //Vector3D point_to_base = connector_base1.point - (connector_base1.vector * connector_distance);
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, DockMatrix);
                 Distance = (float)(BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(FlyHeight - (MyPos - PlanetCenter).Length()) * YMaxA) / 1.2f;
