@@ -1226,7 +1226,7 @@ namespace KROTIK_A1_NAV
                     }
                     else if (cockpit.obj.IsUnderControl)
                     {
-                        gyrAng.SetDim(0, remote_control.obj.RotationIndicator.Y);
+                        gyrAng.SetDim(0, cockpit.obj.RotationIndicator.Y);
                     }
                 }
                 gyros.SetOverride(true, gyrAng * GyroMult, 1);

@@ -28,9 +28,12 @@ namespace MUL_H2_NAV
     {
         // v1
         string NameObj = "[MUL-H2]";
+        static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
         static float GyroMult = 1f;
         static float AlignAccelMult = 0.3f;
         static float TargetSize = 100;
+        static float OnCharge = 0.2f;     // Процент заряда - вкл на под  заряд
+        static float OffCharge = 0.9f;    // Процент заряда - выкл под  заряд
 
         const char igreen = '\uE001';
         const char iblue = '\uE002';
@@ -43,6 +46,10 @@ namespace MUL_H2_NAV
 
         static LCD lcd_storage;
         static LCD lcd_debug;
+        static LCD lcd_info_1;
+        static LCD lcd_info_2;
+        static LCD lcd_info_3;
+        static Batterys batterys;
         static Cockpit cockpit;
         static RemoteControl rc_d;
         static RemoteControl rc_b;
@@ -50,6 +57,7 @@ namespace MUL_H2_NAV
         static Connector con_b;
         static Thrusts thrusts;
         static Gyros gyros;
+        Navigation navigation;
         static Program _scr;
         public class PText
         {
@@ -344,13 +352,18 @@ namespace MUL_H2_NAV
             _scr = this;
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
+            lcd_info_1 = new LCD(NameObj + "-LCD-INFO-1");
+            lcd_info_2 = new LCD(NameObj + "-LCD-INFO-2");
+            lcd_info_3 = new LCD(NameObj + "-LCD-INFO-3");
             cockpit = new Cockpit(NameObj + "-Cocpit [LCD]");
+            batterys = new Batterys(NameObj);
             rc_d = new RemoteControl(NameObj + "-RC parking down");
             rc_b = new RemoteControl(NameObj + "-RC parking back");
             con_d = new Connector(NameObj + "-Connector down");
             con_b = new Connector(NameObj + "-Connector back");
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj);
+            navigation = new Navigation();
         }
         public void Save()
         {
@@ -360,6 +373,8 @@ namespace MUL_H2_NAV
         public void Main(string argument, UpdateType updateSource)
         {
             StringBuilder values_info = new StringBuilder();
+            batterys.Logic(argument, updateSource);
+            navigation.Logic(argument, updateSource);
             switch (argument)
             {
                 default:
@@ -367,9 +382,14 @@ namespace MUL_H2_NAV
             }
             if (updateSource == UpdateType.Update10)
             {
-
+                values_info.Append(batterys.TextInfo());
+                values_info.Append("back:" + con_b.TextInfo());
+                values_info.Append("down:" + con_d.TextInfo());
+                values_info.Append(thrusts.TextInfo());
+                lcd_info_1.OutText(values_info);
+                lcd_info_2.OutText(navigation.TextInfo1(), false);
+                lcd_info_3.OutText(navigation.TextInfo2(), false);
             }
-            //values_info.Append(connector.TextInfo());
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
@@ -402,6 +422,100 @@ namespace MUL_H2_NAV
                     base.obj.ReadText(values);
                 }
                 return values;
+            }
+        }
+        public class Batterys : BaseListTerminalBlock<IMyBatteryBlock>
+        {
+            public int count_work_batterys { get { return list_obj.Where(n => !((IMyTerminalBlock)n).CustomName.Contains(tag_batterys_duty)).Count(); } }
+            public Batterys(string name_obj) : base(name_obj) { }
+            public Batterys(string name_obj, string tag) : base(name_obj, tag) { }
+            public float MaxPower() { return base.list_obj.Select(b => b.MaxStoredPower).Sum(); }
+            public float CurrentPower() { return base.list_obj.Select(b => b.CurrentStoredPower).Sum(); }
+            public float CurrentPersent() { return base.list_obj.Select(b => b.CurrentStoredPower).Sum() / base.list_obj.Select(b => b.MaxStoredPower).Sum(); }
+            public int CountCharger()
+            {
+                List<IMyBatteryBlock> res = base.list_obj.Where(b => ((IMyBatteryBlock)b).ChargeMode == ChargeMode.Recharge).ToList();
+                return res.Count();
+            }
+            public int CountAuto()
+            {
+                List<IMyBatteryBlock> res = base.list_obj.Where(b => ((IMyBatteryBlock)b).ChargeMode == ChargeMode.Auto).ToList();
+                return res.Count();
+            }
+            public float MaxInput()
+            {
+                return base.list_obj.Select(b => b.MaxInput).Sum();
+            }
+            public float MaxOutput()
+            {
+                return base.list_obj.Select(b => b.MaxOutput).Sum();
+            }
+            public float CurrentInput()
+            {
+                return base.list_obj.Select(b => b.CurrentInput).Sum();
+            }
+            public float CurrentOutput()
+            {
+                return base.list_obj.Select(b => b.CurrentOutput).Sum();
+            }
+            public bool IsCharger()
+            {
+                int count_charger = CountCharger();
+                return count_work_batterys > 0 && count_charger > 0 && count_work_batterys == count_charger ? true : false;
+            }
+            public bool IsAuto()
+            {
+                int count_auto = CountAuto();
+                return Count > 0 && count_auto > 0 && Count == count_auto ? true : false;
+            }
+            public void Charger()
+            {
+                foreach (IMyBatteryBlock obj in base.list_obj)
+                {
+                    // проверка батарея дежурного режима
+                    if (!obj.CustomName.Contains(tag_batterys_duty))
+                    {
+                        obj.ChargeMode = ChargeMode.Recharge;
+                    }
+                }
+            }
+            public void Auto()
+            {
+                foreach (IMyBatteryBlock obj in base.list_obj)
+                {
+                    obj.ChargeMode = ChargeMode.Auto;
+                }
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    default:
+                        break;
+                }
+
+                if (updateSource == UpdateType.Update10)
+                {
+
+                }
+
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("БАТАРЕЯ :[" + Count + "]" + "\n");
+                values.Append("|- ЗАРЯД: " + PText.GetCurrentOfMax(CurrentPower(), MaxPower(), "W") + "\n");
+                float max = MaxPower();
+                values.Append("|  " + PText.GetScalePersent(max > 0f ? CurrentPower() / MaxPower() : 0f, 40) + "\n");
+                int count = CountCharger();
+                values.Append("|- IN   : [" + count + "] " + (count > 0 ? green.ToString() : yellow.ToString()) + " " + PText.GetCurrentOfMax(CurrentInput(), MaxInput(), "W") + "\n");
+                max = MaxInput();
+                values.Append("|  " + PText.GetScalePersent(max > 0f ? CurrentInput() / MaxInput() : 0f, 40) + "\n");
+                count = CountAuto();
+                values.Append("|- OUT  : [" + count + "] " + (count > 0 ? green.ToString() : yellow.ToString()) + " " + PText.GetCurrentOfMax(CurrentOutput(), MaxOutput(), "W") + "\n");
+                max = MaxOutput();
+                values.Append("|  " + PText.GetScalePersent(max > 0f ? CurrentOutput() / MaxOutput() : 0f, 40) + "\n");
+                return values.ToString();
             }
         }
         public class Cockpit : BaseController { public Cockpit(string name) : base(name) { } }
@@ -557,6 +671,19 @@ namespace MUL_H2_NAV
                 {
                     case "U":
                         OverrideValue += (float)this.remote_control.obj.GetNaturalGravity().Length();
+                        if (OverrideValue < 0)
+                        {
+                            axis = "D";
+                            OverrideValue = -OverrideValue;
+                        }
+                        break;
+                    case "D":
+                        OverrideValue += (float)this.remote_control.obj.GetNaturalGravity().Length();
+                        if (OverrideValue < 0)
+                        {
+                            axis = "U";
+                            OverrideValue = -OverrideValue;
+                        }
                         break;
                     case "L":
                         if (OverrideValue < 0)
@@ -671,6 +798,10 @@ namespace MUL_H2_NAV
         }
         public class Navigation
         {
+            public bool horizont { get; private set; } = false;  // держим горизонтальное направление
+            public bool go_home = false; // вернутся домой и остатся
+            public bool paused = false;
+            public Vector3D? TackVector { get; set; } = null;
             public enum programm : int
             {
                 none = 0,
@@ -698,7 +829,7 @@ namespace MUL_H2_NAV
             public Vector3D LeftVelocityVector { get; private set; }
             public Vector3D GravVector { get; private set; }
             public float PhysicalMass { get; private set; } // Физическая масса
-            public MatrixD WMCocpit { get; private set; } //
+            public MatrixD WMCPocpit { get; private set; } //
             public MatrixD OrientationCocpit { get; private set; } //
             public float XMaxA { get; private set; }
             public float YMaxA { get; private set; }
@@ -736,11 +867,11 @@ namespace MUL_H2_NAV
                 MyPos = rc_current.GetPosition();
                 GravVector = rc_current.GetNaturalGravity();
                 PhysicalMass = rc_current.CalculateShipMass().PhysicalMass;
-                WMCocpit = rc_current.WorldMatrix;
+                WMCPocpit = rc_current.WorldMatrix;
                 VelocityVector = (MyPos - MyPrevPos) * 6;
-                UpVelocityVector = WMCocpit.Up * Vector3D.Dot(VelocityVector, WMCocpit.Up);
-                ForwVelocityVector = WMCocpit.Forward * Vector3D.Dot(VelocityVector, WMCocpit.Forward);
-                LeftVelocityVector = WMCocpit.Left * Vector3D.Dot(VelocityVector, WMCocpit.Left);
+                UpVelocityVector = WMCPocpit.Up * Vector3D.Dot(VelocityVector, WMCPocpit.Up);
+                ForwVelocityVector = WMCPocpit.Forward * Vector3D.Dot(VelocityVector, WMCPocpit.Forward);
+                LeftVelocityVector = WMCPocpit.Left * Vector3D.Dot(VelocityVector, WMCPocpit.Left);
                 OrientationCocpit = ((BaseController)rc_current).GetCockpitMatrix();
                 YMaxA = Math.Abs((float)Math.Min(thrusts.UpThrMax / PhysicalMass - GravVector.Length(), thrusts.DownThrMax / PhysicalMass + GravVector.Length()));
                 ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
@@ -808,7 +939,7 @@ namespace MUL_H2_NAV
                 MatrixD mRot;
                 Vector3D V3Dcenter = MyPos;
                 Vector3D V3Dup = -Vector3D.Normalize(GravVector);
-                Vector3D V3Dleft = Vector3D.Normalize(Vector3D.Reject(WMCocpit.Left, V3Dup));
+                Vector3D V3Dleft = Vector3D.Normalize(Vector3D.Reject(WMCPocpit.Left, V3Dup));
                 Vector3D V3Dfow = Vector3D.Normalize(Vector3D.Cross(V3Dleft, V3Dup));
                 mRot = new MatrixD(V3Dleft.GetDim(0), V3Dleft.GetDim(1), V3Dleft.GetDim(2), 0, V3Dup.GetDim(0), V3Dup.GetDim(1), V3Dup.GetDim(2), 0, V3Dfow.GetDim(0), V3Dfow.GetDim(1), V3Dfow.GetDim(2), 0, 0, 0, 0, 1);
                 mRot = MatrixD.Invert(mRot);
@@ -844,6 +975,22 @@ namespace MUL_H2_NAV
                 if (cockpit.obj.TryGetPlanetPosition(out PlanetCenter)) { SaveToStorage(); }
             }
             //------------------------------------------------
+            public void Horizon()
+            {
+                Vector3D gyrAng = GetNavAngles(TackVector);
+                if (TackVector == null)
+                {
+                    if (rc_current.IsUnderControl)
+                    {
+                        gyrAng.SetDim(0, rc_current.RotationIndicator.Y);
+                    }
+                    else if (cockpit.obj.IsUnderControl)
+                    {
+                        gyrAng.SetDim(0, cockpit.obj.RotationIndicator.Y);
+                    }
+                }
+                gyros.SetOverride(true, gyrAng * GyroMult, 1);
+            }
             public void GetCurrentBase(int num)
             {
                 if (num == 1)
@@ -883,6 +1030,34 @@ namespace MUL_H2_NAV
                     thrusts.InitThrusts((BaseController)rc_current); // Привяжем трастеры к контроллеру
                 }
             }
+            public void Pause(bool enable)
+            {
+                if (enable)
+                {
+                    thrusts.ClearThrustOverridePersent();
+                    gyros.SetOverride(false, 1);
+                    paused = true;
+                }
+                else { paused = false; }
+                SaveToStorage();
+            }
+            public void Clear()
+            {
+                thrusts.ClearThrustOverridePersent();
+                gyros.SetOverride(false, 1);
+                curent_mode = mode.none;
+                SaveToStorage();
+            }
+            public void Stop()
+            {
+                thrusts.ClearThrustOverridePersent();
+                gyros.SetOverride(false, 1);
+                curent_mode = mode.none;
+                curent_programm = programm.none;
+                go_home = false;
+                paused = false;
+                SaveToStorage();
+            }
             public bool ToBase()
             {
                 bool Complete = false;
@@ -917,9 +1092,7 @@ namespace MUL_H2_NAV
                 }
                 else
                 {
-                    thrusts.ClearThrustOverridePersent();
-                    gyros.SetOverride(false, 1);
-                    curent_mode = mode.none;
+                    Clear();
                     Complete = true;
                 }
                 OutStatusMode(MaxFSpeed, MaxUSpeed, 0);
@@ -981,9 +1154,7 @@ namespace MUL_H2_NAV
                     }
                     if (con_b.Status == MyShipConnectorStatus.Connected || con_d.Status == MyShipConnectorStatus.Connected)
                     {
-                        thrusts.ClearThrustOverridePersent();
-                        gyros.SetOverride(false, 1);
-                        curent_mode = mode.none;
+                        Clear();
                         Complete = true;
                     }
                 }
@@ -1080,14 +1251,190 @@ namespace MUL_H2_NAV
             public void LoadFromStorage()
             {
                 StringBuilder str = lcd_storage.GetText();
+                curent_programm = (programm)GetValInt("curent_programm", str.ToString());
+                curent_mode = (mode)GetValInt("curent_mode", str.ToString());
+                FlyHeight = GetVal("FlyHeight", str.ToString());
+                DockMatrix1 = new MatrixD(GetVal("MCP11", str.ToString()), GetVal("MCP12", str.ToString()), GetVal("MCP13", str.ToString()), GetVal("MCP14", str.ToString()),
+                GetVal("MCP21", str.ToString()), GetVal("MCP22", str.ToString()), GetVal("MCP23", str.ToString()), GetVal("MCP24", str.ToString()),
+                GetVal("MCP31", str.ToString()), GetVal("MCP32", str.ToString()), GetVal("MCP33", str.ToString()), GetVal("MCP34", str.ToString()),
+                GetVal("MCP41", str.ToString()), GetVal("MCP42", str.ToString()), GetVal("MCP43", str.ToString()), GetVal("MCP44", str.ToString()));
+                DockMatrix2 = new MatrixD(GetVal("MCS11", str.ToString()), GetVal("MCS12", str.ToString()), GetVal("MCS13", str.ToString()), GetVal("MCS14", str.ToString()),
+                GetVal("MCS21", str.ToString()), GetVal("MCS22", str.ToString()), GetVal("MCS23", str.ToString()), GetVal("MCS24", str.ToString()),
+                GetVal("MCS31", str.ToString()), GetVal("MCS32", str.ToString()), GetVal("MCS33", str.ToString()), GetVal("MCS34", str.ToString()),
+                GetVal("MCS41", str.ToString()), GetVal("MCS42", str.ToString()), GetVal("MCS43", str.ToString()), GetVal("MCS44", str.ToString()));
+                PlanetCenter = new Vector3D(GetVal("PX", str.ToString()), GetVal("PY", str.ToString()), GetVal("PZ", str.ToString()));
+                BaseDockPoint1 = new Vector3D(0, 0, -200);
+                BaseDockPoint2 = new Vector3D(0, 0, -200);
             }
             public void SaveToStorage()
             {
                 StringBuilder values = new StringBuilder();
+                values.Append("curent_programm: " + ((int)curent_programm).ToString() + ";\n");
+                values.Append("curent_mode: " + ((int)curent_mode).ToString() + ";\n");
 
+                values.Append("FlyHeight: " + Math.Round(FlyHeight, 0) + ";\n");
+                values.Append("ConnectorDockPoint1: " + ConnectorDockPoint1 + ";\n");
+                values.Append("ConnectorDockPoint2: " + ConnectorDockPoint2 + ";\n");
+                values.Append(DockMatrix1.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "MCP"));
+                values.Append(DockMatrix2.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "MCS"));
+                values.Append(PlanetCenter.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PX").Replace("Y", "PY").Replace("Z", "PZ") + ";\n");
                 lcd_storage.OutText(values);
             }
             //------------------------------------------------
+            public string TextInfo1()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("СКОРОСТЬ    : " + Math.Round(cockpit.obj.GetShipSpeed(), 2) + "\n");
+                values.Append("ВЫСОТА    : " + Math.Round(cockpit.CurrentHeight, 2) + "\n");
+                values.Append("ГОРИЗОНТ    : " + (horizont ? green.ToString() : red.ToString()) + ",  Vector : " + (TackVector != null ? green.ToString() : red.ToString()) + "\n");
+                values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
+                values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
+                values.Append("ПАУЗА : " + (paused ? green.ToString() : red.ToString()) + "\n");
+                values.Append("ДОМОЙ : " + (go_home ? green.ToString() : red.ToString()) + "\n");
+                return values.ToString();
+            }
+            public string TextInfo2()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("Height            : " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(FlyHeight).ToString() + "\n");
+                values.Append("Distance          : " + Math.Round(Distance).ToString() + "\n");
+                //values.Append("Phys./Crit.(Mass) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? red.ToString() : green.ToString()) + "\n");
+                //values.Append("Volume/Mass       : " + cargos.CurrentVolume + " / " + cargos.CurrentMass + "\n");
+                values.Append("Батарея %         : " + PText.GetPersent(batterys.CurrentPersent()) + " " + (batterys.CurrentPersent() <= OnCharge ? red.ToString() : (batterys.CurrentPersent() >= OffCharge ? green.ToString() : yellow.ToString())) + "\n");
+                return values.ToString();
+            }
+            //------------------------------------------------
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    case "horizont":
+                        if (curent_programm == programm.none)
+                        {
+                            if (horizont)
+                            {
+                                horizont = false;
+                            }
+                            else
+                            {
+                                horizont = true;
+                            }
+                        }
+                        break;
+                    case "load":
+                        LoadFromStorage();
+                        break;
+                    case "save":
+                        SaveToStorage();
+                        break;
+                    case "pause":
+                        Pause(!paused);
+                        break;
+                    case "stop":
+                        Stop();
+                        break;
+                    case "clear":
+                        Clear();
+                        curent_programm = programm.none;
+                        break;
+                    case "save_height":
+                        SetFlyHeight();
+                        break;
+                    case "save_base1":
+                        SetDockMatrix1();
+                        break;
+                    case "save_base2":
+                        SetDockMatrix2();
+                        break;
+                    case "fly_base1":
+                        curent_programm = programm.fly_connect_base1;
+                        SaveToStorage();
+                        break;
+                    case "fly_base2":
+                        curent_programm = programm.fly_connect_base2;
+                        SaveToStorage();
+                        break;
+                    case "go_home":
+                        {
+                            go_home = true;
+                            break;
+                        }
+                    case "to_base":
+                        curent_mode = mode.to_base;
+                        SaveToStorage();
+                        break;
+                    case "dock":
+                        curent_mode = mode.dock;
+                        SaveToStorage();
+                        break;
+                    case "un_dock":
+                        curent_mode = mode.un_dock;
+                        SaveToStorage();
+                        break;
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+                    cockpit.Logic(argument, updateSource);
+                    if (!con_b.Connected && !con_d.Connected)
+                    {
+                        if (cockpit.CurrentHeight > 5.0f)
+                        {
+                            batterys.Auto();
+                            thrusts.On();
+                        }
+                    }
+                    else
+                    {
+                        // Припаркован
+                        batterys.Charger();
+                        thrusts.Off();
+                    }
+                    // Обновим состояние навигации
+                    UpdateCalc();
+                    if (curent_programm == programm.none)
+                    {
+                        if (horizont)
+                        {
+                            Horizon();
+                        }
+                        else
+                        {
+                            gyros.SetOverride(false, 1);
+                        }
+                    }
+                    if (curent_programm == programm.fly_connect_base1 && !paused)
+                    {
+                        //FlyConnectBase();
+                    }
+                    if (curent_programm == programm.fly_connect_base2 && !paused)
+                    {
+                        //FlyConnectBase();
+                    }
+                    if (curent_mode == mode.un_dock && !paused)
+                    {
+                        if (UnDock() && curent_programm == programm.none)
+                        {
+                            curent_mode = mode.none;
+                        }
+                    }
+                    if (curent_mode == mode.to_base && !paused)
+                    {
+                        if (ToBase() && curent_programm == programm.none)
+                        {
+                            curent_mode = mode.none;
+                        }
+                    }
+                    if (curent_mode == mode.dock && !paused)
+                    {
+                        if (Dock() && curent_programm == programm.none)
+                        {
+                            curent_mode = mode.none;
+                        }
+                    }
+                }
+            }
         }
     }
 }

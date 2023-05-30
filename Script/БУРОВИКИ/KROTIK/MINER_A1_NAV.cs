@@ -25,7 +25,7 @@ namespace MINER_A1_NAV
 {
     public sealed class Program : MyGridProgram
     {
-        // m.v1
+        // m.v2
         string NameObj = "[MINER_A1_X]";
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
         static string tag_ejector = "[ejector]"; // дежурная батарея
@@ -1232,7 +1232,7 @@ namespace MINER_A1_NAV
                     }
                     else if (cockpit.obj.IsUnderControl)
                     {
-                        gyrAng.SetDim(0, remote_control.obj.RotationIndicator.Y);
+                        gyrAng.SetDim(0, cockpit.obj.RotationIndicator.Y);
                     }
                 }
                 gyros.SetOverride(true, gyrAng * GyroMult, 1);
