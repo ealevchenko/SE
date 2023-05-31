@@ -1113,9 +1113,9 @@ namespace MUL_H2_NAV
                 Vector3D gyrAng = GetNavAngles(Curr_ConnectorPoint, Curr_DockMatrix);
                 Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, Curr_DockMatrix)))).Length() + Curr_ConnectorPoint.Length());
 
-                MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 2;
-                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 2;
-                MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 2;
+                MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 2.5f;
+                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 2.5f;
+                MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 2.5f;
                 if (Distance < 15)
                     MaxFSpeed = MaxFSpeed / 5;
                 if (Math.Abs(MyPosCon.GetDim(1)) < 1)
