@@ -1116,7 +1116,7 @@ namespace MUL_H2_NAV
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 2.5f;
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 2.5f;
                 MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 2.5f;
-                if (Distance < 15)
+                if (Distance < 25)
                     MaxFSpeed = MaxFSpeed / 5;
                 if (Math.Abs(MyPosCon.GetDim(1)) < 1)
                     MaxUSpeed = 0.1f;
@@ -1129,7 +1129,7 @@ namespace MUL_H2_NAV
                     thrusts.SetOverridePercent("L", 0);
                 }
                 float UpAccel = -(float)(MyPosCon.GetDim(1) * AlignAccelMult);
-                float minUpAccel = 0.3f;
+                float minUpAccel = 0.1f;
                 if ((UpAccel < 0) && (UpAccel > -minUpAccel))
                     UpAccel = -minUpAccel;
                 if ((UpAccel > 0) && (UpAccel < minUpAccel))
@@ -1147,7 +1147,7 @@ namespace MUL_H2_NAV
                     thrusts.SetOverridePercent("F", 0);
                     thrusts.SetOverridePercent("B", 0);
                 }
-                if (Distance < 6)
+                if (Distance < 12)
                 {
                     if (con_b.Status == MyShipConnectorStatus.Connectable)
                     {
