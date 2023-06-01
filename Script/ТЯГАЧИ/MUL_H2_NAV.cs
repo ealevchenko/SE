@@ -798,7 +798,8 @@ namespace MUL_H2_NAV
         }
         public class Navigation
         {
-            public bool horizont { get; private set; } = false;  // держим горизонтальное направление
+            //public bool horizont { get; private set; } = false;  // держим горизонтальное направление
+            public string axis_horizont { get; private set; } = null;  // Ось горизонтальнго направлениея
             public bool go_home = false; // вернутся домой и остатся
             public bool paused = false;
             public Vector3D? TackVector { get; set; } = null;
@@ -890,6 +891,11 @@ namespace MUL_H2_NAV
                 Vector3D V3Dup = rc_current.obj.WorldMatrix.Up + V3Dcenter;
                 Vector3D V3Dleft = rc_current.obj.WorldMatrix.Left + V3Dcenter;
                 Vector3D GravNorm = Vector3D.Normalize(GravVector) + V3Dcenter;
+
+                //double gF = GravNorm.Dot(cockpit._obj.WorldMatrix.Down);
+                //double gL = GravNorm.Dot(cockpit._obj.WorldMatrix.Left);
+                //double gU = GravNorm.Dot(cockpit._obj.WorldMatrix.Forward);
+
                 V3Dcenter = Vector3D.Transform(V3Dcenter, InvMatrix);
                 V3Dfow = (Vector3D.Transform(V3Dfow, InvMatrix)) - V3Dcenter;
                 V3Dup = (Vector3D.Transform(V3Dup, InvMatrix)) - V3Dcenter;
@@ -912,13 +918,31 @@ namespace MUL_H2_NAV
                 if (double.IsNaN(TargetRoll)) TargetRoll = 0;
                 return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
             }
-            public Vector3D GetNavAngles(Vector3D? Vector)
+            public Vector3D GetNavAngles(Vector3D? Vector, string axis)
             {
                 Vector3D GravNorm = Vector3D.Normalize(GravVector);
+                double gF = 0;
+                double gL = 0;
+                double gU = 0;
                 //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
-                double gF = GravNorm.Dot(rc_current.obj.WorldMatrix.Forward);
-                double gL = GravNorm.Dot(rc_current.obj.WorldMatrix.Left);
-                double gU = GravNorm.Dot(rc_current.obj.WorldMatrix.Up);
+                if (axis == "")
+                {
+                    gF = GravNorm.Dot(cockpit.obj.WorldMatrix.Forward);
+                    gL = GravNorm.Dot(cockpit.obj.WorldMatrix.Left);
+                    gU = GravNorm.Dot(cockpit.obj.WorldMatrix.Up);
+                }
+                else if (axis == "B")
+                {
+                    gF = GravNorm.Dot(cockpit.obj.WorldMatrix.Down);
+                    gL = GravNorm.Dot(cockpit.obj.WorldMatrix.Left);
+                    gU = GravNorm.Dot(cockpit.obj.WorldMatrix.Forward);
+                }
+                else if (axis == "F")
+                {
+                    gF = GravNorm.Dot(cockpit.obj.WorldMatrix.Up);
+                    gL = GravNorm.Dot(cockpit.obj.WorldMatrix.Right);
+                    gU = GravNorm.Dot(cockpit.obj.WorldMatrix.Backward);
+                }
                 //Получаем сигналы по тангажу и крены операцией atan2
                 double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
                 double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
@@ -927,8 +951,8 @@ namespace MUL_H2_NAV
                 {
                     Vector3D TargetNorm = Vector3D.Normalize((Vector3D)Vector);
                     //Рысканием прицеливаемся на точку Target.
-                    double tF = TargetNorm.Dot(rc_current.obj.WorldMatrix.Forward);
-                    double tL = TargetNorm.Dot(rc_current.obj.WorldMatrix.Left);
+                    double tF = TargetNorm.Dot(cockpit.obj.WorldMatrix.Forward);
+                    double tL = TargetNorm.Dot(cockpit.obj.WorldMatrix.Left);
                     TargetYaw = -(float)Math.Atan2(tL, tF);
                 }
                 if (double.IsNaN(TargetYaw)) TargetYaw = 0;
@@ -941,8 +965,10 @@ namespace MUL_H2_NAV
             {
                 MatrixD mRot;
                 Vector3D V3Dcenter = MyPos;
-                Vector3D V3Dup = -Vector3D.Normalize(GravVector);
-                //Vector3D V3Dup = Vector3D.Zero;
+                Vector3D V3Dup = WMCPocpit.Up;
+                if (GravVector.LengthSquared() > 0.2f)
+                    V3Dup = -Vector3D.Normalize(GravVector);
+                //Vector3D V3Dup = -Vector3D.Normalize(GravVector);
                 Vector3D V3Dleft = Vector3D.Normalize(Vector3D.Reject(WMCPocpit.Left, V3Dup));
                 Vector3D V3Dfow = Vector3D.Normalize(Vector3D.Cross(V3Dleft, V3Dup));
                 mRot = new MatrixD(V3Dleft.GetDim(0), V3Dleft.GetDim(1), V3Dleft.GetDim(2), 0, V3Dup.GetDim(0), V3Dup.GetDim(1), V3Dup.GetDim(2), 0, V3Dfow.GetDim(0), V3Dfow.GetDim(1), V3Dfow.GetDim(2), 0, 0, 0, 0, 1);
@@ -981,14 +1007,10 @@ namespace MUL_H2_NAV
             //------------------------------------------------
             public void Horizon()
             {
-                Vector3D gyrAng = GetNavAngles(TackVector);
+                Vector3D gyrAng = GetNavAngles(TackVector, axis_horizont);
                 if (TackVector == null)
                 {
-                    if (rc_current.obj.IsUnderControl)
-                    {
-                        gyrAng.SetDim(0, rc_current.obj.RotationIndicator.Y);
-                    }
-                    else if (cockpit.obj.IsUnderControl)
+                    if (cockpit.obj.IsUnderControl)
                     {
                         gyrAng.SetDim(0, cockpit.obj.RotationIndicator.Y);
                     }
@@ -1055,12 +1077,13 @@ namespace MUL_H2_NAV
             }
             public void Stop()
             {
-                thrusts.ClearThrustOverridePersent();
-                gyros.SetOverride(false, 1);
-                curent_mode = mode.none;
+                Clear();
+                rc_current = cockpit;
+                thrusts.InitThrusts(rc_current);              
                 curent_programm = programm.none;
                 go_home = false;
                 paused = false;
+
                 SaveToStorage();
             }
             public bool ToBase()
@@ -1217,7 +1240,7 @@ namespace MUL_H2_NAV
                 if (match.Success)
                 {
                     val = match.Groups[2].Value.Trim();
-                    if (val=="null") val = null;
+                    if (val == "null") val = null;
                 }
                 return val;
             }
@@ -1304,7 +1327,7 @@ namespace MUL_H2_NAV
                 StringBuilder values = new StringBuilder();
                 values.Append("СКОРОСТЬ    : " + Math.Round(cockpit.obj.GetShipSpeed(), 2) + "\n");
                 values.Append("ВЫСОТА    : " + Math.Round(cockpit.CurrentHeight, 2) + "\n");
-                values.Append("ГОРИЗОНТ    : " + (horizont ? green.ToString() : red.ToString()) + ",  Vector : " + (TackVector != null ? green.ToString() : red.ToString()) + "\n");
+                values.Append("ГОРИЗОНТ    : " + (axis_horizont!=null ? green.ToString() : red.ToString()) + ",  Vector : " + (TackVector != null ? green.ToString() : red.ToString()) + "\n");
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
                 values.Append("ПАУЗА : " + (paused ? green.ToString() : red.ToString()) + "\n");
@@ -1340,18 +1363,14 @@ namespace MUL_H2_NAV
                     case "D+":
                         thrusts.SetOverridePercent("D", 1f);
                         break;
-                    case "horizont":
-                        if (curent_programm == programm.none)
-                        {
-                            if (horizont)
-                            {
-                                horizont = false;
-                            }
-                            else
-                            {
-                                horizont = true;
-                            }
-                        }
+                    case "dh":
+                        if (curent_programm == programm.none) { if (axis_horizont == "D") { axis_horizont = null; } else { axis_horizont = "D"; } }
+                        break;
+                    case "df":
+                        if (curent_programm == programm.none) { if (axis_horizont == "F") { axis_horizont = null; } else { axis_horizont = "F"; } }
+                        break;
+                    case "db":
+                        if (curent_programm == programm.none) { if (axis_horizont == "B") { axis_horizont = null; } else { axis_horizont = "B"; } }
                         break;
                     case "load":
                         LoadFromStorage();
@@ -1430,7 +1449,7 @@ namespace MUL_H2_NAV
                     UpdateCalc();
                     if (curent_programm == programm.none)
                     {
-                        if (horizont)
+                        if (axis_horizont!=null)
                         {
                             Horizon();
                         }
