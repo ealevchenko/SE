@@ -859,10 +859,7 @@ namespace MUL_H2_NAV
             public string status { get; set; }
             public Navigation()
             {
-                rc_current = cockpit;
-                thrusts.InitThrusts(rc_current); // Привяжем трастеры к контроллеру
-                LoadFromStorage();
-                FindPlanetCenter();
+                SetRCDefault(); LoadFromStorage(); FindPlanetCenter();
             }
             public void UpdateCalc()
             {
@@ -884,7 +881,7 @@ namespace MUL_H2_NAV
                 //if (PhysicalMass > CriticalMass) { CriticalMassReached = true; } else { CriticalMassReached = false; }
             }
             //-------------------------------------
-            public Vector3D GetNavAngles(Vector3D Target, MatrixD InvMatrix, double sfiftX = 0, double shiftZ = 0)
+            public Vector3D GetNavAngles(Vector3D Target, MatrixD InvMatrix)
             {
                 Vector3D V3Dcenter = rc_current.obj.GetPosition();
                 Vector3D V3Dfow = rc_current.obj.WorldMatrix.Forward + V3Dcenter;
@@ -896,7 +893,7 @@ namespace MUL_H2_NAV
                 V3Dfow = (Vector3D.Transform(V3Dfow, InvMatrix)) - V3Dcenter;
                 V3Dup = (Vector3D.Transform(V3Dup, InvMatrix)) - V3Dcenter;
                 V3Dleft = (Vector3D.Transform(V3Dleft, InvMatrix)) - V3Dcenter;
-                GravNorm = Vector3D.Normalize((Vector3D.Transform(GravNorm, InvMatrix)) - V3Dcenter - new Vector3D(sfiftX, 0, shiftZ));
+                GravNorm = Vector3D.Normalize((Vector3D.Transform(GravNorm, InvMatrix)) - V3Dcenter);
                 //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
                 double gF = GravNorm.Dot(V3Dfow);
                 double gL = GravNorm.Dot(V3Dleft);
@@ -912,6 +909,36 @@ namespace MUL_H2_NAV
                 if (double.IsNaN(TargetYaw)) TargetYaw = 0;
                 if (double.IsNaN(TargetPitch)) TargetPitch = 0;
                 if (double.IsNaN(TargetRoll)) TargetRoll = 0;
+                return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
+            }
+            public Vector3D GetNavAnglesDown(Vector3D Target, MatrixD InvMatrix)
+            {
+                Vector3D V3Dcenter = rc_current.obj.GetPosition();
+                Vector3D V3Dfow = rc_current.obj.WorldMatrix.Down + V3Dcenter;
+                Vector3D V3Dup = rc_current.obj.WorldMatrix.Left + V3Dcenter;
+                Vector3D V3Dleft = rc_current.obj.WorldMatrix.Forward + V3Dcenter;
+                Vector3D GravNorm = Vector3D.Normalize(GravVector) + V3Dcenter;
+
+                V3Dcenter = Vector3D.Transform(V3Dcenter, InvMatrix);
+                V3Dfow = (Vector3D.Transform(V3Dfow, InvMatrix)) - V3Dcenter;
+                V3Dup = (Vector3D.Transform(V3Dup, InvMatrix)) - V3Dcenter;
+                V3Dleft = (Vector3D.Transform(V3Dleft, InvMatrix)) - V3Dcenter;
+                GravNorm = Vector3D.Normalize((Vector3D.Transform(GravNorm, InvMatrix)) - V3Dcenter);
+                //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
+                double gF = GravNorm.Dot(V3Dfow);
+                double gL = GravNorm.Dot(V3Dleft);
+                double gU = GravNorm.Dot(V3Dup);
+                //Получаем сигналы по тангажу и крены операцией atan2
+                double TargetYaw = (float)Math.Atan2(gL, -gU); // крен
+                double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+                Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
+                //Рысканием прицеливаемся на точку Target.
+                double tF = TargetNorm.Dot(V3Dfow);
+                double tL = TargetNorm.Dot(V3Dleft);
+                double TargetRoll = -(float)Math.Atan2(tL, tF);
+                //if (double.IsNaN(TargetYaw)) TargetYaw = 0;
+                //if (double.IsNaN(TargetPitch)) TargetPitch = 0;
+                //if (double.IsNaN(TargetRoll)) TargetRoll = 0;
                 return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
             }
             public Vector3D GetNavAngles(Vector3D? Vector, string axis)
@@ -992,35 +1019,38 @@ namespace MUL_H2_NAV
                 mRot = MatrixD.Invert(mRot);
                 return new MatrixD(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -V3Dcenter.GetDim(0), -V3Dcenter.GetDim(1), -V3Dcenter.GetDim(2), 1) * mRot;
             }
+            public void SetRCDefault()
+            {
+                rc_current = cockpit;
+                thrusts.InitThrusts(rc_current);
+                UpdateCalc();
+            }
+            public void SetRCOfConnected()
+            {
+                if (con_d.Connected) { rc_current = rc_d; thrusts.InitThrusts(rc_current); }
+                else { rc_current = rc_b; thrusts.InitThrusts(rc_current); }
+                UpdateCalc();
+            }
             public void SetDockMatrix1()
             {
                 if (con_d.Connected || con_b.Connected)
                 {
+                    SetRCOfConnected();
                     DockMatrix1 = GetNormTransMatrixFromMyPos();
                     ConnectorDockPoint1 = con_d.Connected ? "down" : "back";
                     SaveToStorage();
+                    SetRCDefault();
                 }
             }
             public void SetDockMatrix2()
             {
                 if (con_d.Connected || con_b.Connected)
                 {
-                    if (con_d.Connected)
-                    {
-                        rc_current = rc_d;
-                        thrusts.InitThrusts(rc_current); // Привяжем трастеры к контроллеру                
-                    }
-                    else
-                    {
-                        rc_current = rc_b;
-                        thrusts.InitThrusts(rc_current); // Привяжем трастеры к контроллеру
-                    }
-                    UpdateCalc();
+                    SetRCOfConnected();
                     DockMatrix2 = GetNormTransMatrixFromMyPos();
                     ConnectorDockPoint2 = con_d.Connected ? "down" : "back";
                     SaveToStorage();
-                    rc_current = cockpit;
-                    thrusts.InitThrusts(rc_current); // Привяжем трастеры к контроллеру
+                    SetRCDefault();
                 }
             }
             public void SetFlyHeight()
@@ -1038,13 +1068,6 @@ namespace MUL_H2_NAV
             public void Horizon()
             {
                 Vector3D gyrAng = GetNavAngles(TackVector, axis_horizont);
-                //if (TackVector == null)
-                //{
-                //    if (cockpit.obj.IsUnderControl)
-                //    {
-                //        gyrAng.SetDim(0, cockpit.obj.RotationIndicator.Y);
-                //    }
-                //}
                 gyros.SetOverride(true, gyrAng * GyroMult, 1);
             }
             public void GetCurrentBase(int num)
@@ -1121,7 +1144,8 @@ namespace MUL_H2_NAV
                 bool Complete = false;
                 if (string.IsNullOrWhiteSpace(Curr_Connector)) return Complete;
                 float MaxUSpeed, MaxFSpeed;
-                Vector3D gyrAng = GetNavAngles(Curr_BaseDockPoint, Curr_DockMatrix);
+
+                Vector3D gyrAng = GetNavAnglesDown(Curr_BaseDockPoint, Curr_DockMatrix);
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, Curr_DockMatrix);
                 Distance = (float)(Curr_BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(FlyHeight - (MyPos - PlanetCenter).Length()) * YMaxA) / 1.2f;
@@ -1163,7 +1187,7 @@ namespace MUL_H2_NAV
                 if (string.IsNullOrWhiteSpace(Curr_Connector)) return Complete;
                 float MaxUSpeed, MaxLSpeed, MaxFSpeed;
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, Curr_DockMatrix);
-                Vector3D gyrAng = GetNavAngles(Curr_ConnectorPoint, Curr_DockMatrix);
+                Vector3D gyrAng = GetNavAnglesDown(Curr_ConnectorPoint, Curr_DockMatrix);
                 Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, Curr_DockMatrix)))).Length() + Curr_ConnectorPoint.Length());
 
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 2.5f;
