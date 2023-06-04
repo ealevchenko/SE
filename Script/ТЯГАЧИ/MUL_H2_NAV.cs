@@ -842,6 +842,7 @@ namespace MUL_H2_NAV
             public Vector3D PlanetCenter = new Vector3D(0.50, 0.50, 0.50);
             //
             private BaseController rc_current;
+            private int Curr_base { get; set; } = 0;
             private string Curr_Connector { get; set; } = null;
             private Vector3D Curr_BaseDockPoint = new Vector3D(0, 0, -200);
             private Vector3D Curr_ConnectorPoint = new Vector3D(0, 0, 3);
@@ -859,7 +860,7 @@ namespace MUL_H2_NAV
             public string status { get; set; }
             public Navigation()
             {
-                SetRCDefault(); LoadFromStorage(); FindPlanetCenter();
+                GetCurrentBase(0); LoadFromStorage(); FindPlanetCenter();
             }
             public void UpdateCalc()
             {
@@ -888,7 +889,6 @@ namespace MUL_H2_NAV
                 Vector3D V3Dup = rc_current.obj.WorldMatrix.Up + V3Dcenter;
                 Vector3D V3Dleft = rc_current.obj.WorldMatrix.Left + V3Dcenter;
                 Vector3D GravNorm = Vector3D.Normalize(GravVector) + V3Dcenter;
-
                 V3Dcenter = Vector3D.Transform(V3Dcenter, InvMatrix);
                 V3Dfow = (Vector3D.Transform(V3Dfow, InvMatrix)) - V3Dcenter;
                 V3Dup = (Vector3D.Transform(V3Dup, InvMatrix)) - V3Dcenter;
@@ -898,44 +898,39 @@ namespace MUL_H2_NAV
                 double gF = GravNorm.Dot(V3Dfow);
                 double gL = GravNorm.Dot(V3Dleft);
                 double gU = GravNorm.Dot(V3Dup);
-                //Получаем сигналы по тангажу и крены операцией atan2
-                double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
-                double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
-                Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
-                //Рысканием прицеливаемся на точку Target.
-                double tF = TargetNorm.Dot(V3Dfow);
-                double tL = TargetNorm.Dot(V3Dleft);
-                double TargetYaw = -(float)Math.Atan2(tL, tF);
-                if (double.IsNaN(TargetYaw)) TargetYaw = 0;
-                if (double.IsNaN(TargetPitch)) TargetPitch = 0;
-                if (double.IsNaN(TargetRoll)) TargetRoll = 0;
-                return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
-            }
-            public Vector3D GetNavAnglesDown(Vector3D Target, MatrixD InvMatrix)
-            {
-                Vector3D V3Dcenter = rc_current.obj.GetPosition();
-                Vector3D V3Dfow = rc_current.obj.WorldMatrix.Forward + V3Dcenter;
-                Vector3D V3Dup = rc_current.obj.WorldMatrix.Up + V3Dcenter;
-                Vector3D V3Dleft = rc_current.obj.WorldMatrix.Left + V3Dcenter;
-                Vector3D GravNorm = Vector3D.Normalize(GravVector) + V3Dcenter;
+                double TargetYaw = 0;
+                double TargetRoll = 0;
+                double TargetPitch = 0;
+                if (Curr_Connector.Trim() == "down")
+                {
+                    //Получаем сигналы по тангажу и крены операцией atan2
+                    TargetYaw = (float)Math.Atan2(gL, -gU); // крен
+                    TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+                    Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
+                    //Рысканием прицеливаемся на точку Target.
+                    double tF = TargetNorm.Dot(V3Dfow);
+                    double tL = TargetNorm.Dot(V3Dleft);
+                    TargetRoll = (float)Math.Atan2(tL, tF);
+                    status = "Ok";
+                }
+                else if (Curr_Connector.Trim() == "back")
+                {
 
-                V3Dcenter = Vector3D.Transform(V3Dcenter, InvMatrix);
-                V3Dfow = (Vector3D.Transform(V3Dfow, InvMatrix)) - V3Dcenter;
-                V3Dup = (Vector3D.Transform(V3Dup, InvMatrix)) - V3Dcenter;
-                V3Dleft = (Vector3D.Transform(V3Dleft, InvMatrix)) - V3Dcenter;
-                GravNorm = Vector3D.Normalize((Vector3D.Transform(GravNorm, InvMatrix)) - V3Dcenter);
-                //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
-                double gF = GravNorm.Dot(V3Dfow);
-                double gL = GravNorm.Dot(V3Dleft);
-                double gU = GravNorm.Dot(V3Dup);
-                //Получаем сигналы по тангажу и крены операцией atan2
-                double TargetYaw = (float)Math.Atan2(gL, -gU); // крен
-                double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
-                Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
-                //Рысканием прицеливаемся на точку Target.
-                double tF = TargetNorm.Dot(V3Dfow);
-                double tL = TargetNorm.Dot(V3Dleft);
-                double TargetRoll = (float)Math.Atan2(tL, tF);
+                }
+                else
+                {
+                    //Получаем сигналы по тангажу и крены операцией atan2
+                    TargetRoll = (float)Math.Atan2(gL, -gU); // крен
+                    TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+                    Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
+                    //Рысканием прицеливаемся на точку Target.
+                    double tF = TargetNorm.Dot(V3Dfow);
+                    double tL = TargetNorm.Dot(V3Dleft);
+                    TargetYaw = -(float)Math.Atan2(tL, tF);
+                }
+                //if (double.IsNaN(TargetYaw)) TargetYaw = 0;
+                //if (double.IsNaN(TargetPitch)) TargetPitch = 0;
+                //if (double.IsNaN(TargetRoll)) TargetRoll = 0;
                 return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
             }
             public Vector3D GetNavAngles(Vector3D? Vector, string axis)
@@ -1028,6 +1023,22 @@ namespace MUL_H2_NAV
                 else { rc_current = rc_b; thrusts.InitThrusts(rc_current); }
                 UpdateCalc();
             }
+            public void SetRCOfStorage()
+            {
+                if (!String.IsNullOrWhiteSpace(Curr_Connector))
+                {
+                    if (Curr_Connector.Trim() == "down") { rc_current = rc_d; }
+                    else if (Curr_Connector.Trim() == "back") { rc_current = rc_b; }
+                    else { rc_current = cockpit; }
+                }
+                else
+                {
+                    rc_current = cockpit;
+                }
+
+                thrusts.InitThrusts(rc_current);
+                UpdateCalc();
+            }
             public void SetDockMatrix1()
             {
                 if (con_d.Connected || con_b.Connected)
@@ -1062,6 +1073,27 @@ namespace MUL_H2_NAV
                 if (cockpit.obj.TryGetPlanetPosition(out PlanetCenter)) { SaveToStorage(); }
             }
             //------------------------------------------------
+            public void FlyConnectBase()
+            {
+                if (curent_mode == mode.none)
+                {
+                    curent_mode = mode.to_base;
+                    SaveToStorage();
+                }
+                if (curent_mode == mode.to_base && ToBase())
+                {
+                    curent_mode = mode.dock;
+                    SaveToStorage();
+                }
+                if (curent_mode == mode.dock && Dock())
+                {
+                    Clear();
+                    curent_programm = programm.none;
+                    GetCurrentBase(0);
+                    SaveToStorage();
+                }
+            }
+            //------------------------------------------------
             public void Horizon()
             {
                 Vector3D gyrAng = GetNavAngles(TackVector, axis_horizont);
@@ -1069,6 +1101,7 @@ namespace MUL_H2_NAV
             }
             public void GetCurrentBase(int num)
             {
+                Curr_base = num;
                 if (num == 1)
                 {
                     Curr_Connector = ConnectorDockPoint1;
@@ -1078,6 +1111,7 @@ namespace MUL_H2_NAV
                 }
                 else if (num == 2)
                 {
+
                     Curr_Connector = ConnectorDockPoint2;
                     Curr_BaseDockPoint = BaseDockPoint2;
                     Curr_ConnectorPoint = ConnectorPoint2;
@@ -1090,22 +1124,7 @@ namespace MUL_H2_NAV
                     Curr_ConnectorPoint = Vector3D.Zero;
                     Curr_DockMatrix = MatrixD.Zero;
                 }
-                if (Curr_Connector.Trim() == "down")
-                {
-                    status = "rc_d";
-                    rc_current = rc_d;
-                    thrusts.InitThrusts(rc_current); // Привяжем трастеры к контроллеру
-                }
-                else if (Curr_Connector.Trim() == "back")
-                {
-                    rc_current = rc_b;
-                    thrusts.InitThrusts(rc_current); // Привяжем трастеры к контроллеру                
-                }
-                else
-                {
-                    rc_current = cockpit;
-                    thrusts.InitThrusts(rc_current); // Привяжем трастеры к контроллеру
-                }
+                SetRCOfStorage();
             }
             public void Pause(bool enable)
             {
@@ -1128,12 +1147,10 @@ namespace MUL_H2_NAV
             public void Stop()
             {
                 Clear();
-                rc_current = cockpit;
-                thrusts.InitThrusts(rc_current);
+                GetCurrentBase(0);
                 curent_programm = programm.none;
                 go_home = false;
                 paused = false;
-
                 SaveToStorage();
             }
             public bool ToBase()
@@ -1141,8 +1158,7 @@ namespace MUL_H2_NAV
                 bool Complete = false;
                 if (string.IsNullOrWhiteSpace(Curr_Connector)) return Complete;
                 float MaxUSpeed, MaxFSpeed;
-
-                Vector3D gyrAng = GetNavAnglesDown(Curr_BaseDockPoint, Curr_DockMatrix);
+                Vector3D gyrAng = GetNavAngles(Curr_BaseDockPoint, Curr_DockMatrix);
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, Curr_DockMatrix);
                 Distance = (float)(Curr_BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(FlyHeight - (MyPos - PlanetCenter).Length()) * YMaxA) / 1.2f;
@@ -1184,7 +1200,7 @@ namespace MUL_H2_NAV
                 if (string.IsNullOrWhiteSpace(Curr_Connector)) return Complete;
                 float MaxUSpeed, MaxLSpeed, MaxFSpeed;
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, Curr_DockMatrix);
-                Vector3D gyrAng = GetNavAnglesDown(Curr_ConnectorPoint, Curr_DockMatrix);
+                Vector3D gyrAng = GetNavAngles(Curr_ConnectorPoint, Curr_DockMatrix);
                 Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, Curr_DockMatrix)))).Length() + Curr_ConnectorPoint.Length());
 
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 3f;
@@ -1264,7 +1280,7 @@ namespace MUL_H2_NAV
                         Complete = true;
                     }
                 }
-                OutStatusMode(0, 0, 0,0 );
+                OutStatusMode(0, 0, 0, 0);
                 return Complete;
             }
             //------------------------------------------------
@@ -1391,6 +1407,7 @@ namespace MUL_H2_NAV
                 StringBuilder values = new StringBuilder();
                 values.Append("t: " + DockMatrix1.ToString() + "\n");
                 values.Append("name: " + name + "\n");
+                values.Append("Curr_base: " + Curr_base + "\n");
                 values.Append("status: " + status + "\n");
                 values.Append("Curr_Connector: " + Curr_Connector + "\n");
 
@@ -1457,11 +1474,7 @@ namespace MUL_H2_NAV
                         curent_programm = programm.fly_connect_base2;
                         SaveToStorage();
                         break;
-                    case "go_home":
-                        {
-                            go_home = true;
-                            break;
-                        }
+                    case "go_home": { go_home = true; break; }
                     case "to_base2":
                         GetCurrentBase(2);
                         curent_mode = mode.to_base;
@@ -1512,16 +1525,19 @@ namespace MUL_H2_NAV
                     }
                     if (curent_programm == programm.fly_connect_base1 && !paused)
                     {
-                        //FlyConnectBase();
+                        if (Curr_base != 1) GetCurrentBase(1);
+                        FlyConnectBase();
                     }
                     if (curent_programm == programm.fly_connect_base2 && !paused)
                     {
-                        //FlyConnectBase();
+                        if (Curr_base != 2) GetCurrentBase(2);
+                        FlyConnectBase();
                     }
                     if (curent_mode == mode.un_dock && !paused)
                     {
                         if (UnDock() && curent_programm == programm.none)
                         {
+                            GetCurrentBase(0);
                             curent_mode = mode.none;
                         }
                     }
@@ -1529,6 +1545,7 @@ namespace MUL_H2_NAV
                     {
                         if (ToBase() && curent_programm == programm.none)
                         {
+                            GetCurrentBase(0);
                             curent_mode = mode.none;
                         }
                     }
@@ -1536,6 +1553,7 @@ namespace MUL_H2_NAV
                     {
                         if (Dock() && curent_programm == programm.none)
                         {
+                            GetCurrentBase(0);
                             curent_mode = mode.none;
                         }
                     }
@@ -1544,3 +1562,31 @@ namespace MUL_H2_NAV
         }
     }
 }
+
+//public Vector3D GetNavAnglesDown(Vector3D Target, MatrixD InvMatrix)
+//{
+//    Vector3D V3Dcenter = rc_current.obj.GetPosition();
+//    Vector3D V3Dfow = rc_current.obj.WorldMatrix.Forward + V3Dcenter;
+//    Vector3D V3Dup = rc_current.obj.WorldMatrix.Up + V3Dcenter;
+//    Vector3D V3Dleft = rc_current.obj.WorldMatrix.Left + V3Dcenter;
+//    Vector3D GravNorm = Vector3D.Normalize(GravVector) + V3Dcenter;
+
+//    V3Dcenter = Vector3D.Transform(V3Dcenter, InvMatrix);
+//    V3Dfow = (Vector3D.Transform(V3Dfow, InvMatrix)) - V3Dcenter;
+//    V3Dup = (Vector3D.Transform(V3Dup, InvMatrix)) - V3Dcenter;
+//    V3Dleft = (Vector3D.Transform(V3Dleft, InvMatrix)) - V3Dcenter;
+//    GravNorm = Vector3D.Normalize((Vector3D.Transform(GravNorm, InvMatrix)) - V3Dcenter);
+//    //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
+//    double gF = GravNorm.Dot(V3Dfow);
+//    double gL = GravNorm.Dot(V3Dleft);
+//    double gU = GravNorm.Dot(V3Dup);
+//    //Получаем сигналы по тангажу и крены операцией atan2
+//    double TargetYaw = (float)Math.Atan2(gL, -gU); // крен
+//    double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+//    Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
+//    //Рысканием прицеливаемся на точку Target.
+//    double tF = TargetNorm.Dot(V3Dfow);
+//    double tL = TargetNorm.Dot(V3Dleft);
+//    double TargetRoll = (float)Math.Atan2(tL, tF);
+//    return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
+//}
