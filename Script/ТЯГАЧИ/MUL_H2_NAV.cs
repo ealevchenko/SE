@@ -30,7 +30,7 @@ namespace MUL_H2_NAV
         string NameObj = "[MUL-H2]";
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
         static float GyroMult = 1f;
-        static float AlignAccelMult = 0.1f;
+        static float AlignAccelMult = 0.01f;
         static float TargetSize = 100;
         static float OnCharge = 0.2f;     // Процент заряда - вкл на под  заряд
         static float OffCharge = 0.9f;    // Процент заряда - выкл под  заряд
@@ -914,9 +914,9 @@ namespace MUL_H2_NAV
             public Vector3D GetNavAnglesDown(Vector3D Target, MatrixD InvMatrix)
             {
                 Vector3D V3Dcenter = rc_current.obj.GetPosition();
-                Vector3D V3Dfow = rc_current.obj.WorldMatrix.Down + V3Dcenter;
-                Vector3D V3Dup = rc_current.obj.WorldMatrix.Left + V3Dcenter;
-                Vector3D V3Dleft = rc_current.obj.WorldMatrix.Forward + V3Dcenter;
+                Vector3D V3Dfow = rc_current.obj.WorldMatrix.Forward + V3Dcenter;
+                Vector3D V3Dup = rc_current.obj.WorldMatrix.Up + V3Dcenter;
+                Vector3D V3Dleft = rc_current.obj.WorldMatrix.Left + V3Dcenter;
                 Vector3D GravNorm = Vector3D.Normalize(GravVector) + V3Dcenter;
 
                 V3Dcenter = Vector3D.Transform(V3Dcenter, InvMatrix);
@@ -935,10 +935,7 @@ namespace MUL_H2_NAV
                 //Рысканием прицеливаемся на точку Target.
                 double tF = TargetNorm.Dot(V3Dfow);
                 double tL = TargetNorm.Dot(V3Dleft);
-                double TargetRoll = -(float)Math.Atan2(tL, tF);
-                //if (double.IsNaN(TargetYaw)) TargetYaw = 0;
-                //if (double.IsNaN(TargetPitch)) TargetPitch = 0;
-                //if (double.IsNaN(TargetRoll)) TargetRoll = 0;
+                double TargetRoll = (float)Math.Atan2(tL, tF);
                 return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
             }
             public Vector3D GetNavAngles(Vector3D? Vector, string axis)
@@ -1177,7 +1174,7 @@ namespace MUL_H2_NAV
                     Clear();
                     Complete = true;
                 }
-                OutStatusMode(MaxFSpeed, MaxUSpeed, 0);
+                OutStatusMode(MaxFSpeed, MaxUSpeed, 0, (float)((FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
                 return Complete;
             }
             public bool Dock()
@@ -1190,10 +1187,10 @@ namespace MUL_H2_NAV
                 Vector3D gyrAng = GetNavAnglesDown(Curr_ConnectorPoint, Curr_DockMatrix);
                 Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, Curr_DockMatrix)))).Length() + Curr_ConnectorPoint.Length());
 
-                MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 2.5f;
-                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 5f;
-                MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 2.5f;
-                if (Distance < 25)
+                MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 3f;
+                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 3f;
+                MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 3f;
+                if (Distance < 15)
                     MaxFSpeed = MaxFSpeed / 5;
                 if (Math.Abs(MyPosCon.GetDim(1)) < 1)
                     MaxUSpeed = 0.1f;
@@ -1224,7 +1221,7 @@ namespace MUL_H2_NAV
                     thrusts.SetOverridePercent("F", 0);
                     thrusts.SetOverridePercent("B", 0);
                 }
-                if (Distance < 12)
+                if (Distance < 6)
                 {
                     if (con_b.Status == MyShipConnectorStatus.Connectable)
                     {
@@ -1240,7 +1237,7 @@ namespace MUL_H2_NAV
                         Complete = true;
                     }
                 }
-                OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed);
+                OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel);
                 return Complete;
             }
             public bool UnDock()
@@ -1267,17 +1264,18 @@ namespace MUL_H2_NAV
                         Complete = true;
                     }
                 }
-                OutStatusMode(0, 0, 0);
+                OutStatusMode(0, 0, 0,0 );
                 return Complete;
             }
             //------------------------------------------------
-            public void OutStatusMode(float MaxFSpeed, float MaxUSpeed, float MaxLSpeed)
+            public void OutStatusMode(float MaxFSpeed, float MaxUSpeed, float MaxLSpeed, float UpAccel)
             {
                 StringBuilder values = new StringBuilder();
                 values.Append(" STATUS\n");
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
                 values.Append("DeltaHeight: " + Math.Round(FlyHeight - (MyPos - PlanetCenter).Length()).ToString() + "\n");
+                values.Append("UpAccel: " + Math.Round(UpAccel).ToString() + "\n");
                 values.Append("Distance: " + Math.Round(Distance).ToString() + "\n");
                 values.Append("------------------------------------------\n");
                 values.Append("ZMaxA (F-B) : " + Math.Round(ZMaxA, 2).ToString() + "MaxFSpeed: " + Math.Round(MaxFSpeed, 2).ToString() + "\n");
