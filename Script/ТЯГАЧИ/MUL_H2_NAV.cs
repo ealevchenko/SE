@@ -835,7 +835,7 @@ namespace MUL_H2_NAV
             public float YMaxA { get; private set; }
             public float ZMaxA { get; private set; }
             // ---------------------------------------
-            public double FlyHeight { get; set; }
+            //public double FlyHeight { get; set; }
             public float Distance { get; private set; }
             //----------------------------------------
             public Vector3D PlanetCenter = new Vector3D(0.50, 0.50, 0.50);
@@ -854,21 +854,7 @@ namespace MUL_H2_NAV
             }
             public int BaseCount { get; private set; } = 2;
             BaseStorage[] BasePoints;
-
             public BaseStorage CurrBase { get; set; } = new BaseStorage();
-            //private string Curr_Connector { get; set; } = null;
-            //private Vector3D Curr_BaseDockPoint = new Vector3D(0, 0, -200);
-            //private Vector3D Curr_ConnectorPoint = new Vector3D(0, 0, 3);
-            //public MatrixD Curr_DockMatrix { get; private set; }
-            ////
-            //private string ConnectorDockPoint1 { get; set; }
-            //private Vector3D BaseDockPoint1 = new Vector3D(0, 0, -200);
-            //private Vector3D ConnectorPoint1 = new Vector3D(0, 0, 3);
-            //public MatrixD DockMatrix1 { get; private set; }
-            //private string ConnectorDockPoint2 { get; set; }
-            //private Vector3D BaseDockPoint2 = new Vector3D(0, 0, -200);
-            //private Vector3D ConnectorPoint2 = new Vector3D(0, 0, 3);
-            //public MatrixD DockMatrix2 { get; private set; }
             public string name { get; set; }
             public string status { get; set; }
             public Navigation()
@@ -894,6 +880,7 @@ namespace MUL_H2_NAV
                 YMaxA = Math.Abs((float)Math.Min(thrusts.UpThrMax / PhysicalMass - GravVector.Length(), thrusts.DownThrMax / PhysicalMass + GravVector.Length()));
                 ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
                 XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
+                PlanetCenter = FindPlanetCenter();
                 //cargos.Update();
                 //if (PhysicalMass > CriticalMass) { CriticalMassReached = true; } else { CriticalMassReached = false; }
             }
@@ -952,9 +939,6 @@ namespace MUL_H2_NAV
                     double tL = TargetNorm.Dot(V3Dleft);
                     TargetYaw = -(float)Math.Atan2(tL, tF);
                 }
-                //if (double.IsNaN(TargetYaw)) TargetYaw = 0;
-                //if (double.IsNaN(TargetPitch)) TargetPitch = 0;
-                //if (double.IsNaN(TargetRoll)) TargetRoll = 0;
                 return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
             }
             public Vector3D GetNavAngles(Vector3D? Vector, string axis)
@@ -1118,9 +1102,25 @@ namespace MUL_H2_NAV
             }
             public void GetCurrentBase(int num)
             {
-                if (num > BaseCount || num <= 0) return;
+                if (num > BaseCount || num < 0) return;
                 Curr_base = num;
-                CurrBase = BasePoints[num - 1];
+                if (num > 0)
+                {
+                    CurrBase = BasePoints[num - 1];
+                }
+                else
+                {
+                    CurrBase = new BaseStorage()
+                    {
+                        ConnectorTag = null,
+                        id = 0,
+                        BaseDockPoint = new Vector3D(0, 0, -200),
+                        ConnectorPoint = new Vector3D(0, 0, 3),
+                        DockMatrix = new MatrixD(),
+                        PlanetCenter = new Vector3D(0, 0, 0),
+                        FlyHeight = 0
+                    };
+                }
                 SetRCOfStorage();
             }
             public void Pause(bool enable)
@@ -1287,7 +1287,7 @@ namespace MUL_H2_NAV
                 values.Append(" STATUS\n");
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
-                values.Append("DeltaHeight: " + Math.Round(FlyHeight - (MyPos - PlanetCenter).Length()).ToString() + "\n");
+                values.Append("DeltaHeight: " + Math.Round(CurrBase.FlyHeight - (MyPos - PlanetCenter).Length()).ToString() + "\n");
                 values.Append("UpAccel: " + Math.Round(UpAccel).ToString() + "\n");
                 values.Append("Distance: " + Math.Round(Distance).ToString() + "\n");
                 values.Append("------------------------------------------\n");
@@ -1414,7 +1414,7 @@ namespace MUL_H2_NAV
                 values.Append("status: " + status + "\n");
                 values.Append("Curr_Connector: " + CurrBase.ConnectorTag + "\n");
 
-                values.Append("Height            : " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(FlyHeight).ToString() + "\n");
+                values.Append("Height            : " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(CurrBase.FlyHeight).ToString() + "\n");
                 values.Append("Distance          : " + Math.Round(Distance).ToString() + "\n");
                 //values.Append("Phys./Crit.(Mass) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? red.ToString() : green.ToString()) + "\n");
                 //values.Append("Volume/Mass       : " + cargos.CurrentVolume + " / " + cargos.CurrentMass + "\n");
@@ -1460,12 +1460,12 @@ namespace MUL_H2_NAV
                         Clear();
                         curent_programm = programm.none;
                         break;
-                    //case "save_base1":
-                    //    SetDockMatrix1();
-                    //    break;
-                    //case "save_base2":
-                    //    SetDockMatrix2();
-                    //    break;
+                    case "save_base1":
+                        SetDockMatrix(1);
+                        break;
+                    case "save_base2":
+                        SetDockMatrix(2);
+                        break;
                     case "fly_base1":
                         curent_programm = programm.fly_connect_base1;
                         SaveToStorage();
