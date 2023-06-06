@@ -899,6 +899,7 @@ namespace MUL_H2_NAV
                 Vector3D V3Dfow = rc_current.obj.WorldMatrix.Forward + V3Dcenter;
                 Vector3D V3Dup = rc_current.obj.WorldMatrix.Up + V3Dcenter;
                 Vector3D V3Dleft = rc_current.obj.WorldMatrix.Left + V3Dcenter;
+                //Vector3D V3Dleft = rc_current.obj.WorldMatrix.Right + V3Dcenter;
                 Vector3D GravNorm = Vector3D.Normalize(GravVector) + V3Dcenter;
                 V3Dcenter = Vector3D.Transform(V3Dcenter, InvMatrix);
                 V3Dfow = (Vector3D.Transform(V3Dfow, InvMatrix)) - V3Dcenter;
@@ -922,11 +923,19 @@ namespace MUL_H2_NAV
                     double tF = TargetNorm.Dot(V3Dfow);
                     double tL = TargetNorm.Dot(V3Dleft);
                     TargetRoll = (float)Math.Atan2(tL, tF);
-                    status = "Ok";
+                    status = "down";
                 }
                 else if (CurrBase.ConnectorTag.Trim() == "back")
                 {
-
+                    //Получаем сигналы по тангажу и крены операцией atan2
+                    TargetRoll = -(float)Math.Atan2(gL, -gU); // крен
+                    TargetPitch = (float)Math.Atan2(gF, -gU); // тангаж
+                    Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
+                    //Рысканием прицеливаемся на точку Target.
+                    double tF = TargetNorm.Dot(V3Dfow);
+                    double tL = TargetNorm.Dot(V3Dleft);
+                    TargetYaw = -(float)Math.Atan2(tL, tF);
+                    status = "back";
                 }
                 else
                 {
@@ -1158,8 +1167,8 @@ namespace MUL_H2_NAV
                 Vector3D gyrAng = GetNavAngles(CurrBase.BaseDockPoint, CurrBase.DockMatrix);
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, CurrBase.DockMatrix);
                 Distance = (float)(CurrBase.BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
-                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(CurrBase.FlyHeight - (MyPos - PlanetCenter).Length()) * YMaxA) / 1.2f;
-                MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 1.2f;
+                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(CurrBase.FlyHeight - (MyPos - PlanetCenter).Length()) * YMaxA) / 3f;
+                MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 3f;
                 gyros.SetOverride(true, gyrAng * GyroMult, 1);
                 thrusts.SetOverridePercent("R", 0);
                 thrusts.SetOverridePercent("L", 0);
@@ -1386,7 +1395,7 @@ namespace MUL_H2_NAV
                 {
                     values.Append("ConnectorTag" + i + ":" + (BasePoints[i].ConnectorTag != null ? BasePoints[i].ConnectorTag : "null") + ";\n");
                     values.Append("ID" + i + ":" + BasePoints[i].id + ";\n");
-                    values.Append(BasePoints[i].DockMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "DM" + i));
+                    values.Append(BasePoints[i].DockMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "DM" + i + "_"));
                     values.Append(BasePoints[i].PlanetCenter.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PX" + i).Replace("Y", "PY" + i).Replace("Z", "PZ" + i) + ";\n");
                     values.Append("FlyHeight" + i + ":" + Math.Round(BasePoints[i].FlyHeight, 0) + ";\n");
                 }
@@ -1476,17 +1485,17 @@ namespace MUL_H2_NAV
                         break;
                     case "go_home": { go_home = true; break; }
                     case "to_base2":
-                        GetCurrentBase(2);
+                        GetCurrentBase(1);
                         curent_mode = mode.to_base;
                         SaveToStorage();
                         break;
                     case "dock2":
-                        GetCurrentBase(2);
+                        GetCurrentBase(1);
                         curent_mode = mode.dock;
                         SaveToStorage();
                         break;
                     case "un_dock2":
-                        GetCurrentBase(2);
+                        GetCurrentBase(1);
                         curent_mode = mode.un_dock;
                         SaveToStorage();
                         break;
