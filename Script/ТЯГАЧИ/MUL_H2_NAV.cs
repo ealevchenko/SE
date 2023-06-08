@@ -928,14 +928,22 @@ namespace MUL_H2_NAV
                 else if (CurrBase.ConnectorTag.Trim() == "back")
                 {
                     //Получаем сигналы по тангажу и крены операцией atan2
-                    TargetRoll = -(float)Math.Atan2(gL, -gU); // крен
-                    TargetPitch = (float)Math.Atan2(gF, -gU); // тангаж
+                    TargetRoll = -(float)Math.Atan2(gL, gF); // крен
+                    TargetPitch = (float)Math.Atan2(gU, gF); // тангаж
                     Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
                     //Рысканием прицеливаемся на точку Target.
                     double tF = TargetNorm.Dot(V3Dfow);
                     double tL = TargetNorm.Dot(V3Dleft);
                     TargetYaw = -(float)Math.Atan2(tL, tF);
                     status = "back";
+                    //TargetRoll = -(float)Math.Atan2(gL, -gU); // крен
+                    //TargetPitch = (float)Math.Atan2(gF, -gU); // тангаж
+                    //Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
+                    ////Рысканием прицеливаемся на точку Target.
+                    //double tF = TargetNorm.Dot(V3Dfow);
+                    //double tL = TargetNorm.Dot(V3Dleft);
+                    //TargetYaw = -(float)Math.Atan2(tL, tF);
+                    //status = "back";
                 }
                 else
                 {
@@ -1199,6 +1207,46 @@ namespace MUL_H2_NAV
                 OutStatusMode(MaxFSpeed, MaxUSpeed, 0, (float)((CurrBase.FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
                 return Complete;
             }
+            //public bool ToBase1()
+            //{
+            //    bool Complete = false;
+            //    if (string.IsNullOrWhiteSpace(CurrBase.ConnectorTag)) return Complete;
+            //    float MaxUSpeed, MaxFSpeed;
+            //    Vector3D gyrAng = GetNavAngles(CurrBase.BaseDockPoint, CurrBase.DockMatrix);
+            //    Vector3D MyPosCon = Vector3D.Transform(MyPos, CurrBase.DockMatrix);
+            //    Distance = (float)(CurrBase.BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
+            //    MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(CurrBase.FlyHeight - (MyPos - PlanetCenter).Length()) * YMaxA) / 3f;
+            //    MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 3f;
+            //    gyros.SetOverride(true, gyrAng * GyroMult, 1);
+            //    thrusts.SetOverridePercent("R", 0);
+            //    thrusts.SetOverridePercent("L", 0);
+            //    if (UpVelocityVector.Length() < MaxUSpeed)
+            //        thrusts.SetOverrideAccel("F", (float)((CurrBase.FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
+            //    else
+            //    {
+            //        thrusts.SetOverridePercent("F", 0);
+            //    }
+            //    if (Distance > TargetSize)
+            //    {
+            //        if (ForwVelocityVector.Length() < MaxFSpeed)
+            //        {
+            //            thrusts.SetOverrideAccel("U", (float)(Distance * AlignAccelMult));
+            //            thrusts.SetOverridePercent("D", 0);
+            //        }
+            //        else
+            //        {
+            //            thrusts.SetOverridePercent("U", 0);
+            //            thrusts.SetOverridePercent("D", 0);
+            //        }
+            //    }
+            //    else
+            //    {
+            //        Clear();
+            //        Complete = true;
+            //    }
+            //    OutStatusMode(MaxFSpeed, MaxUSpeed, 0, (float)((CurrBase.FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
+            //    return Complete;
+            //}
             public bool Dock()
             {
 
@@ -1262,6 +1310,69 @@ namespace MUL_H2_NAV
                 OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel);
                 return Complete;
             }
+            //public bool Dock1()
+            //{
+
+            //    bool Complete = false;
+            //    if (string.IsNullOrWhiteSpace(CurrBase.ConnectorTag)) return Complete;
+            //    float MaxUSpeed, MaxLSpeed, MaxFSpeed;
+            //    Vector3D MyPosCon = Vector3D.Transform(MyPos, CurrBase.DockMatrix);
+            //    Vector3D gyrAng = GetNavAngles(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
+            //    Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, CurrBase.DockMatrix)))).Length() + CurrBase.ConnectorPoint.Length());
+
+            //    MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 3f;
+            //    MaxUSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 3f;
+            //    MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(2)) * YMaxA) / 3f;
+            //    if (Distance < 15)
+            //        MaxFSpeed = MaxFSpeed / 5;
+            //    if (Math.Abs(MyPosCon.GetDim(2)) < 1)
+            //        MaxUSpeed = 0.1f;
+            //    gyros.SetOverride(true, gyrAng * GyroMult, 1);
+            //    if (LeftVelocityVector.Length() < MaxLSpeed)
+            //        thrusts.SetOverrideAccel("R", (float)(MyPosCon.GetDim(0) * AlignAccelMult));
+            //    else
+            //    {
+            //        thrusts.SetOverridePercent("R", 0);
+            //        thrusts.SetOverridePercent("L", 0);
+            //    }
+            //    float UpAccel = -(float)(MyPosCon.GetDim(2) * AlignAccelMult);
+            //    float minUpAccel = 0.1f;
+            //    if ((UpAccel < 0) && (UpAccel > -minUpAccel))
+            //        UpAccel = -minUpAccel;
+            //    if ((UpAccel > 0) && (UpAccel < minUpAccel))
+            //        UpAccel = minUpAccel;
+            //    if (UpVelocityVector.Length() < MaxUSpeed)
+            //        thrusts.SetOverrideAccel("U", UpAccel);
+            //    else { thrusts.SetOverridePercent("U", 0); }
+            //    if (((Distance > 100) || ((Math.Abs(MyPosCon.GetDim(0)) < (Distance / 10 + 0.2f)) && (Math.Abs(MyPosCon.GetDim(2)) < (Distance / 10 + 0.2f)))) && (ForwVelocityVector.Length() < MaxFSpeed))
+            //    {
+            //        thrusts.SetOverrideAccel("U", (float)(Distance * AlignAccelMult));
+            //        thrusts.SetOverridePercent("D", 0);
+            //    }
+            //    else
+            //    {
+            //        thrusts.SetOverridePercent("U", 0);
+            //        thrusts.SetOverridePercent("D", 0);
+            //    }
+            //    if (Distance < 6)
+            //    {
+            //        if (con_b.Status == MyShipConnectorStatus.Connectable)
+            //        {
+            //            con_b.obj.Connect();
+            //        }
+            //        if (con_d.Status == MyShipConnectorStatus.Connectable)
+            //        {
+            //            con_d.obj.Connect();
+            //        }
+            //        if (con_b.Status == MyShipConnectorStatus.Connected || con_d.Status == MyShipConnectorStatus.Connected)
+            //        {
+            //            Clear();
+            //            Complete = true;
+            //        }
+            //    }
+            //    OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel);
+            //    return Complete;
+            //}
             public bool UnDock()
             {
                 bool Complete = false;
@@ -1371,12 +1482,29 @@ namespace MUL_H2_NAV
             public BaseStorage LoadBaseStorage(int num)
             {
                 StringBuilder str = lcd_storage.GetText();
+                Vector3D bdp = new Vector3D(0, 0, 0);
+                Vector3D cp = new Vector3D(0, 0, 0);
+                string ConnectorTag = GetStringVal("ConnectorTag" + num, str.ToString());
+                if (!string.IsNullOrWhiteSpace(ConnectorTag))
+                {
+                    if (ConnectorTag.Trim() == "down")
+                    {
+                        bdp = new Vector3D(0, 0, -200);
+                        cp = new Vector3D(0, 0, 3);
+                    }
+
+                    if (ConnectorTag.Trim() == "back")
+                    {
+                        bdp = new Vector3D(0, -200, 0);
+                        cp = new Vector3D(0, -3, 0);
+                    }
+                }
                 BaseStorage result = new BaseStorage()
                 {
-                    ConnectorTag = GetStringVal("ConnectorTag" + num, str.ToString()),
+                    ConnectorTag = ConnectorTag,
                     id = GetValInt64("ID" + num, str.ToString()),
-                    BaseDockPoint = new Vector3D(0, 0, -200),
-                    ConnectorPoint = new Vector3D(0, 0, 3),
+                    BaseDockPoint = bdp,
+                    ConnectorPoint = cp,
                     DockMatrix = new MatrixD(GetVal("DM" + num + "_11", str.ToString()), GetVal("DM" + num + "_12", str.ToString()), GetVal("DM" + num + "_13", str.ToString()), GetVal("DM" + num + "_14", str.ToString()),
                     GetVal("DM" + num + "_21", str.ToString()), GetVal("DM" + num + "_22", str.ToString()), GetVal("DM" + num + "_23", str.ToString()), GetVal("DM" + num + "_24", str.ToString()),
                     GetVal("DM" + num + "_31", str.ToString()), GetVal("DM" + num + "_32", str.ToString()), GetVal("DM" + num + "_33", str.ToString()), GetVal("DM" + num + "_34", str.ToString()),
@@ -1417,7 +1545,9 @@ namespace MUL_H2_NAV
             public string TextInfo2()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("t: " + CurrBase.DockMatrix.ToString() + "\n");
+                values.Append("DockMatrix: " + CurrBase.DockMatrix.ToString() + "\n");
+                values.Append(PText.GetGPS("DockPoint:",CurrBase.BaseDockPoint) + "\n");
+                values.Append(PText.GetGPS("ConnPoint:", CurrBase.ConnectorPoint) + "\n");
                 values.Append("name: " + name + "\n");
                 values.Append("Curr_base: " + Curr_base + "\n");
                 values.Append("status: " + status + "\n");
@@ -1484,18 +1614,33 @@ namespace MUL_H2_NAV
                         SaveToStorage();
                         break;
                     case "go_home": { go_home = true; break; }
-                    case "to_base2":
+                    case "to_base1":
                         GetCurrentBase(1);
                         curent_mode = mode.to_base;
                         SaveToStorage();
                         break;
-                    case "dock2":
+                    case "dock1":
                         GetCurrentBase(1);
                         curent_mode = mode.dock;
                         SaveToStorage();
                         break;
-                    case "un_dock2":
+                    case "un_dock1":
                         GetCurrentBase(1);
+                        curent_mode = mode.un_dock;
+                        SaveToStorage();
+                        break;
+                    case "to_base2":
+                        GetCurrentBase(2);
+                        curent_mode = mode.to_base;
+                        SaveToStorage();
+                        break;
+                    case "dock2":
+                        GetCurrentBase(2);
+                        curent_mode = mode.dock;
+                        SaveToStorage();
+                        break;
+                    case "un_dock2":
+                        GetCurrentBase(2);
                         curent_mode = mode.un_dock;
                         SaveToStorage();
                         break;
