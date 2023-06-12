@@ -22,7 +22,7 @@ using VRageMath;
 /// v3.0
 /// Управление дверями и освещение
 /// </summary>
-namespace MUL_H2_NAV_copy2
+namespace MUL_H2_NAV_COPY
 {
     public sealed class Program : MyGridProgram
     {
@@ -817,9 +817,8 @@ namespace MUL_H2_NAV_copy2
                 un_dock = 2,
                 to_base = 3,
                 dock = 4,
-                takeoff = 5,
             };
-            public static string[] name_mode = { "", "БАЗА", "РАСТЫКОВКА", "К БАЗЕ", "СТЫКОВКА", "ВЗЛЕТ" };
+            public static string[] name_mode = { "", "БАЗА", "РАСТЫКОВКА", "К БАЗЕ", "СТЫКОВКА" };
             mode curent_mode = mode.none;
             //------------------------------
             public Vector3D MyPos { get; private set; }
@@ -836,7 +835,7 @@ namespace MUL_H2_NAV_copy2
             public float YMaxA { get; private set; }
             public float ZMaxA { get; private set; }
             // ---------------------------------------
-            //public double FlyHeight { get; set; }
+            public double FlyHeight { get; set; }
             public float Distance { get; private set; }
             //----------------------------------------
             public Vector3D PlanetCenter = new Vector3D(0.50, 0.50, 0.50);
@@ -853,17 +852,29 @@ namespace MUL_H2_NAV_copy2
                 public Vector3D PlanetCenter = new Vector3D(0, 0, 0);
                 public double FlyHeight { get; set; } = 0;
             }
-
             public int BaseCount { get; private set; } = 2;
             BaseStorage[] BasePoints;
-            public BaseStorage CurrBase { get; set; } = new BaseStorage();
+
+            //private string Curr_Connector { get; set; } = null;
+            //private Vector3D Curr_BaseDockPoint = new Vector3D(0, 0, -200);
+            //private Vector3D Curr_ConnectorPoint = new Vector3D(0, 0, 3);
+            //public MatrixD Curr_DockMatrix { get; private set; }
+            ////
+            //private string ConnectorDockPoint1 { get; set; }
+            //private Vector3D BaseDockPoint1 = new Vector3D(0, 0, -200);
+            //private Vector3D ConnectorPoint1 = new Vector3D(0, 0, 3);
+            //public MatrixD DockMatrix1 { get; private set; }
+            //private string ConnectorDockPoint2 { get; set; }
+            //private Vector3D BaseDockPoint2 = new Vector3D(0, 0, -200);
+            //private Vector3D ConnectorPoint2 = new Vector3D(0, 0, 3);
+            //public MatrixD DockMatrix2 { get; private set; }
             public string name { get; set; }
             public string status { get; set; }
             public Navigation()
             {
                 LoadFromStorage();
-                InitBasePoints();
-                GetCurrentBase(0);
+                InitBasePoints();               
+                GetCurrentBase(0); 
                 //FindPlanetCenter();
             }
             public void UpdateCalc()
@@ -882,10 +893,10 @@ namespace MUL_H2_NAV_copy2
                 YMaxA = Math.Abs((float)Math.Min(thrusts.UpThrMax / PhysicalMass - GravVector.Length(), thrusts.DownThrMax / PhysicalMass + GravVector.Length()));
                 ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
                 XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
-                PlanetCenter = FindPlanetCenter();
                 //cargos.Update();
                 //if (PhysicalMass > CriticalMass) { CriticalMassReached = true; } else { CriticalMassReached = false; }
             }
+
             public void InitBasePoints()
             {
                 BasePoints = new BaseStorage[BaseCount];
@@ -897,70 +908,53 @@ namespace MUL_H2_NAV_copy2
             //-------------------------------------
             public Vector3D GetNavAngles(Vector3D Target, MatrixD InvMatrix)
             {
-                double TargetYaw = 0;
-                double TargetRoll = 0;
-                double TargetPitch = 0;
-
                 Vector3D V3Dcenter = rc_current.obj.GetPosition();
                 Vector3D V3Dfow = rc_current.obj.WorldMatrix.Forward + V3Dcenter;
                 Vector3D V3Dup = rc_current.obj.WorldMatrix.Up + V3Dcenter;
                 Vector3D V3Dleft = rc_current.obj.WorldMatrix.Left + V3Dcenter;
-
-                //Vector3D GravNorm = Vector3D.Normalize(GravVector) + V3Dcenter;
+                Vector3D GravNorm = Vector3D.Normalize(GravVector) + V3Dcenter;
                 V3Dcenter = Vector3D.Transform(V3Dcenter, InvMatrix);
                 V3Dfow = (Vector3D.Transform(V3Dfow, InvMatrix)) - V3Dcenter;
                 V3Dup = (Vector3D.Transform(V3Dup, InvMatrix)) - V3Dcenter;
                 V3Dleft = (Vector3D.Transform(V3Dleft, InvMatrix)) - V3Dcenter;
-                //GravNorm = Vector3D.Normalize((Vector3D.Transform(GravNorm, InvMatrix)) - V3Dcenter);
-                Vector3D GravNorm = Vector3D.Normalize(new Vector3D(-0, -1, -0));
-                Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
-                string tag = CurrBase.ConnectorTag.Trim();
-                if (GravVector.LengthSquared() > 0.2f)
-                {
-                    GravNorm = Vector3D.Normalize(GravVector);
-                    GravNorm = Vector3D.Normalize(Vector3D.Transform(GravNorm + rc_current.obj.GetPosition(), InvMatrix) - V3Dcenter);
-                    tag = "down";
-                }
-                ;
+                GravNorm = Vector3D.Normalize((Vector3D.Transform(GravNorm, InvMatrix)) - V3Dcenter);
                 //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
                 double gF = GravNorm.Dot(V3Dfow);
                 double gL = GravNorm.Dot(V3Dleft);
                 double gU = GravNorm.Dot(V3Dup);
-                if (tag == "down")
+                double TargetYaw = 0;
+                double TargetRoll = 0;
+                double TargetPitch = 0;
+                if (Curr_Connector.Trim() == "down")
                 {
                     //Получаем сигналы по тангажу и крены операцией atan2
                     TargetYaw = (float)Math.Atan2(gL, -gU); // крен
                     TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
-                    //Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
+                    Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
                     //Рысканием прицеливаемся на точку Target.
                     double tF = TargetNorm.Dot(V3Dfow);
                     double tL = TargetNorm.Dot(V3Dleft);
                     TargetRoll = (float)Math.Atan2(tL, tF);
-                    //status = "down";
+                    status = "Ok";
                 }
-                else if (tag == "back")
+                else if (Curr_Connector.Trim() == "back")
                 {
-                    //Получаем сигналы по тангажу и крены операцией atan2
-                    TargetRoll = -(float)Math.Atan2(gL, -gU); // крен
-                    TargetPitch = (float)Math.Atan2(gF, -gU); // тангаж
-                    //Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
-                    //Рысканием прицеливаемся на точку Target.
-                    double tF = TargetNorm.Dot(V3Dfow);
-                    double tL = TargetNorm.Dot(V3Dleft);
-                    TargetYaw = -(float)Math.Atan2(tL, tF);
-                    //status = "back";
+
                 }
                 else
                 {
                     //Получаем сигналы по тангажу и крены операцией atan2
                     TargetRoll = (float)Math.Atan2(gL, -gU); // крен
                     TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
-                    //Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
+                    Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
                     //Рысканием прицеливаемся на точку Target.
                     double tF = TargetNorm.Dot(V3Dfow);
                     double tL = TargetNorm.Dot(V3Dleft);
                     TargetYaw = -(float)Math.Atan2(tL, tF);
                 }
+                //if (double.IsNaN(TargetYaw)) TargetYaw = 0;
+                //if (double.IsNaN(TargetPitch)) TargetPitch = 0;
+                //if (double.IsNaN(TargetRoll)) TargetRoll = 0;
                 return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
             }
             public Vector3D GetNavAngles(Vector3D? Vector, string axis)
@@ -1031,9 +1025,10 @@ namespace MUL_H2_NAV_copy2
             {
                 MatrixD mRot;
                 Vector3D V3Dcenter = MyPos;
-                Vector3D V3Dup = WMCPocpit.Up;
-                if (GravVector.LengthSquared() > 0.2f)
-                    V3Dup = -Vector3D.Normalize(GravVector);
+                //Vector3D V3Dup = WMCPocpit.Up;
+                //if (GravVector.LengthSquared() > 0.2f)
+                //    V3Dup = -Vector3D.Normalize(GravVector);
+                Vector3D V3Dup = -Vector3D.Normalize(GravVector);
                 Vector3D V3Dleft = Vector3D.Normalize(Vector3D.Reject(WMCPocpit.Left, V3Dup));
                 Vector3D V3Dfow = Vector3D.Normalize(Vector3D.Cross(V3Dleft, V3Dup));
                 mRot = new MatrixD(V3Dleft.GetDim(0), V3Dleft.GetDim(1), V3Dleft.GetDim(2), 0, V3Dup.GetDim(0), V3Dup.GetDim(1), V3Dup.GetDim(2), 0, V3Dfow.GetDim(0), V3Dfow.GetDim(1), V3Dfow.GetDim(2), 0, 0, 0, 0, 1);
@@ -1052,61 +1047,54 @@ namespace MUL_H2_NAV_copy2
                 else { rc_current = rc_b; thrusts.InitThrusts(rc_current); }
                 UpdateCalc();
             }
-            public void SetRCOfStorage(string tag)
+            public void SetRCOfStorage()
             {
-                if (!String.IsNullOrWhiteSpace(tag))
+                if (!String.IsNullOrWhiteSpace(Curr_Connector))
                 {
-                    if (tag.Trim() == "down") { rc_current = rc_d; }
-                    else if (tag.Trim() == "back")
-                    {
-                        if (GravVector.LengthSquared() > 0.2f)
-                        {
-                            rc_current = rc_d;
-                        }
-                        else
-                        {
-                            rc_current = rc_b;
-                        }
-                    }
+                    if (Curr_Connector.Trim() == "down") { rc_current = rc_d; }
+                    else if (Curr_Connector.Trim() == "back") { rc_current = rc_b; }
                     else { rc_current = cockpit; }
                 }
                 else
                 {
                     rc_current = cockpit;
                 }
+
                 thrusts.InitThrusts(rc_current);
                 UpdateCalc();
             }
-            public void SetRCOfStorage()
+            public void SetDockMatrix1()
             {
-                SetRCOfStorage(CurrBase.ConnectorTag);
-            }
-            public void SetDockMatrix(int num)
-            {
-                if (num > BaseCount || num <= 0) return;
                 if (con_d.Connected || con_b.Connected)
                 {
-                    Vector3D pc = FindPlanetCenter();
                     SetRCOfConnected();
-                    BasePoints[num - 1] = new BaseStorage()
-                    {
-                        ConnectorTag = con_d.Connected ? "down" : "back",
-                        id = 0,
-                        BaseDockPoint = new Vector3D(0, 0, -200),
-                        ConnectorPoint = new Vector3D(0, 0, 3),
-                        DockMatrix = GetNormTransMatrixFromMyPos(),
-                        PlanetCenter = pc,
-                        FlyHeight = !Vector3D.IsZero(pc) ? (Vector3D.Normalize(MyPos - pc) * 300 + MyPos).Length() : 0,
-                    };
+                    DockMatrix1 = GetNormTransMatrixFromMyPos();
+                    ConnectorDockPoint1 = con_d.Connected ? "down" : "back";
                     SaveToStorage();
                     SetRCDefault();
                 }
             }
-            public Vector3D FindPlanetCenter()
+            public void SetDockMatrix2()
             {
-                Vector3D PlanetCenter;
-                cockpit.obj.TryGetPlanetPosition(out PlanetCenter);
-                return PlanetCenter;
+                if (con_d.Connected || con_b.Connected)
+                {
+                    SetRCOfConnected();
+                    DockMatrix2 = GetNormTransMatrixFromMyPos();
+                    ConnectorDockPoint2 = con_d.Connected ? "down" : "back";
+                    SaveToStorage();
+                    SetRCDefault();
+                }
+            }
+            public void SetFlyHeight()
+            {
+                FlyHeight = (MyPos - PlanetCenter).Length();
+                BaseDockPoint1 = new Vector3D(0, 0, -200);
+                BaseDockPoint2 = new Vector3D(0, 0, -200);
+                SaveToStorage();
+            }
+            public void FindPlanetCenter()
+            {
+                if (cockpit.obj.TryGetPlanetPosition(out PlanetCenter)) { SaveToStorage(); }
             }
             //------------------------------------------------
             public void FlyConnectBase()
@@ -1137,24 +1125,28 @@ namespace MUL_H2_NAV_copy2
             }
             public void GetCurrentBase(int num)
             {
-                if (num > BaseCount || num < 0) return;
                 Curr_base = num;
-                if (num > 0)
+                if (num == 1)
                 {
-                    CurrBase = BasePoints[num - 1];
+                    Curr_Connector = ConnectorDockPoint1;
+                    Curr_BaseDockPoint = BaseDockPoint1;
+                    Curr_ConnectorPoint = ConnectorPoint1;
+                    Curr_DockMatrix = DockMatrix1;
+                }
+                else if (num == 2)
+                {
+
+                    Curr_Connector = ConnectorDockPoint2;
+                    Curr_BaseDockPoint = BaseDockPoint2;
+                    Curr_ConnectorPoint = ConnectorPoint2;
+                    Curr_DockMatrix = DockMatrix2;
                 }
                 else
                 {
-                    CurrBase = new BaseStorage()
-                    {
-                        ConnectorTag = null,
-                        id = 0,
-                        BaseDockPoint = new Vector3D(0, 0, -200),
-                        ConnectorPoint = new Vector3D(0, 0, 3),
-                        DockMatrix = new MatrixD(),
-                        PlanetCenter = new Vector3D(0, 0, 0),
-                        FlyHeight = 0
-                    };
+                    Curr_Connector = null;
+                    Curr_BaseDockPoint = Vector3D.Zero;
+                    Curr_ConnectorPoint = Vector3D.Zero;
+                    Curr_DockMatrix = MatrixD.Zero;
                 }
                 SetRCOfStorage();
             }
@@ -1187,21 +1179,19 @@ namespace MUL_H2_NAV_copy2
             }
             public bool ToBase()
             {
-
                 bool Complete = false;
-                if (string.IsNullOrWhiteSpace(CurrBase.ConnectorTag)) return Complete;
-                float MaxUSpeed = 0, MaxFSpeed = 0;
-                Vector3D gyrAng = GetNavAngles(CurrBase.BaseDockPoint, CurrBase.DockMatrix);
-                Vector3D MyPosCon = Vector3D.Transform(MyPos, CurrBase.DockMatrix);
-                Distance = (float)(CurrBase.BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
-                if (GravVector.LengthSquared() > 0.2f)
-                    MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(CurrBase.FlyHeight - (MyPos - PlanetCenter).Length()) * YMaxA) / 3f;
-                MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 3f;
+                if (string.IsNullOrWhiteSpace(Curr_Connector)) return Complete;
+                float MaxUSpeed, MaxFSpeed;
+                Vector3D gyrAng = GetNavAngles(Curr_BaseDockPoint, Curr_DockMatrix);
+                Vector3D MyPosCon = Vector3D.Transform(MyPos, Curr_DockMatrix);
+                Distance = (float)(Curr_BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
+                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(FlyHeight - (MyPos - PlanetCenter).Length()) * YMaxA) / 1.2f;
+                MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 1.2f;
                 gyros.SetOverride(true, gyrAng * GyroMult, 1);
                 thrusts.SetOverridePercent("R", 0);
                 thrusts.SetOverridePercent("L", 0);
                 if (UpVelocityVector.Length() < MaxUSpeed)
-                    thrusts.SetOverrideAccel("U", (float)((CurrBase.FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
+                    thrusts.SetOverrideAccel("U", (float)((FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
                 else
                 {
                     thrusts.SetOverridePercent("U", 0);
@@ -1224,18 +1214,18 @@ namespace MUL_H2_NAV_copy2
                     Clear();
                     Complete = true;
                 }
-                OutStatusMode(MaxFSpeed, MaxUSpeed, 0, (float)((CurrBase.FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult), new Vector3D(0, 0, 0), new Vector3D(0, 0, 0));
+                OutStatusMode(MaxFSpeed, MaxUSpeed, 0, (float)((FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
                 return Complete;
             }
             public bool Dock()
             {
 
                 bool Complete = false;
-                if (string.IsNullOrWhiteSpace(CurrBase.ConnectorTag)) return Complete;
+                if (string.IsNullOrWhiteSpace(Curr_Connector)) return Complete;
                 float MaxUSpeed, MaxLSpeed, MaxFSpeed;
-                Vector3D MyPosCon = Vector3D.Transform(MyPos, CurrBase.DockMatrix);
-                Vector3D gyrAng = GetNavAngles(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
-                Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, CurrBase.DockMatrix)))).Length() + CurrBase.ConnectorPoint.Length());
+                Vector3D MyPosCon = Vector3D.Transform(MyPos, Curr_DockMatrix);
+                Vector3D gyrAng = GetNavAngles(Curr_ConnectorPoint, Curr_DockMatrix);
+                Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, Curr_DockMatrix)))).Length() + Curr_ConnectorPoint.Length());
 
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 3f;
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 3f;
@@ -1287,21 +1277,21 @@ namespace MUL_H2_NAV_copy2
                         Complete = true;
                     }
                 }
-                OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel, new Vector3D(0, 0, 0), new Vector3D(0, 0, 0));
+                OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel);
                 return Complete;
             }
             public bool UnDock()
             {
                 bool Complete = false;
-                if (string.IsNullOrWhiteSpace(CurrBase.ConnectorTag)) return Complete;
+                if (string.IsNullOrWhiteSpace(Curr_Connector)) return Complete;
                 Distance = 0;
                 if (con_b.Status == MyShipConnectorStatus.Connected) con_b.obj.Disconnect();
                 if (con_d.Status == MyShipConnectorStatus.Connected) con_d.obj.Disconnect();
                 if (con_b.Status != MyShipConnectorStatus.Connected && con_d.Status != MyShipConnectorStatus.Connected)
                 {
-                    Vector3D MyPosCon = Vector3D.Transform(MyPos, CurrBase.DockMatrix);
-                    Vector3D gyrAng = GetNavAngles(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
-                    Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, CurrBase.DockMatrix)))).Length() + CurrBase.ConnectorPoint.Length());
+                    Vector3D MyPosCon = Vector3D.Transform(MyPos, Curr_DockMatrix);
+                    Vector3D gyrAng = GetNavAngles(Curr_ConnectorPoint, Curr_DockMatrix);
+                    Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, Curr_DockMatrix)))).Length() + Curr_ConnectorPoint.Length());
                     gyros.SetOverride(true, gyrAng * GyroMult, 1);
                     thrusts.SetOverridePercent("U", 0);
                     thrusts.SetOverridePercent("R", 0);
@@ -1314,98 +1304,19 @@ namespace MUL_H2_NAV_copy2
                         Complete = true;
                     }
                 }
-                OutStatusMode(0, 0, 0, 0, new Vector3D(0, 0, 0), new Vector3D(0, 0, 0));
-                return Complete;
-            }
-            //public bool Takeoff()
-            //{
-            //    bool Complete = false;
-            //    float MaxFSpeed = 100f;
-            //    //MaxFSpeed = (float)Math.Sqrt(2 * 1 * ZMaxA) / 3f;
-            //    if (GravVector.Length() > 0.1f)
-            //    {
-            //        if (Curr_base != 0) GetCurrentBase(0);
-            //        axis_horizont = "B";
-            //        if (ForwVelocityVector.Length() < MaxFSpeed)
-            //            thrusts.SetOverridePercent("F", 1);
-            //        else
-            //        {
-            //            thrusts.SetOverrideAccel("F", (float)GravVector.Length());
-            //        }
-            //    }
-            //    else
-            //    {
-            //        Clear();
-            //        Complete = true;
-            //    }
-            //    return Complete;
-            //}
-            public bool Takeoff()
-            {
-                bool Complete = false;
-                float MaxFSpeed = 0f;
-                float MaxUSpeed = 0f;
-                float MaxLSpeed = 0f;
-                GetCurrentBase(2);
-                Vector3D MyPosCon = Vector3D.Transform(MyPos, CurrBase.DockMatrix);
-                Vector3D gyrAng = GetNavAngles(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
-                Vector3D vecTahget = CurrBase.BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2));
-                Distance = (float)(vecTahget).Length();
-                Vector3D grav = GravVector;
-                Vector3D vert = Vector3D.ProjectOnVector(ref vecTahget, ref grav);
-                Vector3D hors = Vector3D.ProjectOnPlane(ref vecTahget, ref grav);
-                MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 3f;
-                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 3f;
-                MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 3f;
-                if (Distance > 200)
-                {
-                    if (GravVector.LengthSquared() > 0.2f)
-                    {
-                        gyros.SetOverride(true, gyrAng * GyroMult, 1);
-                        thrusts.SetOverridePercent("R", 0);
-                        thrusts.SetOverridePercent("L", 0);
-                        if (UpVelocityVector.Length() < 100f) //MaxUSpeed
-                            thrusts.SetOverrideAccel("U", (float)(vert.Length() * AlignAccelMult));
-                        else
-                        {
-                            thrusts.SetOverrideAccel("U", 0);
-                        }
-                        if (hors.Length() > TargetSize)
-                        {
-                            if (ForwVelocityVector.Length() < MaxFSpeed)
-                            {
-                                thrusts.SetOverrideAccel("F", (float)(hors.Length() * AlignAccelMult));
-                                thrusts.SetOverridePercent("B", 0);
-                            }
-                            else
-                            {
-                                thrusts.SetOverridePercent("F", 0);
-                                thrusts.SetOverridePercent("B", 0);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    Clear();
-                    Complete = true;
-
-                }
-                OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, 0, vert, hors);
+                OutStatusMode(0, 0, 0, 0);
                 return Complete;
             }
             //------------------------------------------------
-            public void OutStatusMode(float MaxFSpeed, float MaxUSpeed, float MaxLSpeed, float UpAccel, Vector3D vert, Vector3D hors)
+            public void OutStatusMode(float MaxFSpeed, float MaxUSpeed, float MaxLSpeed, float UpAccel)
             {
                 StringBuilder values = new StringBuilder();
                 values.Append(" STATUS\n");
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
-                values.Append("DeltaHeight: " + Math.Round(CurrBase.FlyHeight - (MyPos - PlanetCenter).Length()).ToString() + "\n");
+                values.Append("DeltaHeight: " + Math.Round(FlyHeight - (MyPos - PlanetCenter).Length()).ToString() + "\n");
                 values.Append("UpAccel: " + Math.Round(UpAccel).ToString() + "\n");
                 values.Append("Distance: " + Math.Round(Distance).ToString() + "\n");
-                values.Append("vert: " + vert.Length() + "\n");
-                values.Append("hors: " + hors.Length() + "\n");
                 values.Append("------------------------------------------\n");
                 values.Append("ZMaxA (F-B) : " + Math.Round(ZMaxA, 2).ToString() + "MaxFSpeed: " + Math.Round(MaxFSpeed, 2).ToString() + "\n");
                 values.Append("YMaxA (U-D) : " + Math.Round(YMaxA, 2).ToString() + "MaxUSpeed: " + Math.Round(MaxUSpeed, 2).ToString() + "\n");
@@ -1474,22 +1385,35 @@ namespace MUL_H2_NAV_copy2
                 StringBuilder str = lcd_storage.GetText();
                 curent_programm = (programm)GetValInt("curent_programm", str.ToString());
                 curent_mode = (mode)GetValInt("curent_mode", str.ToString());
+                FlyHeight = GetVal("FlyHeight", str.ToString());
+                ConnectorDockPoint1 = GetStringVal("ConnectorDockPoint1", str.ToString());
+                ConnectorDockPoint2 = GetStringVal("ConnectorDockPoint2", str.ToString());
+                DockMatrix1 = new MatrixD(GetVal("MCP11", str.ToString()), GetVal("MCP12", str.ToString()), GetVal("MCP13", str.ToString()), GetVal("MCP14", str.ToString()),
+                GetVal("MCP21", str.ToString()), GetVal("MCP22", str.ToString()), GetVal("MCP23", str.ToString()), GetVal("MCP24", str.ToString()),
+                GetVal("MCP31", str.ToString()), GetVal("MCP32", str.ToString()), GetVal("MCP33", str.ToString()), GetVal("MCP34", str.ToString()),
+                GetVal("MCP41", str.ToString()), GetVal("MCP42", str.ToString()), GetVal("MCP43", str.ToString()), GetVal("MCP44", str.ToString()));
+                DockMatrix2 = new MatrixD(GetVal("MCS11", str.ToString()), GetVal("MCS12", str.ToString()), GetVal("MCS13", str.ToString()), GetVal("MCS14", str.ToString()),
+                GetVal("MCS21", str.ToString()), GetVal("MCS22", str.ToString()), GetVal("MCS23", str.ToString()), GetVal("MCS24", str.ToString()),
+                GetVal("MCS31", str.ToString()), GetVal("MCS32", str.ToString()), GetVal("MCS33", str.ToString()), GetVal("MCS34", str.ToString()),
+                GetVal("MCS41", str.ToString()), GetVal("MCS42", str.ToString()), GetVal("MCS43", str.ToString()), GetVal("MCS44", str.ToString()));
+                PlanetCenter = new Vector3D(GetVal("PX", str.ToString()), GetVal("PY", str.ToString()), GetVal("PZ", str.ToString()));
+                BaseDockPoint1 = new Vector3D(0, 0, -200);
+                BaseDockPoint2 = new Vector3D(0, 0, -200);
             }
             public BaseStorage LoadBaseStorage(int num)
             {
                 StringBuilder str = lcd_storage.GetText();
-                string ConnectorTag = GetStringVal("ConnectorTag" + num, str.ToString());
                 BaseStorage result = new BaseStorage()
                 {
-                    ConnectorTag = ConnectorTag,
+                    ConnectorTag = GetStringVal("ConnectorDockPoint" + num, str.ToString()),
                     id = GetValInt64("ID" + num, str.ToString()),
-                    BaseDockPoint = new Vector3D(GetVal("BDPX" + num, str.ToString()), GetVal("BDPY" + num, str.ToString()), GetVal("BDPZ" + num, str.ToString())),
-                    ConnectorPoint = new Vector3D(GetVal("CPX" + num, str.ToString()), GetVal("CPY" + num, str.ToString()), GetVal("CPZ" + num, str.ToString())),
+                    BaseDockPoint = new Vector3D(0, 0, -200),
+                    ConnectorPoint = new Vector3D(0, 0, 3),
                     DockMatrix = new MatrixD(GetVal("DM" + num + "_11", str.ToString()), GetVal("DM" + num + "_12", str.ToString()), GetVal("DM" + num + "_13", str.ToString()), GetVal("DM" + num + "_14", str.ToString()),
                     GetVal("DM" + num + "_21", str.ToString()), GetVal("DM" + num + "_22", str.ToString()), GetVal("DM" + num + "_23", str.ToString()), GetVal("DM" + num + "_24", str.ToString()),
                     GetVal("DM" + num + "_31", str.ToString()), GetVal("DM" + num + "_32", str.ToString()), GetVal("DM" + num + "_33", str.ToString()), GetVal("DM" + num + "_34", str.ToString()),
                     GetVal("DM" + num + "_41", str.ToString()), GetVal("DM" + num + "_42", str.ToString()), GetVal("DM" + num + "_43", str.ToString()), GetVal("DM" + num + "_44", str.ToString())),
-                    PlanetCenter = new Vector3D(GetVal("PCX" + num, str.ToString()), GetVal("PCY" + num, str.ToString()), GetVal("PCZ" + num, str.ToString())),
+                    PlanetCenter = new Vector3D(GetVal("PX" + num, str.ToString()), GetVal("PY" + num, str.ToString()), GetVal("PZ" + num, str.ToString())),
                     FlyHeight = GetVal("FlyHeight" + num, str.ToString()),
                 };
                 return result;
@@ -1499,16 +1423,12 @@ namespace MUL_H2_NAV_copy2
                 StringBuilder values = new StringBuilder();
                 values.Append("curent_programm: " + ((int)curent_programm).ToString() + ";\n");
                 values.Append("curent_mode: " + ((int)curent_mode).ToString() + ";\n");
-                for (int i = 0; i < BaseCount; i++)
-                {
-                    values.Append("ConnectorTag" + i + ":" + (BasePoints[i].ConnectorTag != null ? BasePoints[i].ConnectorTag : "null") + ";\n");
-                    values.Append("ID" + i + ":" + BasePoints[i].id + ";\n");
-                    values.Append(BasePoints[i].BaseDockPoint.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "BDPX" + i).Replace("Y", "BDPY" + i).Replace("Z", "BDPZ" + i) + ";\n");
-                    values.Append(BasePoints[i].ConnectorPoint.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "CPX" + i).Replace("Y", "CPY" + i).Replace("Z", "CPZ" + i) + ";\n");
-                    values.Append(BasePoints[i].DockMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "DM" + i + "_"));
-                    values.Append(BasePoints[i].PlanetCenter.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PCX" + i).Replace("Y", "PCY" + i).Replace("Z", "PCZ" + i) + ";\n");
-                    values.Append("FlyHeight" + i + ":" + Math.Round(BasePoints[i].FlyHeight, 0) + ";\n");
-                }
+                values.Append("FlyHeight: " + Math.Round(FlyHeight, 0) + ";\n");
+                values.Append("ConnectorDockPoint1: " + (ConnectorDockPoint1 != null ? ConnectorDockPoint1 : "null") + ";\n");
+                values.Append("ConnectorDockPoint2: " + (ConnectorDockPoint2 != null ? ConnectorDockPoint2 : "null") + ";\n");
+                values.Append(DockMatrix1.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "MCP"));
+                values.Append(DockMatrix2.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "MCS"));
+                values.Append(PlanetCenter.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PX").Replace("Y", "PY").Replace("Z", "PZ") + ";\n");
                 lcd_storage.OutText(values);
             }
             //------------------------------------------------
@@ -1527,17 +1447,13 @@ namespace MUL_H2_NAV_copy2
             public string TextInfo2()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("ForwVelocityVector: " + ForwVelocityVector.Length() + "\n");
-                values.Append("UpVelocityVector: " + UpVelocityVector.Length() + "\n");
-                //values.Append("DockMatrix: " + CurrBase.DockMatrix.ToString() + "\n");
-                //values.Append(PText.GetGPS("DockPoint:", CurrBase.BaseDockPoint) + "\n");
-                //values.Append(PText.GetGPS("ConnPoint:", CurrBase.ConnectorPoint) + "\n");
+                values.Append("t: " + DockMatrix1.ToString() + "\n");
                 values.Append("name: " + name + "\n");
                 values.Append("Curr_base: " + Curr_base + "\n");
                 values.Append("status: " + status + "\n");
-                values.Append("Curr_Connector: " + CurrBase.ConnectorTag + "\n");
+                values.Append("Curr_Connector: " + Curr_Connector + "\n");
 
-                values.Append("Height            : " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(CurrBase.FlyHeight).ToString() + "\n");
+                values.Append("Height            : " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(FlyHeight).ToString() + "\n");
                 values.Append("Distance          : " + Math.Round(Distance).ToString() + "\n");
                 //values.Append("Phys./Crit.(Mass) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? red.ToString() : green.ToString()) + "\n");
                 //values.Append("Volume/Mass       : " + cargos.CurrentVolume + " / " + cargos.CurrentMass + "\n");
@@ -1583,11 +1499,14 @@ namespace MUL_H2_NAV_copy2
                         Clear();
                         curent_programm = programm.none;
                         break;
+                    case "save_height":
+                        SetFlyHeight();
+                        break;
                     case "save_base1":
-                        SetDockMatrix(1);
+                        SetDockMatrix1();
                         break;
                     case "save_base2":
-                        SetDockMatrix(2);
+                        SetDockMatrix2();
                         break;
                     case "fly_base1":
                         curent_programm = programm.fly_connect_base1;
@@ -1598,21 +1517,6 @@ namespace MUL_H2_NAV_copy2
                         SaveToStorage();
                         break;
                     case "go_home": { go_home = true; break; }
-                    case "to_base1":
-                        GetCurrentBase(1);
-                        curent_mode = mode.to_base;
-                        SaveToStorage();
-                        break;
-                    case "dock1":
-                        GetCurrentBase(1);
-                        curent_mode = mode.dock;
-                        SaveToStorage();
-                        break;
-                    case "un_dock1":
-                        GetCurrentBase(1);
-                        curent_mode = mode.un_dock;
-                        SaveToStorage();
-                        break;
                     case "to_base2":
                         GetCurrentBase(2);
                         curent_mode = mode.to_base;
@@ -1626,11 +1530,6 @@ namespace MUL_H2_NAV_copy2
                     case "un_dock2":
                         GetCurrentBase(2);
                         curent_mode = mode.un_dock;
-                        SaveToStorage();
-                        break;
-                    case "takeoff":
-                        GetCurrentBase(2);
-                        curent_mode = mode.takeoff;
                         SaveToStorage();
                         break;
                     default:
@@ -1700,14 +1599,6 @@ namespace MUL_H2_NAV_copy2
                             curent_mode = mode.none;
                         }
                     }
-                    if (curent_mode == mode.takeoff && !paused)
-                    {
-                        if (Takeoff() && curent_programm == programm.none)
-                        {
-                            GetCurrentBase(0);
-                            curent_mode = mode.none;
-                        }
-                    }
                 }
             }
         }
@@ -1740,68 +1631,4 @@ namespace MUL_H2_NAV_copy2
 //    double tL = TargetNorm.Dot(V3Dleft);
 //    double TargetRoll = (float)Math.Atan2(tL, tF);
 //    return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
-//}
-
-//public bool Dock1()
-//{
-
-//    bool Complete = false;
-//    if (string.IsNullOrWhiteSpace(CurrBase.ConnectorTag)) return Complete;
-//    float MaxUSpeed, MaxLSpeed, MaxFSpeed;
-//    Vector3D MyPosCon = Vector3D.Transform(MyPos, CurrBase.DockMatrix);
-//    Vector3D gyrAng = GetNavAngles(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
-//    Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, CurrBase.DockMatrix)))).Length() + CurrBase.ConnectorPoint.Length());
-
-//    MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 3f;
-//    MaxUSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 3f;
-//    MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(2)) * YMaxA) / 3f;
-//    if (Distance < 15)
-//        MaxFSpeed = MaxFSpeed / 5;
-//    if (Math.Abs(MyPosCon.GetDim(2)) < 1)
-//        MaxUSpeed = 0.1f;
-//    gyros.SetOverride(true, gyrAng * GyroMult, 1);
-//    if (LeftVelocityVector.Length() < MaxLSpeed)
-//        thrusts.SetOverrideAccel("R", (float)(MyPosCon.GetDim(0) * AlignAccelMult));
-//    else
-//    {
-//        thrusts.SetOverridePercent("R", 0);
-//        thrusts.SetOverridePercent("L", 0);
-//    }
-//    float UpAccel = -(float)(MyPosCon.GetDim(2) * AlignAccelMult);
-//    float minUpAccel = 0.1f;
-//    if ((UpAccel < 0) && (UpAccel > -minUpAccel))
-//        UpAccel = -minUpAccel;
-//    if ((UpAccel > 0) && (UpAccel < minUpAccel))
-//        UpAccel = minUpAccel;
-//    if (UpVelocityVector.Length() < MaxUSpeed)
-//        thrusts.SetOverrideAccel("U", UpAccel);
-//    else { thrusts.SetOverridePercent("U", 0); }
-//    if (((Distance > 100) || ((Math.Abs(MyPosCon.GetDim(0)) < (Distance / 10 + 0.2f)) && (Math.Abs(MyPosCon.GetDim(2)) < (Distance / 10 + 0.2f)))) && (ForwVelocityVector.Length() < MaxFSpeed))
-//    {
-//        thrusts.SetOverrideAccel("U", (float)(Distance * AlignAccelMult));
-//        thrusts.SetOverridePercent("D", 0);
-//    }
-//    else
-//    {
-//        thrusts.SetOverridePercent("U", 0);
-//        thrusts.SetOverridePercent("D", 0);
-//    }
-//    if (Distance < 6)
-//    {
-//        if (con_b.Status == MyShipConnectorStatus.Connectable)
-//        {
-//            con_b.obj.Connect();
-//        }
-//        if (con_d.Status == MyShipConnectorStatus.Connectable)
-//        {
-//            con_d.obj.Connect();
-//        }
-//        if (con_b.Status == MyShipConnectorStatus.Connected || con_d.Status == MyShipConnectorStatus.Connected)
-//        {
-//            Clear();
-//            Complete = true;
-//        }
-//    }
-//    OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel);
-//    return Complete;
 //}
