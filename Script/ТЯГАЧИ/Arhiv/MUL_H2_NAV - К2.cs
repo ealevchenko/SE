@@ -1,5 +1,4 @@
 ﻿using Sandbox.Definitions;
-using Sandbox.Game.Entities.Planet;
 using Sandbox.Game.GameSystems;
 using Sandbox.ModAPI.Ingame;
 using Sandbox.ModAPI.Interfaces;
@@ -23,7 +22,7 @@ using VRageMath;
 /// v3.0
 /// Управление дверями и освещение
 /// </summary>
-namespace MUL_H2_NAV_copy3
+namespace MUL_H2_NAV_copy2
 {
     public sealed class Program : MyGridProgram
     {
@@ -841,7 +840,6 @@ namespace MUL_H2_NAV_copy3
             public float Distance { get; private set; }
             //----------------------------------------
             public Vector3D PlanetCenter = new Vector3D(0.50, 0.50, 0.50);
-            public double FlyHeight { get; set; } = 0;
             //
             private BaseController rc_current;
             private int Curr_base { get; set; } = 0;
@@ -852,25 +850,19 @@ namespace MUL_H2_NAV_copy3
                 public Vector3D BaseDockPoint = new Vector3D(0, 0, -200);
                 public Vector3D ConnectorPoint = new Vector3D(0, 0, 3);
                 public MatrixD DockMatrix { get; set; }
-            }
-            public class PlanetStorage
-            {
-                public Vector3D Center = new Vector3D(0.0, 0.0, 0.0);
+                public Vector3D PlanetCenter = new Vector3D(0, 0, 0);
                 public double FlyHeight { get; set; } = 0;
             }
+
             public int BaseCount { get; private set; } = 2;
             BaseStorage[] BasePoints;
             public BaseStorage CurrBase { get; set; } = new BaseStorage();
-            public int PlanetCount { get; private set; } = 1;
-            PlanetStorage[] Planets;
-            public PlanetStorage CurrPlanet { get; set; } = new PlanetStorage();
             public string name { get; set; }
             public string status { get; set; }
             public Navigation()
             {
                 LoadFromStorage();
                 InitBasePoints();
-                InitPlanets();
                 GetCurrentBase(0);
                 //FindPlanetCenter();
             }
@@ -880,23 +872,7 @@ namespace MUL_H2_NAV_copy3
                 MyPrevPos = MyPos;
                 MyPos = rc_current.obj.GetPosition();
                 GravVector = rc_current.obj.GetNaturalGravity();
-                PlanetCenter = FindPlanetCenter();
-                if (GravVector.LengthSquared() > 0.2f)
-                {
-                    PlanetStorage planet = Array.Find(Planets, pl => pl.Center == PlanetCenter);
-                    if (planet != null)
-                    {
-                        FlyHeight = planet.FlyHeight; 
-                    }
-                    else
-                    {
-                        FlyHeight = 0;
-                    }
-                }
-                else
-                {
-
-                }
+                PhysicalMass = rc_current.obj.CalculateShipMass().PhysicalMass;
                 WMCPocpit = rc_current.obj.WorldMatrix;
                 VelocityVector = (MyPos - MyPrevPos) * 6;
                 UpVelocityVector = WMCPocpit.Up * Vector3D.Dot(VelocityVector, WMCPocpit.Up);
@@ -906,7 +882,7 @@ namespace MUL_H2_NAV_copy3
                 YMaxA = Math.Abs((float)Math.Min(thrusts.UpThrMax / PhysicalMass - GravVector.Length(), thrusts.DownThrMax / PhysicalMass + GravVector.Length()));
                 ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
                 XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
-
+                PlanetCenter = FindPlanetCenter();
                 //cargos.Update();
                 //if (PhysicalMass > CriticalMass) { CriticalMassReached = true; } else { CriticalMassReached = false; }
             }
@@ -916,14 +892,6 @@ namespace MUL_H2_NAV_copy3
                 for (int i = 0; i < BaseCount; i++)
                 {
                     BasePoints[i] = LoadBaseStorage(i);
-                }
-            }
-            public void InitPlanets()
-            {
-                Planets = new PlanetStorage[PlanetCount];
-                for (int i = 0; i < PlanetCount; i++)
-                {
-                    Planets[i] = LoadPlanetStorage(i);
                 }
             }
             //-------------------------------------
@@ -1127,28 +1095,9 @@ namespace MUL_H2_NAV_copy3
                         BaseDockPoint = new Vector3D(0, 0, -200),
                         ConnectorPoint = new Vector3D(0, 0, 3),
                         DockMatrix = GetNormTransMatrixFromMyPos(),
+                        PlanetCenter = pc,
+                        FlyHeight = !Vector3D.IsZero(pc) ? (Vector3D.Normalize(MyPos - pc) * 300 + MyPos).Length() : 0,
                     };
-                    if (!Vector3D.IsZero(pc))
-                    {
-                        PlanetStorage planet = Array.Find(Planets, pl => pl.Center == pc);
-                        if (planet == null)
-                        {
-                            planet = new PlanetStorage()
-                            {
-                                Center = pc,
-                                FlyHeight = (Vector3D.Normalize(MyPos - pc) * 300 + MyPos).Length(),
-                            };
-                            PlanetCount++;
-                            Array.Resize(ref Planets, PlanetCount);
-                            Planets[PlanetCount - 1] = planet;
-                        }
-                        else
-                        {
-                            planet.Center = pc;
-                            planet.FlyHeight = (Vector3D.Normalize(MyPos - pc) * 300 + MyPos).Length();
-                        }
-                    }
-
                     SaveToStorage();
                     SetRCDefault();
                 }
@@ -1203,6 +1152,8 @@ namespace MUL_H2_NAV_copy3
                         BaseDockPoint = new Vector3D(0, 0, -200),
                         ConnectorPoint = new Vector3D(0, 0, 3),
                         DockMatrix = new MatrixD(),
+                        PlanetCenter = new Vector3D(0, 0, 0),
+                        FlyHeight = 0
                     };
                 }
                 SetRCOfStorage();
@@ -1244,13 +1195,13 @@ namespace MUL_H2_NAV_copy3
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, CurrBase.DockMatrix);
                 Distance = (float)(CurrBase.BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
                 if (GravVector.LengthSquared() > 0.2f)
-                    MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(FlyHeight - (MyPos - PlanetCenter).Length()) * YMaxA) / 3f;
+                    MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(CurrBase.FlyHeight - (MyPos - PlanetCenter).Length()) * YMaxA) / 3f;
                 MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 3f;
                 gyros.SetOverride(true, gyrAng * GyroMult, 1);
                 thrusts.SetOverridePercent("R", 0);
                 thrusts.SetOverridePercent("L", 0);
                 if (UpVelocityVector.Length() < MaxUSpeed)
-                    thrusts.SetOverrideAccel("U", (float)((FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
+                    thrusts.SetOverrideAccel("U", (float)((CurrBase.FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
                 else
                 {
                     thrusts.SetOverridePercent("U", 0);
@@ -1273,7 +1224,7 @@ namespace MUL_H2_NAV_copy3
                     Clear();
                     Complete = true;
                 }
-                OutStatusMode(MaxFSpeed, MaxUSpeed, 0, (float)((FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult), new Vector3D(0, 0, 0), new Vector3D(0, 0, 0));
+                OutStatusMode(MaxFSpeed, MaxUSpeed, 0, (float)((CurrBase.FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult), new Vector3D(0, 0, 0), new Vector3D(0, 0, 0));
                 return Complete;
             }
             public bool Dock()
@@ -1450,7 +1401,7 @@ namespace MUL_H2_NAV_copy3
                 values.Append(" STATUS\n");
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
-                values.Append("DeltaHeight: " + Math.Round(FlyHeight - (MyPos - PlanetCenter).Length()).ToString() + "\n");
+                values.Append("DeltaHeight: " + Math.Round(CurrBase.FlyHeight - (MyPos - PlanetCenter).Length()).ToString() + "\n");
                 values.Append("UpAccel: " + Math.Round(UpAccel).ToString() + "\n");
                 values.Append("Distance: " + Math.Round(Distance).ToString() + "\n");
                 values.Append("vert: " + vert.Length() + "\n");
@@ -1538,15 +1489,7 @@ namespace MUL_H2_NAV_copy3
                     GetVal("DM" + num + "_21", str.ToString()), GetVal("DM" + num + "_22", str.ToString()), GetVal("DM" + num + "_23", str.ToString()), GetVal("DM" + num + "_24", str.ToString()),
                     GetVal("DM" + num + "_31", str.ToString()), GetVal("DM" + num + "_32", str.ToString()), GetVal("DM" + num + "_33", str.ToString()), GetVal("DM" + num + "_34", str.ToString()),
                     GetVal("DM" + num + "_41", str.ToString()), GetVal("DM" + num + "_42", str.ToString()), GetVal("DM" + num + "_43", str.ToString()), GetVal("DM" + num + "_44", str.ToString())),
-                };
-                return result;
-            }
-            public PlanetStorage LoadPlanetStorage(int num)
-            {
-                StringBuilder str = lcd_storage.GetText();
-                PlanetStorage result = new PlanetStorage()
-                {
-                    Center = new Vector3D(GetVal("PCX" + num, str.ToString()), GetVal("PCY" + num, str.ToString()), GetVal("PCZ" + num, str.ToString())),
+                    PlanetCenter = new Vector3D(GetVal("PCX" + num, str.ToString()), GetVal("PCY" + num, str.ToString()), GetVal("PCZ" + num, str.ToString())),
                     FlyHeight = GetVal("FlyHeight" + num, str.ToString()),
                 };
                 return result;
@@ -1563,11 +1506,8 @@ namespace MUL_H2_NAV_copy3
                     values.Append(BasePoints[i].BaseDockPoint.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "BDPX" + i).Replace("Y", "BDPY" + i).Replace("Z", "BDPZ" + i) + ";\n");
                     values.Append(BasePoints[i].ConnectorPoint.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "CPX" + i).Replace("Y", "CPY" + i).Replace("Z", "CPZ" + i) + ";\n");
                     values.Append(BasePoints[i].DockMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "DM" + i + "_"));
-                }
-                for (int i = 0; i < PlanetCount; i++)
-                {
-                    values.Append(Planets[i].Center.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PCX" + i).Replace("Y", "PCY" + i).Replace("Z", "PCZ" + i) + ";\n");
-                    values.Append("FlyHeight" + i + ":" + Math.Round(Planets[i].FlyHeight, 0) + ";\n");
+                    values.Append(BasePoints[i].PlanetCenter.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PCX" + i).Replace("Y", "PCY" + i).Replace("Z", "PCZ" + i) + ";\n");
+                    values.Append("FlyHeight" + i + ":" + Math.Round(BasePoints[i].FlyHeight, 0) + ";\n");
                 }
                 lcd_storage.OutText(values);
             }
@@ -1597,7 +1537,7 @@ namespace MUL_H2_NAV_copy3
                 values.Append("status: " + status + "\n");
                 values.Append("Curr_Connector: " + CurrBase.ConnectorTag + "\n");
 
-                values.Append("Height            : " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(FlyHeight).ToString() + "\n");
+                values.Append("Height            : " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(CurrBase.FlyHeight).ToString() + "\n");
                 values.Append("Distance          : " + Math.Round(Distance).ToString() + "\n");
                 //values.Append("Phys./Crit.(Mass) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? red.ToString() : green.ToString()) + "\n");
                 //values.Append("Volume/Mass       : " + cargos.CurrentVolume + " / " + cargos.CurrentMass + "\n");
