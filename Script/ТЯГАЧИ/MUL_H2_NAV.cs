@@ -7,6 +7,7 @@ using SpaceEngineers.Game.ModAPI.Ingame;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.Eventing.Reader;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.ConstrainedExecution;
@@ -886,7 +887,7 @@ namespace MUL_H2_NAV
                     PlanetStorage planet = Array.Find(Planets, pl => pl.Center == PlanetCenter);
                     if (planet != null)
                     {
-                        FlyHeight = planet.FlyHeight; 
+                        FlyHeight = planet.FlyHeight;
                     }
                     else
                     {
@@ -929,70 +930,74 @@ namespace MUL_H2_NAV
             //-------------------------------------
             public Vector3D GetNavAngles(Vector3D Target, MatrixD InvMatrix)
             {
-                double TargetYaw = 0;
-                double TargetRoll = 0;
-                double TargetPitch = 0;
-
+                double TargetYaw = 0, TargetRoll = 0, TargetPitch = 0;
+                double gF = 0, gL = 0, gU = 0;
+                // Получим локальные
                 Vector3D V3Dcenter = rc_current.obj.GetPosition();
                 Vector3D V3Dfow = rc_current.obj.WorldMatrix.Forward + V3Dcenter;
                 Vector3D V3Dup = rc_current.obj.WorldMatrix.Up + V3Dcenter;
                 Vector3D V3Dleft = rc_current.obj.WorldMatrix.Left + V3Dcenter;
-
-                //Vector3D GravNorm = Vector3D.Normalize(GravVector) + V3Dcenter;
+                // Ререведем в глобальные
                 V3Dcenter = Vector3D.Transform(V3Dcenter, InvMatrix);
                 V3Dfow = (Vector3D.Transform(V3Dfow, InvMatrix)) - V3Dcenter;
                 V3Dup = (Vector3D.Transform(V3Dup, InvMatrix)) - V3Dcenter;
                 V3Dleft = (Vector3D.Transform(V3Dleft, InvMatrix)) - V3Dcenter;
-                //GravNorm = Vector3D.Normalize((Vector3D.Transform(GravNorm, InvMatrix)) - V3Dcenter);
+
                 Vector3D GravNorm = Vector3D.Normalize(new Vector3D(-0, -1, -0));
                 Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
-                string tag = CurrBase.ConnectorTag.Trim();
+
+                string tag = CurrBase.ConnectorTag.Trim(); // коннектор для стыковки
                 if (GravVector.LengthSquared() > 0.2f)
                 {
                     GravNorm = Vector3D.Normalize(GravVector);
                     GravNorm = Vector3D.Normalize(Vector3D.Transform(GravNorm + rc_current.obj.GetPosition(), InvMatrix) - V3Dcenter);
-                    tag = "down";
-                }
-                ;
-                //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
-                double gF = GravNorm.Dot(V3Dfow);
-                double gL = GravNorm.Dot(V3Dleft);
-                double gU = GravNorm.Dot(V3Dup);
-                if (tag == "down")
-                {
-                    //Получаем сигналы по тангажу и крены операцией atan2
-                    TargetYaw = (float)Math.Atan2(gL, -gU); // крен
-                    TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
-                    //Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
-                    //Рысканием прицеливаемся на точку Target.
-                    double tF = TargetNorm.Dot(V3Dfow);
-                    double tL = TargetNorm.Dot(V3Dleft);
-                    TargetRoll = (float)Math.Atan2(tL, tF);
-                    //status = "down";
-                }
-                else if (tag == "back")
-                {
-                    //Получаем сигналы по тангажу и крены операцией atan2
-                    TargetRoll = -(float)Math.Atan2(gL, -gU); // крен
-                    TargetPitch = (float)Math.Atan2(gF, -gU); // тангаж
-                    //Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
-                    //Рысканием прицеливаемся на точку Target.
-                    double tF = TargetNorm.Dot(V3Dfow);
-                    double tL = TargetNorm.Dot(V3Dleft);
-                    TargetYaw = -(float)Math.Atan2(tL, tF);
-                    //status = "back";
+                    // держим горизонт (макс двиг вниз) жопой вниз
+                    gF = GravNorm.Dot(-V3Dup);
+                    gL = GravNorm.Dot(V3Dleft);
+                    gU = GravNorm.Dot(V3Dfow);
+                    if (tag == "down")
+                    {
+                        //Получаем сигналы по тангажу и крены операцией atan2
+                        TargetYaw = (float)Math.Atan2(gL, -gU); // крен
+                        TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+                        double tF = TargetNorm.Dot(V3Dfow);
+                        double tL = TargetNorm.Dot(V3Dleft);
+                        TargetRoll= -(float)Math.Atan2(tL, tF);
+                    }
+                    else if (tag == "back")
+                    {
+
+                    }
+                    else
+                    {
+
+                    }
                 }
                 else
                 {
-                    //Получаем сигналы по тангажу и крены операцией atan2
-                    TargetRoll = (float)Math.Atan2(gL, -gU); // крен
-                    TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
-                    //Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
-                    //Рысканием прицеливаемся на точку Target.
-                    double tF = TargetNorm.Dot(V3Dfow);
-                    double tL = TargetNorm.Dot(V3Dleft);
-                    TargetYaw = -(float)Math.Atan2(tL, tF);
+                    // держим горизонт(по оси -y), Получаем проекции вектора гравитации на все три оси блока ДУ. 
+                    gF = GravNorm.Dot(V3Dfow);
+                    gL = GravNorm.Dot(V3Dleft);
+                    gU = GravNorm.Dot(V3Dup);
+                    if (tag == "down")
+                    {
+
+                    }
+                    else if (tag == "back")
+                    {
+                        //Получаем сигналы по тангажу и крены операцией atan2
+                        TargetRoll = (float)Math.Atan2(gL, -gU); // крен
+                        TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+                        double tF = TargetNorm.Dot(V3Dfow);
+                        double tL = TargetNorm.Dot(V3Dleft);
+                        TargetYaw = -(float)Math.Atan2(tL, tF);
+                    }
+                    else
+                    {
+
+                    }
                 }
+
                 return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
             }
             public Vector3D GetNavAngles(Vector3D? Vector, string axis)
@@ -1773,95 +1778,38 @@ namespace MUL_H2_NAV
         }
     }
 }
-
-//public Vector3D GetNavAnglesDown(Vector3D Target, MatrixD InvMatrix)
+//if (tag == "down")
 //{
-//    Vector3D V3Dcenter = rc_current.obj.GetPosition();
-//    Vector3D V3Dfow = rc_current.obj.WorldMatrix.Forward + V3Dcenter;
-//    Vector3D V3Dup = rc_current.obj.WorldMatrix.Up + V3Dcenter;
-//    Vector3D V3Dleft = rc_current.obj.WorldMatrix.Left + V3Dcenter;
-//    Vector3D GravNorm = Vector3D.Normalize(GravVector) + V3Dcenter;
-
-//    V3Dcenter = Vector3D.Transform(V3Dcenter, InvMatrix);
-//    V3Dfow = (Vector3D.Transform(V3Dfow, InvMatrix)) - V3Dcenter;
-//    V3Dup = (Vector3D.Transform(V3Dup, InvMatrix)) - V3Dcenter;
-//    V3Dleft = (Vector3D.Transform(V3Dleft, InvMatrix)) - V3Dcenter;
-//    GravNorm = Vector3D.Normalize((Vector3D.Transform(GravNorm, InvMatrix)) - V3Dcenter);
-//    //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
-//    double gF = GravNorm.Dot(V3Dfow);
-//    double gL = GravNorm.Dot(V3Dleft);
-//    double gU = GravNorm.Dot(V3Dup);
 //    //Получаем сигналы по тангажу и крены операцией atan2
-//    double TargetYaw = (float)Math.Atan2(gL, -gU); // крен
-//    double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
-//    Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
+//    TargetYaw = (float)Math.Atan2(gL, -gU); // крен
+//    TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+//    //Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
 //    //Рысканием прицеливаемся на точку Target.
 //    double tF = TargetNorm.Dot(V3Dfow);
 //    double tL = TargetNorm.Dot(V3Dleft);
-//    double TargetRoll = (float)Math.Atan2(tL, tF);
-//    return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
+//    TargetRoll = (float)Math.Atan2(tL, tF);
+//    //status = "down";
 //}
-
-//public bool Dock1()
+//else if (tag == "back")
 //{
-
-//    bool Complete = false;
-//    if (string.IsNullOrWhiteSpace(CurrBase.ConnectorTag)) return Complete;
-//    float MaxUSpeed, MaxLSpeed, MaxFSpeed;
-//    Vector3D MyPosCon = Vector3D.Transform(MyPos, CurrBase.DockMatrix);
-//    Vector3D gyrAng = GetNavAngles(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
-//    Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, CurrBase.DockMatrix)))).Length() + CurrBase.ConnectorPoint.Length());
-
-//    MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 3f;
-//    MaxUSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 3f;
-//    MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(2)) * YMaxA) / 3f;
-//    if (Distance < 15)
-//        MaxFSpeed = MaxFSpeed / 5;
-//    if (Math.Abs(MyPosCon.GetDim(2)) < 1)
-//        MaxUSpeed = 0.1f;
-//    gyros.SetOverride(true, gyrAng * GyroMult, 1);
-//    if (LeftVelocityVector.Length() < MaxLSpeed)
-//        thrusts.SetOverrideAccel("R", (float)(MyPosCon.GetDim(0) * AlignAccelMult));
-//    else
-//    {
-//        thrusts.SetOverridePercent("R", 0);
-//        thrusts.SetOverridePercent("L", 0);
-//    }
-//    float UpAccel = -(float)(MyPosCon.GetDim(2) * AlignAccelMult);
-//    float minUpAccel = 0.1f;
-//    if ((UpAccel < 0) && (UpAccel > -minUpAccel))
-//        UpAccel = -minUpAccel;
-//    if ((UpAccel > 0) && (UpAccel < minUpAccel))
-//        UpAccel = minUpAccel;
-//    if (UpVelocityVector.Length() < MaxUSpeed)
-//        thrusts.SetOverrideAccel("U", UpAccel);
-//    else { thrusts.SetOverridePercent("U", 0); }
-//    if (((Distance > 100) || ((Math.Abs(MyPosCon.GetDim(0)) < (Distance / 10 + 0.2f)) && (Math.Abs(MyPosCon.GetDim(2)) < (Distance / 10 + 0.2f)))) && (ForwVelocityVector.Length() < MaxFSpeed))
-//    {
-//        thrusts.SetOverrideAccel("U", (float)(Distance * AlignAccelMult));
-//        thrusts.SetOverridePercent("D", 0);
-//    }
-//    else
-//    {
-//        thrusts.SetOverridePercent("U", 0);
-//        thrusts.SetOverridePercent("D", 0);
-//    }
-//    if (Distance < 6)
-//    {
-//        if (con_b.Status == MyShipConnectorStatus.Connectable)
-//        {
-//            con_b.obj.Connect();
-//        }
-//        if (con_d.Status == MyShipConnectorStatus.Connectable)
-//        {
-//            con_d.obj.Connect();
-//        }
-//        if (con_b.Status == MyShipConnectorStatus.Connected || con_d.Status == MyShipConnectorStatus.Connected)
-//        {
-//            Clear();
-//            Complete = true;
-//        }
-//    }
-//    OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel);
-//    return Complete;
+//    //Получаем сигналы по тангажу и крены операцией atan2
+//    TargetRoll = -(float)Math.Atan2(gL, -gU); // крен
+//    TargetPitch = (float)Math.Atan2(gF, -gU); // тангаж
+//    //Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
+//    //Рысканием прицеливаемся на точку Target.
+//    double tF = TargetNorm.Dot(V3Dfow);
+//    double tL = TargetNorm.Dot(V3Dleft);
+//    TargetYaw = -(float)Math.Atan2(tL, tF);
+//    //status = "back";
+//}
+//else
+//{
+//    //Получаем сигналы по тангажу и крены операцией atan2
+//    TargetRoll = (float)Math.Atan2(gL, -gU); // крен
+//    TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+//    //Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
+//    //Рысканием прицеливаемся на точку Target.
+//    double tF = TargetNorm.Dot(V3Dfow);
+//    double tL = TargetNorm.Dot(V3Dleft);
+//    TargetYaw = -(float)Math.Atan2(tL, tF);
 //}
