@@ -930,7 +930,7 @@ namespace MUL_H2_NAV
             //-------------------------------------
             public Vector3D GetNavAngles(Vector3D Target, MatrixD InvMatrix)
             {
-                double TargetYaw = 0, TargetRoll = 0, TargetPitch = 0;
+                double Yaw = 0, Roll = 0, Pitch = 0;
                 double gF = 0, gL = 0, gU = 0;
                 // Получим локальные
                 Vector3D V3Dcenter = rc_current.obj.GetPosition();
@@ -955,22 +955,23 @@ namespace MUL_H2_NAV
                     gF = GravNorm.Dot(-V3Dup);
                     gL = GravNorm.Dot(V3Dleft);
                     gU = GravNorm.Dot(V3Dfow);
-                    if (tag == "down")
+                    if (tag == "down" || String.IsNullOrWhiteSpace(tag))
                     {
                         //Получаем сигналы по тангажу и крены операцией atan2
-                        TargetYaw = (float)Math.Atan2(gL, -gU); // крен
-                        TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+                        Roll = (float)Math.Atan2(gL, -gU); // крен
+                        Pitch = -(float)Math.Atan2(gF, -gU); // тангаж
                         double tF = TargetNorm.Dot(V3Dfow);
                         double tL = TargetNorm.Dot(V3Dleft);
-                        TargetRoll= -(float)Math.Atan2(tL, tF);
+                        Yaw = -(float)Math.Atan2(tL, tF);
+                        return new Vector3D(Roll, Pitch, -Yaw);
                     }
                     else if (tag == "back")
                     {
-
-                    }
-                    else
-                    {
-
+                        //Получаем сигналы по тангажу и крены операцией atan2
+                        Roll = (float)Math.Atan2(gL, -gU); // крен
+                        Pitch = -(float)Math.Atan2(gF, -gU); // тангаж
+                        Yaw = 0;
+                        return new Vector3D(Roll, Pitch, Yaw);
                     }
                 }
                 else
@@ -979,26 +980,25 @@ namespace MUL_H2_NAV
                     gF = GravNorm.Dot(V3Dfow);
                     gL = GravNorm.Dot(V3Dleft);
                     gU = GravNorm.Dot(V3Dup);
-                    if (tag == "down")
+                    if (tag == "down" || String.IsNullOrWhiteSpace(tag))
                     {
-
+                        Roll = (float)Math.Atan2(gL, -gU); // крен
+                        Pitch = -(float)Math.Atan2(gF, -gU); // тангаж
+                        Yaw = 0;
+                        return new Vector3D(Yaw, Pitch, Roll);
                     }
                     else if (tag == "back")
                     {
                         //Получаем сигналы по тангажу и крены операцией atan2
-                        TargetRoll = (float)Math.Atan2(gL, -gU); // крен
-                        TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
-                        double tF = TargetNorm.Dot(V3Dfow);
-                        double tL = TargetNorm.Dot(V3Dleft);
-                        TargetYaw = -(float)Math.Atan2(tL, tF);
-                    }
-                    else
-                    {
-
+                        Roll = (float)Math.Atan2(gL, -gU); // крен
+                        Pitch = -(float)Math.Atan2(gF, -gU); // тангаж
+                        double tF = -TargetNorm.Dot(V3Dfow);
+                        double tL = -TargetNorm.Dot(V3Dleft);
+                        Yaw = -(float)Math.Atan2(tL, tF);
+                        return new Vector3D(Yaw, Pitch, Roll);
                     }
                 }
-
-                return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
+                return new Vector3D(0, 0, 0);
             }
             public Vector3D GetNavAngles(Vector3D? Vector, string axis)
             {
@@ -1371,29 +1371,6 @@ namespace MUL_H2_NAV
                 OutStatusMode(0, 0, 0, 0, new Vector3D(0, 0, 0), new Vector3D(0, 0, 0));
                 return Complete;
             }
-            //public bool Takeoff()
-            //{
-            //    bool Complete = false;
-            //    float MaxFSpeed = 100f;
-            //    //MaxFSpeed = (float)Math.Sqrt(2 * 1 * ZMaxA) / 3f;
-            //    if (GravVector.Length() > 0.1f)
-            //    {
-            //        if (Curr_base != 0) GetCurrentBase(0);
-            //        axis_horizont = "B";
-            //        if (ForwVelocityVector.Length() < MaxFSpeed)
-            //            thrusts.SetOverridePercent("F", 1);
-            //        else
-            //        {
-            //            thrusts.SetOverrideAccel("F", (float)GravVector.Length());
-            //        }
-            //    }
-            //    else
-            //    {
-            //        Clear();
-            //        Complete = true;
-            //    }
-            //    return Complete;
-            //}
             public bool Takeoff()
             {
                 bool Complete = false;
