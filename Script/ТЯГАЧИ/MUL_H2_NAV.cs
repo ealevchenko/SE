@@ -936,11 +936,13 @@ namespace MUL_H2_NAV
                 Vector3D V3Dcenter = rc_current.obj.GetPosition();
                 Vector3D V3Dfow = rc_current.obj.WorldMatrix.Forward + V3Dcenter;
                 Vector3D V3Dup = rc_current.obj.WorldMatrix.Up + V3Dcenter;
+                //Vector3D V3Ddown = rc_current.obj.WorldMatrix.Down + V3Dcenter;
                 Vector3D V3Dleft = rc_current.obj.WorldMatrix.Left + V3Dcenter;
                 // Ререведем в глобальные
                 V3Dcenter = Vector3D.Transform(V3Dcenter, InvMatrix);
                 V3Dfow = (Vector3D.Transform(V3Dfow, InvMatrix)) - V3Dcenter;
                 V3Dup = (Vector3D.Transform(V3Dup, InvMatrix)) - V3Dcenter;
+                //V3Ddown = (Vector3D.Transform(V3Ddown, InvMatrix)) - V3Dcenter;
                 V3Dleft = (Vector3D.Transform(V3Dleft, InvMatrix)) - V3Dcenter;
 
                 Vector3D GravNorm = Vector3D.Normalize(new Vector3D(-0, -1, -0));
@@ -957,10 +959,11 @@ namespace MUL_H2_NAV
                     gU = GravNorm.Dot(V3Dfow);
                     if (tag == "down" || String.IsNullOrWhiteSpace(tag))
                     {
+                        status = "down";
                         //Получаем сигналы по тангажу и крены операцией atan2
                         Roll = (float)Math.Atan2(gL, -gU); // крен
                         Pitch = -(float)Math.Atan2(gF, -gU); // тангаж
-                        double tF = TargetNorm.Dot(V3Dfow);
+                        double tF = TargetNorm.Dot(-V3Dup);
                         double tL = TargetNorm.Dot(V3Dleft);
                         Yaw = -(float)Math.Atan2(tL, tF);
                         return new Vector3D(Roll, Pitch, -Yaw);
@@ -1091,26 +1094,27 @@ namespace MUL_H2_NAV
             }
             public void SetRCOfStorage(string tag)
             {
-                if (!String.IsNullOrWhiteSpace(tag))
-                {
-                    if (tag.Trim() == "down") { rc_current = rc_d; }
-                    else if (tag.Trim() == "back")
-                    {
-                        if (GravVector.LengthSquared() > 0.2f)
-                        {
-                            rc_current = rc_d;
-                        }
-                        else
-                        {
-                            rc_current = rc_b;
-                        }
-                    }
-                    else { rc_current = cockpit; }
-                }
-                else
-                {
-                    rc_current = cockpit;
-                }
+                //if (!String.IsNullOrWhiteSpace(tag))
+                //{
+                //    if (tag.Trim() == "down") { rc_current = rc_d; }
+                //    else if (tag.Trim() == "back")
+                //    {
+                //        if (GravVector.LengthSquared() > 0.2f)
+                //        {
+                //            rc_current = rc_d;
+                //        }
+                //        else
+                //        {
+                //            rc_current = rc_b;
+                //        }
+                //    }
+                //    else { rc_current = cockpit; }
+                //}
+                //else
+                //{
+                //    rc_current = cockpit;
+                //}
+                rc_current = cockpit;
                 thrusts.InitThrusts(rc_current);
                 UpdateCalc();
             }
@@ -1153,7 +1157,6 @@ namespace MUL_H2_NAV
                             planet.FlyHeight = (Vector3D.Normalize(MyPos - pc) * 300 + MyPos).Length();
                         }
                     }
-
                     SaveToStorage();
                     SetRCDefault();
                 }
