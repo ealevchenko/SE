@@ -43,11 +43,19 @@ namespace OSS_BM_UPR
 
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
         string tag_mechanical_connectior = "[mechanical_connectior]";
+        public bool vector = false;
+        static Vector3D vector_sp = new Vector3D(-0.000739292178424908, -0.999999582397521, 0.000537263304268998);
 
         public enum or_mtr : int
         {
             not = 0, up = 1, down = 2, left = 3, right = 4, forward = 5, backward = 6
         };
+
+        const char igreen = '\uE001';
+        const char iblue = '\uE002';
+        const char ired = '\uE003';
+        const char iyellow = '\uE004';
+        const char idarkGrey = '\uE00F';
 
         LCD lcd_info;
         LCD lcd_info_upr;
@@ -286,7 +294,7 @@ namespace OSS_BM_UPR
             connector1 = new Connector(NameConnector1);
             connector2 = new Connector(NameConnector2);
             mechanical_connectior = new MechanicalConnectior(NameObj, tag_mechanical_connectior);
-            mechanical_connectior.AttachDetach(mechanical_connectior.IsAttached());      
+            mechanical_connectior.AttachDetach(mechanical_connectior.IsAttached());
             ship_connect1 = connector1.Connected;
             ship_connect2 = connector2.Connected;
             reflectors_light = new ReflectorsLight(NameObj);
@@ -309,11 +317,24 @@ namespace OSS_BM_UPR
             projector_ls.Logic(argument, updateSource);
             switch (argument)
             {
+                case "vector":
+                    if (vector)
+                    {
+                        vector = false;
+                    }
+                    else
+                    {
+                        vector = true;
+                    }
+                    break;
                 default:
                     break;
             }
             if (updateSource == UpdateType.Update10)
             {
+                if (vector) {
+                    GetSPVector();
+                }
                 // Проверим корабль не припаркован к первому коннектору
                 if (!connector1.Connected) { } else { }
                 // Проверим корабль не припаркован к второму коннектору
@@ -545,10 +566,11 @@ namespace OSS_BM_UPR
                     {
                         obj.Attach();
                     }
-                    else {
+                    else
+                    {
                         obj.Detach();
                     }
-                    
+
                 }
             }
 
@@ -690,7 +712,8 @@ namespace OSS_BM_UPR
             {
                 obj.DampenersOverride = on;
             }
-            public void SetControl(bool on) {
+            public void SetControl(bool on)
+            {
                 obj.ControlThrusters = on;
                 obj.ControlWheels = on;
                 obj.HandBrake = on;
@@ -905,15 +928,20 @@ namespace OSS_BM_UPR
 
             }
         }
-
-        public Vector3D GetNavAngles(Vector3D Vector)
+        public Vector3D GetSPVector()
         {
-            double TargetYaw = 0;
-            //Рысканием прицеливаемся на точку Target.
-            double tF = Vector.Dot(cockpit.obj.WorldMatrix.Forward);
-            double tL = Vector.Dot(cockpit.obj.WorldMatrix.Left);
-            TargetYaw = -(float)Math.Atan2(tL, tF);
-            return new Vector3D(TargetYaw, tL, tF);
+            double gF = vector_sp.Dot(cockpit.obj.WorldMatrix.Left);
+            double gL = vector_sp.Dot(cockpit.obj.WorldMatrix.Backward);
+            double gU = vector_sp.Dot(cockpit.obj.WorldMatrix.Up);
+            //Получаем сигналы по тангажу и крены операцией atan2
+            double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
+            double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+            double TargetYaw = cockpit.obj.RotationIndicator.Y;
+            return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
+        }
+
+        public void SetupSPVector() { 
+        
         }
     }
 }
