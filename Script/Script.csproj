@@ -120,6 +120,7 @@
     <Compile Include="ТЯГАЧИ\MUL_H1_NAV.cs" />
     <Compile Include="ТЯГАЧИ\Arhiv\MUL_H2_NAV - Копировать.cs" />
     <Compile Include="ТЯГАЧИ\Arhiv\MUL_H2_NAV - К2.cs" />
+    <Compile Include="ТЯГАЧИ\MUL_H2_NAV - Копировать %282%29.cs" />
     <Compile Include="ТЯГАЧИ\MUL_H2_NAV - Копировать.cs" />
     <Compile Include="ТЯГАЧИ\MUL_H2_NAV.cs" />
     <Compile Include="ТЯГАЧИ\MUL_H2_DOOR.cs" />
