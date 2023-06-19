@@ -54,8 +54,6 @@ namespace MUL_H2_NAV
         static LCD lcd_info_3;
         static Batterys batterys;
         static Cockpit cockpit;
-        //static RemoteControl rc_d;
-        //static RemoteControl rc_b;
         static Connector con_d;
         static Connector con_b;
         static Thrusts thrusts;
@@ -363,7 +361,7 @@ namespace MUL_H2_NAV
             con_d = new Connector(NameObj + "-Connector down");
             con_b = new Connector(NameObj + "-Connector back");
             gyros = new Gyros(NameObj);
-            thrusts = new Thrusts(NameObj);
+            thrusts = new Thrusts(NameObj, cockpit);
             navigation = new Navigation();
         }
         public void Save()
@@ -537,13 +535,48 @@ namespace MUL_H2_NAV
             public double RightThrMax { get; private set; } = 0;
             public double ForwardThrMax { get; private set; } = 0;
             public double BackwardThrMax { get; private set; } = 0;
-            public Thrusts(string name_obj) : base(name_obj)
+            public Thrusts(string name_obj, BaseController remote_control) : base(name_obj)
             {
+                InitThrusts(remote_control, "F");
             }
-            public Thrusts(string name_obj, string tag) : base(name_obj, tag)
+            public Thrusts(string name_obj, string tag, BaseController remote_control) : base(name_obj, tag)
             {
+                InitThrusts(remote_control, "F");
+            }
+            //public void InitThrusts(BaseController remote_control, string axis)
+            //{
+            //    this.remote_control = remote_control;
+            //    MatrixD OrientationCocpit = this.remote_control.GetCockpitMatrix();
+            //    // Максимальная эфиктивность двигателей
+            //    UpThrMax = 0;
+            //    DownThrMax = 0;
+            //    LeftThrMax = 0;
+            //    RightThrMax = 0;
+            //    ForwardThrMax = 0;
+            //    BackwardThrMax = 0;
+            //    // Список трастеров
+            //    UpThrusters.Clear();
+            //    DownThrusters.Clear();
+            //    LeftThrusters.Clear();
+            //    RightThrusters.Clear();
+            //    ForwardThrusters.Clear();
+            //    BackwardThrusters.Clear();
+            //    // Орентация трастеров
+            //    Matrix ThrusterMatrix = new MatrixD();
+            //    foreach (IMyThrust thrust in this.list_obj)
+            //    {
+            //        thrust.Orientation.GetMatrix(out ThrusterMatrix);
+            //        Vector3D vector = ThrusterMatrix.Forward;
+            //        switch (axis)
+            //        {
+            //            case "D": vector = ThrusterMatrix.Down; break;
+            //            case "B": vector = ThrusterMatrix.Backward; break;
+            //            default: vector = ThrusterMatrix.Forward; break;
 
-            }
+            //        }
+            //        SetInitThrust(vector, thrust, OrientationCocpit);
+            //    }
+            //}
             public void InitThrusts(BaseController remote_control, string axis)
             {
                 this.remote_control = remote_control;
@@ -564,18 +597,79 @@ namespace MUL_H2_NAV
                 BackwardThrusters.Clear();
                 // Орентация трастеров
                 Matrix ThrusterMatrix = new MatrixD();
+                //foreach (IMyThrust thrust in this.list_obj)
+                //{
+                //    thrust.Orientation.GetMatrix(out ThrusterMatrix);
+                //    //Y
+                //    if (ThrusterMatrix.Forward == OrientationCocpit.Up)
+                //    {
+                //        UpThrMax += thrust.MaxEffectiveThrust;
+                //        UpThrusters.Add(thrust);
+                //    }
+                //    else if (ThrusterMatrix.Forward == OrientationCocpit.Down)
+                //    {
+                //        DownThrMax += thrust.MaxEffectiveThrust;
+                //        DownThrusters.Add(thrust);
+                //    }
+                //    //X
+                //    else if (ThrusterMatrix.Forward == OrientationCocpit.Left)
+                //    {
+                //        LeftThrMax += thrust.MaxEffectiveThrust;
+                //        LeftThrusters.Add(thrust);
+                //    }
+                //    else if (ThrusterMatrix.Forward == OrientationCocpit.Right)
+                //    {
+                //        RightThrMax += thrust.MaxEffectiveThrust;
+                //        RightThrusters.Add(thrust);
+                //    }
+                //    //Z
+                //    else if (ThrusterMatrix.Forward == OrientationCocpit.Forward)
+                //    {
+                //        ForwardThrMax += thrust.MaxEffectiveThrust;
+                //        ForwardThrusters.Add(thrust);
+                //    }
+                //    else if (ThrusterMatrix.Forward == OrientationCocpit.Backward)
+                //    {
+                //        BackwardThrMax += thrust.MaxEffectiveThrust;
+                //        BackwardThrusters.Add(thrust);
+                //    }
+                //}
                 foreach (IMyThrust thrust in this.list_obj)
                 {
                     thrust.Orientation.GetMatrix(out ThrusterMatrix);
-                    Vector3D vector = ThrusterMatrix.Forward;
-                    switch (axis)
+                    //Y
+                    if (ThrusterMatrix.Forward == OrientationCocpit.Forward)
                     {
-                        case "D": vector = ThrusterMatrix.Down; break;
-                        case "B": vector = ThrusterMatrix.Backward; break;
-                        default: vector = ThrusterMatrix.Forward; break;
-
+                        UpThrMax += thrust.MaxEffectiveThrust;
+                        UpThrusters.Add(thrust);
                     }
-                    SetInitThrust(vector, thrust, OrientationCocpit);
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Backward)
+                    {
+                        DownThrMax += thrust.MaxEffectiveThrust;
+                        DownThrusters.Add(thrust);
+                    }
+                    //X
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Left)
+                    {
+                        LeftThrMax += thrust.MaxEffectiveThrust;
+                        LeftThrusters.Add(thrust);
+                    }
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Right)
+                    {
+                        RightThrMax += thrust.MaxEffectiveThrust;
+                        RightThrusters.Add(thrust);
+                    }
+                    //Z
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Down)
+                    {
+                        ForwardThrMax += thrust.MaxEffectiveThrust;
+                        ForwardThrusters.Add(thrust);
+                    }
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Up)
+                    {
+                        BackwardThrMax += thrust.MaxEffectiveThrust;
+                        BackwardThrusters.Add(thrust);
+                    }
                 }
             }
             public void SetInitThrust(Vector3D vector, IMyThrust thrust, MatrixD OrientationCocpit)
@@ -865,8 +959,6 @@ namespace MUL_H2_NAV
             //----------------------------------------
             public Vector3D PlanetCenter = new Vector3D(0.50, 0.50, 0.50);
             public double FlyHeight { get; set; } = 0;
-            //
-            private BaseController cockpit;
             private int Curr_base { get; set; } = 0;
             public class BaseStorage
             {
@@ -894,8 +986,8 @@ namespace MUL_H2_NAV
                 LoadFromStorage();
                 InitBasePoints();
                 InitPlanets();
-                GetCurrentBase(0);
-                //SetRCVectorAxis("F");
+                //GetCurrentBase(0);
+                SetRCVectorAxis("F");
                 UpdateCalc();
             }
             public MyWorldMatrix GetMyWorldMatrix()
@@ -1179,7 +1271,7 @@ namespace MUL_H2_NAV
                         DockMatrix = new MatrixD(),
                     };
                 }
-                SetRCVectorAxis(CurrBase.ConnectorTag.Trim());
+                SetRCVectorAxis(!string.IsNullOrWhiteSpace(CurrBase.ConnectorTag.Trim()) ? CurrBase.ConnectorTag.Trim() : null);
             }
             public void Pause(bool enable)
             {
@@ -1406,11 +1498,12 @@ namespace MUL_H2_NAV
                 values.Append("hors: " + hors.Length() + "\n");
                 values.Append("UpAccel: " + Math.Round(UpAccel).ToString() + "\n");
                 values.Append("Гравитация: " + (GravVector.LengthSquared() > 0.2f).ToString() + "\n");
-                values.Append("------------------------------------------\n");
-                values.Append("ZMaxA (F-B) : " + Math.Round(ZMaxA, 2).ToString() + "MaxFSpeed: " + Math.Round(MaxFSpeed, 2).ToString() + "\n");
-                values.Append("YMaxA (U-D) : " + Math.Round(YMaxA, 2).ToString() + "MaxUSpeed: " + Math.Round(MaxUSpeed, 2).ToString() + "\n");
-                values.Append("XMaxA (L-R) : " + Math.Round(XMaxA, 2).ToString() + "MaxLSpeed: " + Math.Round(MaxLSpeed, 2).ToString() + "\n");
                 values.Append(thrusts.TextInfo());
+                values.Append("------------------------------------------\n");
+                values.Append("ZMaxA (F-B) : " + Math.Round(ZMaxA, 2).ToString() + ", MaxFSpeed: " + Math.Round(MaxFSpeed, 2).ToString() + "\n");
+                values.Append("YMaxA (U-D) : " + Math.Round(YMaxA, 2).ToString() + ", MaxUSpeed: " + Math.Round(MaxUSpeed, 2).ToString() + "\n");
+                values.Append("XMaxA (L-R) : " + Math.Round(XMaxA, 2).ToString() + ", MaxLSpeed: " + Math.Round(MaxLSpeed, 2).ToString() + "\n");
+
                 lcd_debug.OutText(values);
             }
             public string GetStringVal(string Key, string str)
