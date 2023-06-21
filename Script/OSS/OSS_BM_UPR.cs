@@ -14,6 +14,7 @@ using System.Runtime.Remoting.Messaging;
 using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
+using VRage;
 using VRage.Game.ModAPI.Ingame;
 using VRageMath;
 using static VRageMath.Base6Directions;
@@ -40,11 +41,10 @@ namespace OSS_BM_UPR
         string NameLCDInfo = "[OSS]-[BM]-LCD-INFO";
         string NameLCDInfo_Upr = "[OSS]-[BM]-LCD-INFO-UPR";
         string NameLCDInfo_Debug = "[OSS]-[BM]-LCD-INFO-DEBUG";
+        string NameLCDInfo_Solar = "[OSS]-[BM]-LCD-INFO-Solar";
 
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
         string tag_mechanical_connectior = "[mechanical_connectior]";
-        public bool vector = false;
-        static Vector3D vector_sp = new Vector3D(-0.000739292178424908, -0.999999582397521, 0.000537263304268998);
 
         public enum or_mtr : int
         {
@@ -57,21 +57,24 @@ namespace OSS_BM_UPR
         const char iyellow = '\uE004';
         const char idarkGrey = '\uE00F';
 
-        LCD lcd_info;
-        LCD lcd_info_upr;
+        static LCD lcd_info;
+        static LCD lcd_info_upr;
+        static LCD lcd_info_solar;
         static LCD lcd_info_debug;
-        Batterys bats;
-        Connector connector1;
-        Connector connector2;
-        MechanicalConnectior mechanical_connectior;
-        ReflectorsLight reflectors_light;
-        Gyros gyros;
-        GasTanks gastanks;
-        Cockpit cockpit;
-        Cockpit cockpit_operator1;
-        Cockpit cockpit_operator2;
-        Camera camera_course;
-        Projector projector_ls;
+
+        static Batterys bats;
+        static Connector connector1;
+        static Connector connector2;
+        static MechanicalConnectior mechanical_connectior;
+        static ReflectorsLight reflectors_light;
+        static Gyros gyros;
+        static GasTanks gastanks;
+        static Cockpit cockpit;
+        static Cockpit cockpit_operator1;
+        static Cockpit cockpit_operator2;
+        static Camera camera_course;
+        static Projector projector_ls;
+        static SolarPower solar_power;
 
         static Program _scr;
 
@@ -285,6 +288,7 @@ namespace OSS_BM_UPR
             lcd_info = new LCD(NameLCDInfo);
             lcd_info_upr = new LCD(NameLCDInfo_Upr);
             lcd_info_debug = new LCD(NameLCDInfo_Debug);
+            lcd_info_solar = new LCD(NameLCDInfo_Solar);
             cockpit = new Cockpit(NameCockpit);
             cockpit_operator1 = new Cockpit(NameCockpit1);
             cockpit_operator1.SetControl(false); // Откл. упр.
@@ -303,6 +307,8 @@ namespace OSS_BM_UPR
             gastanks = new GasTanks(NameObj);
             camera_course = new Camera(NameCameraCourse);
             projector_ls = new Projector(NameProjector);
+
+            solar_power = new SolarPower();
         }
         public void Save()
         {
@@ -315,26 +321,14 @@ namespace OSS_BM_UPR
             bats.Logic(argument, updateSource);
             cockpit.Logic(argument, updateSource);
             projector_ls.Logic(argument, updateSource);
+            solar_power.Logic(argument, updateSource);
             switch (argument)
             {
-                case "vector":
-                    if (vector)
-                    {
-                        vector = false;
-                    }
-                    else
-                    {
-                        vector = true;
-                    }
-                    break;
                 default:
                     break;
             }
             if (updateSource == UpdateType.Update10)
             {
-                if (vector) {
-                    GetSPVector();
-                }
                 // Проверим корабль не припаркован к первому коннектору
                 if (!connector1.Connected) { } else { }
                 // Проверим корабль не припаркован к второму коннектору
@@ -347,6 +341,7 @@ namespace OSS_BM_UPR
             values_info.Append(cockpit.TextInfo());
             //cockpit.OutText(values_info, 0);
             lcd_info_upr.OutText(values_info);
+            lcd_info_solar.OutText(solar_power.TextInfo(), false);
             ship_connect1 = connector1.Connected; // сохраним состояние
             ship_connect2 = connector2.Connected; // сохраним состояние
             //StringBuilder test_info = new StringBuilder();
@@ -637,51 +632,38 @@ namespace OSS_BM_UPR
         }
         public class Gyros : BaseListTerminalBlock<IMyGyro>
         {
-            public Gyros(string name_obj) : base(name_obj)
-            {
-            }
-            public Gyros(string name_obj, string tag) : base(name_obj, tag)
-            {
-
-            }
-
-            public float getPitch()
-            {
-                return base.list_obj.Select(g => g.Pitch).Average();
-            }
-            public float getRoll()
-            {
-                return base.list_obj.Select(g => g.Roll).Average();
-            }
-            public float getYaw()
-            {
-                return base.list_obj.Select(g => g.Yaw).Average();
-            }
-            public void SetGyro(float Yaw, float Pitch, float Roll)
+            public Gyros(string name_obj) : base(name_obj) { }
+            public Gyros(string name_obj, string tag) : base(name_obj, tag) { }
+            public void SetOverride(bool OverrideOnOff, Vector3 settings, float Power = 1)
             {
                 foreach (IMyGyro gyro in base.list_obj)
                 {
-                    gyro.Yaw = Yaw;
-                    gyro.Pitch = Pitch;
-                    gyro.Roll = Roll;
+                    if ((!gyro.GyroOverride) && OverrideOnOff)
+                        gyro.ApplyAction("Override");
+                    gyro.GyroPower = Power;
+                    gyro.Yaw = settings.GetDim(0);
+                    gyro.Pitch = settings.GetDim(1);
+                    gyro.Roll = settings.GetDim(2);
                 }
             }
-            public void GyroOver(bool over)
+            public void SetOverride(bool OverrideOnOff = true, float OverrideValue = 0, float Power = 1)
             {
                 foreach (IMyGyro gyro in base.list_obj)
                 {
-                    gyro.Yaw = 0;
-                    gyro.Pitch = 0;
-                    gyro.Roll = 0;
-                    gyro.GyroOverride = over;
+                    if (((!gyro.GyroOverride) && OverrideOnOff) || ((gyro.GyroOverride) && !OverrideOnOff))
+                        gyro.ApplyAction("Override");
+                    gyro.GyroPower = Power;
+                    gyro.Yaw = OverrideValue;
+                    gyro.Pitch = OverrideValue;
+                    gyro.Roll = OverrideValue;
                 }
             }
-            public string TextInfo()
+            public string TextDebug()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("Yaw :" + this.getYaw() + "\n");
-                values.Append("Pitch :" + this.getPitch() + "\n");
-                values.Append("Roll :" + this.getRoll() + "\n");
+                values.Append("Yaw :" + base.list_obj.Select(g => g.Yaw).Average() + "\n");
+                values.Append("Pitch :" + base.list_obj.Select(g => g.Pitch).Average() + "\n");
+                values.Append("Roll :" + base.list_obj.Select(g => g.Roll).Average() + "\n");
                 return values.ToString();
             }
         }
@@ -928,20 +910,67 @@ namespace OSS_BM_UPR
 
             }
         }
-        public Vector3D GetSPVector()
+
+        public class SolarPower
         {
-            double gF = vector_sp.Dot(cockpit.obj.WorldMatrix.Left);
-            double gL = vector_sp.Dot(cockpit.obj.WorldMatrix.Backward);
-            double gU = vector_sp.Dot(cockpit.obj.WorldMatrix.Up);
-            //Получаем сигналы по тангажу и крены операцией atan2
-            double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
-            double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
-            double TargetYaw = cockpit.obj.RotationIndicator.Y;
-            return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
+            public bool set_solar_vector = false;
+            static Vector3D solar_vector = new Vector3D(-0.000739292178424908, -0.999999582397521, 0.000537263304268998);
+            public SolarPower()
+            {
+
+            }
+            public void SetSolarVector()
+            {
+                double gF = solar_vector.Dot(cockpit.obj.WorldMatrix.Left);
+                double gL = solar_vector.Dot(cockpit.obj.WorldMatrix.Backward);
+                double gU = solar_vector.Dot(cockpit.obj.WorldMatrix.Up);
+                //Получаем сигналы по тангажу и крены операцией atan2
+                double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
+                double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+                double TargetYaw = cockpit.obj.RotationIndicator.Y;
+                gyros.SetOverride(true, new Vector3D(TargetYaw, TargetPitch, TargetRoll), 1);
+            }
+
+            public void SetupSPVector()
+            {
+
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("ОСЬ ВРАЩЕНИЯ : " + (set_solar_vector ? igreen.ToString() : ired.ToString()) + "\n");
+                return values.ToString();
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    case "SSV":
+                        if (set_solar_vector)
+                        {
+                            set_solar_vector = false;
+                        }
+                        else
+                        {
+                            set_solar_vector = true;
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+                    if (set_solar_vector)
+                    {
+                        SetSolarVector();
+                    }
+                    else
+                    {
+                        gyros.SetOverride(false, 1);
+                    }
+                }
+            }
         }
 
-        public void SetupSPVector() { 
-        
-        }
     }
 }

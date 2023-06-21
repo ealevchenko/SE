@@ -573,13 +573,13 @@ namespace MUL_H2_NAV
                 {
                     vUp = OrientationCocpit.Forward;
                     vDown = OrientationCocpit.Backward;
-                    vForward = OrientationCocpit.Up;
-                    vBackward = OrientationCocpit.Down;
+                    vForward = OrientationCocpit.Down;
+                    vBackward = OrientationCocpit.Up;
                 }
                 else if (axis == "B")
                 {
-                    vUp = OrientationCocpit.Backward;
-                    vDown = OrientationCocpit.Forward;
+                    vUp = OrientationCocpit.Forward;
+                    vDown = OrientationCocpit.Backward;
                     vForward = OrientationCocpit.Up;
                     vBackward = OrientationCocpit.Down;
                 }
