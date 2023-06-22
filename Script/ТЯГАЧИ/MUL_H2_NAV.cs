@@ -11,6 +11,7 @@ using System.Diagnostics;
 using System.Diagnostics.Eventing.Reader;
 using System.Globalization;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
 using System.Runtime.Remoting.Messaging;
@@ -818,11 +819,11 @@ namespace MUL_H2_NAV
         }
         public class Navigation
         {
-            public string axis_horizont { get; private set; } = null;  // Ось горизонтальнго направлениея
+            //public string axis_horizont { get; private set; } = null;  // Ось горизонтальнго направлениея
             public bool go_home = false; // вернутся домой и остатся
             public bool paused = false;
             public bool gravity = false;
-            public string gravity_axis = null;
+            //public string gravity_axis = null;
             public string current_vector_axis = null;
             public Vector3D? TackVector { get; set; } = null;
             public enum programm : int
@@ -923,6 +924,19 @@ namespace MUL_H2_NAV
                     result.Left = WMCocpit.Right;
                 }
                 return result;
+            }
+            public Vector3D GetMyGyros(Vector3D gyrAng)
+            {
+
+                if (current_vector_axis == "D")
+                {
+                    return new Vector3D(gyrAng.Z, gyrAng.Y, -gyrAng.X);
+                }
+                else if (current_vector_axis == "B")
+                {
+                    return new Vector3D(gyrAng.X, -gyrAng.Y, -gyrAng.Z);
+                }
+                return gyrAng;
             }
             public void UpdateCalc()
             {
@@ -1051,59 +1065,23 @@ namespace MUL_H2_NAV
                 double gF = GravNorm.Dot(Current_WMCocpit.Forward);
                 double gL = GravNorm.Dot(Current_WMCocpit.Left);
                 double gU = GravNorm.Dot(Current_WMCocpit.Up);
-                //Получаем проекции вектора прицеливания на все три оси блока ДУ.
-                if (current_vector_axis == "D")
+                //Получаем сигналы по тангажу и крены операцией atan2
+                float Roll = (float)Math.Atan2(gL, -gU);
+                float Pitch = -(float)Math.Atan2(gF, -gU);
+                double Yaw = 0;
+                if (Vector != null)
                 {
-                    //Получаем сигналы по тангажу и крены операцией atan2
-                    double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
-                    double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
-                    double TargetYaw = 0;
-                    if (Vector != null)
-                    {
-                        Vector3D TargetNorm = Vector3D.Normalize((Vector3D)Vector);
-                        //Рысканием прицеливаемся на точку Target.
-                        double tF = TargetNorm.Dot(cockpit.obj.WorldMatrix.Forward);
-                        double tL = TargetNorm.Dot(cockpit.obj.WorldMatrix.Left);
-                        TargetYaw = -(float)Math.Atan2(tL, tF);
-                        if (cockpit.obj.IsUnderControl)
-                        {
-                            TargetYaw = cockpit.obj.RotationIndicator.Y;
-                        }
-                    }
-                    return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
+                    Vector3D TargetNorm = Vector3D.Normalize((Vector3D)Vector);
+                    //Рысканием прицеливаемся на точку Target.
+                    double tF = TargetNorm.Dot(Current_WMCocpit.Forward);
+                    double tL = TargetNorm.Dot(Current_WMCocpit.Left);
+                    Yaw = -(float)Math.Atan2(tL, tF);
                 }
                 else
                 {
-                    if (axis == "B")
-                    {
-                        gF = GravNorm.Dot(cockpit.obj.WorldMatrix.Down);
-                        gL = GravNorm.Dot(cockpit.obj.WorldMatrix.Left);
-                        gU = GravNorm.Dot(cockpit.obj.WorldMatrix.Forward);
-                    }
-                    else if (axis == "F")
-                    {
-                        gF = GravNorm.Dot(cockpit.obj.WorldMatrix.Up);
-                        gL = GravNorm.Dot(cockpit.obj.WorldMatrix.Right);
-                        gU = GravNorm.Dot(cockpit.obj.WorldMatrix.Backward);
-                    }
-                    //Получаем сигналы по тангажу и крены операцией atan2
-                    double TargetYaw = (float)Math.Atan2(gL, -gU); // крен
-                    double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
-                    double TargetRoll = 0;
-                    if (Vector != null)
-                    {
-                        Vector3D TargetNorm = Vector3D.Normalize((Vector3D)Vector);
-                        //Рысканием прицеливаемся на точку Target.
-                        double tF = TargetNorm.Dot(cockpit.obj.WorldMatrix.Forward);
-                        double tL = TargetNorm.Dot(cockpit.obj.WorldMatrix.Left);
-                        TargetRoll = -(float)Math.Atan2(tL, tF);
-                        if (cockpit.obj.IsUnderControl)
-                        {
-                            TargetRoll = cockpit.obj.RotationIndicator.Y;
-                        }
-                    }
-                    return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
+                    Yaw = cockpit.obj.RotationIndicator.Y;
                 }
+                return new Vector3D(Yaw, Pitch, Roll);
             }
             //-------------------------------------
             public MatrixD GetNormTransMatrixFromMyPos(Vector3D Up, Vector3D Left)
@@ -1202,6 +1180,11 @@ namespace MUL_H2_NAV
                 }
             }
             //------------------------------------------------
+            public void Horizon()
+            {
+                Vector3D gyrAng = GetNavAngles(TackVector);
+                gyros.SetOverride(true, GetMyGyros(gyrAng) * GyroMult, 1);
+            }
             public void GetCurrentBase(int num)
             {
                 if (num > BaseCount || num < 0) return;
@@ -1644,7 +1627,7 @@ namespace MUL_H2_NAV
                 StringBuilder values = new StringBuilder();
                 values.Append("СКОРОСТЬ    : " + Math.Round(cockpit.obj.GetShipSpeed(), 2) + "\n");
                 values.Append("ВЫСОТА    : " + Math.Round(cockpit.CurrentHeight, 2) + "\n");
-                values.Append("ГОРИЗОНТ    : " + (axis_horizont != null ? igreen.ToString() : ired.ToString()) + ",  Vector : " + (TackVector != null ? igreen.ToString() : ired.ToString()) + "\n");
+                values.Append("ГОРИЗОНТ    : " + (current_vector_axis != null ? igreen.ToString() : ired.ToString()) + ",  Vector : " + (TackVector != null ? igreen.ToString() : ired.ToString()) + "\n");
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
                 values.Append("ПАУЗА : " + (paused ? igreen.ToString() : ired.ToString()) + "\n");
@@ -1687,13 +1670,13 @@ namespace MUL_H2_NAV
                         thrusts.SetOverridePercent("D", 1f);
                         break;
                     case "dh":
-                        if (curent_programm == programm.none) { if (axis_horizont == "D") { axis_horizont = null; } else { axis_horizont = "D"; } }
+                        if (curent_programm == programm.none) { if (current_vector_axis == "D") { current_vector_axis = null; } else { current_vector_axis = "D"; } }
                         break;
                     case "df":
-                        if (curent_programm == programm.none) { if (axis_horizont == "F") { axis_horizont = null; } else { axis_horizont = "F"; } }
+                        if (curent_programm == programm.none) { if (current_vector_axis == "F") { current_vector_axis = null; } else { current_vector_axis = "F"; } }
                         break;
                     case "db":
-                        if (curent_programm == programm.none) { if (axis_horizont == "B") { axis_horizont = null; } else { axis_horizont = "B"; } }
+                        if (curent_programm == programm.none) { if (current_vector_axis == "B") { current_vector_axis = null; } else { current_vector_axis = "B"; } }
                         break;
                     case "load":
                         LoadFromStorage();
@@ -1785,12 +1768,14 @@ namespace MUL_H2_NAV
                     UpdateCalc();
                     if (curent_programm == programm.none)
                     {
-                        if (axis_horizont != null)
+                        if (current_vector_axis != null)
                         {
-                            //Horizon();
+                            SetRCVectorAxis(current_vector_axis);
+                            Horizon();
                         }
                         else
                         {
+                            GetCurrentBase(0);
                             gyros.SetOverride(false, 1);
                         }
                     }
@@ -1841,6 +1826,68 @@ namespace MUL_H2_NAV
         }
     }
 }
+
+
+
+
+
+
+
+
+////Получаем проекции вектора прицеливания на все три оси блока ДУ.
+//if (current_vector_axis == "D")
+//{
+//    //Получаем сигналы по тангажу и крены операцией atan2
+//    double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
+//    double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+//    double TargetYaw = 0;
+//    if (Vector != null)
+//    {
+//        Vector3D TargetNorm = Vector3D.Normalize((Vector3D)Vector);
+//        //Рысканием прицеливаемся на точку Target.
+//        double tF = TargetNorm.Dot(cockpit.obj.WorldMatrix.Forward);
+//        double tL = TargetNorm.Dot(cockpit.obj.WorldMatrix.Left);
+//        TargetYaw = -(float)Math.Atan2(tL, tF);
+//        if (cockpit.obj.IsUnderControl)
+//        {
+//            TargetYaw = cockpit.obj.RotationIndicator.Y;
+//        }
+//    }
+//    return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
+//}
+//else
+//{
+//    if (axis == "B")
+//    {
+//        gF = GravNorm.Dot(cockpit.obj.WorldMatrix.Down);
+//        gL = GravNorm.Dot(cockpit.obj.WorldMatrix.Left);
+//        gU = GravNorm.Dot(cockpit.obj.WorldMatrix.Forward);
+//    }
+//    else if (axis == "F")
+//    {
+//        gF = GravNorm.Dot(cockpit.obj.WorldMatrix.Up);
+//        gL = GravNorm.Dot(cockpit.obj.WorldMatrix.Right);
+//        gU = GravNorm.Dot(cockpit.obj.WorldMatrix.Backward);
+//    }
+//    //Получаем сигналы по тангажу и крены операцией atan2
+//    double TargetYaw = (float)Math.Atan2(gL, -gU); // крен
+//    double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+//    double TargetRoll = 0;
+//    if (Vector != null)
+//    {
+//        Vector3D TargetNorm = Vector3D.Normalize((Vector3D)Vector);
+//        //Рысканием прицеливаемся на точку Target.
+//        double tF = TargetNorm.Dot(cockpit.obj.WorldMatrix.Forward);
+//        double tL = TargetNorm.Dot(cockpit.obj.WorldMatrix.Left);
+//        TargetRoll = -(float)Math.Atan2(tL, tF);
+//        if (cockpit.obj.IsUnderControl)
+//        {
+//            TargetRoll = cockpit.obj.RotationIndicator.Y;
+//        }
+//    }
+//    return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
+//}
+
 //if (tag == "D")
 //{
 //    //Получаем сигналы по тангажу и крены операцией atan2
