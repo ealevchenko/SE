@@ -1084,12 +1084,12 @@ namespace MUL_H2_NAV
                     Vector3D ConnectorPoint = new Vector3D();
                     if (tag == "D")
                     {
-                        DockMatrix = GetNormTransMatrixFromMyPos(Current_WMCocpit.Up, Current_WMCocpit.Left);
+                        DockMatrix = GetNormTransMatrixFromMyPos(WMCocpit.Up, WMCocpit.Left);
                         ConnectorPoint = new Vector3D(0, 0, 9);
                     }
                     else if (tag == "B")
                     {
-                        DockMatrix = GetNormTransMatrixFromMyPos(Current_WMCocpit.Up, Current_WMCocpit.Left);
+                        DockMatrix = GetNormTransMatrixFromMyPos(WMCocpit.Up, WMCocpit.Left);
                         ConnectorPoint = new Vector3D(0, 0, -30);
                     }
                     Vector3D pc = FindPlanetCenter();
