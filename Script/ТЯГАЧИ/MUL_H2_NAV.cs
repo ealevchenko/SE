@@ -1,4 +1,5 @@
-﻿using Sandbox.Definitions;
+﻿using Microsoft.Xml.Serialization.GeneratedAssembly;
+using Sandbox.Definitions;
 using Sandbox.Game.Entities.Planet;
 using Sandbox.Game.GameSystems;
 using Sandbox.Game.World;
@@ -38,6 +39,7 @@ namespace MUL_H2_NAV
         static float TargetSize = 100;
         static float OnCharge = 0.2f;     // Процент заряда - вкл на под  заряд
         static float OffCharge = 0.9f;    // Процент заряда - выкл под  заряд
+        static float MinHeight = 500f;    // минимальное растояние от земли, начинаем тормозить
 
         const char igreen = '\uE001';
         const char iblue = '\uE002';
@@ -843,8 +845,9 @@ namespace MUL_H2_NAV
                 to_base = 3,
                 dock = 4,
                 takeoff = 5,
+                landing = 6,
             };
-            public static string[] name_mode = { "", "БАЗА", "РАСТЫКОВКА", "К БАЗЕ", "СТЫКОВКА", "ВЗЛЕТ" };
+            public static string[] name_mode = { "", "БАЗА", "РАСТЫКОВКА", "К БАЗЕ", "СТЫКОВКА", "ВЗЛЕТ", "ПОСАДКА" };
             mode curent_mode = mode.none;
             //------------------------------
             public Vector3D MyPos { get; private set; }
@@ -1126,6 +1129,13 @@ namespace MUL_H2_NAV
                 Vector3D PlanetCenter;
                 cockpit.obj.TryGetPlanetPosition(out PlanetCenter);
                 return PlanetCenter;
+            }
+            public double GetBrakingLanding(double max_thrusts)
+            {
+                double a = (max_thrusts / 1000) * (1 / (PhysicalMass / 1000));
+                double t = (0 - cockpit.obj.GetShipSpeed()) / -a; //t = (V - V[0]) / a
+                double s = (cockpit.obj.GetShipSpeed() * t) + ((-a) * Math.Pow(t, 2)) / 2; //S = V[0] * t + ( a * t^2 ) / 2
+                return s;
             }
             //------------------------------------------------
             public void FlyConnectBase()
@@ -1418,6 +1428,46 @@ namespace MUL_H2_NAV
                 //OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, 0, vert, hors);
                 return Complete;
             }
+            public bool Landing()
+            {
+                bool Complete = false;
+                if (string.IsNullOrWhiteSpace(CurrBase.ConnectorTag))
+                {
+                    if (gravity && ((cockpit.CurrentHeight - GetBrakingLanding(thrusts.DownThrMax)) < MinHeight))
+                    {
+                        Clear();
+                        Complete = true;
+                    }
+                    else
+                    {
+                        if (UpVelocityVector.Length() < 100f)
+                        {
+                            thrusts.SetOverridePercent("D", 1);
+                        }
+                        else
+                        {
+                            thrusts.SetOverrideAccel("D", 0);
+                        }
+                    }
+                    if (gravity)
+                    {
+                        SetRCVectorAxis("D");
+                        Vector3D gyrAng = GetNavAngles(TackVector);
+                        gyros.SetOverride(true, GetMyGyros(gyrAng) * GyroMult, 1);
+
+                    }
+                    thrusts.SetOverridePercent("R", 0);
+                    thrusts.SetOverridePercent("L", 0);
+                    thrusts.SetOverridePercent("F", 0);
+                    thrusts.SetOverridePercent("B", 0);
+                }
+                else
+                {
+
+                }
+                return Complete;
+            }
+
             //public bool Takeoff()
             //{
             //    bool Complete = false;
@@ -1625,8 +1675,8 @@ namespace MUL_H2_NAV
                 values.Append("current_vector_axis: " + current_vector_axis + ", name: " + name + "\n");
                 values.Append("ForwVelocityVector: " + ForwVelocityVector.Length() + "\n");
                 values.Append("UpVelocityVector: " + UpVelocityVector.Length() + "\n");
-                values.Append("con_b: " + (cockpit.obj.GetPosition()  - con_b.GetPosition()).Length() + "\n");
-                values.Append("con_d: " + (cockpit.obj.GetPosition()  - con_d.GetPosition()).Length() + "\n");
+                values.Append("con_b: " + (cockpit.obj.GetPosition() - con_b.GetPosition()).Length() + "\n");
+                values.Append("con_d: " + (cockpit.obj.GetPosition() - con_d.GetPosition()).Length() + "\n");
                 values.Append(PText.GetGPS("PlanetCenter:", PlanetCenter) + "\n");
                 //values.Append("DockMatrix: " + CurrBase.DockMatrix.ToString() + "\n");
                 //values.Append(PText.GetGPS("DockPoint:", CurrBase.BaseDockPoint) + "\n");
@@ -1731,6 +1781,11 @@ namespace MUL_H2_NAV
                         curent_mode = mode.takeoff;
                         SaveToStorage();
                         break;
+                    case "landing":
+                        GetCurrentBase(0);
+                        curent_mode = mode.landing;
+                        SaveToStorage();
+                        break;
                     default:
                         break;
                 }
@@ -1806,6 +1861,14 @@ namespace MUL_H2_NAV
                     if (curent_mode == mode.takeoff && !paused)
                     {
                         if (Takeoff() && curent_programm == programm.none)
+                        {
+                            GetCurrentBase(0);
+                            curent_mode = mode.none;
+                        }
+                    }
+                    if (curent_mode == mode.landing && !paused)
+                    {
+                        if (Landing() && curent_programm == programm.none)
                         {
                             GetCurrentBase(0);
                             curent_mode = mode.none;
