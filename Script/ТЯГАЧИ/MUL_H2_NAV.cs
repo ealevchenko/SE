@@ -1028,6 +1028,35 @@ namespace MUL_H2_NAV
 
                 return GetMyGyros(new Vector3D(Yaw, Pitch, Roll));
             }
+            public Vector3D GetNavAnglesCurse(Vector3D Target, MatrixD InvMatrix)
+            {
+                double Yaw = 0, Roll = 0, Pitch = 0;
+                double gF = 0, gL = 0, gU = 0;
+                // Получим локальные
+                Vector3D V3Dcenter = cockpit.obj.GetPosition();
+                Vector3D V3Dfow = Current_WMCocpit.Forward + V3Dcenter;
+                Vector3D V3Dup = Current_WMCocpit.Up + V3Dcenter;
+                Vector3D V3Dleft = Current_WMCocpit.Left + V3Dcenter;
+                // Ререведем в глобальные
+                V3Dcenter = Vector3D.Transform(V3Dcenter, InvMatrix);
+                V3Dfow = (Vector3D.Transform(V3Dfow, InvMatrix)) - V3Dcenter;
+                V3Dup = (Vector3D.Transform(V3Dup, InvMatrix)) - V3Dcenter;
+                V3Dleft = (Vector3D.Transform(V3Dleft, InvMatrix)) - V3Dcenter;
+
+                Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
+
+                // держим горизонт(по оси -y), Получаем проекции вектора гравитации на все три оси блока ДУ. 
+                gF = TargetNorm.Dot(V3Dup);
+                gL = TargetNorm.Dot(V3Dleft);
+                gU = TargetNorm.Dot(-V3Dfow);
+
+                Roll = (float)Math.Atan2(gL, -gU);
+                Pitch = -(float)Math.Atan2(gF, -gU);
+
+                Yaw = cockpit.obj.RotationIndicator.Y;
+
+                return new Vector3D(Yaw, Pitch, Roll);
+            }
             public Vector3D GetNavAngles(Vector3D? Vector)
             {
                 Vector3D GravNorm = Vector3D.Normalize(GravVector);
@@ -1346,6 +1375,8 @@ namespace MUL_H2_NAV
             }
             public bool Takeoff()
             {
+                Vector3D vert = new Vector3D();
+                Vector3D hors = new Vector3D();
                 bool Complete = false;
                 if (string.IsNullOrWhiteSpace(CurrBase.ConnectorTag))
                 {
@@ -1365,7 +1396,6 @@ namespace MUL_H2_NAV
                         {
                             thrusts.SetOverrideAccel("U", 0);
                         }
-
                     }
                     else
                     {
@@ -1375,46 +1405,41 @@ namespace MUL_H2_NAV
                 }
                 else
                 {
-                    float MaxFSpeed = 0f;
-                    float MaxUSpeed = 0f;
-                    float MaxLSpeed = 0f;
-                    //GetCurrentBase(2);
+                    if (gravity)
+                    {
+                        SetRCVectorAxis("D");
+                    }
+                    else
+                    {
+                        SetRCVectorAxis("F");
+                    }
                     Vector3D MyPosCon = Vector3D.Transform(MyPos, CurrBase.DockMatrix);
                     Vector3D gyrAng = GetNavAngles(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
+                    gyros.SetOverride(true, gyrAng * GyroMult, 1);
                     Vector3D vecTarget = CurrBase.BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2));
                     Distance = (float)(vecTarget).Length();
                     Vector3D grav = GravVector;
-                    Vector3D vert = Vector3D.ProjectOnVector(ref vecTarget, ref grav);
-                    Vector3D hors = Vector3D.ProjectOnPlane(ref vecTarget, ref grav);
-                    MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 3f;
-                    MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 3f;
-                    MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 3f;
-                    if (Distance > 200)
+                    vert = Vector3D.ProjectOnVector(ref vecTarget, ref grav);
+                    hors = Vector3D.ProjectOnPlane(ref vecTarget, ref grav);
+                    if (Distance > TargetSize)
                     {
-                        if (GravVector.LengthSquared() > 0.2f)
+                        thrusts.SetOverridePercent("R", 0);
+                        thrusts.SetOverridePercent("L", 0);
+                        if (UpVelocityVector.Length() < 100f) //MaxUSpeed
                         {
-                            gyros.SetOverride(true, gyrAng * GyroMult, 1);
-                            thrusts.SetOverridePercent("R", 0);
-                            thrusts.SetOverridePercent("L", 0);
-                            if (UpVelocityVector.Length() < 100f) //MaxUSpeed
-                                thrusts.SetOverrideAccel("U", (float)(vert.Length() * AlignAccelMult));
-                            else
-                            {
-                                thrusts.SetOverrideAccel("U", 0);
-                            }
-                            if (hors.Length() > TargetSize)
-                            {
-                                if (ForwVelocityVector.Length() < MaxFSpeed)
-                                {
-                                    thrusts.SetOverrideAccel("F", (float)(hors.Length() * AlignAccelMult));
-                                    thrusts.SetOverridePercent("B", 0);
-                                }
-                                else
-                                {
-                                    thrusts.SetOverridePercent("F", 0);
-                                    thrusts.SetOverridePercent("B", 0);
-                                }
-                            }
+                            thrusts.SetOverrideAccel("U", (float)(vert.Length() * AlignAccelMult));
+                        }
+                        else
+                        {
+                            thrusts.SetOverrideAccel("U", 0);
+                        }
+                        if (ForwVelocityVector.Length() < 100f)
+                        {
+                            thrusts.SetOverrideAccel("F", (float)(hors.Length() * AlignAccelMult));
+                        }
+                        else
+                        {
+                            thrusts.SetOverrideAccel("F", 0);
                         }
                     }
                     else
@@ -1424,8 +1449,7 @@ namespace MUL_H2_NAV
 
                     }
                 }
-
-                //OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, 0, vert, hors);
+                OutStatusMode(0, 0, 0, 0, vert, hors);
                 return Complete;
             }
             public bool Landing()
@@ -1467,63 +1491,6 @@ namespace MUL_H2_NAV
                 }
                 return Complete;
             }
-
-            //public bool Takeoff()
-            //{
-            //    bool Complete = false;
-            //    if (string.IsNullOrWhiteSpace(CurrBase.ConnectorTag)) return Complete;
-            //    float MaxFSpeed = 0f;
-            //    float MaxUSpeed = 0f;
-            //    float MaxLSpeed = 0f;
-            //    //GetCurrentBase(2);
-            //    Vector3D MyPosCon = Vector3D.Transform(MyPos, CurrBase.DockMatrix);
-            //    Vector3D gyrAng = GetNavAngles(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
-            //    Vector3D vecTarget = CurrBase.BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2));
-            //    Distance = (float)(vecTarget).Length();
-            //    Vector3D grav = GravVector;
-            //    Vector3D vert = Vector3D.ProjectOnVector(ref vecTarget, ref grav);
-            //    Vector3D hors = Vector3D.ProjectOnPlane(ref vecTarget, ref grav);
-            //    MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 3f;
-            //    MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 3f;
-            //    MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 3f;
-            //    if (Distance > 200)
-            //    {
-            //        if (GravVector.LengthSquared() > 0.2f)
-            //        {
-            //            gyros.SetOverride(true, gyrAng * GyroMult, 1);
-            //            thrusts.SetOverridePercent("R", 0);
-            //            thrusts.SetOverridePercent("L", 0);
-            //            if (UpVelocityVector.Length() < 100f) //MaxUSpeed
-            //                thrusts.SetOverrideAccel("U", (float)(vert.Length() * AlignAccelMult));
-            //            else
-            //            {
-            //                thrusts.SetOverrideAccel("U", 0);
-            //            }
-            //            if (hors.Length() > TargetSize)
-            //            {
-            //                if (ForwVelocityVector.Length() < MaxFSpeed)
-            //                {
-            //                    thrusts.SetOverrideAccel("F", (float)(hors.Length() * AlignAccelMult));
-            //                    thrusts.SetOverridePercent("B", 0);
-            //                }
-            //                else
-            //                {
-            //                    thrusts.SetOverridePercent("F", 0);
-            //                    thrusts.SetOverridePercent("B", 0);
-            //                }
-            //            }
-            //        }
-            //    }
-            //    else
-            //    {
-            //        Clear();
-            //        Complete = true;
-
-            //    }
-            //    OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, 0, vert, hors);
-            //    return Complete;
-            //}
-            //------------------------------------------------
             public void OutStatusMode(float MaxFSpeed, float MaxUSpeed, float MaxLSpeed, float UpAccel, Vector3D vert, Vector3D hors)
             {
                 StringBuilder values = new StringBuilder();
@@ -1673,8 +1640,8 @@ namespace MUL_H2_NAV
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("current_vector_axis: " + current_vector_axis + ", name: " + name + "\n");
-                values.Append("ForwVelocityVector: " + ForwVelocityVector.Length() + "\n");
-                values.Append("UpVelocityVector: " + UpVelocityVector.Length() + "\n");
+                values.Append("ForwVel: " + ForwVelocityVector.Length() + "\n");
+                values.Append("UpVel: " + UpVelocityVector.Length() + "\n");
                 values.Append("con_b: " + (cockpit.obj.GetPosition() - con_b.GetPosition()).Length() + "\n");
                 values.Append("con_d: " + (cockpit.obj.GetPosition() - con_d.GetPosition()).Length() + "\n");
                 values.Append(PText.GetGPS("PlanetCenter:", PlanetCenter) + "\n");
@@ -1777,12 +1744,12 @@ namespace MUL_H2_NAV
                         SaveToStorage();
                         break;
                     case "takeoff":
-                        GetCurrentBase(0);
+                        GetCurrentBase(2);
                         curent_mode = mode.takeoff;
                         SaveToStorage();
                         break;
                     case "landing":
-                        GetCurrentBase(0);
+                        GetCurrentBase(1);
                         curent_mode = mode.landing;
                         SaveToStorage();
                         break;
