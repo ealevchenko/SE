@@ -846,8 +846,9 @@ namespace MUL_H2_NAV
                 dock = 4,
                 takeoff = 5,
                 landing = 6,
+                course = 7
             };
-            public static string[] name_mode = { "", "БАЗА", "РАСТЫКОВКА", "К БАЗЕ", "СТЫКОВКА", "ВЗЛЕТ", "ПОСАДКА" };
+            public static string[] name_mode = { "", "БАЗА", "РАСТЫКОВКА", "К БАЗЕ", "СТЫКОВКА", "ВЗЛЕТ", "ПОСАДКА", "КУРС" };
             mode curent_mode = mode.none;
             //------------------------------
             public Vector3D MyPos { get; private set; }
@@ -1489,6 +1490,85 @@ namespace MUL_H2_NAV
                 {
 
                 }
+                return Complete;
+            }
+            public bool Сourse()
+            {
+                Vector3D vert = new Vector3D();
+                Vector3D hors = new Vector3D();
+                bool Complete = false;
+                if (string.IsNullOrWhiteSpace(CurrBase.ConnectorTag))
+                {
+                    if (gravity)
+                    {
+                        SetRCVectorAxis("D");
+                        //Vector3D point = MyPos + (Vector3D.Normalize(-GravVector) * (45000 - cockpit.CurrentHeight));
+                        Vector3D gyrAng = GetNavAngles(TackVector);
+                        gyros.SetOverride(true, GetMyGyros(gyrAng) * GyroMult, 1);
+                        thrusts.SetOverridePercent("R", 0);
+                        thrusts.SetOverridePercent("L", 0);
+                        thrusts.SetOverridePercent("F", 0);
+                        thrusts.SetOverridePercent("B", 0);
+                        if (UpVelocityVector.Length() < 100f) //MaxUSpeed
+                            thrusts.SetOverridePercent("U", 1);
+                        else
+                        {
+                            thrusts.SetOverrideAccel("U", 0);
+                        }
+                    }
+                    else
+                    {
+                        Clear();
+                        Complete = true;
+                    }
+                }
+                else
+                {
+                    if (gravity)
+                    {
+                        SetRCVectorAxis("D");
+                    }
+                    else
+                    {
+                        SetRCVectorAxis("F");
+                    }
+                    Vector3D MyPosCon = Vector3D.Transform(MyPos, CurrBase.DockMatrix);
+                    Vector3D gyrAng = GetNavAngles(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
+                    gyros.SetOverride(true, gyrAng * GyroMult, 1);
+                    Vector3D vecTarget = CurrBase.BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2));
+                    Distance = (float)(vecTarget).Length();
+                    Vector3D grav = GravVector;
+                    vert = Vector3D.ProjectOnVector(ref vecTarget, ref grav);
+                    hors = Vector3D.ProjectOnPlane(ref vecTarget, ref grav);
+                    if (Distance > TargetSize)
+                    {
+                        thrusts.SetOverridePercent("R", 0);
+                        thrusts.SetOverridePercent("L", 0);
+                        if (UpVelocityVector.Length() < 100f) //MaxUSpeed
+                        {
+                            thrusts.SetOverrideAccel("U", (float)(vert.Length() * AlignAccelMult));
+                        }
+                        else
+                        {
+                            thrusts.SetOverrideAccel("U", 0);
+                        }
+                        if (ForwVelocityVector.Length() < 100f)
+                        {
+                            thrusts.SetOverrideAccel("F", (float)(hors.Length() * AlignAccelMult));
+                        }
+                        else
+                        {
+                            thrusts.SetOverrideAccel("F", 0);
+                        }
+                    }
+                    else
+                    {
+                        Clear();
+                        Complete = true;
+
+                    }
+                }
+                OutStatusMode(0, 0, 0, 0, vert, hors);
                 return Complete;
             }
             public void OutStatusMode(float MaxFSpeed, float MaxUSpeed, float MaxLSpeed, float UpAccel, Vector3D vert, Vector3D hors)
