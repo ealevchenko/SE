@@ -39,7 +39,7 @@ namespace MUL_H2_NAV
         static float TargetSize = 100;
         static float OnCharge = 0.2f;     // Процент заряда - вкл на под  заряд
         static float OffCharge = 0.9f;    // Процент заряда - выкл под  заряд
-        static float MinHeight = 500f;    // минимальное растояние от земли, начинаем тормозить
+        static float MinHeight = 1000f;    // минимальное растояние от земли, начинаем тормозить
 
         const char igreen = '\uE001';
         const char iblue = '\uE002';
@@ -365,9 +365,9 @@ namespace MUL_H2_NAV
             con_b = new Connector(NameObj + "-Connector back");
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj, cockpit);
-            camera_course = new Camera(NameObj + "-camera curse");
-            camera_con_d = new Camera(NameObj + "-camera down");
-            camera_con_b = new Camera(NameObj + "-camera back");
+            camera_course = new Camera(NameObj + "-Camera curse");
+            camera_con_d = new Camera(NameObj + "-Camera down");
+            camera_con_b = new Camera(NameObj + "-Camera back");
             navigation = new Navigation();
         }
         public void Save()
@@ -1112,7 +1112,7 @@ namespace MUL_H2_NAV
 
                 Yaw = cockpit.obj.RotationIndicator.Y;
 
-                return new Vector3D(Yaw, Pitch, Roll);
+                return new Vector3D(-Roll, Pitch, Yaw);
             }
             public Vector3D GetNavAngles(Vector3D? Vector)
             {
@@ -1448,17 +1448,6 @@ namespace MUL_H2_NAV
                 if (string.IsNullOrWhiteSpace(CurrBase.ConnectorTag)) return Complete;
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, CurrBase.DockMatrix);
                 Vector3D gyrAng = new Vector3D();
-                if (gravity)
-                {
-                    SetRCVectorAxis("D");
-                    gyrAng = GetNavAngles(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
-                }
-                else
-                {
-                    SetRCVectorAxis("F");
-                    gyrAng = GetNavAnglesCurse(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
-                }
-                gyros.SetOverride(true, gyrAng * GyroMult, 1);
                 Vector3D vecTarget = CurrBase.BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2));
                 Distance = (float)(vecTarget).Length();
                 Vector3D grav = GravVector;
@@ -1468,28 +1457,51 @@ namespace MUL_H2_NAV
                 thrusts.SetOverridePercent("L", 0);
                 if (Distance > TargetSize)
                 {
-                    if (UpVelocityVector.Length() < 100f) //MaxUSpeed
+                    if (gravity)
                     {
-                        thrusts.SetOverrideAccel("U", (float)(vert.Length() * AlignAccelMult));
+                        SetRCVectorAxis("D");
+                        gyrAng = GetNavAngles(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
+                        gyros.SetOverride(true, gyrAng * GyroMult, 1);
+                        if (UpVelocityVector.Length() < 100f) //MaxUSpeed
+                        {
+                            thrusts.SetOverrideAccel("U", (float)(vert.Length() * AlignAccelMult));
+                        }
+                        else
+                        {
+                            thrusts.SetOverrideAccel("U", 0);
+                        }
+                        if (ForwVelocityVector.Length() < 100f)
+                        {
+                            thrusts.SetOverrideAccel("F", (float)(hors.Length() * AlignAccelMult));
+                        }
+                        else
+                        {
+                            thrusts.SetOverrideAccel("F", 0);
+                        }
                     }
                     else
                     {
-                        thrusts.SetOverrideAccel("U", 0);
-                    }
-                    if (ForwVelocityVector.Length() < 100f)
-                    {
-                        thrusts.SetOverrideAccel("F", (float)(hors.Length() * AlignAccelMult));
-                    }
-                    else
-                    {
-                        thrusts.SetOverrideAccel("F", 0);
+                        SetRCVectorAxis("F");
+                        gyrAng = GetNavAnglesCurse(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
+                        gyros.SetOverride(true, gyrAng * GyroMult, 1);
+                        if (ForwVelocityVector.Length() < 100f)
+                        {
+                            thrusts.On();
+                            thrusts.SetOverridePercent("F", 1);
+                            thrusts.SetOverridePercent("B", 0);
+                        }
+                        else
+                        {
+                            thrusts.Off();
+                            thrusts.SetOverridePercent("F", 0);
+                            thrusts.SetOverridePercent("B", 0);
+                        }
                     }
                 }
                 else
                 {
                     Clear();
                     Complete = true;
-
                 }
                 OutStatusMode(0, 0, 0, 0, vert, hors);
                 return Complete;
@@ -1504,6 +1516,10 @@ namespace MUL_H2_NAV
                 Distance = (float)(vecTarget).Length();
                 if (gravity && ((cockpit.CurrentHeight - GetBrakingLanding(thrusts.DownThrMax)) < MinHeight))
                 {
+                    thrusts.On();
+                    SetRCVectorAxis("D");
+                    gyrAng = GetNavAngles(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
+                    gyros.SetOverride(true, gyrAng * GyroMult, 1);
                     Clear();
                     Complete = true;
                 }
@@ -1511,35 +1527,22 @@ namespace MUL_H2_NAV
                 {
                     thrusts.SetOverridePercent("R", 0);
                     thrusts.SetOverridePercent("L", 0);
-                    if (gravity)
+                    SetRCVectorAxis("F");
+                    gyrAng = GetNavAnglesCurse(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
+                    gyros.SetOverride(true, gyrAng * GyroMult, 1);
+                    thrusts.SetOverridePercent("U", 0);
+                    thrusts.SetOverridePercent("D", 0);
+                    if (ForwVelocityVector.Length() < 100f)
                     {
-                        SetRCVectorAxis("D");
-                        gyrAng = GetNavAngles(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
-                        thrusts.SetOverridePercent("F", 0);
+                        thrusts.On();
+                        thrusts.SetOverridePercent("F", 1);
                         thrusts.SetOverridePercent("B", 0);
-                        if (UpVelocityVector.Length() < 100f)
-                        {
-                            thrusts.SetOverridePercent("D", 1);
-                        }
-                        else
-                        {
-                            thrusts.SetOverrideAccel("D", 0);
-                        }
                     }
                     else
                     {
-                        SetRCVectorAxis("F");
-                        gyrAng = GetNavAnglesCurse(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
-                        thrusts.SetOverridePercent("U", 0);
-                        thrusts.SetOverridePercent("D", 0);
-                        if (ForwVelocityVector.Length() < 100f)
-                        {
-                            thrusts.SetOverrideAccel("F", Distance * AlignAccelMult);
-                        }
-                        else
-                        {
-                            thrusts.SetOverrideAccel("F", 0);
-                        }
+                        thrusts.Off();
+                        thrusts.SetOverridePercent("F", 0);
+                        thrusts.SetOverridePercent("B", 0);
                     }
                 }
                 return Complete;
@@ -2042,4 +2045,41 @@ namespace MUL_H2_NAV
 
 //    }
 //    return Complete;
+//}
+
+//if (gravity)
+//{
+//    SetRCVectorAxis("D");
+//    gyrAng = GetNavAngles(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
+//    gyros.SetOverride(true, gyrAng * GyroMult, 1);
+//    thrusts.SetOverridePercent("F", 0);
+//    thrusts.SetOverridePercent("B", 0);
+//    if (UpVelocityVector.Length() < 100f)
+//    {
+//        thrusts.SetOverridePercent("D", 1);
+//    }
+//    else
+//    {
+//        thrusts.SetOverrideAccel("D", 0);
+//    }
+//}
+//else
+//{
+//    SetRCVectorAxis("F");
+//    gyrAng = GetNavAnglesCurse(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
+//    gyros.SetOverride(true, gyrAng * GyroMult, 1);
+//    thrusts.SetOverridePercent("U", 0);
+//    thrusts.SetOverridePercent("D", 0);
+//    if (ForwVelocityVector.Length() < 100f)
+//    {
+//        thrusts.On();
+//        thrusts.SetOverridePercent("F", 1);
+//        thrusts.SetOverridePercent("B", 0);
+//    }
+//    else
+//    {
+//        thrusts.Off();
+//        thrusts.SetOverridePercent("F", 0);
+//        thrusts.SetOverridePercent("B", 0);
+//    }
 //}
