@@ -1335,8 +1335,8 @@ namespace MUL_H2_NAV
                 }
                 else
                 {
-                    MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 5f;
                     Distance = (float)(CurrBase.BaseDockPoint - MyPosCon).Length();
+                    MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 5f;
                 }
                 MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 3f;
                 gyros.SetOverride(true, gyrAng * GyroMult, 1);
@@ -1391,8 +1391,14 @@ namespace MUL_H2_NAV
                 float MaxUSpeed, MaxLSpeed, MaxFSpeed;
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, CurrBase.DockMatrix);
                 Vector3D gyrAng = GetNavAngles(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
-                Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, CurrBase.DockMatrix)))).Length() + CurrBase.ConnectorPoint.Length());
-
+                if (gravity)
+                {
+                    Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, CurrBase.DockMatrix)))).Length() + CurrBase.ConnectorPoint.Length());
+                }
+                else
+                {
+                    Distance = (float)(CurrBase.BaseDockPoint - MyPosCon).Length();
+                }
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 3f;
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 5f;
                 MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 3f;
