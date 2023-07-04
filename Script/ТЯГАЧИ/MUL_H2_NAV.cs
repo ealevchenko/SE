@@ -1235,7 +1235,8 @@ namespace MUL_H2_NAV
                 thrusts.SetOverridePercent("L", 0);
                 if (gravity)
                 {
-                    Vector3D vecTarget = CurrBase.BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2));
+                    //Vector3D vecTarget = CurrBase.BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2));
+                    Vector3D vecTarget =  (CurrBase.BaseDockPoint - MyPosCon);
                     Distance = (float)(vecTarget).Length();
                     if (FlyHeight == 0)
                     {
@@ -1307,6 +1308,75 @@ namespace MUL_H2_NAV
                 OutStatusMode(MaxFSpeed, MaxUSpeed, 0, UpAccel, VDistance, HDistance);
                 return Complete;
             }
+            //public bool Dock()
+            //{
+            //    bool Complete = false;
+            //    if (string.IsNullOrWhiteSpace(CurrBase.ConnectorTag)) return Complete;
+            //    float MaxUSpeed, MaxLSpeed, MaxFSpeed;
+            //    Vector3D MyPosCon = Vector3D.Transform(MyPos, CurrBase.DockMatrix);
+            //    Vector3D gyrAng = GetNavAngles(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
+            //    if (gravity)
+            //    {
+            //        Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, CurrBase.DockMatrix)))).Length() + CurrBase.ConnectorPoint.Length());
+            //    }
+            //    else
+            //    {
+            //       // Distance = (float)(CurrBase.BaseDockPoint - MyPosCon).Length();
+            //        Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, CurrBase.DockMatrix)))).Length() + CurrBase.ConnectorPoint.Length());
+            //    }
+            //    MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 3f;
+            //    MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 5f;
+            //    MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 3f;
+            //    if (Distance < 15 + (CurrBase.ConnectorTag == "B" ? dist_con_b : dist_con_d))
+            //        MaxFSpeed = MaxFSpeed / 5;
+            //    if (Math.Abs(MyPosCon.GetDim(1)) < 1)
+            //        MaxUSpeed = 0.1f;
+            //    gyros.SetOverride(true, gyrAng * GyroMult, 1);
+            //    if (LeftVelocityVector.Length() < MaxLSpeed)
+            //        thrusts.SetOverrideAccel("R", (float)(MyPosCon.GetDim(0) * AlignAccelMult));
+            //    else
+            //    {
+            //        thrusts.SetOverridePercent("R", 0);
+            //        thrusts.SetOverridePercent("L", 0);
+            //    }
+            //    float UpAccel = -(float)(MyPosCon.GetDim(1) * AlignAccelMult);
+            //    float minUpAccel = 0.1f;
+            //    if ((UpAccel < 0) && (UpAccel > -minUpAccel))
+            //        UpAccel = -minUpAccel;
+            //    if ((UpAccel > 0) && (UpAccel < minUpAccel))
+            //        UpAccel = minUpAccel;
+            //    if (UpVelocityVector.Length() < MaxUSpeed)
+            //        thrusts.SetOverrideAccel("U", UpAccel);
+            //    else { thrusts.SetOverridePercent("U", 0); }
+            //    if (((Distance > 100) || ((Math.Abs(MyPosCon.GetDim(0)) < (Distance / 10 + 0.2f)) && (Math.Abs(MyPosCon.GetDim(1)) < (Distance / 10 + 0.2f)))) && (ForwVelocityVector.Length() < MaxFSpeed))
+            //    {
+            //        thrusts.SetOverrideAccel("F", (float)(Distance * AlignAccelMult));
+            //        thrusts.SetOverridePercent("B", 0);
+            //    }
+            //    else
+            //    {
+            //        thrusts.SetOverridePercent("F", 0);
+            //        thrusts.SetOverridePercent("B", 0);
+            //    }
+            //    if (Distance < 6 + (CurrBase.ConnectorTag == "B" ? dist_con_b : dist_con_d))
+            //    {
+            //        if (con_b.Status == MyShipConnectorStatus.Connectable)
+            //        {
+            //            con_b.obj.Connect();
+            //        }
+            //        if (con_d.Status == MyShipConnectorStatus.Connectable)
+            //        {
+            //            con_d.obj.Connect();
+            //        }
+            //        if (con_b.Status == MyShipConnectorStatus.Connected || con_d.Status == MyShipConnectorStatus.Connected)
+            //        {
+            //            Clear();
+            //            Complete = true;
+            //        }
+            //    }
+            //    OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel, 0, 0);
+            //    return Complete;
+            //}
             public bool Dock()
             {
                 bool Complete = false;
@@ -1314,18 +1384,11 @@ namespace MUL_H2_NAV
                 float MaxUSpeed, MaxLSpeed, MaxFSpeed;
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, CurrBase.DockMatrix);
                 Vector3D gyrAng = GetNavAngles(CurrBase.ConnectorPoint, CurrBase.DockMatrix);
-                if (gravity)
-                {
-                    Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, CurrBase.DockMatrix)))).Length() + CurrBase.ConnectorPoint.Length());
-                }
-                else
-                {
-                   // Distance = (float)(CurrBase.BaseDockPoint - MyPosCon).Length();
-                    Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, CurrBase.DockMatrix)))).Length() + CurrBase.ConnectorPoint.Length());
-                }
-                MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 3f;
-                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 5f;
-                MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 3f;
+                float Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, CurrBase.DockMatrix)))).Length() + CurrBase.ConnectorPoint.Length());
+
+                MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 2;
+                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 2;
+                MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 2;
                 if (Distance < 15 + (CurrBase.ConnectorTag == "B" ? dist_con_b : dist_con_d))
                     MaxFSpeed = MaxFSpeed / 5;
                 if (Math.Abs(MyPosCon.GetDim(1)) < 1)
@@ -1339,14 +1402,17 @@ namespace MUL_H2_NAV
                     thrusts.SetOverridePercent("L", 0);
                 }
                 float UpAccel = -(float)(MyPosCon.GetDim(1) * AlignAccelMult);
-                float minUpAccel = 0.1f;
+                float minUpAccel = 0.3f;
                 if ((UpAccel < 0) && (UpAccel > -minUpAccel))
                     UpAccel = -minUpAccel;
                 if ((UpAccel > 0) && (UpAccel < minUpAccel))
                     UpAccel = minUpAccel;
                 if (UpVelocityVector.Length() < MaxUSpeed)
                     thrusts.SetOverrideAccel("U", UpAccel);
-                else { thrusts.SetOverridePercent("U", 0); }
+                else
+                {
+                    thrusts.SetOverridePercent("U", 0);
+                }
                 if (((Distance > 100) || ((Math.Abs(MyPosCon.GetDim(0)) < (Distance / 10 + 0.2f)) && (Math.Abs(MyPosCon.GetDim(1)) < (Distance / 10 + 0.2f)))) && (ForwVelocityVector.Length() < MaxFSpeed))
                 {
                     thrusts.SetOverrideAccel("F", (float)(Distance * AlignAccelMult));
@@ -1652,9 +1718,9 @@ namespace MUL_H2_NAV
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("current_vector_axis: " + current_vector_axis + "\n");
-                values.Append("ForwVel  : " + Math.Round(ForwVelocityVector.Length(), 1)  + "\n");
-                values.Append("UpVel    : " + Math.Round(UpVelocityVector.Length(), 1)  + "\n");
-                values.Append("LeftVel  : " + Math.Round(LeftVelocityVector.Length(), 1)  + "\n");
+                values.Append("ForwVel  : " + Math.Round(ForwVelocityVector.Length(), 1) + "\n");
+                values.Append("UpVel    : " + Math.Round(UpVelocityVector.Length(), 1) + "\n");
+                values.Append("LeftVel  : " + Math.Round(LeftVelocityVector.Length(), 1) + "\n");
                 //values.Append("DockMatrix: " + CurrBase.DockMatrix.ToString() + "\n");
                 //values.Append(PText.GetGPS("DockPoint:", CurrBase.BaseDockPoint) + "\n");
                 //values.Append(PText.GetGPS("ConnPoint:", CurrBase.ConnectorPoint) + "\n");
