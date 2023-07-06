@@ -27,8 +27,6 @@ namespace OSS_BM_UPR
     public sealed class Program : MyGridProgram
     {
         // v1.0
-        // Добавить режим "Установка на солнце",
-
         string NameObj = "[OSS]-"; // [OSS]-[BM]-
         string NameCockpit = "[OSS]-[BM]-Кресло пилота [LCD]"; // основное
         string NameCockpit1 = "[OSS]-[BM]-Кресло оператора 1 [LCD]";
@@ -41,10 +39,10 @@ namespace OSS_BM_UPR
         string NameLCDInfo_Upr = "[OSS]-[BM]-LCD-INFO-UPR";
         string NameLCDInfo_Debug = "[OSS]-[BM]-LCD-INFO-DEBUG";
         string NameLCDInfo_Solar = "[OSS]-[BM]-LCD-INFO-Solar";
-        string NameLSolarPanel = "[OSS]-[..]-SolarPanel";
-        string NameRSolarPanel = "[OSS]-[..]-SolarPanel";
-        string NameLSPMotorStator = "[OSS]-[..]-MotorStator";
-        string NameRSPMotorStator = "[OSS]-[..]-MotorStator";
+        string NameLSolarPanel = "[OSS]-[EML]-";
+        string NameRSolarPanel = "[OSS]-[EMR]-";
+        string NameLSPMotorStator = "[OSS]-[EML]-Ротор СП";
+        string NameRSPMotorStator = "[OSS]-[EMR]-Ротор СП";
 
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
         string tag_mechanical_connectior = "[mechanical_connectior]";
@@ -999,21 +997,22 @@ namespace OSS_BM_UPR
             }
             public void SetSolarVector()
             {
-                double gF = solar_vector.Dot(cockpit.obj.WorldMatrix.Left);
-                double gL = solar_vector.Dot(cockpit.obj.WorldMatrix.Backward);
-                double gU = solar_vector.Dot(cockpit.obj.WorldMatrix.Up);
+                double gF = solar_vector.Dot(cockpit.obj.WorldMatrix.Forward);
+                double gL = solar_vector.Dot(cockpit.obj.WorldMatrix.Up);
+                double gU = solar_vector.Dot(cockpit.obj.WorldMatrix.Right);
                 //Получаем сигналы по тангажу и крены операцией atan2
                 double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
                 double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
                 double TargetYaw = cockpit.obj.RotationIndicator.Y;
-                gyros.SetOverride(true, new Vector3D(TargetYaw, TargetPitch, TargetRoll), 1);
+
+                gyros.SetOverride(true, new Vector3D(TargetPitch, -TargetYaw, TargetRoll), 1);
             }
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("ОСЬ ВРАЩЕНИЯ        : " + (set_solar_vector ? igreen.ToString() : ired.ToString()) + "\n");
                 values.Append("ОТСЛЕЖИВАНИЯ СОЛНЦА : " + (track_sun ? igreen.ToString() : ired.ToString()) + "\n");
-                values.Append("ЛЕВАЯ - УГОЛ : "+ Math.Round(motor_stator_spl.obj.Angle, 1) +", СК.ВР : " + Math.Round(speed_left_motor, 2) + "\n");
+                values.Append("ЛЕВАЯ - УГОЛ : " + Math.Round(motor_stator_spl.obj.Angle, 1) + ", СК.ВР : " + Math.Round(speed_left_motor, 2) + "\n");
                 values.Append(solar_panel_left.TextInfo());
                 values.Append("ПРАВАЯ - УГОЛ : " + Math.Round(motor_stator_spr.obj.Angle, 1) + ", СК.ВР : " + Math.Round(speed_right_motor, 2) + "\n");
                 values.Append(solar_panel_right.TextInfo());
@@ -1062,7 +1061,7 @@ namespace OSS_BM_UPR
                     }
                     else
                     {
-                        gyros.SetOverride(false, 1);
+                        //
                     }
                 }
             }
