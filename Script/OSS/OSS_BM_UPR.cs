@@ -17,7 +17,6 @@ using System.Threading.Tasks;
 using VRage;
 using VRage.Game.ModAPI.Ingame;
 using VRageMath;
-using static VRageMath.Base6Directions;
 
 /// <summary>
 /// v1.0
@@ -42,6 +41,10 @@ namespace OSS_BM_UPR
         string NameLCDInfo_Upr = "[OSS]-[BM]-LCD-INFO-UPR";
         string NameLCDInfo_Debug = "[OSS]-[BM]-LCD-INFO-DEBUG";
         string NameLCDInfo_Solar = "[OSS]-[BM]-LCD-INFO-Solar";
+        string NameLSolarPanel = "[OSS]-[..]-SolarPanel";
+        string NameRSolarPanel = "[OSS]-[..]-SolarPanel";
+        string NameLSPMotorStator = "[OSS]-[..]-MotorStator";
+        string NameRSPMotorStator = "[OSS]-[..]-MotorStator";
 
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
         string tag_mechanical_connectior = "[mechanical_connectior]";
@@ -74,8 +77,11 @@ namespace OSS_BM_UPR
         static Cockpit cockpit_operator2;
         static Camera camera_course;
         static Projector projector_ls;
+        static SolarPanel solar_panel_left;
+        static SolarPanel solar_panel_right;
         static SolarPower solar_power;
-
+        static MotorStator motor_stator_spl;
+        static MotorStator motor_stator_spr;
         static Program _scr;
 
         bool ship_connect1 = false;
@@ -307,6 +313,10 @@ namespace OSS_BM_UPR
             gastanks = new GasTanks(NameObj);
             camera_course = new Camera(NameCameraCourse);
             projector_ls = new Projector(NameProjector);
+            solar_panel_left = new SolarPanel(NameLSolarPanel);
+            solar_panel_right = new SolarPanel(NameRSolarPanel);
+            motor_stator_spl = new MotorStator(NameLSPMotorStator);
+            motor_stator_spr = new MotorStator(NameRSPMotorStator);
 
             solar_power = new SolarPower();
         }
@@ -910,14 +920,82 @@ namespace OSS_BM_UPR
 
             }
         }
+        public class SolarPanel : BaseListTerminalBlock<IMySolarPanel>
+        {
+            public SolarPanel(string name_obj) : base(name_obj)
+            {
+            }
+            public SolarPanel(string name_obj, string tag) : base(name_obj, tag)
+            {
 
+            }
+            public float MaxOutput { get { return this.list_obj.Sum(s => s.MaxOutput); } }
+            public float CurrentOutput { get { return this.list_obj.Sum(s => s.CurrentOutput); } }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                //БАТАРЕЯ: [10 - 10] [0.0MW / 0.0MW]
+                //|- ЗАР:  [''''''''''''''''''''''''']-0%
+                values.Append("СОЛН. ПАНЕЛЬ: [" + Count + "] " + PText.GetCurrentOfMax(CurrentOutput, MaxOutput, "MW") + "\n");
+                values.Append("|- ВЫХ:  " + PText.GetScalePersent(CurrentOutput / MaxOutput, 20) + "\n");
+                return values.ToString();
+            }
+        }
+        public class MotorStator : BaseTerminalBlock<IMyMotorStator>
+        {
+            public MotorStator(string name) : base(name)
+            {
+
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    default:
+                        break;
+                }
+
+                if (updateSource == UpdateType.Update10)
+                {
+
+                }
+
+            }
+        }
         public class SolarPower
         {
             public bool set_solar_vector = false;
+            public bool track_sun = false;
+            float speed_left_motor = 0f;       // оборот в минуту
+            float speed_right_motor = 0f;       // оборот в минуту
             static Vector3D solar_vector = new Vector3D(-0.000739292178424908, -0.999999582397521, 0.000537263304268998);
+            float LSolarOutput = 0, RSolarOutput = 0;
             public SolarPower()
             {
 
+            }
+            public void TrackSun()
+            {
+                float LOutputGain = solar_panel_left.MaxOutput - LSolarOutput;
+                float ROutputGain = solar_panel_right.MaxOutput - RSolarOutput;
+                if (LOutputGain < 0)
+                {
+                    speed_left_motor = -0.1f;
+                }
+                else
+                {
+                    speed_left_motor = 0.1f;
+                }
+                if (ROutputGain < 0)
+                {
+                    speed_right_motor = -0.1f;
+                }
+                else
+                {
+                    speed_right_motor = 0.1f;
+                }
+                motor_stator_spl.obj.TargetVelocityRPM = speed_left_motor;
+                motor_stator_spr.obj.TargetVelocityRPM = speed_right_motor;
             }
             public void SetSolarVector()
             {
@@ -930,15 +1008,15 @@ namespace OSS_BM_UPR
                 double TargetYaw = cockpit.obj.RotationIndicator.Y;
                 gyros.SetOverride(true, new Vector3D(TargetYaw, TargetPitch, TargetRoll), 1);
             }
-
-            public void SetupSPVector()
-            {
-
-            }
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("ОСЬ ВРАЩЕНИЯ : " + (set_solar_vector ? igreen.ToString() : ired.ToString()) + "\n");
+                values.Append("ОСЬ ВРАЩЕНИЯ        : " + (set_solar_vector ? igreen.ToString() : ired.ToString()) + "\n");
+                values.Append("ОТСЛЕЖИВАНИЯ СОЛНЦА : " + (track_sun ? igreen.ToString() : ired.ToString()) + "\n");
+                values.Append("ЛЕВАЯ - УГОЛ : "+ Math.Round(motor_stator_spl.obj.Angle, 1) +", СК.ВР : " + Math.Round(speed_left_motor, 2) + "\n");
+                values.Append(solar_panel_left.TextInfo());
+                values.Append("ПРАВАЯ - УГОЛ : " + Math.Round(motor_stator_spr.obj.Angle, 1) + ", СК.ВР : " + Math.Round(speed_right_motor, 2) + "\n");
+                values.Append(solar_panel_right.TextInfo());
                 return values.ToString();
             }
             public void Logic(string argument, UpdateType updateSource)
@@ -955,6 +1033,16 @@ namespace OSS_BM_UPR
                             set_solar_vector = true;
                         }
                         break;
+                    case "TS":
+                        if (track_sun)
+                        {
+                            track_sun = false;
+                        }
+                        else
+                        {
+                            track_sun = true;
+                        }
+                        break;
                     default:
                         break;
                 }
@@ -968,9 +1056,16 @@ namespace OSS_BM_UPR
                     {
                         gyros.SetOverride(false, 1);
                     }
+                    if (track_sun)
+                    {
+                        TrackSun();
+                    }
+                    else
+                    {
+                        gyros.SetOverride(false, 1);
+                    }
                 }
             }
         }
-
     }
 }

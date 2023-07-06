@@ -482,6 +482,9 @@ namespace MUL_H2_NAV
             }
         }
         public class Cockpit : BaseController { public Cockpit(string name) : base(name) { } }
+        /// <summary>
+        /// v06.07.2023
+        /// </summary>
         public class Thrusts : BaseListTerminalBlock<IMyThrust>
         {
             private BaseController remote_control;
@@ -510,13 +513,6 @@ namespace MUL_H2_NAV
             {
                 this.remote_control = remote_control;
                 MatrixD OrientationCocpit = this.remote_control.GetCockpitMatrix();
-                // Максимальная эфиктивность двигателей
-                //UpThrMax = 0;
-                //DownThrMax = 0;
-                //LeftThrMax = 0;
-                //RightThrMax = 0;
-                //ForwardThrMax = 0;
-                //BackwardThrMax = 0;
                 // Список трастеров
                 UpThrusters.Clear();
                 DownThrusters.Clear();
@@ -552,34 +548,28 @@ namespace MUL_H2_NAV
                     //Y
                     if (ThrusterMatrix.Forward == vUp)
                     {
-                        //UpThrMax += thrust.MaxEffectiveThrust;
                         UpThrusters.Add(thrust);
                     }
                     else if (ThrusterMatrix.Forward == vDown)
                     {
-                        //DownThrMax += thrust.MaxEffectiveThrust;
                         DownThrusters.Add(thrust);
                     }
                     //X
                     else if (ThrusterMatrix.Forward == vLeft)
                     {
-                        //LeftThrMax += thrust.MaxEffectiveThrust;
                         LeftThrusters.Add(thrust);
                     }
                     else if (ThrusterMatrix.Forward == vRight)
                     {
-                        //RightThrMax += thrust.MaxEffectiveThrust;
                         RightThrusters.Add(thrust);
                     }
                     //Z
                     else if (ThrusterMatrix.Forward == vForward)
                     {
-                        //ForwardThrMax += thrust.MaxEffectiveThrust;
                         ForwardThrusters.Add(thrust);
                     }
                     else if (ThrusterMatrix.Forward == vBackward)
                     {
-                        //BackwardThrMax += thrust.MaxEffectiveThrust;
                         BackwardThrusters.Add(thrust);
                     }
                 }
