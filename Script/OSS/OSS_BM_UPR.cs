@@ -288,6 +288,7 @@ namespace OSS_BM_UPR
         public Program()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
+            Runtime.UpdateFrequency = UpdateFrequency.Update100;
             _scr = this;
             lcd_info = new LCD(NameLCDInfo);
             lcd_info_upr = new LCD(NameLCDInfo_Upr);
@@ -986,14 +987,16 @@ namespace OSS_BM_UPR
                 }
                 if (ROutputGain < 0)
                 {
-                    speed_right_motor = -0.1f;
+                    speed_right_motor = 0.1f;
                 }
                 else
                 {
-                    speed_right_motor = 0.1f;
+                    speed_right_motor = -0.1f;
                 }
                 motor_stator_spl.obj.TargetVelocityRPM = speed_left_motor;
                 motor_stator_spr.obj.TargetVelocityRPM = speed_right_motor;
+                LSolarOutput = solar_panel_left.MaxOutput;
+                RSolarOutput = solar_panel_right.MaxOutput;
             }
             public void SetSolarVector()
             {
@@ -1055,6 +1058,9 @@ namespace OSS_BM_UPR
                     {
                         gyros.SetOverride(false, 1);
                     }
+                }
+                if (updateSource == UpdateType.Update100)
+                {
                     if (track_sun)
                     {
                         TrackSun();

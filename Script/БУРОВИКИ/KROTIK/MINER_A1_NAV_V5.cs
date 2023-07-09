@@ -1815,7 +1815,7 @@ namespace MINER_A1_NAV_V_5
                 ShaftN = GetValInt("ShaftN", str.ToString());
                 EmergencyReturn = GetValBool("EmergencyReturn", str.ToString());
                 DrillDepth = (float)GetVal("DrillDepth", str.ToString());
-                MaxShafts = GetValInt("DrillDepth", MaxShafts.ToString());
+                MaxShafts = GetValInt("MaxShafts", str.ToString());
                 connector_base1.id = GetValInt64("CB1_id", str.ToString());
                 connector_base1.point = new Vector3D(GetVal("CB1_X", str.ToString()), GetVal("CB1_Y", str.ToString()), GetVal("CB1_Z", str.ToString()));
                 connector_base1.vector = new Vector3D(GetVal("CBV1_X", str.ToString()), GetVal("CBV1_Y", str.ToString()), GetVal("CBV1_Z", str.ToString()));
