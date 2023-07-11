@@ -84,12 +84,13 @@
   <ItemGroup>
     <Compile Include="MinerHub\MINER_HUB_UPR_V2.cs" />
     <Compile Include="MinerHub\MINER_HUB_UPR.cs" />
+    <Compile Include="MPB\MPB_UPR.cs" />
     <Compile Include="OCTOPUS\Hrv4.cs" />
     <Compile Include="OCTOPUS\Octopus2.cs" />
     <Compile Include="OSS\OSS_BM_UPR.cs" />
     <Compile Include="OSS\OSS_BM_DORS.cs" />
     <Compile Include="OCTOPUS\Octopus1.cs" />
-    <Compile Include="БУРОВИКИ\KROTIK\MINER_A1_NAV.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\test\MINER_A1_NAV.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\MINER_A1_NAV_V5.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1P.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1M_NAV_4.cs" />
