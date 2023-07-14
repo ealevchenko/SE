@@ -28,7 +28,6 @@ namespace MPB_UPR
         // v1.
         string NameObj = "[MPB-1]-";
 
-        string tag_info_tablo = "[door-info]";
         string tag_door_transition = "[door-transition]";
         string tag_door_gateway = "[door-gateway]";
         string tag_lighting_room = "[lighting_room]";
@@ -79,8 +78,6 @@ namespace MPB_UPR
         static LCD lcd_storage;
         static LCD lcd_debug;
 
-        AirInfo air_info;
-        AirVent air_vent;
         ReflectorsLight reflectors_light;
         Gateways gateways_doors;
         Transitions transition_door;
@@ -214,9 +211,6 @@ namespace MPB_UPR
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
 
-            air_vent = new AirVent(NameObj);
-            air_vent.On();
-            air_info = new AirInfo(NameObj, tag_info_tablo);
             gateways_doors = new Gateways(NameObj, tag_door_gateway);
             transition_door = new Transitions(NameObj, tag_door_transition);
             room_light = new Lightings(NameObj, tag_lighting_room); // Освещение
@@ -235,11 +229,6 @@ namespace MPB_UPR
         // Переключить батареи
         public void Main(string argument, UpdateType updateSource)
         {
-            //StringBuilder values = new StringBuilder();
-            // Получим данные
-            //test_lcd.WriteText("" + "\n", false);
-            // Логика отображения подписей двирей с учетом кислорода в помещении
-            air_info.Logic(argument, updateSource);
             // Логика отработки шлюзовых дверей
             gateways_doors.Logic(argument, updateSource);
             transition_door.Logic(argument, updateSource);
@@ -247,10 +236,6 @@ namespace MPB_UPR
             count_room[(int)room.external] = 0;
             // Логика отработки включения и выключения освещения
             room_light.Logic(argument, updateSource);
-            //test_lcd.WriteText("" + "\n", false);
-            //test_lcd.WriteText("hangar:" + count_room[(int)room.hangar] + "\n", true);
-            //test_lcd.WriteText("factory:" + count_room[(int)room.factory] + "\n", true);
-            //test_lcd.WriteText("technical_1:" + count_room[(int)room.technical_1] + "\n", true);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
@@ -283,120 +268,6 @@ namespace MPB_UPR
                     base.obj.ReadText(values);
                 }
                 return values;
-            }
-        }
-        public class InfoTablo : BaseListTerminalBlock<IMyTextPanel>
-        {
-            string tag;
-            public InfoTablo(string name_obj, string tag) : base(name_obj)
-            {
-                this.tag = tag;
-                if (!String.IsNullOrWhiteSpace(tag))
-                {
-                    base.list_obj = list_obj.Where(x => x.CustomName.Contains(this.tag)).ToList();
-                }
-                _scr.Echo("Найдено TextPanel:[" + tag + "]: " + base.list_obj.Count());
-            }
-            public void InitPanel()
-            {
-                // Пройдемся по помещениям и настроим панели
-                foreach (room group in Enum.GetValues(typeof(room)))
-                {
-                    SetText(group, green);
-                }
-            }
-            public void SetText(room rm, Color color)
-            {
-                List<IMyTextPanel> objs = base.list_obj.Where(x => x.CustomName.Contains("[" + rm.ToString() + "]")).ToList();
-                foreach (IMyTextPanel obj in objs)
-                {
-                    obj.SetValue("Content", (Int64)1);
-                    obj.SetValueColor("FontColor", color);
-                    obj.SetValueFloat("FontSize", 7.0f);
-                    obj.SetValue("alignment", (Int64)2);
-                    obj.WriteText(name_room[(int)rm].ToUpper(), false);
-                }
-            }
-        }
-        public class AirVent : BaseListTerminalBlock<IMyAirVent>
-        {
-            public AirVent(string name_obj) : base(name_obj)
-            {
-
-            }
-            public VentStatus? getStatus(string tag)
-            {
-                IMyAirVent obj = list_obj.Where(x => x.CustomName.Contains(tag)).FirstOrDefault();
-                return obj != null ? (VentStatus?)obj.Status : null;
-            }
-            public float? GetOxygenLevel(string tag)
-            {
-                IMyAirVent obj = list_obj.Where(x => x.CustomName.Contains(tag)).FirstOrDefault();
-                return obj != null ? (float?)obj.GetOxygenLevel() : null;
-            }
-            public bool isOxygenLevelNull(string tag)
-            {
-                float? ox = GetOxygenLevel(tag);
-                return ox != null && ox < 0.8f ? true : false;
-            }
-            public bool isOxygenLevelNull(string[] tags)
-            {
-                foreach (string tag in tags)
-                {
-                    if (isOxygenLevelNull(tag))
-                    {
-                        return true;
-                    }
-                }
-                return false;
-            }
-
-        }
-        // Класс формирования подписей над дверями с учетом кислорода в помещении
-        public class AirInfo
-        {
-            InfoTablo info_tablo;
-            AirVent air_vant;
-            public AirInfo(string name_obj, string tag)
-            {
-                info_tablo = new InfoTablo(name_obj, tag);
-                info_tablo.InitPanel();
-                air_vant = new AirVent(name_obj);
-            }
-            public void Logic(string argument, UpdateType updateSource)
-            {
-                switch (argument)
-                {
-                    //case "connected_on":
-                    //    break;
-                    default:
-                        break;
-                }
-
-                if (updateSource == UpdateType.Update10)
-                {
-                    //test_lcd.WriteText("Старт" + "\n", false);
-                    foreach (room group in Enum.GetValues(typeof(room)))
-                    {
-                        float? o2 = air_vant.GetOxygenLevel("[" + group.ToString() + "]");
-                        if (o2 != null)
-                        {
-                            if (o2 > 0.9)
-                            {
-                                info_tablo.SetText(group, green);
-                            }
-                            else if (o2 == 0)
-                            {
-                                info_tablo.SetText(group, red);
-                            }
-                            else
-                            {
-                                info_tablo.SetText(group, yellow);
-                            }
-                        }
-                    }
-                }
-
             }
         }
         public class ReflectorsLight : BaseListTerminalBlock<IMyReflectorLight>
@@ -446,25 +317,16 @@ namespace MPB_UPR
                 // Логика направдения движения
                 if (sn1_active && !sn2_active && sn2.IsActive)
                 {
-                    // Выход
-                    //sn1_active = false;
-                    sn2_active = true;
-                    //count_room[(int)rm1]--;
-                    //count_room[(int)rm2]++;
+                    sn2_active = true;// Выход
                 }
                 if (sn2_active && !sn1_active && sn1.IsActive)
                 {
-                    // Вход
-                    sn1_active = true;
-                    //sn2_active = false;
-                    //count_room[(int)rm1]++;
-                    //count_room[(int)rm2]--;
+                    sn1_active = true;// Вход
                 }
                 if (sn1_active && sn2_active && !sn1.IsActive && sn2.IsActive)
                 {
                     // Выход
                     sn1_active = false;
-                    //sn2_active = true;
                     count_room[(int)rm1]--;
                     count_room[(int)rm2]++;
                 }
@@ -472,7 +334,6 @@ namespace MPB_UPR
                 {
                     // Выход
                     sn2_active = false;
-                    //sn1_active = true;
                     count_room[(int)rm1]++;
                     count_room[(int)rm2]--;
                 }
@@ -482,7 +343,6 @@ namespace MPB_UPR
                     sn1_active = false;
                     sn2_active = false;
                 }
-
                 if (!sn1_active && !sn2_active)
                 {
                     // Выход
@@ -551,13 +411,10 @@ namespace MPB_UPR
                 _scr.Echo("Найдено Transitions:[" + tag + "]: " + list_tr.Count());
                 //lcd_info_upr.OutText(values_info);
             }
-
             public void Logic(string argument, UpdateType updateSource)
             {
                 switch (argument)
                 {
-                    //case "connected_on":
-                    //    break;
                     default:
                         break;
                 }
@@ -581,8 +438,6 @@ namespace MPB_UPR
             IMyDoor door1;
             IMyDoor door2;
             room rm2;
-            //bool input_door = false;
-            //bool output_door = false;
             bool sn1_active = false;    // датчик входа
             bool sn2_active = false;   // датчик выхода
             public Gateway(doors_gareways dg, IMyDoor door1, IMySensorBlock sn1, room rm1, IMyDoor door2, IMySensorBlock sn2, room rm2)
@@ -627,10 +482,7 @@ namespace MPB_UPR
                 if (sn1_active && !sn2_active && sn2.IsActive)
                 {
                     // Выход
-                    //sn1_active = false;
                     sn2_active = true;
-                    //input_door = false;
-                    //output_door = true;
                     count_room[(int)rm1]--;
                     count_room[(int)rm2]++;
                 }
@@ -638,9 +490,6 @@ namespace MPB_UPR
                 {
                     // Вход
                     sn1_active = true;
-                    //sn2_active = false;
-                    //input_door = true;
-                    //output_door = false;
                     count_room[(int)rm1]++;
                     count_room[(int)rm2]--;
                 }
@@ -649,8 +498,6 @@ namespace MPB_UPR
                     // Вход
                     sn1_active = false;
                     sn2_active = false;
-                    //input_door = false;
-                    //output_door = false;
                 }
 
                 if (!sn1_active && !sn2_active)
@@ -724,8 +571,6 @@ namespace MPB_UPR
             {
                 switch (argument)
                 {
-                    //case "connected_on":
-                    //    break;
                     default:
                         break;
                 }

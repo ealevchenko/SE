@@ -27,11 +27,7 @@ namespace KROTIK_A1_NAV
     {
         // v10
         string NameObj = "[KROTIK_A1]";
-        string NameCockpit = "[KROTIK_A1]-Промышленный кокпит [LCD]";
-        string NameRemoteControl = "[KROTIK_A1]-ДУ Парковка";
-        string NameConnector = "[KROTIK_A1]-Коннектор парковка";
-        string NameLCDStorage = "[KROTIK_A1]-LCD-Storage";      // Экран для сохранения настроек
-        string NameLCDDebug = "[KROTIK_A1]-LCD-DEBUG";
+
         static string tag_batterys_duty = "[batterys_duty]";    // дежурная батарея
         static string tag_ejector = "[ejector]"; // дежурная батарея
         static float GyroMult = 1f;
@@ -54,17 +50,17 @@ namespace KROTIK_A1_NAV
         const char darkGrey = '\uE00F';
         static LCD lcd_storage;
         static LCD lcd_debug;
-        Batterys bats;
-        Connector connector;
-        ShipDrill drill;
-        ReflectorsLight reflectors_light;
-        Cockpit cockpit;
-        RemoteControl remote_control;
-        Gyros gyros;
-        Thrusts thrusts;
-        Cargos cargos;
-        Ejector ejector;
-        Navigation navigation;
+        static Batterys bats;
+        static Connector connector;
+        static ShipDrill drill;
+        static ReflectorsLight reflectors_light;
+        static Cockpit cockpit;
+        static RemoteControl remote_control;
+        static Gyros gyros;
+        static Thrusts thrusts;
+        static Cargos cargos;
+        static Ejector ejector;
+        static Navigation navigation;
         static Program _scr;
         public class PText
         {
@@ -357,21 +353,21 @@ namespace KROTIK_A1_NAV
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
             _scr = this;
-            lcd_storage = new LCD(NameLCDStorage);
-            lcd_debug = new LCD(NameLCDDebug);
+            lcd_storage = new LCD(NameObj + "-LCD-Storage");
+            lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
             bats = new Batterys(NameObj);
-            connector = new Connector(NameConnector);
+            connector = new Connector(NameObj + "-Коннектор парковка");
             drill = new ShipDrill(NameObj);
             drill.Off();
             reflectors_light = new ReflectorsLight(NameObj);
             reflectors_light.Off();
-            cockpit = new Cockpit(NameCockpit);
-            remote_control = new RemoteControl(NameRemoteControl);
+            cockpit = new Cockpit(NameObj + "-Промышленный кокпит [LCD]");
+            remote_control = new RemoteControl(NameObj + "-ДУ Парковка");
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj);
             cargos = new Cargos(NameObj);
             ejector = new Ejector(NameObj, tag_ejector); ejector.ThrowOut(false);
-            navigation = new Navigation(cockpit, remote_control, gyros, thrusts, connector, bats, drill, reflectors_light, cargos, ejector);
+            navigation = new Navigation();
         }
         public void Save()
         {
@@ -686,6 +682,9 @@ namespace KROTIK_A1_NAV
                 return values.ToString();
             }
         }
+        /// <summary>
+        /// v06.07.2023
+        /// </summary>
         public class Thrusts : BaseListTerminalBlock<IMyThrust>
         {
             private RemoteControl remote_control;
@@ -696,12 +695,12 @@ namespace KROTIK_A1_NAV
             public List<IMyThrust> RightThrusters = new List<IMyThrust>();
             public List<IMyThrust> ForwardThrusters = new List<IMyThrust>();
             public List<IMyThrust> BackwardThrusters = new List<IMyThrust>();
-            public double UpThrMax { get; private set; } = 0;
-            public double DownThrMax { get; private set; } = 0;
-            public double LeftThrMax { get; private set; } = 0;
-            public double RightThrMax { get; private set; } = 0;
-            public double ForwardThrMax { get; private set; } = 0;
-            public double BackwardThrMax { get; private set; } = 0;
+            public double UpThrMax { get { return UpThrusters.Sum(t => t.MaxEffectiveThrust); } }
+            public double DownThrMax { get { return DownThrusters.Sum(t => t.MaxEffectiveThrust); } }
+            public double LeftThrMax { get { return LeftThrusters.Sum(t => t.MaxEffectiveThrust); } }
+            public double RightThrMax { get { return RightThrusters.Sum(t => t.MaxEffectiveThrust); } }
+            public double ForwardThrMax { get { return ForwardThrusters.Sum(t => t.MaxEffectiveThrust); } }
+            public double BackwardThrMax { get { return BackwardThrusters.Sum(t => t.MaxEffectiveThrust); } }
 
             public Thrusts(string name_obj) : base(name_obj)
             {
@@ -714,13 +713,6 @@ namespace KROTIK_A1_NAV
             {
                 this.remote_control = remote_control;
                 MatrixD OrientationCocpit = this.remote_control.GetCockpitMatrix();
-                // Максимальная эфиктивность двигателей
-                UpThrMax = 0;
-                DownThrMax = 0;
-                LeftThrMax = 0;
-                RightThrMax = 0;
-                ForwardThrMax = 0;
-                BackwardThrMax = 0;
                 // Список трастеров
                 UpThrusters.Clear();
                 DownThrusters.Clear();
@@ -736,34 +728,28 @@ namespace KROTIK_A1_NAV
                     //Y
                     if (ThrusterMatrix.Forward == OrientationCocpit.Up)
                     {
-                        UpThrMax += thrust.MaxEffectiveThrust;
                         UpThrusters.Add(thrust);
                     }
                     else if (ThrusterMatrix.Forward == OrientationCocpit.Down)
                     {
-                        DownThrMax += thrust.MaxEffectiveThrust;
                         DownThrusters.Add(thrust);
                     }
                     //X
                     else if (ThrusterMatrix.Forward == OrientationCocpit.Left)
                     {
-                        LeftThrMax += thrust.MaxEffectiveThrust;
                         LeftThrusters.Add(thrust);
                     }
                     else if (ThrusterMatrix.Forward == OrientationCocpit.Right)
                     {
-                        RightThrMax += thrust.MaxEffectiveThrust;
                         RightThrusters.Add(thrust);
                     }
                     //Z
                     else if (ThrusterMatrix.Forward == OrientationCocpit.Forward)
                     {
-                        ForwardThrMax += thrust.MaxEffectiveThrust;
                         ForwardThrusters.Add(thrust);
                     }
                     else if (ThrusterMatrix.Forward == OrientationCocpit.Backward)
                     {
-                        BackwardThrMax += thrust.MaxEffectiveThrust;
                         BackwardThrusters.Add(thrust);
                     }
                 }
@@ -1006,16 +992,6 @@ namespace KROTIK_A1_NAV
         }
         public class Navigation
         {
-            Cockpit cockpit;
-            Connector connector;
-            Batterys batterys;
-            ShipDrill drills;
-            ReflectorsLight reflectors_light;
-            RemoteControl remote_control;
-            Gyros gyros;
-            Thrusts thrusts;
-            Cargos cargos;
-            Ejector ejector;
             //---------------------------
             public bool horizont { get; private set; } = false;  // держим горизонтальное направление
             public Vector3D? TackVector { get; set; } = null;
@@ -1092,19 +1068,9 @@ namespace KROTIK_A1_NAV
 
             public bool go_home = false; // вернутся домой и остатся
             public bool paused = false;
-            public Navigation(Cockpit cockpit, RemoteControl remote_control, Gyros gyros, Thrusts thrusts, Connector connector, Batterys batterys, ShipDrill drills, ReflectorsLight reflectors_light, Cargos cargos, Ejector ejector)
+            public Navigation()
             {
-                this.cockpit = cockpit;
-                this.connector = connector;
-                this.batterys = batterys;
-                this.drills = drills;
-                this.reflectors_light = reflectors_light;
-                this.remote_control = remote_control;
-                this.gyros = gyros;
-                this.cargos = cargos;
-                this.thrusts = thrusts;
-                this.thrusts.InitThrusts(remote_control); // Привяжем трастеры к контроллеру
-                this.ejector = ejector;
+                thrusts.InitThrusts(remote_control); // Привяжем трастеры к контроллеру
                 LoadFromStorage();
                 FindPlanetCenter();
             }
@@ -1123,10 +1089,10 @@ namespace KROTIK_A1_NAV
             }
             public void SetDockMatrix()
             {
-                if (this.connector.Connected)
+                if (connector.Connected)
                 {
                     DockMatrix = GetNormTransMatrixFromMyPos();
-                    connector_base1.id = this.connector.getRemoteConnector();
+                    connector_base1.id = connector.getRemoteConnector();
                     Vector3D GravNorm = Vector3D.Normalize(GravVector);
                     double vc = GravNorm.Dot(WMCocpit.Forward);
                     connector_base1.point = remote_control.obj.GetPosition();
@@ -1366,10 +1332,10 @@ namespace KROTIK_A1_NAV
                     }
                     if (curent_mode == mode.base_operation)
                     {
-                        this.ejector.ThrowOut(false);
-                        this.cargos.UnLoad();
-                        this.batterys.Charger();
-                        this.thrusts.Off();
+                        ejector.ThrowOut(false);
+                        cargos.UnLoad();
+                        bats.Charger();
+                        thrusts.Off();
                         thrusts.ClearThrustOverridePersent();
                         if (go_home || ShaftN >= MaxShafts)
                         {
@@ -1377,11 +1343,11 @@ namespace KROTIK_A1_NAV
                         }
                         else
                         {
-                            if (batterys.CurrentPersent() >= ReturnOffCharge && cargos.CurrentMass == 0f)
+                            if (bats.CurrentPersent() >= ReturnOffCharge && cargos.CurrentMass == 0f)
                             {
-                                this.ejector.ThrowOut(true);
-                                this.batterys.Auto();
-                                this.thrusts.On();
+                                ejector.ThrowOut(true);
+                                bats.Auto();
+                                thrusts.On();
                                 curent_mode = mode.un_dock;
                                 SaveToStorage();
                             }
@@ -1419,8 +1385,8 @@ namespace KROTIK_A1_NAV
                 {
                     thrusts.ClearThrustOverridePersent();
                     gyros.SetOverride(false, 1);
-                    this.drills.Off();
-                    this.reflectors_light.Off();
+                    drill.Off();
+                    reflectors_light.Off();
                     paused = true;
                 }
                 else
@@ -1447,8 +1413,8 @@ namespace KROTIK_A1_NAV
                 curent_programm = programm.none;
                 go_home = false;
                 paused = false;
-                this.drills.Off();
-                this.reflectors_light.Off();
+                drill.Off();
+                reflectors_light.Off();
                 SaveToStorage();
             }
             public bool ToBase()
@@ -1675,7 +1641,7 @@ namespace KROTIK_A1_NAV
             }
             public bool Drill(out bool Emergency)
             {
-                this.ejector.ThrowOut(true);
+                ejector.ThrowOut(true);
                 bool Complete = false;
                 Emergency = false;
                 float MaxLSpeed, MaxFSpeed;
@@ -1708,10 +1674,10 @@ namespace KROTIK_A1_NAV
                     thrusts.SetOverridePercent("B", 0);
                 }
 
-                if (StoneDumpNeeded && drills.Enabled())
-                    drills.Off();
-                else if (!StoneDumpNeeded && !drills.Enabled())
-                    drills.On();
+                if (StoneDumpNeeded && drill.Enabled())
+                    drill.Off();
+                else if (!StoneDumpNeeded && !drill.Enabled())
+                    drill.On();
 
                 if ((UpVelocityVector.Length() < DrillSpeedLimit) && (!StoneDumpNeeded))
                 {
@@ -1732,7 +1698,7 @@ namespace KROTIK_A1_NAV
                 {
                     Complete = true;
                 }
-                else if (CriticalMassReached || batterys.CurrentPersent() <= ReturnOnCharge) // || myDriller.batteryBlock.LowPower // Нижний придел зарядки
+                else if (CriticalMassReached || bats.CurrentPersent() <= ReturnOnCharge) // || myDriller.batteryBlock.LowPower // Нижний придел зарядки
                 {
                     Complete = true;
                     Emergency = true;
@@ -1789,7 +1755,7 @@ namespace KROTIK_A1_NAV
                 Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
                 Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrix);
                 gyros.SetOverride(true, gyrAng * DrillGyroMult, 1);
-                drills.Off();
+                drill.Off();
 
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 2;
                 MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(2)) * ZMaxA) / 2;
@@ -1933,7 +1899,7 @@ namespace KROTIK_A1_NAV
                 ShaftN = GetValInt("ShaftN", str.ToString());
                 EmergencyReturn = GetValBool("EmergencyReturn", str.ToString());
                 DrillDepth = (float)GetVal("DrillDepth", str.ToString());
-                MaxShafts = GetValInt("DrillDepth", MaxShafts.ToString());
+                MaxShafts = GetValInt("DrillDepth", str.ToString());
                 connector_base1.id = GetValInt64("CB1_id", str.ToString());
                 connector_base1.point = new Vector3D(GetVal("CB1_X", str.ToString()), GetVal("CB1_Y", str.ToString()), GetVal("CB1_Z", str.ToString()));
                 connector_base1.vector = new Vector3D(GetVal("CBV1_X", str.ToString()), GetVal("CBV1_Y", str.ToString()), GetVal("CBV1_Z", str.ToString()));
@@ -1994,7 +1960,7 @@ namespace KROTIK_A1_NAV
                 values.Append("Глубина шахты     : " + DrillDepth + ", кол. шахт : " + MaxShafts + "\n");
                 values.Append("Phys./Crit.(Mass) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? red.ToString() : green.ToString()) + "\n");
                 values.Append("Volume/Mass       : " + cargos.CurrentVolume + " / " + cargos.CurrentMass + "\n");
-                values.Append("Батарея %         : " + PText.GetPersent(batterys.CurrentPersent()) + " " + (batterys.CurrentPersent() <= ReturnOnCharge ? red.ToString() : green.ToString()) + "\n");
+                values.Append("Батарея %         : " + PText.GetPersent(bats.CurrentPersent()) + " " + (bats.CurrentPersent() <= ReturnOnCharge ? red.ToString() : green.ToString()) + "\n");
                 return values.ToString();
             }
             public string TextTEST()
@@ -2115,17 +2081,17 @@ namespace KROTIK_A1_NAV
                     {
                         if (cockpit.CurrentHeight > 5.0f)
                         {
-                            batterys.Auto();
+                            bats.Auto();
                             thrusts.On();
                         }
                     }
                     else
                     {
                         // Припаркован
-                        this.drills.Off();
-                        this.reflectors_light.Off();
-                        this.batterys.Charger();
-                        this.thrusts.Off();
+                        drill.Off();
+                        reflectors_light.Off();
+                        bats.Charger();
+                        thrusts.Off();
                     }
                     // Обновим состояние навигации
                     UpdateCalc();
@@ -2139,7 +2105,7 @@ namespace KROTIK_A1_NAV
                         {
                             gyros.SetOverride(false, 1);
                         }
-                        if (this.drills.Enabled())
+                        if (drill.Enabled())
                         {
                             reflectors_light.On();
                         }
