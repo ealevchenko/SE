@@ -26,44 +26,32 @@ namespace MPB_UPR
     public sealed class Program : MyGridProgram
     {
         // v1.
-        string NameObj = "[MPB-1]-";
+        string NameObj = "[MPB-1]";
 
         string tag_door_transition = "[door-transition]";
         string tag_door_gateway = "[door-gateway]";
         string tag_lighting_room = "[lighting_room]";
-        string tag_ref_room_hangar = "[ref_room]";
+        string tag_piston_wg = "[piston-wind-generator]";
         public enum room : int
         {
             none = 0,
             module = 1,     // Модуль
             external = 2,   // Выход
+            transition = 3,   // ПЕРЕХОД
         };
-        public static string[] name_room = { "", "МОДУЛЬ", "ВЫХОД" };
-        public static int[] count_room = { 0, 0, 0};
+        public static string[] name_room = { "", "МОДУЛЬ", "ВЫХОД", "ПЕРЕХОД" };
+        public static int[] count_room = { 0, 0, 0, 0 };
         public enum doors_gareways : int
         {
             module_external_forw = 1,
-            module_external_back = 2,
+            transition_external_back = 2,
         }
         public enum door_transition : int
         {
-            module_external_back = 0,
+            module_transition = 0,
         }
 
-        // door [door-gateway] [space_ship_gateway_module_ship2] [gateway_module]
-        // sn [door-gateway] [space_ship_gateway_module_ship2] [gateway_module]
-        // door [door-gateway] [space_ship_gateway_module_ship2] [space]
-        // sn [door-gateway] [space_ship_gateway_module_ship2] [space]
-
-        // sn [door-transition] [wardroom_habitation_module] [wardroom]
-        // sn [door-transition] [wardroom_habitation_module] [habitation_module]
-        // door [door-transition] [wardroom_habitation_module]
-
-        // sn [door-transition] [cabin_energy_module_right] [energy_module_right]
-        // sn [door-transition] [cabin_energy_module_right] [cabin]
-        // door [door-transition] [cabin_energy_module_right]
-
-        //[OSS]-[EML]-light [lighting_room] [reactor_module_left]
+        public static float speed_piston_wg = 1.0f;       // один оборот в минуту
 
         public static Color red = new Color(255, 0, 0);
         public static Color yellow = new Color(255, 255, 0);
@@ -77,13 +65,16 @@ namespace MPB_UPR
 
         static LCD lcd_storage;
         static LCD lcd_debug;
+        static LCD lcd_power;
 
         ReflectorsLight reflectors_light;
         Gateways gateways_doors;
         Transitions transition_door;
         Lightings room_light;
         ReflectorLight ref_light;
+        static PistonBase piston_base;
         MechanicalConnectior mechanical_connectior;
+        FoldingSolarPanel folding_sp;
 
         static Program _scr;
         public class BaseListTerminalBlock<T> where T : class
@@ -210,6 +201,7 @@ namespace MPB_UPR
             _scr = this;
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
+            lcd_power = new LCD(NameObj + "-LCD-POWER");
 
             gateways_doors = new Gateways(NameObj, tag_door_gateway);
             transition_door = new Transitions(NameObj, tag_door_transition);
@@ -221,6 +213,8 @@ namespace MPB_UPR
             reflectors_light.Off();
             mechanical_connectior = new MechanicalConnectior(NameObj);
             mechanical_connectior.AttachDetach(mechanical_connectior.IsAttached());
+            piston_base = new PistonBase(NameObj, tag_piston_wg);
+            folding_sp = new FoldingSolarPanel(NameObj);
         }
         public void Save()
         {
@@ -232,10 +226,33 @@ namespace MPB_UPR
             // Логика отработки шлюзовых дверей
             gateways_doors.Logic(argument, updateSource);
             transition_door.Logic(argument, updateSource);
+            folding_sp.Logic(argument, updateSource);
             // В космосе людей не считаем
             count_room[(int)room.external] = 0;
             // Логика отработки включения и выключения освещения
             room_light.Logic(argument, updateSource);
+
+            switch (argument)
+            {
+                case "open_pwg":
+                    piston_base.Open();
+                    break;
+                case "close_pwg":
+                    piston_base.Close();
+                    break;
+                default:
+                    break;
+            }
+            if (updateSource == UpdateType.Update10)
+            {
+                lcd_power.OutText("ВЕТРОГЕНЕРАТОРЫ" + "\n", false);
+                float pos = piston_base.GetPosition();
+                lcd_power.OutText("|- Положение : " + pos / 4 + "\n", true);
+                lcd_power.OutText("|- Выдвенут  : " + (pos == 0f ? ired.ToString() : (pos == 80f ? igreen.ToString() : iyellow.ToString())) + "\n", true);
+                lcd_power.OutText("ВЕТРОГЕНЕРАТОРЫ" + "\n", true);
+                lcd_power.OutText(folding_sp.TextInfo(), true);                
+                //lcd_power
+            }
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
@@ -383,7 +400,7 @@ namespace MPB_UPR
                     room2 = room.none;
                     IMyDoor l_drs = doors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).FirstOrDefault();
                     List<IMySensorBlock> l_sns = sensors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).ToList();
-                   // if (l_drs != null) values_info.Append("l_drs:" + l_drs.ToString() + "\n");
+                    // if (l_drs != null) values_info.Append("l_drs:" + l_drs.ToString() + "\n");
                     //values_info.Append("l_sns:" + l_sns.Count() + "\n");
                     if (l_drs != null && l_sns != null && l_sns.Count() == 2)
                     {
@@ -517,18 +534,18 @@ namespace MPB_UPR
             List<Gateway> list_gtw = new List<Gateway>();
             public Gateways(string name_obj, string tag)
             {
-                //test_lcd.WriteText("Start" + "\n", false);
+                lcd_debug.OutText("Start" + "\n", false);
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
                 _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
-                //test_lcd.WriteText("doors:" + doors.Count() + "\n", true);
-                //test_lcd.WriteText("sensors:" + doors.Count() + "\n", true);
+                lcd_debug.OutText("doors:" + doors.Count() + "\n", true);
+                lcd_debug.OutText("sensors:" + doors.Count() + "\n", true);
                 IMyDoor door1;
                 IMySensorBlock sensor1;
                 room room1;
                 IMyDoor door2;
                 IMySensorBlock sensor2;
                 room room2;
-                //test_lcd.WriteText("Поиск дверей:" + "\n", false);
+                lcd_debug.OutText("Поиск дверей:" + "\n", true);
                 foreach (doors_gareways gw in Enum.GetValues(typeof(doors_gareways)))
                 {
                     door1 = null;
@@ -540,13 +557,17 @@ namespace MPB_UPR
 
                     List<IMyDoor> l_drs = doors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).ToList();
                     List<IMySensorBlock> l_sns = sensors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).ToList();
+                    lcd_debug.OutText("l_drs:" + l_drs.Count() + "\n", true);
+                    lcd_debug.OutText("l_sns:" + l_sns.Count() + "\n", true);
                     if (l_drs != null && l_drs.Count() == 2 && l_sns != null && l_sns.Count() == 2)
                     {
                         foreach (room rm in Enum.GetValues(typeof(room)))
                         {
-                            //test_lcd.WriteText("room:" + rm + "\n", true);
+                            lcd_debug.OutText("room:" + rm + "\n", true);
                             IMyDoor dr = l_drs.Where(d => d.CustomName.Contains("[" + rm.ToString() + "]")).FirstOrDefault();
                             IMySensorBlock sn = l_sns.Where(d => d.CustomName.Contains("[" + rm.ToString() + "]")).FirstOrDefault();
+                            lcd_debug.OutText("dr:" + (dr != null ? "ok" : "not") + "\n", true);
+                            lcd_debug.OutText("sn:" + (sn != null ? "ok" : "not") + "\n", true);
                             if (dr != null && sn != null)
                             {
                                 if (door1 != null && door2 == null) { door2 = dr; room2 = rm; }
@@ -557,10 +578,10 @@ namespace MPB_UPR
                         }
                         if (door1 != null && door2 != null && sensor1 != null && sensor2 != null)
                         {
-                            //test_lcd.WriteText("door1:"+ door1.CustomName + "\n", true);
-                            //test_lcd.WriteText("door2:"+ door2.CustomName + "\n", true);
-                            //test_lcd.WriteText("sensor1:" + sensor1.CustomName + "\n", true);
-                            //test_lcd.WriteText("sensor2:" + sensor2.CustomName + "\n", true);
+                            lcd_debug.OutText("door1:" + door1.CustomName + "\n", true);
+                            lcd_debug.OutText("door2:" + door2.CustomName + "\n", true);
+                            lcd_debug.OutText("sensor1:" + sensor1.CustomName + "\n", true);
+                            lcd_debug.OutText("sensor2:" + sensor2.CustomName + "\n", true);
                             list_gtw.Add(new Gateway(gw, door1, sensor1, room1, door2, sensor2, room2));
                         }
                     }
@@ -631,6 +652,75 @@ namespace MPB_UPR
                 _scr.Echo("Найдено ReflectorLight:[" + tag + "]: " + list_obj.Count());
             }
         }
+        public class PistonBase : BaseListTerminalBlock<IMyPistonBase>
+        {
+            public PistonBase(string name_obj, string tag) : base(name_obj)
+            {
+                if (!String.IsNullOrWhiteSpace(tag))
+                {
+                    list_obj = list_obj.Where(n => n.CustomName.Contains(tag)).ToList();
+                }
+                _scr.Echo("Найдено PistonBase:[" + tag + "]: " + list_obj.Count());
+            }
+            public void Open()
+            {
+                foreach (IMyPistonBase p in base.list_obj)
+                {
+                    p.Velocity = speed_piston_wg;
+                    p.Extend();
+                }
+            }
+            public void Close()
+            {
+                foreach (IMyPistonBase p in base.list_obj)
+                {
+                    p.Velocity = speed_piston_wg;
+                    p.Retract();
+                }
+            }
+            public float GetPosition()
+            {
+                float position = 0;
+                foreach (IMyPistonBase p in base.list_obj)
+                {
+                    position += p.CurrentPosition;
+                }
+                return position;
+            }
+
+        }
+        public class MotorStator : BaseListTerminalBlock<IMyMotorStator>
+        {
+            public MotorStator(string name_obj, string tag) : base(name_obj)
+            {
+                if (!String.IsNullOrWhiteSpace(tag))
+                {
+                    list_obj = list_obj.Where(n => n.CustomName.Contains(tag)).ToList();
+                }
+                _scr.Echo("Найдено MotorStator:[" + tag + "]: " + list_obj.Count());
+            }
+            public void MotorVelocit(float speed)
+            {
+                foreach (IMyMotorStator p in base.list_obj)
+                {
+                    p.TargetVelocityRPM = speed;
+                }
+            }
+            public double RadToGradus(float rad)
+            {
+                return rad * 180 / Math.PI;
+            }
+            public float GetAngle()
+            {
+                float angle = 0f;
+                foreach (IMyMotorStator p in base.list_obj)
+                {
+                    angle += (float)RadToGradus(p.Angle);
+                }
+                return angle;
+            }
+
+        }
         public class MechanicalConnectior : BaseListTerminalBlock<IMyMechanicalConnectionBlock>
         {
             public MechanicalConnectior(string name_obj) : base(name_obj)
@@ -680,5 +770,93 @@ namespace MPB_UPR
                 }
             }
         }
+        public class FoldingSolarPanel
+        {
+
+            //public bool open = false;
+            //public bool close = false;
+            MotorStator ms_main_back;
+            MotorStator articulated_back;
+            public FoldingSolarPanel(string name_obj)
+            {
+                ms_main_back = new MotorStator(name_obj, "[main-joint-back]");
+                articulated_back = new MotorStator(name_obj, "[articulated-joint-back]");
+            }
+
+            public void Open()
+            {
+                float ang = ms_main_back.GetAngle();
+                float ang1 = articulated_back.GetAngle();
+                if (ang < 0)
+                {
+                    ms_main_back.MotorVelocit(1f);
+                }
+                if (ang1 > 0)
+                {
+                    articulated_back.MotorVelocit(-1f);
+                }
+            }
+            public void Close()
+            {
+                float ang = ms_main_back.GetAngle();
+                float ang1 = articulated_back.GetAngle();
+                if (ang > 0)
+                {
+                    ms_main_back.MotorVelocit(-1f);
+                }
+                if (ang1 < 90)
+                {
+                    articulated_back.MotorVelocit(1f);
+                }
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    case "open_sp":
+                        Open();
+                        break;
+                    case "close_sp":
+                        Close();
+                        break;
+                    default:
+                        break;
+                }
+
+                if (updateSource == UpdateType.Update10)
+                {
+
+                }
+
+            }
+
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                 values.Append("Угол Main    : " + Math.Round(ms_main_back.GetAngle(), 2) + "\n");    
+                 values.Append("Угол Artic    : " + Math.Round(articulated_back.GetAngle(), 2) + "\n");  
+                return values.ToString();
+            }
+        }
     }
 }
+
+
+// door [door-gateway] [transition_external_back] [transition]
+// sn [door-gateway] [transition_external_back] [transition]
+// door [door-gateway] [transition_external_back] [external]
+// sn [door-gateway] [transition_external_back] [external]
+
+// sn [door-transition] [module_transition] [module]
+// sn [door-transition] [module_transition] [transition]
+// door [door-transition] [module_transition]
+
+// sn [door-transition] [cabin_energy_module_right] [energy_module_right]
+// sn [door-transition] [cabin_energy_module_right] [cabin]
+// door [door-transition] [cabin_energy_module_right]
+
+//-light [lighting_room] [transition]
+
+// [piston-wind-generator]
+// [main-hinge]
+// [MPB-1]-Шарнир [articulated-joint] 1-1 back
