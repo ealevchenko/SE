@@ -721,6 +721,54 @@ namespace MPB_UPR
             }
 
         }
+        public class MotorStator : BaseTerminalBlock<IMyMotorStator>
+        {
+            public MotorStator(string name_obj) : base(name_obj)
+            {
+
+            }
+            public double RadToGradus(float rad)
+            {
+                return rad * 180 / Math.PI;
+            }
+            public void RotateToGradus(float degr)
+            {
+                if (this.obj == null) return;
+                float speed = 0f;
+                // Текущее положение
+                double curennt_degr = RadToGradus(this.obj.Angle);
+                if (curennt_degr > degr)
+                {
+                    speed = -(float)(Math.Abs(curennt_degr - degr) * 0.1f);
+                    this.obj.TargetVelocityRPM = speed;
+                    //-
+                }
+                else if (curennt_degr < degr)
+                {
+                    //+
+                    speed = (float)(Math.Abs(degr - curennt_degr) * 0.1f);
+                    this.obj.TargetVelocityRPM = speed;
+                }
+                else
+                {
+                    this.obj.TargetVelocityRPM = speed;
+                }
+            }
+
+            public double GetCurrentGradus()
+            {
+                if (this.obj == null) return 0;
+                return RadToGradus(this.obj.Angle);
+            }
+            public string TextInfo()
+            {
+                if (this.obj == null) return "";
+                StringBuilder values = new StringBuilder();
+                values.Append("УГОЛ : " + Math.Round(RadToGradus(this.obj.Angle), 2) + "\n");
+                values.Append("VelocityRPM : " + Math.Round(this.obj.TargetVelocityRPM, 2) + "\n");
+                return values.ToString();
+            }
+        }
         public class MechanicalConnectior : BaseListTerminalBlock<IMyMechanicalConnectionBlock>
         {
             public MechanicalConnectior(string name_obj) : base(name_obj)
@@ -772,81 +820,52 @@ namespace MPB_UPR
         }
         public class FoldingSolarPanel
         {
-
             //public bool open = false;
             //public bool close = false;
-            IMyMotorStator hinge_main_back;
-            IMyMotorStator hinge_main_forw;
-            List<IMyMotorStator> hinge_node_back;
-            List<IMyMotorStator> hinge_node_forw;
+            private float? task_degr = null;
+            MotorStator hinge_main_back;
+            MotorStator hinge_main_forw;
+            //List<IMyMotorStator> hinge_node_back;
+            //List<IMyMotorStator> hinge_node_forw;
             public FoldingSolarPanel(string name_obj)
             {
                 // [s-p-hinge-main-back]
                 // [s-p-hinge-node-back]
                 // [s-p-rotor-main-back]
-                hinge_main_back = _scr.GridTerminalSystem.GetBlockWithName("[s-p-hinge-main-back]") as IMyMotorStator;
-                hinge_main_forw = _scr.GridTerminalSystem.GetBlockWithName("[s-p-hinge-main-forw]") as IMyMotorStator;
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyMotorStator>(hinge_node_back, r => r.CustomName.Contains("[s-p-hinge-node-back]"));
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyMotorStator>(hinge_node_forw, r => r.CustomName.Contains("[s-p-hinge-node-forw]"));
+                hinge_main_back = new MotorStator("[MPB-1]-Шарнир [s-p-hinge-main-back]");
+                hinge_main_forw = new MotorStator("[s-p-hinge-main-forw]");
+                //_scr.GridTerminalSystem.GetBlocksOfType<IMyMotorStator>(hinge_node_back, r => r.CustomName.Contains("[s-p-hinge-node-back]"));
+                //_scr.GridTerminalSystem.GetBlocksOfType<IMyMotorStator>(hinge_node_forw, r => r.CustomName.Contains("[s-p-hinge-node-forw]"));
             }
             double RadToGradus(float rad)
             {
                 return rad * 180 / Math.PI;
             }
-            void SetRotate(float degrees, IMyMotorStator mortor, float min, float max, float speed)
-            {
-                mortor.TargetVelocityRPM = 0;
-                // Текущее положение
-                double motor_curennt_grad = RadToGradus(mortor.Angle);
-
-                if (degrees < motor_curennt_grad)
-                {
-                    // Движим влево
-                    // Если задали меньше чем уставка тогда движем
-                    if (degrees > min)
-                    {
-                        mortor.LowerLimitDeg = degrees;
-                        mortor.TargetVelocityRPM = speed * -1;
-                    }
-                }
-                else
-                {
-                    // Движим вправо
-                    // Если задали меньше чем уставка тогда движем
-                    if (degrees < max)
-                    {
-                        mortor.UpperLimitDeg = degrees;
-                        mortor.TargetVelocityRPM = speed;
-                    }
-                };
-
-
-            }
             public void Open()
             {
-                float ang = ms_main_back.GetAngle();
-                float ang1 = articulated_back.GetAngle();
-                if (ang < 0)
-                {
-                    ms_main_back.MotorVelocit(1f);
-                }
-                if (ang1 > 0)
-                {
-                    articulated_back.MotorVelocit(-1f);
-                }
+                //float ang = ms_main_back.GetAngle();
+                //float ang1 = articulated_back.GetAngle();
+                //if (ang < 0)
+                //{
+                //    ms_main_back.MotorVelocit(1f);
+                //}
+                //if (ang1 > 0)
+                //{
+                //    articulated_back.MotorVelocit(-1f);
+                //}
             }
             public void Close()
             {
-                float ang = ms_main_back.GetAngle();
-                float ang1 = articulated_back.GetAngle();
-                if (ang > 0)
-                {
-                    ms_main_back.MotorVelocit(-1f);
-                }
-                if (ang1 < 90)
-                {
-                    articulated_back.MotorVelocit(1f);
-                }
+                //float ang = ms_main_back.GetAngle();
+                //float ang1 = articulated_back.GetAngle();
+                //if (ang > 0)
+                //{
+                //    ms_main_back.MotorVelocit(-1f);
+                //}
+                //if (ang1 < 90)
+                //{
+                //    articulated_back.MotorVelocit(1f);
+                //}
             }
             public void Logic(string argument, UpdateType updateSource)
             {
@@ -858,21 +877,35 @@ namespace MPB_UPR
                     case "close_sp":
                         Close();
                         break;
+                    case "mb_45":
+                        task_degr = -45f;
+                        break;
+                    case "mb_0":
+                        task_degr = 0f;
+                        break;
+                    case "mb45":
+                        task_degr = 45f;
+                        break;
                     default:
                         break;
                 }
-
                 if (updateSource == UpdateType.Update10)
                 {
-
+                    if (task_degr != null && (hinge_main_back.GetCurrentGradus() < (float)task_degr - 0.01 || hinge_main_back.GetCurrentGradus() > (float)task_degr + 0.01))
+                    {
+                        hinge_main_back.RotateToGradus((float)task_degr);
+                    }
+                    else {
+                        task_degr = null;
+                        hinge_main_back.obj.TargetVelocityRPM = 0;
+                    }
                 }
-
             }
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("Угол Main    : " + Math.Round(ms_main_back.GetAngle(), 2) + "\n");
-                values.Append("Угол Artic    : " + Math.Round(articulated_back.GetAngle(), 2) + "\n");
+                values.Append("task_degr  : " + task_degr + "\n");
+                values.Append(hinge_main_back.TextInfo() + "\n");
                 return values.ToString();
             }
         }
