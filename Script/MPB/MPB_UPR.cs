@@ -250,7 +250,7 @@ namespace MPB_UPR
                 lcd_power.OutText("|- Положение : " + pos / 4 + "\n", true);
                 lcd_power.OutText("|- Выдвенут  : " + (pos == 0f ? ired.ToString() : (pos == 80f ? igreen.ToString() : iyellow.ToString())) + "\n", true);
                 lcd_power.OutText("ВЕТРОГЕНЕРАТОРЫ" + "\n", true);
-                lcd_power.OutText(folding_sp.TextInfo(), true);                
+                lcd_power.OutText(folding_sp.TextInfo(), true);
                 //lcd_power
             }
         }
@@ -689,9 +689,9 @@ namespace MPB_UPR
             }
 
         }
-        public class MotorStator : BaseListTerminalBlock<IMyMotorStator>
+        public class MotorStators : BaseListTerminalBlock<IMyMotorStator>
         {
-            public MotorStator(string name_obj, string tag) : base(name_obj)
+            public MotorStators(string name_obj, string tag) : base(name_obj)
             {
                 if (!String.IsNullOrWhiteSpace(tag))
                 {
@@ -775,14 +775,53 @@ namespace MPB_UPR
 
             //public bool open = false;
             //public bool close = false;
-            MotorStator ms_main_back;
-            MotorStator articulated_back;
+            IMyMotorStator hinge_main_back;
+            IMyMotorStator hinge_main_forw;
+            List<IMyMotorStator> hinge_node_back;
+            List<IMyMotorStator> hinge_node_forw;
             public FoldingSolarPanel(string name_obj)
             {
-                ms_main_back = new MotorStator(name_obj, "[main-joint-back]");
-                articulated_back = new MotorStator(name_obj, "[articulated-joint-back]");
+                // [s-p-hinge-main-back]
+                // [s-p-hinge-node-back]
+                // [s-p-rotor-main-back]
+                hinge_main_back = _scr.GridTerminalSystem.GetBlockWithName("[s-p-hinge-main-back]") as IMyMotorStator;
+                hinge_main_forw = _scr.GridTerminalSystem.GetBlockWithName("[s-p-hinge-main-forw]") as IMyMotorStator;
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyMotorStator>(hinge_node_back, r => r.CustomName.Contains("[s-p-hinge-node-back]"));
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyMotorStator>(hinge_node_forw, r => r.CustomName.Contains("[s-p-hinge-node-forw]"));
             }
+            double RadToGradus(float rad)
+            {
+                return rad * 180 / Math.PI;
+            }
+            void SetRotate(float degrees, IMyMotorStator mortor, float min, float max, float speed)
+            {
+                mortor.TargetVelocityRPM = 0;
+                // Текущее положение
+                double motor_curennt_grad = RadToGradus(mortor.Angle);
 
+                if (degrees < motor_curennt_grad)
+                {
+                    // Движим влево
+                    // Если задали меньше чем уставка тогда движем
+                    if (degrees > min)
+                    {
+                        mortor.LowerLimitDeg = degrees;
+                        mortor.TargetVelocityRPM = speed * -1;
+                    }
+                }
+                else
+                {
+                    // Движим вправо
+                    // Если задали меньше чем уставка тогда движем
+                    if (degrees < max)
+                    {
+                        mortor.UpperLimitDeg = degrees;
+                        mortor.TargetVelocityRPM = speed;
+                    }
+                };
+
+
+            }
             public void Open()
             {
                 float ang = ms_main_back.GetAngle();
@@ -829,12 +868,11 @@ namespace MPB_UPR
                 }
 
             }
-
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                 values.Append("Угол Main    : " + Math.Round(ms_main_back.GetAngle(), 2) + "\n");    
-                 values.Append("Угол Artic    : " + Math.Round(articulated_back.GetAngle(), 2) + "\n");  
+                values.Append("Угол Main    : " + Math.Round(ms_main_back.GetAngle(), 2) + "\n");
+                values.Append("Угол Artic    : " + Math.Round(articulated_back.GetAngle(), 2) + "\n");
                 return values.ToString();
             }
         }
