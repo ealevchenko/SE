@@ -723,6 +723,9 @@ namespace MPB_UPR
         }
         public class MotorStator : BaseTerminalBlock<IMyMotorStator>
         {
+            public float? task_degr { get; set; } = null;
+            private float tolerance = 0.005f;
+            private float multiply_speed = 0.1f;
             public MotorStator(string name_obj) : base(name_obj)
             {
 
@@ -737,35 +740,49 @@ namespace MPB_UPR
                 float speed = 0f;
                 // Текущее положение
                 double curennt_degr = RadToGradus(this.obj.Angle);
-                if (curennt_degr > degr)
+                if (curennt_degr > (degr + tolerance))
                 {
-                    speed = -(float)(Math.Abs(curennt_degr - degr) * 0.1f);
+                    speed = -(float)(Math.Abs(curennt_degr - degr) * multiply_speed);
                     this.obj.TargetVelocityRPM = speed;
-                    //-
                 }
-                else if (curennt_degr < degr)
+                else if (curennt_degr < (degr - tolerance))
                 {
-                    //+
-                    speed = (float)(Math.Abs(degr - curennt_degr) * 0.1f);
+                    speed = (float)(Math.Abs(degr - curennt_degr) * multiply_speed);
                     this.obj.TargetVelocityRPM = speed;
                 }
                 else
                 {
                     this.obj.TargetVelocityRPM = speed;
+                    this.task_degr = null;
                 }
             }
-
             public double GetCurrentGradus()
             {
                 if (this.obj == null) return 0;
                 return RadToGradus(this.obj.Angle);
             }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+                    if (task_degr != null)
+                    {
+                        RotateToGradus((float)task_degr);
+                    }
+                }
+            }
             public string TextInfo()
             {
                 if (this.obj == null) return "";
                 StringBuilder values = new StringBuilder();
-                values.Append("УГОЛ : " + Math.Round(RadToGradus(this.obj.Angle), 2) + "\n");
-                values.Append("VelocityRPM : " + Math.Round(this.obj.TargetVelocityRPM, 2) + "\n");
+                values.Append("ШАРНИР : " + this.obj.CustomName + "\n");
+                values.Append("БЛОК : " + (this.obj.RotorLock ? ired.ToString() : igreen.ToString()) + "НМЗ: " + Math.Round(RadToGradus(this.obj.LowerLimitDeg), 1) + "ВЕРХ: " + Math.Round(RadToGradus(this.obj.UpperLimitDeg), 1) + "\n");
+                values.Append("УГОЛ : " + Math.Round(RadToGradus(this.obj.Angle), 1) + "СКОРОСТЬ : " + Math.Round(this.obj.TargetVelocityRPM, 3) + "\n");
                 return values.ToString();
             }
         }
@@ -822,24 +839,32 @@ namespace MPB_UPR
         {
             //public bool open = false;
             //public bool close = false;
-            private float? task_degr = null;
             MotorStator hinge_main_back;
             MotorStator hinge_main_forw;
-            //List<IMyMotorStator> hinge_node_back;
-            //List<IMyMotorStator> hinge_node_forw;
+            MotorStator hinge_node_back_1_1, hinge_node_back_1_2, hinge_node_back_2_1, hinge_node_back_2_2, hinge_node_back_3_1, hinge_node_back_3_2;
+            MotorStator hinge_node_forw_1_1, hinge_node_forw_1_2, hinge_node_forw_2_1, hinge_node_forw_2_2, hinge_node_forw_3_1, hinge_node_forw_3_2;
+
+            //IMyMotorAdvancedStator
+
             public FoldingSolarPanel(string name_obj)
             {
                 // [s-p-hinge-main-back]
                 // [s-p-hinge-node-back]
                 // [s-p-rotor-main-back]
                 hinge_main_back = new MotorStator("[MPB-1]-Шарнир [s-p-hinge-main-back]");
-                hinge_main_forw = new MotorStator("[s-p-hinge-main-forw]");
-                //_scr.GridTerminalSystem.GetBlocksOfType<IMyMotorStator>(hinge_node_back, r => r.CustomName.Contains("[s-p-hinge-node-back]"));
-                //_scr.GridTerminalSystem.GetBlocksOfType<IMyMotorStator>(hinge_node_forw, r => r.CustomName.Contains("[s-p-hinge-node-forw]"));
-            }
-            double RadToGradus(float rad)
-            {
-                return rad * 180 / Math.PI;
+                hinge_node_back_1_1 = new MotorStator("[MPB-1]-Шарнир 1_1 [s-p-hinge-node-back]");
+                hinge_node_back_1_2 = new MotorStator("[MPB-1]-Шарнир 1_2 [s-p-hinge-node-back]");
+                hinge_node_back_2_1 = new MotorStator("[MPB-1]-Шарнир 2_1 [s-p-hinge-node-back]");
+                hinge_node_back_2_2 = new MotorStator("[MPB-1]-Шарнир 2_2 [s-p-hinge-node-back]");
+                hinge_node_back_3_1 = new MotorStator("[MPB-1]-Шарнир 3_1 [s-p-hinge-node-back]");
+                hinge_node_back_3_2 = new MotorStator("[MPB-1]-Шарнир 3_2 [s-p-hinge-node-back]");
+                hinge_main_forw = new MotorStator("[MPB-1]-Шарнир [s-p-hinge-main-forw]");
+                hinge_node_forw_1_1 = new MotorStator("[MPB-1]-Шарнир 1_1 [s-p-hinge-node-forw]");
+                hinge_node_forw_1_2 = new MotorStator("[MPB-1]-Шарнир 1_2 [s-p-hinge-node-forw]");
+                hinge_node_forw_2_1 = new MotorStator("[MPB-1]-Шарнир 2_1 [s-p-hinge-node-forw]");
+                hinge_node_forw_2_2 = new MotorStator("[MPB-1]-Шарнир 2_2 [s-p-hinge-node-forw]");
+                hinge_node_forw_3_1 = new MotorStator("[MPB-1]-Шарнир 3_1 [s-p-hinge-node-forw]");
+                hinge_node_forw_3_2 = new MotorStator("[MPB-1]-Шарнир 3_2 [s-p-hinge-node-forw]");
             }
             public void Open()
             {
@@ -869,6 +894,8 @@ namespace MPB_UPR
             }
             public void Logic(string argument, UpdateType updateSource)
             {
+
+
                 switch (argument)
                 {
                     case "open_sp":
@@ -878,34 +905,30 @@ namespace MPB_UPR
                         Close();
                         break;
                     case "mb_45":
-                        task_degr = -45f;
+                        hinge_main_back.task_degr = -45f;
                         break;
                     case "mb_0":
-                        task_degr = 0f;
+                        hinge_main_back.task_degr = 0f;
                         break;
                     case "mb45":
-                        task_degr = 45f;
+                        hinge_main_back.task_degr = 45f;
                         break;
                     default:
                         break;
                 }
+                hinge_main_back.Logic(argument, updateSource);
                 if (updateSource == UpdateType.Update10)
                 {
-                    if (task_degr != null && (hinge_main_back.GetCurrentGradus() < (float)task_degr - 0.01 || hinge_main_back.GetCurrentGradus() > (float)task_degr + 0.01))
-                    {
-                        hinge_main_back.RotateToGradus((float)task_degr);
-                    }
-                    else {
-                        task_degr = null;
-                        hinge_main_back.obj.TargetVelocityRPM = 0;
-                    }
+
                 }
+
+
             }
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("task_degr  : " + task_degr + "\n");
                 values.Append(hinge_main_back.TextInfo() + "\n");
+                values.Append(hinge_main_forw.TextInfo() + "\n");
                 return values.ToString();
             }
         }
