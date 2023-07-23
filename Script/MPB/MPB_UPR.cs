@@ -245,11 +245,12 @@ namespace MPB_UPR
             }
             if (updateSource == UpdateType.Update10)
             {
-                lcd_power.OutText("ВЕТРОГЕНЕРАТОРЫ" + "\n", false);
-                float pos = piston_base.GetPosition();
-                lcd_power.OutText("|- Положение : " + pos / 4 + "\n", true);
-                lcd_power.OutText("|- Выдвенут  : " + (pos == 0f ? ired.ToString() : (pos == 80f ? igreen.ToString() : iyellow.ToString())) + "\n", true);
-                lcd_power.OutText("ВЕТРОГЕНЕРАТОРЫ" + "\n", true);
+                //lcd_power.OutText("ВЕТРОГЕНЕРАТОРЫ" + "\n", false);
+                //float pos = piston_base.GetPosition();
+                //lcd_power.OutText("|- Положение : " + pos / 4 + "\n", true);
+                //lcd_power.OutText("|- Выдвенут  : " + (pos == 0f ? ired.ToString() : (pos == 80f ? igreen.ToString() : iyellow.ToString())) + "\n", true);
+                //lcd_power.OutText("ВЕТРОГЕНЕРАТОРЫ" + "\n", true);
+                lcd_power.OutText("СОЛНЕЧ. БАТАРЕИ:" + "\n", false);
                 lcd_power.OutText(folding_sp.TextInfo(), true);
                 //lcd_power
             }
@@ -724,7 +725,7 @@ namespace MPB_UPR
         public class MotorStator : BaseTerminalBlock<IMyMotorStator>
         {
             public float? task_degr { get; set; } = null;
-            private float tolerance = 0.005f;
+            private float tolerance = 0.1f;
             private float multiply_speed = 0.1f;
             public MotorStator(string name_obj) : base(name_obj)
             {
@@ -742,12 +743,30 @@ namespace MPB_UPR
                 double curennt_degr = RadToGradus(this.obj.Angle);
                 if (curennt_degr > (degr + tolerance))
                 {
-                    speed = -(float)(Math.Abs(curennt_degr - degr) * multiply_speed);
+                    double dist = curennt_degr - degr;
+                    if (Math.Abs(dist) <= 180.1f)
+                    {
+                        speed = -(float)(Math.Abs(dist) * multiply_speed);
+                    }
+                    else
+                    {
+                        speed = (float)(Math.Abs(dist) * multiply_speed);
+                    }
+
                     this.obj.TargetVelocityRPM = speed;
                 }
                 else if (curennt_degr < (degr - tolerance))
                 {
-                    speed = (float)(Math.Abs(degr - curennt_degr) * multiply_speed);
+                    double dist = (degr - curennt_degr);
+                    if (Math.Abs(dist) <= 180.1f)
+                    {
+                        speed = (float)(Math.Abs(degr - curennt_degr) * multiply_speed);
+                    }
+                    else
+                    {
+                        speed = -(float)(Math.Abs(degr - curennt_degr) * multiply_speed);
+                    }
+
                     this.obj.TargetVelocityRPM = speed;
                 }
                 else
@@ -781,8 +800,8 @@ namespace MPB_UPR
                 if (this.obj == null) return "";
                 StringBuilder values = new StringBuilder();
                 values.Append("ШАРНИР : " + this.obj.CustomName + "\n");
-                values.Append("БЛОК : " + (this.obj.RotorLock ? ired.ToString() : igreen.ToString()) + "НМЗ: " + Math.Round(RadToGradus(this.obj.LowerLimitDeg), 1) + "ВЕРХ: " + Math.Round(RadToGradus(this.obj.UpperLimitDeg), 1) + "\n");
-                values.Append("УГОЛ : " + Math.Round(RadToGradus(this.obj.Angle), 1) + "СКОРОСТЬ : " + Math.Round(this.obj.TargetVelocityRPM, 3) + "\n");
+                values.Append("БЛОК : " + (this.obj.RotorLock ? ired.ToString() : igreen.ToString()) + " НИЗ: " + Math.Round(this.obj.LowerLimitDeg, 1) + " ВЕРХ: " + Math.Round(this.obj.UpperLimitDeg, 1) + "\n");
+                values.Append("УГОЛ : " + Math.Round(RadToGradus(this.obj.Angle), 1) + " СКОРОСТЬ : " + Math.Round(this.obj.TargetVelocityRPM, 3) + " ЗАД : " + this.task_degr + "\n");
                 return values.ToString();
             }
         }
@@ -837,101 +856,359 @@ namespace MPB_UPR
         }
         public class FoldingSolarPanel
         {
-            //public bool open = false;
-            //public bool close = false;
-            MotorStator hinge_main_back;
-            MotorStator hinge_main_forw;
-            MotorStator hinge_node_back_1_1, hinge_node_back_1_2, hinge_node_back_2_1, hinge_node_back_2_2, hinge_node_back_3_1, hinge_node_back_3_2;
-            MotorStator hinge_node_forw_1_1, hinge_node_forw_1_2, hinge_node_forw_2_1, hinge_node_forw_2_2, hinge_node_forw_3_1, hinge_node_forw_3_2;
-
-            //IMyMotorAdvancedStator
-
+            public bool open_forw, open_back = false;
+            public bool close_forw, close_back = false;
+            MotorStator hinge_main_back, rotor_main_back;
+            MotorStator hinge_main_forw, rotor_main_forw;
+            MotorStator hinge_node_back_1_1, hinge_node_back_1_2, hinge_node_back_2_1, hinge_node_back_2_2;
+            MotorStator hinge_node_forw_1_1, hinge_node_forw_1_2, hinge_node_forw_2_1, hinge_node_forw_2_2;
             public FoldingSolarPanel(string name_obj)
             {
-                // [s-p-hinge-main-back]
-                // [s-p-hinge-node-back]
-                // [s-p-rotor-main-back]
                 hinge_main_back = new MotorStator("[MPB-1]-Шарнир [s-p-hinge-main-back]");
+                rotor_main_back = new MotorStator("[MPB-1]-Ротор [s-p-rotor-main-back]");
                 hinge_node_back_1_1 = new MotorStator("[MPB-1]-Шарнир 1_1 [s-p-hinge-node-back]");
                 hinge_node_back_1_2 = new MotorStator("[MPB-1]-Шарнир 1_2 [s-p-hinge-node-back]");
                 hinge_node_back_2_1 = new MotorStator("[MPB-1]-Шарнир 2_1 [s-p-hinge-node-back]");
                 hinge_node_back_2_2 = new MotorStator("[MPB-1]-Шарнир 2_2 [s-p-hinge-node-back]");
-                hinge_node_back_3_1 = new MotorStator("[MPB-1]-Шарнир 3_1 [s-p-hinge-node-back]");
-                hinge_node_back_3_2 = new MotorStator("[MPB-1]-Шарнир 3_2 [s-p-hinge-node-back]");
                 hinge_main_forw = new MotorStator("[MPB-1]-Шарнир [s-p-hinge-main-forw]");
+                rotor_main_forw = new MotorStator("[MPB-1]-Ротор [s-p-rotor-main-forw]");
                 hinge_node_forw_1_1 = new MotorStator("[MPB-1]-Шарнир 1_1 [s-p-hinge-node-forw]");
                 hinge_node_forw_1_2 = new MotorStator("[MPB-1]-Шарнир 1_2 [s-p-hinge-node-forw]");
                 hinge_node_forw_2_1 = new MotorStator("[MPB-1]-Шарнир 2_1 [s-p-hinge-node-forw]");
                 hinge_node_forw_2_2 = new MotorStator("[MPB-1]-Шарнир 2_2 [s-p-hinge-node-forw]");
-                hinge_node_forw_3_1 = new MotorStator("[MPB-1]-Шарнир 3_1 [s-p-hinge-node-forw]");
-                hinge_node_forw_3_2 = new MotorStator("[MPB-1]-Шарнир 3_2 [s-p-hinge-node-forw]");
             }
-            public void Open()
+            public bool OpenForw()
             {
-                //float ang = ms_main_back.GetAngle();
-                //float ang1 = articulated_back.GetAngle();
-                //if (ang < 0)
-                //{
-                //    ms_main_back.MotorVelocit(1f);
-                //}
-                //if (ang1 > 0)
-                //{
-                //    articulated_back.MotorVelocit(-1f);
-                //}
+                bool result = false;
+                if ((hinge_main_forw.GetCurrentGradus() < -0.1f || hinge_main_forw.GetCurrentGradus() >= 270f) && hinge_main_forw.task_degr == null)
+                {
+                    hinge_main_forw.obj.RotorLock = false;
+                    hinge_main_forw.task_degr = 0;
+                }
+                else
+                {
+                    if ((hinge_main_forw.GetCurrentGradus() >= -0.1f || hinge_main_forw.GetCurrentGradus() <= 0.1f) && hinge_main_forw.task_degr == null)
+                    {
+                        //if (!hinge_main_forw.obj.RotorLock) hinge_main_forw.obj.RotorLock = true;
+                        if (hinge_main_forw.GetCurrentGradus() < 89.9f && hinge_main_forw.task_degr == null)
+                        {
+                            hinge_main_forw.obj.RotorLock = false;
+                            hinge_main_forw.task_degr = 90f;
+                        }
+                        if (hinge_node_forw_1_1.GetCurrentGradus() > 0.1f && hinge_node_forw_1_1.task_degr == null)
+                        {
+                            hinge_node_forw_1_1.obj.RotorLock = false;
+                            hinge_node_forw_1_1.task_degr = 0f;
+                        }
+                        if (hinge_node_forw_1_2.GetCurrentGradus() > 0.1f && hinge_node_forw_1_2.task_degr == null)
+                        {
+                            hinge_node_forw_1_2.obj.RotorLock = false;
+                            hinge_node_forw_1_2.task_degr = 0f;
+                        }
+                        if (hinge_node_forw_2_1.GetCurrentGradus() > 0.1f && hinge_node_forw_2_1.task_degr == null)
+                        {
+                            hinge_node_forw_2_1.obj.RotorLock = false;
+                            hinge_node_forw_2_1.task_degr = 0f;
+                        }
+                        if (hinge_node_forw_2_2.GetCurrentGradus() > 0.1f && hinge_node_forw_2_2.task_degr == null)
+                        {
+                            hinge_node_forw_2_2.obj.RotorLock = false;
+                            hinge_node_forw_2_2.task_degr = 0f;
+                        }
+                        if (hinge_main_forw.GetCurrentGradus() > 89.9f && hinge_main_forw.task_degr == null
+                            && hinge_node_forw_1_1.GetCurrentGradus() < 0.1f && hinge_node_forw_1_1.task_degr == null
+                            && hinge_node_forw_1_2.GetCurrentGradus() < 0.1f && hinge_node_forw_1_2.task_degr == null
+                            && hinge_node_forw_2_1.GetCurrentGradus() < 0.1f && hinge_node_forw_2_1.task_degr == null
+                            && hinge_node_forw_2_2.GetCurrentGradus() < 0.1f && hinge_node_forw_2_2.task_degr == null)
+                        {
+                            hinge_main_forw.obj.RotorLock = true;
+                            hinge_node_forw_1_1.obj.RotorLock = true;
+                            hinge_node_forw_1_2.obj.RotorLock = true;
+                            hinge_node_forw_2_1.obj.RotorLock = true;
+                            hinge_node_forw_2_2.obj.RotorLock = true;
+                            rotor_main_forw.obj.TargetVelocityRad = 0f;
+                            rotor_main_forw.obj.RotorLock = false;
+                            result = true;
+                        }
+                    }
+
+                }
+                return result;
             }
-            public void Close()
+            public bool CloseForw()
             {
-                //float ang = ms_main_back.GetAngle();
-                //float ang1 = articulated_back.GetAngle();
-                //if (ang > 0)
-                //{
-                //    ms_main_back.MotorVelocit(-1f);
-                //}
-                //if (ang1 < 90)
-                //{
-                //    articulated_back.MotorVelocit(1f);
-                //}
+                bool result = false;
+                if (rotor_main_forw.GetCurrentGradus() > 0.1f && rotor_main_forw.task_degr == null)
+                {
+                    rotor_main_forw.obj.RotorLock = false;
+                    rotor_main_forw.task_degr = 0;
+                }
+                else
+                {
+                    if (rotor_main_forw.GetCurrentGradus() < 0.1f && rotor_main_forw.task_degr == null)
+                    {
+                        rotor_main_forw.obj.TargetVelocityRad = 0f;
+                        if (!rotor_main_forw.obj.RotorLock) rotor_main_forw.obj.RotorLock = true;
+
+                        if (hinge_main_forw.GetCurrentGradus() > -89.9f && hinge_main_forw.task_degr == null)
+                        {
+                            hinge_main_forw.obj.RotorLock = false;
+                            hinge_main_forw.task_degr = -90f;
+                        }
+                        if (hinge_node_forw_1_1.GetCurrentGradus() < 89.9f && hinge_node_forw_1_1.task_degr == null)
+                        {
+                            hinge_node_forw_1_1.obj.RotorLock = false;
+                            hinge_node_forw_1_1.task_degr = 90f;
+                        }
+                        if (hinge_node_forw_1_2.GetCurrentGradus() < 89.9f && hinge_node_forw_1_2.task_degr == null)
+                        {
+                            hinge_node_forw_1_2.obj.RotorLock = false;
+                            hinge_node_forw_1_2.task_degr = 90f;
+                        }
+                        if (hinge_node_forw_2_1.GetCurrentGradus() < 89.9f && hinge_node_forw_2_1.task_degr == null)
+                        {
+                            hinge_node_forw_2_1.obj.RotorLock = false;
+                            hinge_node_forw_2_1.task_degr = 90f;
+                        }
+                        if (hinge_node_forw_2_2.GetCurrentGradus() < 89.9f && hinge_node_forw_2_2.task_degr == null)
+                        {
+                            hinge_node_forw_2_2.obj.RotorLock = false;
+                            hinge_node_forw_2_2.task_degr = 90f;
+                        }
+                        if (hinge_main_forw.GetCurrentGradus() < -89.9f && hinge_main_forw.task_degr == null
+                            && hinge_node_forw_1_1.GetCurrentGradus() > 89.9f && hinge_node_forw_1_1.task_degr == null
+                            && hinge_node_forw_1_2.GetCurrentGradus() > 89.9f && hinge_node_forw_1_2.task_degr == null
+                            && hinge_node_forw_2_1.GetCurrentGradus() > 89.9f && hinge_node_forw_2_1.task_degr == null
+                            && hinge_node_forw_2_2.GetCurrentGradus() > 89.9f && hinge_node_forw_2_2.task_degr == null)
+                        {
+                            hinge_main_forw.obj.RotorLock = true;
+                            hinge_node_forw_1_1.obj.RotorLock = true;
+                            hinge_node_forw_1_2.obj.RotorLock = true;
+                            hinge_node_forw_2_1.obj.RotorLock = true;
+                            hinge_node_forw_2_2.obj.RotorLock = true;
+                            result = true;
+                        }
+                    }
+                }
+                return result;
+            }
+            public bool OpenBack()
+            {
+                bool result = false;
+                if ((hinge_main_back.GetCurrentGradus() < -0.1f || hinge_main_back.GetCurrentGradus() >= 270f) && hinge_main_back.task_degr == null)
+                {
+                    hinge_main_back.obj.RotorLock = false;
+                    hinge_main_back.task_degr = 0;
+                }
+                else
+                {
+                    if ((hinge_main_back.GetCurrentGradus() >= -0.1f || hinge_main_back.GetCurrentGradus() <= 0.1f) && hinge_main_back.task_degr == null)
+                    {
+                        //if (!hinge_main_back.obj.RotorLock) hinge_main_back.obj.RotorLock = true;
+                        if (hinge_main_back.GetCurrentGradus() < 89.9f && hinge_main_back.task_degr == null)
+                        {
+                            hinge_main_back.obj.RotorLock = false;
+                            hinge_main_back.task_degr = 90f;
+                        }
+                        if (hinge_node_back_1_1.GetCurrentGradus() > 0.1f && hinge_node_back_1_1.task_degr == null)
+                        {
+                            hinge_node_back_1_1.obj.RotorLock = false;
+                            hinge_node_back_1_1.task_degr = 0f;
+                        }
+                        if (hinge_node_back_1_2.GetCurrentGradus() > 0.1f && hinge_node_back_1_2.task_degr == null)
+                        {
+                            hinge_node_back_1_2.obj.RotorLock = false;
+                            hinge_node_back_1_2.task_degr = 0f;
+                        }
+                        if (hinge_node_back_2_1.GetCurrentGradus() > 0.1f && hinge_node_back_2_1.task_degr == null)
+                        {
+                            hinge_node_back_2_1.obj.RotorLock = false;
+                            hinge_node_back_2_1.task_degr = 0f;
+                        }
+                        if (hinge_node_back_2_2.GetCurrentGradus() > 0.1f && hinge_node_back_2_2.task_degr == null)
+                        {
+                            hinge_node_back_2_2.obj.RotorLock = false;
+                            hinge_node_back_2_2.task_degr = 0f;
+                        }
+                        if (hinge_main_back.GetCurrentGradus() > 89.9f && hinge_main_back.task_degr == null
+                            && hinge_node_back_1_1.GetCurrentGradus() < 0.1f && hinge_node_back_1_1.task_degr == null
+                            && hinge_node_back_1_2.GetCurrentGradus() < 0.1f && hinge_node_back_1_2.task_degr == null
+                            && hinge_node_back_2_1.GetCurrentGradus() < 0.1f && hinge_node_back_2_1.task_degr == null
+                            && hinge_node_back_2_2.GetCurrentGradus() < 0.1f && hinge_node_back_2_2.task_degr == null)
+                        {
+                            hinge_main_back.obj.RotorLock = true;
+                            hinge_node_back_1_1.obj.RotorLock = true;
+                            hinge_node_back_1_2.obj.RotorLock = true;
+                            hinge_node_back_2_1.obj.RotorLock = true;
+                            hinge_node_back_2_2.obj.RotorLock = true;
+                            rotor_main_back.obj.TargetVelocityRad = 0f;
+                            rotor_main_back.obj.RotorLock = false;
+                            result = true;
+                        }
+                    }
+
+                }
+                return result;
+            }
+            public bool CloseBack()
+            {
+                bool result = false;
+                if (rotor_main_back.GetCurrentGradus() > 0.1f && rotor_main_back.task_degr == null)
+                {
+                    rotor_main_back.obj.RotorLock = false;
+                    rotor_main_back.task_degr = 0;
+                }
+                else
+                {
+                    if (rotor_main_back.GetCurrentGradus() < 0.1f && rotor_main_back.task_degr == null)
+                    {
+                        rotor_main_back.obj.TargetVelocityRad = 0f;
+                        if (!rotor_main_back.obj.RotorLock) rotor_main_back.obj.RotorLock = true;
+
+                        if (hinge_main_back.GetCurrentGradus() > -89.9f && hinge_main_back.task_degr == null)
+                        {
+                            hinge_main_back.obj.RotorLock = false;
+                            hinge_main_back.task_degr = -90f;
+                        }
+                        if (hinge_node_back_1_1.GetCurrentGradus() < 89.9f && hinge_node_back_1_1.task_degr == null)
+                        {
+                            hinge_node_back_1_1.obj.RotorLock = false;
+                            hinge_node_back_1_1.task_degr = 90f;
+                        }
+                        if (hinge_node_back_1_2.GetCurrentGradus() < 89.9f && hinge_node_back_1_2.task_degr == null)
+                        {
+                            hinge_node_back_1_2.obj.RotorLock = false;
+                            hinge_node_back_1_2.task_degr = 90f;
+                        }
+                        if (hinge_node_back_2_1.GetCurrentGradus() < 89.9f && hinge_node_back_2_1.task_degr == null)
+                        {
+                            hinge_node_back_2_1.obj.RotorLock = false;
+                            hinge_node_back_2_1.task_degr = 90f;
+                        }
+                        if (hinge_node_back_2_2.GetCurrentGradus() < 89.9f && hinge_node_back_2_2.task_degr == null)
+                        {
+                            hinge_node_back_2_2.obj.RotorLock = false;
+                            hinge_node_back_2_2.task_degr = 90f;
+                        }
+                        if (hinge_main_back.GetCurrentGradus() < -89.9f && hinge_main_back.task_degr == null
+                            && hinge_node_back_1_1.GetCurrentGradus() > 89.9f && hinge_node_back_1_1.task_degr == null
+                            && hinge_node_back_1_2.GetCurrentGradus() > 89.9f && hinge_node_back_1_2.task_degr == null
+                            && hinge_node_back_2_1.GetCurrentGradus() > 89.9f && hinge_node_back_2_1.task_degr == null
+                            && hinge_node_back_2_2.GetCurrentGradus() > 89.9f && hinge_node_back_2_2.task_degr == null)
+                        {
+                            hinge_main_back.obj.RotorLock = true;
+                            hinge_node_back_1_1.obj.RotorLock = true;
+                            hinge_node_back_1_2.obj.RotorLock = true;
+                            hinge_node_back_2_1.obj.RotorLock = true;
+                            hinge_node_back_2_2.obj.RotorLock = true;
+                            result = true;
+                        }
+                    }
+                }
+                return result;
             }
             public void Logic(string argument, UpdateType updateSource)
             {
-
-
                 switch (argument)
                 {
-                    case "open_sp":
-                        Open();
+                    case "open_sp_forw":
+                        close_forw = false;
+                        open_forw = true;
                         break;
-                    case "close_sp":
-                        Close();
+                    case "close_sp_forw":
+                        open_forw = false;
+                        close_forw = true;
                         break;
-                    case "mb_45":
-                        hinge_main_back.task_degr = -45f;
+                    case "open_sp_back":
+                        close_back = false;
+                        open_back = true;
                         break;
-                    case "mb_0":
-                        hinge_main_back.task_degr = 0f;
+                    case "close_sp_back":
+                        open_back = false;
+                        close_back = true;
                         break;
-                    case "mb45":
-                        hinge_main_back.task_degr = 45f;
+                    case "clear_sp":
+                        close_forw = false;
+                        close_back = false;
+                        open_forw = false;
+                        open_back = false;
+                        break;
+                    case "_90":
+                        hinge_main_forw.task_degr = -90f;
+                        break;
+                    case "_45":
+                        hinge_main_forw.task_degr = -45f;
+                        break;
+                    case "0":
+                        hinge_main_forw.task_degr = 0f;
+                        break;
+                    case "45":
+                        hinge_main_forw.task_degr = 45f;
+                        break;
+                    case "90":
+                        hinge_main_forw.task_degr = 90f;
                         break;
                     default:
                         break;
                 }
                 hinge_main_back.Logic(argument, updateSource);
+                rotor_main_back.Logic(argument, updateSource);
+                hinge_node_back_1_1.Logic(argument, updateSource);
+                hinge_node_back_1_2.Logic(argument, updateSource);
+                hinge_node_back_2_1.Logic(argument, updateSource);
+                hinge_node_back_2_2.Logic(argument, updateSource);
+                hinge_main_forw.Logic(argument, updateSource);
+                rotor_main_forw.Logic(argument, updateSource);
+                hinge_node_forw_1_1.Logic(argument, updateSource);
+                hinge_node_forw_1_2.Logic(argument, updateSource);
+                hinge_node_forw_2_1.Logic(argument, updateSource);
+                hinge_node_forw_2_2.Logic(argument, updateSource);
                 if (updateSource == UpdateType.Update10)
                 {
-
+                    if (open_forw && OpenForw())
+                    {
+                        open_forw = false;
+                    }
+                    if (close_forw && CloseForw())
+                    {
+                        close_forw = false;
+                    }
+                    if (open_back && OpenBack())
+                    {
+                        open_back = false;
+                    }
+                    if (close_back && CloseBack())
+                    {
+                        close_back = false;
+                    }
                 }
-
-
             }
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append(hinge_main_back.TextInfo() + "\n");
+                //values.Append(hinge_main_back.TextInfo() + "\n");
+                values.Append("OPEN F: " + (open_forw ? igreen.ToString() : ired.ToString()) + "CLOSE : " + (close_forw ? igreen.ToString() : ired.ToString()) + "\n");
+                values.Append("OPEN B: " + (open_back ? igreen.ToString() : ired.ToString()) + "CLOSE : " + (close_back ? igreen.ToString() : ired.ToString()) + "\n");
                 values.Append(hinge_main_forw.TextInfo() + "\n");
+                values.Append(hinge_node_forw_1_1.TextInfo() + "\n");
+                values.Append(hinge_node_forw_1_2.TextInfo() + "\n");
+                values.Append(hinge_node_forw_2_1.TextInfo() + "\n");
+                values.Append(hinge_node_forw_2_2.TextInfo() + "\n");
+                values.Append(hinge_main_back.TextInfo() + "\n");
+                values.Append(hinge_node_back_1_1.TextInfo() + "\n");
+                values.Append(hinge_node_back_1_2.TextInfo() + "\n");
+                values.Append(hinge_node_back_2_1.TextInfo() + "\n");
+                values.Append(hinge_node_back_2_2.TextInfo() + "\n");
                 return values.ToString();
             }
         }
+
+        // [MPB-1]-Шарнир [c-s-hinge-main] 2
+        // [MPB-1]-Поршень [c-s-pistone] 2
+
+        // [MPB-1]-Шарнир [c-s-hinge-turel] 2
+        // [MPB-1]-Шарнир [c-s-hinge-node] 2
+
     }
 }
 
