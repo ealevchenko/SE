@@ -699,7 +699,7 @@ namespace MPB_UPR
         {
             public float? task_position { get; set; } = null;
             private float tolerance = 0.1f;
-            private float multiply_speed = 0.1f;
+            private float multiply_speed = 0.5f;
             public PistonBase(string name_obj) : base(name_obj)
             {
 
@@ -1264,7 +1264,6 @@ namespace MPB_UPR
                 return values.ToString();
             }
         }
-
         public class CombatSystem
         {
             public bool open = false;
@@ -1272,7 +1271,6 @@ namespace MPB_UPR
             MotorStator hinge_main_1, hinge_main_2, hinge_main_3, hinge_main_4, hinge_main_5, hinge_main_6, hinge_main_7, hinge_main_8;
             MotorStator hinge_turel_1, hinge_turel_2, hinge_turel_3, hinge_turel_4, hinge_turel_5, hinge_turel_6, hinge_turel_7, hinge_turel_8;
             PistonBase piston_1, piston_2, piston_3, piston_4, piston_5, piston_6, piston_7, piston_8;
-
             public CombatSystem(string name_obj)
             {
                 // [MPB-1]-Шарнир [c-s-hinge-main] 2
@@ -1304,35 +1302,34 @@ namespace MPB_UPR
                 hinge_turel_7 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-turel] 7");
                 hinge_turel_8 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-turel] 8");
             }
-
-            public bool Open()
+            public bool Open(ref MotorStator main, ref PistonBase piston, ref MotorStator turel)
             {
                 bool result = false;
-                if (hinge_main_1.GetCurrentGradus() < 89.9f && hinge_main_1.task_degr == null)
+                if (main.GetCurrentGradus() < 88.9f && main.task_degr == null)
                 {
-                    hinge_main_1.obj.RotorLock = false;
-                    hinge_main_1.task_degr = 90;
+                    main.obj.RotorLock = false;
+                    main.task_degr = 89.1f;
                 }
                 else
                 {
-                    if (hinge_main_1.GetCurrentGradus() >= 89.9f && hinge_main_1.task_degr == null)
+                    if (main.GetCurrentGradus() >= 88.9f && main.task_degr == null)
                     {
-                        hinge_main_1.obj.RotorLock = true;
-                        if (piston_1.obj.CurrentPosition < 9.9f && piston_1.task_position == null)
+                        main.obj.RotorLock = true;
+                        if (piston.obj.CurrentPosition < 9.5f && piston.task_position == null)
                         {
-                            piston_1.task_position = 10.0f;
+                            piston.task_position = 10.0f;
                         }
-                        if (hinge_turel_1.GetCurrentGradus() < 89.9f && hinge_turel_1.task_degr == null)
+                        if (turel.GetCurrentGradus() < 89.9f && turel.task_degr == null)
                         {
-                            hinge_turel_1.obj.RotorLock = false;
-                            hinge_turel_1.task_degr = 90f;
+                            turel.obj.RotorLock = false;
+                            turel.task_degr = 90f;
                         }
-                        if (hinge_main_1.GetCurrentGradus() > 89.9f && hinge_main_1.task_degr == null
-                            && piston_1.obj.CurrentPosition > 9.9f && piston_1.task_position == null
-                            && hinge_turel_1.GetCurrentGradus() > 89.9f && hinge_turel_1.task_degr == null)
+                        if (main.GetCurrentGradus() > 88.9f && main.task_degr == null
+                            && piston.obj.CurrentPosition > 9.5f && piston.task_position == null
+                            && turel.GetCurrentGradus() > 89.5f && turel.task_degr == null)
                         {
-                            hinge_main_1.obj.RotorLock = true;
-                            hinge_turel_1.obj.RotorLock = true;
+                            main.obj.RotorLock = true;
+                            turel.obj.RotorLock = true;
                             result = true;
                         }
                     }
@@ -1340,11 +1337,56 @@ namespace MPB_UPR
                 }
                 return result;
             }
-            public bool Close()
+            public bool Open()
+            {
+                return Open(ref hinge_main_1, ref piston_1, ref hinge_turel_1) &
+                        Open(ref hinge_main_2, ref piston_2, ref hinge_turel_2) &
+                        Open(ref hinge_main_3, ref piston_3, ref hinge_turel_3) &
+                        Open(ref hinge_main_4, ref piston_4, ref hinge_turel_4) &
+                        Open(ref hinge_main_5, ref piston_5, ref hinge_turel_5) &
+                        Open(ref hinge_main_6, ref piston_6, ref hinge_turel_6) &
+                        Open(ref hinge_main_7, ref piston_7, ref hinge_turel_7) &
+                        Open(ref hinge_main_8, ref piston_8, ref hinge_turel_8);
+            }
+            public bool Close(ref MotorStator main, ref PistonBase piston, ref MotorStator turel)
             {
                 bool result = false;
-
+                if (piston.obj.CurrentPosition > 0.1f && piston.task_position == null)
+                {
+                    piston.task_position = 0.0f;
+                }
+                if (turel.GetCurrentGradus() > 0.1f && turel.task_degr == null)
+                {
+                    turel.obj.RotorLock = false;
+                    turel.task_degr = 0f;
+                }
+                if (piston.obj.CurrentPosition < 0.5f && piston.task_position == null
+                    && turel.GetCurrentGradus() < 0.1f && turel.task_degr == null)
+                {
+                    if (main.GetCurrentGradus() > 0.5f && main.task_degr == null)
+                    {
+                        main.obj.RotorLock = false;
+                        main.task_degr = 0f;
+                    }
+                    if (main.GetCurrentGradus() < 0.5f && main.task_degr == null)
+                    {
+                        main.obj.RotorLock = true;
+                        turel.obj.RotorLock = true;
+                        result = true;
+                    }
+                }
                 return result;
+            }
+            public bool Close()
+            {
+                return Close(ref hinge_main_1, ref piston_1, ref hinge_turel_1) &
+                        Close(ref hinge_main_2, ref piston_2, ref hinge_turel_2) &
+                        Close(ref hinge_main_3, ref piston_3, ref hinge_turel_3) &
+                        Close(ref hinge_main_4, ref piston_4, ref hinge_turel_4) &
+                        Close(ref hinge_main_5, ref piston_5, ref hinge_turel_5) &
+                        Close(ref hinge_main_6, ref piston_6, ref hinge_turel_6) &
+                        Close(ref hinge_main_7, ref piston_7, ref hinge_turel_7) &
+                        Close(ref hinge_main_8, ref piston_8, ref hinge_turel_8);
             }
             public void Logic(string argument, UpdateType updateSource)
             {
@@ -1397,7 +1439,6 @@ namespace MPB_UPR
                     }
                 }
             }
-
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
@@ -1408,9 +1449,6 @@ namespace MPB_UPR
                 return values.ToString();
             }
         }
-
-
-
     }
 }
 
