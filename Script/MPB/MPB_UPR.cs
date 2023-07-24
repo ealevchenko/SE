@@ -72,9 +72,10 @@ namespace MPB_UPR
         Transitions transition_door;
         Lightings room_light;
         ReflectorLight ref_light;
-        static PistonBase piston_base;
+        static PistonsBase pistons_base;
         MechanicalConnectior mechanical_connectior;
         FoldingSolarPanel folding_sp;
+        CombatSystem combat_system;
 
         static Program _scr;
         public class BaseListTerminalBlock<T> where T : class
@@ -213,8 +214,9 @@ namespace MPB_UPR
             reflectors_light.Off();
             mechanical_connectior = new MechanicalConnectior(NameObj);
             mechanical_connectior.AttachDetach(mechanical_connectior.IsAttached());
-            piston_base = new PistonBase(NameObj, tag_piston_wg);
+            pistons_base = new PistonsBase(NameObj, tag_piston_wg);
             folding_sp = new FoldingSolarPanel(NameObj);
+            combat_system = new CombatSystem(NameObj);
         }
         public void Save()
         {
@@ -227,6 +229,7 @@ namespace MPB_UPR
             gateways_doors.Logic(argument, updateSource);
             transition_door.Logic(argument, updateSource);
             folding_sp.Logic(argument, updateSource);
+            combat_system.Logic(argument, updateSource);
             // В космосе людей не считаем
             count_room[(int)room.external] = 0;
             // Логика отработки включения и выключения освещения
@@ -235,10 +238,10 @@ namespace MPB_UPR
             switch (argument)
             {
                 case "open_pwg":
-                    piston_base.Open();
+                    pistons_base.Open();
                     break;
                 case "close_pwg":
-                    piston_base.Close();
+                    pistons_base.Close();
                     break;
                 default:
                     break;
@@ -250,8 +253,10 @@ namespace MPB_UPR
                 //lcd_power.OutText("|- Положение : " + pos / 4 + "\n", true);
                 //lcd_power.OutText("|- Выдвенут  : " + (pos == 0f ? ired.ToString() : (pos == 80f ? igreen.ToString() : iyellow.ToString())) + "\n", true);
                 //lcd_power.OutText("ВЕТРОГЕНЕРАТОРЫ" + "\n", true);
-                lcd_power.OutText("СОЛНЕЧ. БАТАРЕИ:" + "\n", false);
-                lcd_power.OutText(folding_sp.TextInfo(), true);
+                lcd_power.OutText("БОЕВАЯ СИСТЕМА:" + "\n", false);
+                lcd_power.OutText(combat_system.TextInfo(), true);
+                //lcd_power.OutText("СОЛНЕЧ. БАТАРЕИ:" + "\n", false);
+                //lcd_power.OutText(folding_sp.TextInfo(), true);
                 //lcd_power
             }
         }
@@ -653,9 +658,9 @@ namespace MPB_UPR
                 _scr.Echo("Найдено ReflectorLight:[" + tag + "]: " + list_obj.Count());
             }
         }
-        public class PistonBase : BaseListTerminalBlock<IMyPistonBase>
+        public class PistonsBase : BaseListTerminalBlock<IMyPistonBase>
         {
-            public PistonBase(string name_obj, string tag) : base(name_obj)
+            public PistonsBase(string name_obj, string tag) : base(name_obj)
             {
                 if (!String.IsNullOrWhiteSpace(tag))
                 {
@@ -689,6 +694,63 @@ namespace MPB_UPR
                 return position;
             }
 
+        }
+        public class PistonBase : BaseTerminalBlock<IMyPistonBase>
+        {
+            public float? task_position { get; set; } = null;
+            private float tolerance = 0.1f;
+            private float multiply_speed = 0.1f;
+            public PistonBase(string name_obj) : base(name_obj)
+            {
+
+            }
+            public void SetPosition(float position)
+            {
+                if (this.obj == null) return;
+                float speed = 0f;
+                // Текущее положение
+                double curennt_position = this.obj.CurrentPosition;
+                if (curennt_position > (position + tolerance))
+                {
+                    speed = -(float)(Math.Abs(curennt_position - position) * multiply_speed);
+                    this.obj.Velocity = speed;
+                }
+                else if (curennt_position < (position - tolerance))
+                {
+                    double dist = (position - curennt_position);
+                    speed = (float)(Math.Abs(position - curennt_position) * multiply_speed);
+                    this.obj.Velocity = speed;
+                }
+                else
+                {
+                    this.obj.Velocity = speed;
+                    this.task_position = null;
+                }
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+                    if (task_position != null)
+                    {
+                        SetPosition((float)task_position);
+                    }
+                }
+            }
+            public string TextInfo()
+            {
+                if (this.obj == null) return "";
+                StringBuilder values = new StringBuilder();
+                values.Append("ПОРШЕНЬ : " + this.obj.CustomName + "\n");
+                values.Append("НИЗ: " + Math.Round(this.obj.LowestPosition, 1) + " ВЕРХ: " + Math.Round(this.obj.HighestPosition, 1) + "\n");
+                values.Append("ПОЛОЖ : " + Math.Round(this.obj.CurrentPosition, 1) + " СКОРОСТЬ : " + Math.Round(this.obj.Velocity, 3) + " ЗАД : " + this.task_position + "\n");
+                return values.ToString();
+            }
         }
         public class MotorStators : BaseListTerminalBlock<IMyMotorStator>
         {
@@ -1203,15 +1265,154 @@ namespace MPB_UPR
             }
         }
 
-        // [MPB-1]-Шарнир [c-s-hinge-main] 2
-        // [MPB-1]-Поршень [c-s-pistone] 2
+        public class CombatSystem
+        {
+            public bool open = false;
+            public bool close = false;
+            MotorStator hinge_main_1, hinge_main_2, hinge_main_3, hinge_main_4, hinge_main_5, hinge_main_6, hinge_main_7, hinge_main_8;
+            MotorStator hinge_turel_1, hinge_turel_2, hinge_turel_3, hinge_turel_4, hinge_turel_5, hinge_turel_6, hinge_turel_7, hinge_turel_8;
+            PistonBase piston_1, piston_2, piston_3, piston_4, piston_5, piston_6, piston_7, piston_8;
 
-        // [MPB-1]-Шарнир [c-s-hinge-turel] 2
-        // [MPB-1]-Шарнир [c-s-hinge-node] 2
+            public CombatSystem(string name_obj)
+            {
+                // [MPB-1]-Шарнир [c-s-hinge-main] 2
+                // [MPB-1]-Поршень [c-s-pistone] 2
+                // [MPB-1]-Шарнир [c-s-hinge-turel] 2
+                // [MPB-1]-Шарнир [c-s-hinge-node] 2                
+                hinge_main_1 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-main] 1");
+                hinge_main_2 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-main] 2");
+                hinge_main_3 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-main] 3");
+                hinge_main_4 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-main] 4");
+                hinge_main_5 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-main] 5");
+                hinge_main_6 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-main] 6");
+                hinge_main_7 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-main] 7");
+                hinge_main_8 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-main] 8");
+                piston_1 = new PistonBase("[MPB-1]-Поршень [c-s-pistone] 1");
+                piston_2 = new PistonBase("[MPB-1]-Поршень [c-s-pistone] 2");
+                piston_3 = new PistonBase("[MPB-1]-Поршень [c-s-pistone] 3");
+                piston_4 = new PistonBase("[MPB-1]-Поршень [c-s-pistone] 4");
+                piston_5 = new PistonBase("[MPB-1]-Поршень [c-s-pistone] 5");
+                piston_6 = new PistonBase("[MPB-1]-Поршень [c-s-pistone] 6");
+                piston_7 = new PistonBase("[MPB-1]-Поршень [c-s-pistone] 7");
+                piston_8 = new PistonBase("[MPB-1]-Поршень [c-s-pistone] 8");
+                hinge_turel_1 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-turel] 1");
+                hinge_turel_2 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-turel] 2");
+                hinge_turel_3 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-turel] 3");
+                hinge_turel_4 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-turel] 4");
+                hinge_turel_5 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-turel] 5");
+                hinge_turel_6 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-turel] 6");
+                hinge_turel_7 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-turel] 7");
+                hinge_turel_8 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-turel] 8");
+            }
+
+            public bool Open()
+            {
+                bool result = false;
+                if (hinge_main_1.GetCurrentGradus() < 89.9f && hinge_main_1.task_degr == null)
+                {
+                    hinge_main_1.obj.RotorLock = false;
+                    hinge_main_1.task_degr = 90;
+                }
+                else
+                {
+                    if (hinge_main_1.GetCurrentGradus() >= 89.9f && hinge_main_1.task_degr == null)
+                    {
+                        hinge_main_1.obj.RotorLock = true;
+                        if (piston_1.obj.CurrentPosition < 9.9f && piston_1.task_position == null)
+                        {
+                            piston_1.task_position = 10.0f;
+                        }
+                        if (hinge_turel_1.GetCurrentGradus() < 89.9f && hinge_turel_1.task_degr == null)
+                        {
+                            hinge_turel_1.obj.RotorLock = false;
+                            hinge_turel_1.task_degr = 90f;
+                        }
+                        if (hinge_main_1.GetCurrentGradus() > 89.9f && hinge_main_1.task_degr == null
+                            && piston_1.obj.CurrentPosition > 9.9f && piston_1.task_position == null
+                            && hinge_turel_1.GetCurrentGradus() > 89.9f && hinge_turel_1.task_degr == null)
+                        {
+                            hinge_main_1.obj.RotorLock = true;
+                            hinge_turel_1.obj.RotorLock = true;
+                            result = true;
+                        }
+                    }
+
+                }
+                return result;
+            }
+            public bool Close()
+            {
+                bool result = false;
+
+                return result;
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    case "open_cs":
+                        open = true;
+                        close = false;
+                        break;
+                    case "close_cs":
+                        open = false;
+                        close = true;
+                        break;
+                    default:
+                        break;
+                }
+                hinge_main_1.Logic(argument, updateSource);
+                hinge_main_2.Logic(argument, updateSource);
+                hinge_main_3.Logic(argument, updateSource);
+                hinge_main_4.Logic(argument, updateSource);
+                hinge_main_5.Logic(argument, updateSource);
+                hinge_main_6.Logic(argument, updateSource);
+                hinge_main_7.Logic(argument, updateSource);
+                hinge_main_8.Logic(argument, updateSource);
+                hinge_turel_1.Logic(argument, updateSource);
+                hinge_turel_2.Logic(argument, updateSource);
+                hinge_turel_3.Logic(argument, updateSource);
+                hinge_turel_4.Logic(argument, updateSource);
+                hinge_turel_5.Logic(argument, updateSource);
+                hinge_turel_6.Logic(argument, updateSource);
+                hinge_turel_7.Logic(argument, updateSource);
+                hinge_turel_8.Logic(argument, updateSource);
+                piston_1.Logic(argument, updateSource);
+                piston_2.Logic(argument, updateSource);
+                piston_3.Logic(argument, updateSource);
+                piston_4.Logic(argument, updateSource);
+                piston_5.Logic(argument, updateSource);
+                piston_6.Logic(argument, updateSource);
+                piston_7.Logic(argument, updateSource);
+                piston_8.Logic(argument, updateSource);
+                if (updateSource == UpdateType.Update10)
+                {
+                    if (open && Open())
+                    {
+                        open = false;
+                    }
+                    if (close && Close())
+                    {
+                        close = false;
+                    }
+                }
+            }
+
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("OPEN: " + (open ? igreen.ToString() : ired.ToString()) + "CLOSE : " + (close ? igreen.ToString() : ired.ToString()) + "\n");
+                values.Append(hinge_main_1.TextInfo() + "\n");
+                values.Append(hinge_turel_1.TextInfo() + "\n");
+                values.Append(piston_1.TextInfo() + "\n");
+                return values.ToString();
+            }
+        }
+
+
 
     }
 }
-
 
 // door [door-gateway] [transition_external_back] [transition]
 // sn [door-gateway] [transition_external_back] [transition]
