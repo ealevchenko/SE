@@ -66,6 +66,8 @@ namespace MPB_UPR
         static LCD lcd_storage;
         static LCD lcd_debug;
         static LCD lcd_power;
+        static LCD lcd_cs;
+        static LCD lcd_fsp;
 
         ReflectorsLight reflectors_light;
         Gateways gateways_doors;
@@ -203,6 +205,8 @@ namespace MPB_UPR
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
             lcd_power = new LCD(NameObj + "-LCD-POWER");
+            lcd_cs = new LCD(NameObj + "-LCD-CombatSystem");
+            lcd_fsp = new LCD(NameObj + "-LCD-FoldingSolarPanel");
 
             gateways_doors = new Gateways(NameObj, tag_door_gateway);
             transition_door = new Transitions(NameObj, tag_door_transition);
@@ -248,13 +252,13 @@ namespace MPB_UPR
             }
             if (updateSource == UpdateType.Update10)
             {
+                lcd_cs.OutText(combat_system.TextInfo(), false);
                 //lcd_power.OutText("ВЕТРОГЕНЕРАТОРЫ" + "\n", false);
                 //float pos = piston_base.GetPosition();
                 //lcd_power.OutText("|- Положение : " + pos / 4 + "\n", true);
                 //lcd_power.OutText("|- Выдвенут  : " + (pos == 0f ? ired.ToString() : (pos == 80f ? igreen.ToString() : iyellow.ToString())) + "\n", true);
                 //lcd_power.OutText("ВЕТРОГЕНЕРАТОРЫ" + "\n", true);
-                lcd_power.OutText("БОЕВАЯ СИСТЕМА:" + "\n", false);
-                lcd_power.OutText(combat_system.TextInfo(), true);
+                //lcd_power.OutText("БОЕВАЯ СИСТЕМА:" + "\n", false);
                 //lcd_power.OutText("СОЛНЕЧ. БАТАРЕИ:" + "\n", false);
                 //lcd_power.OutText(folding_sp.TextInfo(), true);
                 //lcd_power
@@ -1271,6 +1275,7 @@ namespace MPB_UPR
             MotorStator hinge_main_1, hinge_main_2, hinge_main_3, hinge_main_4, hinge_main_5, hinge_main_6, hinge_main_7, hinge_main_8;
             MotorStator hinge_turel_1, hinge_turel_2, hinge_turel_3, hinge_turel_4, hinge_turel_5, hinge_turel_6, hinge_turel_7, hinge_turel_8;
             PistonBase piston_1, piston_2, piston_3, piston_4, piston_5, piston_6, piston_7, piston_8;
+            PistonBase piston_tower_1, piston_tower_2;
             public CombatSystem(string name_obj)
             {
                 // [MPB-1]-Шарнир [c-s-hinge-main] 2
@@ -1301,6 +1306,14 @@ namespace MPB_UPR
                 hinge_turel_6 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-turel] 6");
                 hinge_turel_7 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-turel] 7");
                 hinge_turel_8 = new MotorStator("[MPB-1]-Шарнир [c-s-hinge-turel] 8");
+                piston_tower_1 = new PistonBase("[MPB-1]-Поршень [c-s-pistone-tower] 1");
+                piston_tower_2 = new PistonBase("[MPB-1]-Поршень [c-s-pistone-tower] 2");
+            }
+            public bool IsOpen(ref MotorStator main, ref PistonBase piston, ref MotorStator turel)
+            {
+                if (main.GetCurrentGradus() > 88.9f && main.task_degr == null && piston.obj.CurrentPosition > 9.5f && piston.task_position == null && turel.GetCurrentGradus() > 89.5f && turel.task_degr == null)
+                    return true;
+                else return false;
             }
             public bool Open(ref MotorStator main, ref PistonBase piston, ref MotorStator turel)
             {
@@ -1324,9 +1337,7 @@ namespace MPB_UPR
                             turel.obj.RotorLock = false;
                             turel.task_degr = 90f;
                         }
-                        if (main.GetCurrentGradus() > 88.9f && main.task_degr == null
-                            && piston.obj.CurrentPosition > 9.5f && piston.task_position == null
-                            && turel.GetCurrentGradus() > 89.5f && turel.task_degr == null)
+                        if (IsOpen(ref main, ref piston, ref turel))
                         {
                             main.obj.RotorLock = true;
                             turel.obj.RotorLock = true;
@@ -1337,7 +1348,31 @@ namespace MPB_UPR
                 }
                 return result;
             }
-            public bool Open()
+            public bool IsOpenTower()
+            {
+                if (piston_tower_1.obj.CurrentPosition > 9.5f && piston_tower_1.task_position == null
+                    && piston_tower_2.obj.CurrentPosition > 9.5f && piston_tower_2.task_position == null)
+                    return true;
+                else return false;
+            }
+            public bool OpenTower()
+            {
+                bool result = false;
+                if (piston_tower_1.obj.CurrentPosition < 9.5f && piston_tower_1.task_position == null)
+                {
+                    piston_tower_1.task_position = 10.0f;
+                }
+                if (piston_tower_2.obj.CurrentPosition < 9.5f && piston_tower_2.task_position == null)
+                {
+                    piston_tower_2.task_position = 10.0f;
+                }
+                if (IsOpenTower())
+                {
+                    result = true;
+                }
+                return result;
+            }
+            public bool OpenAll()
             {
                 return Open(ref hinge_main_1, ref piston_1, ref hinge_turel_1) &
                         Open(ref hinge_main_2, ref piston_2, ref hinge_turel_2) &
@@ -1346,7 +1381,26 @@ namespace MPB_UPR
                         Open(ref hinge_main_5, ref piston_5, ref hinge_turel_5) &
                         Open(ref hinge_main_6, ref piston_6, ref hinge_turel_6) &
                         Open(ref hinge_main_7, ref piston_7, ref hinge_turel_7) &
-                        Open(ref hinge_main_8, ref piston_8, ref hinge_turel_8);
+                        Open(ref hinge_main_8, ref piston_8, ref hinge_turel_8) &
+                        OpenTower();
+            }
+            public bool IsOpenAll()
+            {
+                return IsOpen(ref hinge_main_1, ref piston_1, ref hinge_turel_1) &
+                        IsOpen(ref hinge_main_2, ref piston_2, ref hinge_turel_2) &
+                        IsOpen(ref hinge_main_3, ref piston_3, ref hinge_turel_3) &
+                        IsOpen(ref hinge_main_4, ref piston_4, ref hinge_turel_4) &
+                        IsOpen(ref hinge_main_5, ref piston_5, ref hinge_turel_5) &
+                        IsOpen(ref hinge_main_6, ref piston_6, ref hinge_turel_6) &
+                        IsOpen(ref hinge_main_7, ref piston_7, ref hinge_turel_7) &
+                        IsOpen(ref hinge_main_8, ref piston_8, ref hinge_turel_8) &
+                        IsOpenTower();
+            }
+            public bool IsClose(ref MotorStator main, ref PistonBase piston, ref MotorStator turel)
+            {
+                if (main.GetCurrentGradus() < 0.5f && main.task_degr == null && piston.obj.CurrentPosition < 0.5f && piston.task_position == null && turel.GetCurrentGradus() < 0.1f && turel.task_degr == null)
+                    return true;
+                else return false;
             }
             public bool Close(ref MotorStator main, ref PistonBase piston, ref MotorStator turel)
             {
@@ -1377,7 +1431,31 @@ namespace MPB_UPR
                 }
                 return result;
             }
-            public bool Close()
+            public bool IsCloseTower()
+            {
+                if (piston_tower_1.obj.CurrentPosition < 0.5f && piston_tower_1.task_position == null
+                    && piston_tower_2.obj.CurrentPosition < 0.5f && piston_tower_2.task_position == null)
+                    return true;
+                else return false;
+            }
+            public bool CloseTower()
+            {
+                bool result = false;
+                if (piston_tower_1.obj.CurrentPosition > 0.5f && piston_tower_1.task_position == null)
+                {
+                    piston_tower_1.task_position = 0.0f;
+                }
+                if (piston_tower_2.obj.CurrentPosition > 0.5f && piston_tower_2.task_position == null)
+                {
+                    piston_tower_2.task_position = 0.0f;
+                }
+                if (IsCloseTower())
+                {
+                    result = true;
+                }
+                return result;
+            }
+            public bool CloseAll()
             {
                 return Close(ref hinge_main_1, ref piston_1, ref hinge_turel_1) &
                         Close(ref hinge_main_2, ref piston_2, ref hinge_turel_2) &
@@ -1386,7 +1464,20 @@ namespace MPB_UPR
                         Close(ref hinge_main_5, ref piston_5, ref hinge_turel_5) &
                         Close(ref hinge_main_6, ref piston_6, ref hinge_turel_6) &
                         Close(ref hinge_main_7, ref piston_7, ref hinge_turel_7) &
-                        Close(ref hinge_main_8, ref piston_8, ref hinge_turel_8);
+                        Close(ref hinge_main_8, ref piston_8, ref hinge_turel_8) &
+                        CloseTower();
+            }
+            public bool IsCloseAll()
+            {
+                return IsClose(ref hinge_main_1, ref piston_1, ref hinge_turel_1) &
+                        IsClose(ref hinge_main_2, ref piston_2, ref hinge_turel_2) &
+                        IsClose(ref hinge_main_3, ref piston_3, ref hinge_turel_3) &
+                        IsClose(ref hinge_main_4, ref piston_4, ref hinge_turel_4) &
+                        IsClose(ref hinge_main_5, ref piston_5, ref hinge_turel_5) &
+                        IsClose(ref hinge_main_6, ref piston_6, ref hinge_turel_6) &
+                        IsClose(ref hinge_main_7, ref piston_7, ref hinge_turel_7) &
+                        IsClose(ref hinge_main_8, ref piston_8, ref hinge_turel_8) &
+                        IsCloseTower();
             }
             public void Logic(string argument, UpdateType updateSource)
             {
@@ -1429,11 +1520,11 @@ namespace MPB_UPR
                 piston_8.Logic(argument, updateSource);
                 if (updateSource == UpdateType.Update10)
                 {
-                    if (open && Open())
+                    if (open && OpenAll())
                     {
                         open = false;
                     }
-                    if (close && Close())
+                    if (close && CloseAll())
                     {
                         close = false;
                     }
@@ -1442,10 +1533,18 @@ namespace MPB_UPR
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("OPEN: " + (open ? igreen.ToString() : ired.ToString()) + "CLOSE : " + (close ? igreen.ToString() : ired.ToString()) + "\n");
-                values.Append(hinge_main_1.TextInfo() + "\n");
-                values.Append(hinge_turel_1.TextInfo() + "\n");
-                values.Append(piston_1.TextInfo() + "\n");
+                values.Append("БОЕВАЯ СИСТЕМА" + "\n");
+                values.Append("КОМАНДА [ ОТК : " + (open ? igreen.ToString() : ired.ToString()) + " ЗАК : " + (close ? igreen.ToString() : ired.ToString()) + " ]\n");
+                values.Append("Вышка АВТОПУШКА : " + (IsOpenTower() ? igreen.ToString() : (IsCloseTower() ? ired.ToString() : iyellow.ToString())) + "\n");
+                values.Append("ТУРЕЛИ " + (IsOpenAll() ? igreen.ToString() : (IsCloseAll() ? ired.ToString() : iyellow.ToString())) + "\n");
+                values.Append("|- [1] " + (IsOpen(ref hinge_main_1, ref piston_1, ref hinge_turel_1) ? igreen.ToString() : (IsClose(ref hinge_main_1, ref piston_1, ref hinge_turel_1) ? ired.ToString() : iyellow.ToString())) + "\n");
+                values.Append("|- [2] " + (IsOpen(ref hinge_main_2, ref piston_2, ref hinge_turel_2) ? igreen.ToString() : (IsClose(ref hinge_main_2, ref piston_2, ref hinge_turel_2) ? ired.ToString() : iyellow.ToString())) + "\n");
+                values.Append("|- [3] " + (IsOpen(ref hinge_main_3, ref piston_3, ref hinge_turel_3) ? igreen.ToString() : (IsClose(ref hinge_main_3, ref piston_3, ref hinge_turel_3) ? ired.ToString() : iyellow.ToString())) + "\n");
+                values.Append("|- [4] " + (IsOpen(ref hinge_main_4, ref piston_4, ref hinge_turel_4) ? igreen.ToString() : (IsClose(ref hinge_main_4, ref piston_4, ref hinge_turel_4) ? ired.ToString() : iyellow.ToString())) + "\n");
+                values.Append("|- [5] " + (IsOpen(ref hinge_main_5, ref piston_5, ref hinge_turel_5) ? igreen.ToString() : (IsClose(ref hinge_main_5, ref piston_5, ref hinge_turel_5) ? ired.ToString() : iyellow.ToString())) + "\n");
+                values.Append("|- [6] " + (IsOpen(ref hinge_main_6, ref piston_6, ref hinge_turel_6) ? igreen.ToString() : (IsClose(ref hinge_main_6, ref piston_6, ref hinge_turel_6) ? ired.ToString() : iyellow.ToString())) + "\n");
+                values.Append("|- [7] " + (IsOpen(ref hinge_main_7, ref piston_7, ref hinge_turel_7) ? igreen.ToString() : (IsClose(ref hinge_main_7, ref piston_7, ref hinge_turel_7) ? ired.ToString() : iyellow.ToString())) + "\n");
+                values.Append("|- [8] " + (IsOpen(ref hinge_main_8, ref piston_8, ref hinge_turel_8) ? igreen.ToString() : (IsClose(ref hinge_main_8, ref piston_8, ref hinge_turel_8) ? ired.ToString() : iyellow.ToString())) + "\n");
                 return values.ToString();
             }
         }
