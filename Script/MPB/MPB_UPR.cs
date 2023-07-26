@@ -252,16 +252,8 @@ namespace MPB_UPR
             }
             if (updateSource == UpdateType.Update10)
             {
+                lcd_fsp.OutText(folding_sp.TextInfo(), false);                
                 lcd_cs.OutText(combat_system.TextInfo(), false);
-                //lcd_power.OutText("ВЕТРОГЕНЕРАТОРЫ" + "\n", false);
-                //float pos = piston_base.GetPosition();
-                //lcd_power.OutText("|- Положение : " + pos / 4 + "\n", true);
-                //lcd_power.OutText("|- Выдвенут  : " + (pos == 0f ? ired.ToString() : (pos == 80f ? igreen.ToString() : iyellow.ToString())) + "\n", true);
-                //lcd_power.OutText("ВЕТРОГЕНЕРАТОРЫ" + "\n", true);
-                //lcd_power.OutText("БОЕВАЯ СИСТЕМА:" + "\n", false);
-                //lcd_power.OutText("СОЛНЕЧ. БАТАРЕИ:" + "\n", false);
-                //lcd_power.OutText(folding_sp.TextInfo(), true);
-                //lcd_power
             }
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
@@ -544,18 +536,18 @@ namespace MPB_UPR
             List<Gateway> list_gtw = new List<Gateway>();
             public Gateways(string name_obj, string tag)
             {
-                lcd_debug.OutText("Start" + "\n", false);
+                //lcd_debug.OutText("Start" + "\n", false);
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
                 _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name_obj) && r.CustomName.Contains(tag));
-                lcd_debug.OutText("doors:" + doors.Count() + "\n", true);
-                lcd_debug.OutText("sensors:" + doors.Count() + "\n", true);
+                //lcd_debug.OutText("doors:" + doors.Count() + "\n", true);
+                //lcd_debug.OutText("sensors:" + doors.Count() + "\n", true);
                 IMyDoor door1;
                 IMySensorBlock sensor1;
                 room room1;
                 IMyDoor door2;
                 IMySensorBlock sensor2;
                 room room2;
-                lcd_debug.OutText("Поиск дверей:" + "\n", true);
+                //lcd_debug.OutText("Поиск дверей:" + "\n", true);
                 foreach (doors_gareways gw in Enum.GetValues(typeof(doors_gareways)))
                 {
                     door1 = null;
@@ -567,17 +559,17 @@ namespace MPB_UPR
 
                     List<IMyDoor> l_drs = doors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).ToList();
                     List<IMySensorBlock> l_sns = sensors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).ToList();
-                    lcd_debug.OutText("l_drs:" + l_drs.Count() + "\n", true);
-                    lcd_debug.OutText("l_sns:" + l_sns.Count() + "\n", true);
+                    //lcd_debug.OutText("l_drs:" + l_drs.Count() + "\n", true);
+                    //lcd_debug.OutText("l_sns:" + l_sns.Count() + "\n", true);
                     if (l_drs != null && l_drs.Count() == 2 && l_sns != null && l_sns.Count() == 2)
                     {
                         foreach (room rm in Enum.GetValues(typeof(room)))
                         {
-                            lcd_debug.OutText("room:" + rm + "\n", true);
+                            //lcd_debug.OutText("room:" + rm + "\n", true);
                             IMyDoor dr = l_drs.Where(d => d.CustomName.Contains("[" + rm.ToString() + "]")).FirstOrDefault();
                             IMySensorBlock sn = l_sns.Where(d => d.CustomName.Contains("[" + rm.ToString() + "]")).FirstOrDefault();
-                            lcd_debug.OutText("dr:" + (dr != null ? "ok" : "not") + "\n", true);
-                            lcd_debug.OutText("sn:" + (sn != null ? "ok" : "not") + "\n", true);
+                            //lcd_debug.OutText("dr:" + (dr != null ? "ok" : "not") + "\n", true);
+                            //lcd_debug.OutText("sn:" + (sn != null ? "ok" : "not") + "\n", true);
                             if (dr != null && sn != null)
                             {
                                 if (door1 != null && door2 == null) { door2 = dr; room2 = rm; }
@@ -588,10 +580,10 @@ namespace MPB_UPR
                         }
                         if (door1 != null && door2 != null && sensor1 != null && sensor2 != null)
                         {
-                            lcd_debug.OutText("door1:" + door1.CustomName + "\n", true);
-                            lcd_debug.OutText("door2:" + door2.CustomName + "\n", true);
-                            lcd_debug.OutText("sensor1:" + sensor1.CustomName + "\n", true);
-                            lcd_debug.OutText("sensor2:" + sensor2.CustomName + "\n", true);
+                            //lcd_debug.OutText("door1:" + door1.CustomName + "\n", true);
+                            //lcd_debug.OutText("door2:" + door2.CustomName + "\n", true);
+                            //lcd_debug.OutText("sensor1:" + sensor1.CustomName + "\n", true);
+                            //lcd_debug.OutText("sensor2:" + sensor2.CustomName + "\n", true);
                             list_gtw.Add(new Gateway(gw, door1, sensor1, room1, door2, sensor2, room2));
                         }
                     }
@@ -943,6 +935,16 @@ namespace MPB_UPR
                 hinge_node_forw_2_1 = new MotorStator("[MPB-1]-Шарнир 2_1 [s-p-hinge-node-forw]");
                 hinge_node_forw_2_2 = new MotorStator("[MPB-1]-Шарнир 2_2 [s-p-hinge-node-forw]");
             }
+            public bool IsOpenForw()
+            {
+                if (hinge_main_forw.GetCurrentGradus() > 89.9f && hinge_main_forw.task_degr == null
+                    && hinge_node_forw_1_1.GetCurrentGradus() < 0.1f && hinge_node_forw_1_1.task_degr == null
+                    && hinge_node_forw_1_2.GetCurrentGradus() < 0.1f && hinge_node_forw_1_2.task_degr == null
+                    && hinge_node_forw_2_1.GetCurrentGradus() < 0.1f && hinge_node_forw_2_1.task_degr == null
+                    && hinge_node_forw_2_2.GetCurrentGradus() < 0.1f && hinge_node_forw_2_2.task_degr == null)
+                    return true;
+                else return false;
+            }
             public bool OpenForw()
             {
                 bool result = false;
@@ -981,11 +983,7 @@ namespace MPB_UPR
                             hinge_node_forw_2_2.obj.RotorLock = false;
                             hinge_node_forw_2_2.task_degr = 0f;
                         }
-                        if (hinge_main_forw.GetCurrentGradus() > 89.9f && hinge_main_forw.task_degr == null
-                            && hinge_node_forw_1_1.GetCurrentGradus() < 0.1f && hinge_node_forw_1_1.task_degr == null
-                            && hinge_node_forw_1_2.GetCurrentGradus() < 0.1f && hinge_node_forw_1_2.task_degr == null
-                            && hinge_node_forw_2_1.GetCurrentGradus() < 0.1f && hinge_node_forw_2_1.task_degr == null
-                            && hinge_node_forw_2_2.GetCurrentGradus() < 0.1f && hinge_node_forw_2_2.task_degr == null)
+                        if (IsOpenForw())
                         {
                             hinge_main_forw.obj.RotorLock = true;
                             hinge_node_forw_1_1.obj.RotorLock = true;
@@ -997,9 +995,18 @@ namespace MPB_UPR
                             result = true;
                         }
                     }
-
                 }
                 return result;
+            }
+            public bool IsCloseForw()
+            {
+                if ((hinge_main_forw.GetCurrentGradus() < -89.9f || hinge_main_forw.GetCurrentGradus() >= 270f) && hinge_main_forw.task_degr == null
+                            && hinge_node_forw_1_1.GetCurrentGradus() > 89.9f && hinge_node_forw_1_1.task_degr == null
+                            && hinge_node_forw_1_2.GetCurrentGradus() > 89.9f && hinge_node_forw_1_2.task_degr == null
+                            && hinge_node_forw_2_1.GetCurrentGradus() > 89.9f && hinge_node_forw_2_1.task_degr == null
+                            && hinge_node_forw_2_2.GetCurrentGradus() > 89.9f && hinge_node_forw_2_2.task_degr == null)
+                    return true;
+                else return false;
             }
             public bool CloseForw()
             {
@@ -1041,11 +1048,7 @@ namespace MPB_UPR
                             hinge_node_forw_2_2.obj.RotorLock = false;
                             hinge_node_forw_2_2.task_degr = 90f;
                         }
-                        if (hinge_main_forw.GetCurrentGradus() < -89.9f && hinge_main_forw.task_degr == null
-                            && hinge_node_forw_1_1.GetCurrentGradus() > 89.9f && hinge_node_forw_1_1.task_degr == null
-                            && hinge_node_forw_1_2.GetCurrentGradus() > 89.9f && hinge_node_forw_1_2.task_degr == null
-                            && hinge_node_forw_2_1.GetCurrentGradus() > 89.9f && hinge_node_forw_2_1.task_degr == null
-                            && hinge_node_forw_2_2.GetCurrentGradus() > 89.9f && hinge_node_forw_2_2.task_degr == null)
+                        if (IsCloseForw())
                         {
                             hinge_main_forw.obj.RotorLock = true;
                             hinge_node_forw_1_1.obj.RotorLock = true;
@@ -1057,6 +1060,16 @@ namespace MPB_UPR
                     }
                 }
                 return result;
+            }
+            public bool IsOpenBack()
+            {
+                if (hinge_main_back.GetCurrentGradus() > 89.9f&& hinge_main_back.task_degr == null
+                            && hinge_node_back_1_1.GetCurrentGradus() < 0.1f && hinge_node_back_1_1.task_degr == null
+                            && hinge_node_back_1_2.GetCurrentGradus() < 0.1f && hinge_node_back_1_2.task_degr == null
+                            && hinge_node_back_2_1.GetCurrentGradus() < 0.1f && hinge_node_back_2_1.task_degr == null
+                            && hinge_node_back_2_2.GetCurrentGradus() < 0.1f && hinge_node_back_2_2.task_degr == null)
+                    return true;
+                else return false;
             }
             public bool OpenBack()
             {
@@ -1096,11 +1109,7 @@ namespace MPB_UPR
                             hinge_node_back_2_2.obj.RotorLock = false;
                             hinge_node_back_2_2.task_degr = 0f;
                         }
-                        if (hinge_main_back.GetCurrentGradus() > 89.9f && hinge_main_back.task_degr == null
-                            && hinge_node_back_1_1.GetCurrentGradus() < 0.1f && hinge_node_back_1_1.task_degr == null
-                            && hinge_node_back_1_2.GetCurrentGradus() < 0.1f && hinge_node_back_1_2.task_degr == null
-                            && hinge_node_back_2_1.GetCurrentGradus() < 0.1f && hinge_node_back_2_1.task_degr == null
-                            && hinge_node_back_2_2.GetCurrentGradus() < 0.1f && hinge_node_back_2_2.task_degr == null)
+                        if (IsOpenBack())
                         {
                             hinge_main_back.obj.RotorLock = true;
                             hinge_node_back_1_1.obj.RotorLock = true;
@@ -1115,6 +1124,16 @@ namespace MPB_UPR
 
                 }
                 return result;
+            }
+            public bool IsCloseBack()
+            {
+                if ((hinge_main_back.GetCurrentGradus() < -89.9f || hinge_main_back.GetCurrentGradus() >= 270f)  && hinge_main_back.task_degr == null
+                            && hinge_node_back_1_1.GetCurrentGradus() > 89.9f && hinge_node_back_1_1.task_degr == null
+                            && hinge_node_back_1_2.GetCurrentGradus() > 89.9f && hinge_node_back_1_2.task_degr == null
+                            && hinge_node_back_2_1.GetCurrentGradus() > 89.9f && hinge_node_back_2_1.task_degr == null
+                            && hinge_node_back_2_2.GetCurrentGradus() > 89.9f && hinge_node_back_2_2.task_degr == null)
+                    return true;
+                else return false;
             }
             public bool CloseBack()
             {
@@ -1156,11 +1175,7 @@ namespace MPB_UPR
                             hinge_node_back_2_2.obj.RotorLock = false;
                             hinge_node_back_2_2.task_degr = 90f;
                         }
-                        if (hinge_main_back.GetCurrentGradus() < -89.9f && hinge_main_back.task_degr == null
-                            && hinge_node_back_1_1.GetCurrentGradus() > 89.9f && hinge_node_back_1_1.task_degr == null
-                            && hinge_node_back_1_2.GetCurrentGradus() > 89.9f && hinge_node_back_1_2.task_degr == null
-                            && hinge_node_back_2_1.GetCurrentGradus() > 89.9f && hinge_node_back_2_1.task_degr == null
-                            && hinge_node_back_2_2.GetCurrentGradus() > 89.9f && hinge_node_back_2_2.task_degr == null)
+                        if (IsCloseBack())
                         {
                             hinge_main_back.obj.RotorLock = true;
                             hinge_node_back_1_1.obj.RotorLock = true;
@@ -1177,6 +1192,18 @@ namespace MPB_UPR
             {
                 switch (argument)
                 {
+                    case "open_sp":
+                        close_forw = false;
+                        close_back = false;
+                        open_forw = true;
+                        open_back = true;
+                        break;
+                    case "close_sp":
+                        close_forw = true;
+                        close_back = true;
+                        open_forw = false;
+                        open_back = false;
+                        break;                    
                     case "open_sp_forw":
                         close_forw = false;
                         open_forw = true;
@@ -1198,21 +1225,6 @@ namespace MPB_UPR
                         close_back = false;
                         open_forw = false;
                         open_back = false;
-                        break;
-                    case "_90":
-                        hinge_main_forw.task_degr = -90f;
-                        break;
-                    case "_45":
-                        hinge_main_forw.task_degr = -45f;
-                        break;
-                    case "0":
-                        hinge_main_forw.task_degr = 0f;
-                        break;
-                    case "45":
-                        hinge_main_forw.task_degr = 45f;
-                        break;
-                    case "90":
-                        hinge_main_forw.task_degr = 90f;
                         break;
                     default:
                         break;
@@ -1252,19 +1264,11 @@ namespace MPB_UPR
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                //values.Append(hinge_main_back.TextInfo() + "\n");
-                values.Append("OPEN F: " + (open_forw ? igreen.ToString() : ired.ToString()) + "CLOSE : " + (close_forw ? igreen.ToString() : ired.ToString()) + "\n");
-                values.Append("OPEN B: " + (open_back ? igreen.ToString() : ired.ToString()) + "CLOSE : " + (close_back ? igreen.ToString() : ired.ToString()) + "\n");
-                values.Append(hinge_main_forw.TextInfo() + "\n");
-                values.Append(hinge_node_forw_1_1.TextInfo() + "\n");
-                values.Append(hinge_node_forw_1_2.TextInfo() + "\n");
-                values.Append(hinge_node_forw_2_1.TextInfo() + "\n");
-                values.Append(hinge_node_forw_2_2.TextInfo() + "\n");
-                values.Append(hinge_main_back.TextInfo() + "\n");
-                values.Append(hinge_node_back_1_1.TextInfo() + "\n");
-                values.Append(hinge_node_back_1_2.TextInfo() + "\n");
-                values.Append(hinge_node_back_2_1.TextInfo() + "\n");
-                values.Append(hinge_node_back_2_2.TextInfo() + "\n");
+                values.Append("СОЛНЕЧНАЯ ПАНЕЛ (Forw)" + (IsOpenForw() ? igreen.ToString() : (IsCloseForw() ? ired.ToString() : iyellow.ToString())) + "\n");
+                values.Append("КОМАНДА [ ОТК : " + (open_forw ? igreen.ToString() : ired.ToString()) + " ЗАК : " + (close_forw ? igreen.ToString() : ired.ToString()) + " ]\n");
+                values.Append("\n");
+                values.Append("СОЛНЕЧНАЯ ПАНЕЛ (Back)" + (IsOpenBack() ? igreen.ToString() : (IsCloseBack() ? ired.ToString() : iyellow.ToString())) + "\n");
+                values.Append("КОМАНДА [ ОТК : " + (open_back ? igreen.ToString() : ired.ToString()) + " ЗАК : " + (close_back ? igreen.ToString() : ired.ToString()) + " ]\n");
                 return values.ToString();
             }
         }
@@ -1518,6 +1522,8 @@ namespace MPB_UPR
                 piston_6.Logic(argument, updateSource);
                 piston_7.Logic(argument, updateSource);
                 piston_8.Logic(argument, updateSource);
+                piston_tower_1.Logic(argument, updateSource);
+                piston_tower_2.Logic(argument, updateSource);
                 if (updateSource == UpdateType.Update10)
                 {
                     if (open && OpenAll())
@@ -1533,10 +1539,10 @@ namespace MPB_UPR
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("БОЕВАЯ СИСТЕМА" + "\n");
+                values.Append("БОЕВАЯ СИСТЕМА" + (IsOpenAll() ? igreen.ToString() : (IsCloseAll() ? ired.ToString() : iyellow.ToString())) + "\n");
                 values.Append("КОМАНДА [ ОТК : " + (open ? igreen.ToString() : ired.ToString()) + " ЗАК : " + (close ? igreen.ToString() : ired.ToString()) + " ]\n");
                 values.Append("Вышка АВТОПУШКА : " + (IsOpenTower() ? igreen.ToString() : (IsCloseTower() ? ired.ToString() : iyellow.ToString())) + "\n");
-                values.Append("ТУРЕЛИ " + (IsOpenAll() ? igreen.ToString() : (IsCloseAll() ? ired.ToString() : iyellow.ToString())) + "\n");
+                values.Append("ТУРЕЛИ " + "\n");
                 values.Append("|- [1] " + (IsOpen(ref hinge_main_1, ref piston_1, ref hinge_turel_1) ? igreen.ToString() : (IsClose(ref hinge_main_1, ref piston_1, ref hinge_turel_1) ? ired.ToString() : iyellow.ToString())) + "\n");
                 values.Append("|- [2] " + (IsOpen(ref hinge_main_2, ref piston_2, ref hinge_turel_2) ? igreen.ToString() : (IsClose(ref hinge_main_2, ref piston_2, ref hinge_turel_2) ? ired.ToString() : iyellow.ToString())) + "\n");
                 values.Append("|- [3] " + (IsOpen(ref hinge_main_3, ref piston_3, ref hinge_turel_3) ? igreen.ToString() : (IsClose(ref hinge_main_3, ref piston_3, ref hinge_turel_3) ? ired.ToString() : iyellow.ToString())) + "\n");
