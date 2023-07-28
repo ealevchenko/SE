@@ -91,6 +91,7 @@
     <Compile Include="OSS\OSS_BM_UPR.cs" />
     <Compile Include="OSS\OSS_BM_DORS.cs" />
     <Compile Include="OCTOPUS\Octopus1.cs" />
+    <Compile Include="SPB\SPB_MARS_DORS.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\test\MINER_A1_NAV.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\MINER_A1_NAV_V5.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\test\KROTIK_A1P.cs" />
