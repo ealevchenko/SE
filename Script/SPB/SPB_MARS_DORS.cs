@@ -65,7 +65,7 @@ namespace SPB_MARS_DORS
         const char ired = '\uE003';
         const char iyellow = '\uE004';
         const char idarkGrey = '\uE00F';
-         
+
         static LCD lcd_storage;
         static LCD lcd_debug;
 
@@ -220,6 +220,11 @@ namespace SPB_MARS_DORS
         // Переключить батареи
         public void Main(string argument, UpdateType updateSource)
         {
+            switch (argument)
+            {
+                default:
+                    break;
+            }
             air_info.Logic(argument, updateSource);
             // Логика отработки шлюзовых дверей
             gateways_doors.Logic(argument, updateSource);
@@ -227,13 +232,7 @@ namespace SPB_MARS_DORS
             count_room[(int)room.external] = 0;
             // Логика отработки включения и выключения освещения
             room_light.Logic(argument, updateSource);
-
-            switch (argument)
-            {
-                default:
-                    break;
-            }
-
+            storage.SaveToStorage();
             if (updateSource == UpdateType.Update10)
             {
 
@@ -666,10 +665,10 @@ namespace SPB_MARS_DORS
     }
 }
 
-// door [door-gateway] [transition_external_back] [transition]
-// sn [door-gateway] [transition_external_back] [transition]
-// door [door-gateway] [transition_external_back] [external]
-// sn [door-gateway] [transition_external_back] [external]
+// door [door-gateway] [operators_external_2] [external]
+// sn [door-gateway] [operators_external_2] [external]
+// door [door-gateway] [operators_external_2] [operators]
+// sn [door-gateway] [operators_external_2] [operators]
 
 // sn [door-transition] [module_transition] [module]
 // sn [door-transition] [module_transition] [transition]
@@ -679,7 +678,8 @@ namespace SPB_MARS_DORS
 // sn [door-transition] [cabin_energy_module_right] [cabin]
 // door [door-transition] [cabin_energy_module_right]
 
-//-light [lighting_room] [transition]
+//[SPB-MARS-1]-light [lighting_room] [operators]
+//[SPB-MARS-1]-mLCD [door-info] [operators]
 
 // [piston-wind-generator]
 // [main-hinge]

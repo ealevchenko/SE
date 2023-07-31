@@ -556,7 +556,7 @@ namespace SETUP
 
         //info:NASTYA1-info [door-info] [factory]
         //replace:[EA-DR1]-|[MINER_HUB]-
-        //add:[KLEPA_A1]-
+        //add:[SPB-MARS-1]-
         void Main(string argument, UpdateType updateSource)
         {
             StringBuilder values_info = new StringBuilder();
