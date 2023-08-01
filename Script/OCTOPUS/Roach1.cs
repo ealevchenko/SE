@@ -373,9 +373,6 @@ namespace Roach1
 
                     }
             }
-
-
-
             public void Update()
             {
                 if (!Paused)
@@ -413,7 +410,6 @@ namespace Roach1
                     }
                 }
             }
-
             private class MyThrusters
             {
                 private List<IMyTerminalBlock> Thrusts;
@@ -596,7 +592,6 @@ namespace Roach1
                     TurnGroup(myDriller.MyName + "Thr", OnOff);
                 }
             }
-
             private class MyGyros
             {
                 private MyDriller myDriller;
@@ -648,7 +643,6 @@ namespace Roach1
                     }
                 }
             }
-
             private class MyNavigation
             {
                 private MyDriller myDriller;
@@ -1081,8 +1075,6 @@ namespace Roach1
                     myDriller.TextOutput("TP_Status", strStatus);
                     return Complete;
                 }
-
-
             }
             private class MyCargo
             {
@@ -1266,7 +1258,6 @@ namespace Roach1
                     OutputCargoList();
                 }
             }
-
             private class MyBatteries
             {
                 public List<IMyTerminalBlock> BatteryGroup = new List<IMyTerminalBlock>();
@@ -1323,7 +1314,6 @@ namespace Roach1
                     LowPower = (StoredPower / MaxPower) < MinPower;
                 }
             }
-
             public class MyConnector
             {
                 private MyDriller myDriller;
@@ -1387,7 +1377,6 @@ namespace Roach1
                     return !Locked;
                 }
             }
-
         }
 
     }

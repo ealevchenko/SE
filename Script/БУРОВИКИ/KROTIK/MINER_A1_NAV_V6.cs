@@ -30,7 +30,7 @@ namespace MINER_A1_NAV_V_6
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
         static string tag_ejector = "[ejector]"; // дежурная батарея
         static float GyroMult = 1f;
-        static float AlignAccelMult = 0.3f;
+        static float AlignAccelMult = 0.2f;
         static float DrillGyroMult = 1f;
         static float TargetSize = 100;
         static float ReturnOnCharge = 0.2f;     // Процент заряда
@@ -788,7 +788,24 @@ namespace MINER_A1_NAV_V_6
                 switch (axis)
                 {
                     case "U":
+                        if (OverrideValue < 0)
+                        {
+                            axis = "D";
+                            OverrideValue = -OverrideValue;
+                        }
+                        else { 
                         OverrideValue += (float)this.remote_control.obj.GetNaturalGravity().Length();
+                        }
+                        break;
+                    case "D":
+                        if (OverrideValue < 0)
+                        {
+                            axis = "U";
+                            OverrideValue = -OverrideValue;
+                        }
+                        else { 
+                        OverrideValue -= (float)this.remote_control.obj.GetNaturalGravity().Length();
+                        }
                         break;
                     case "L":
                         if (OverrideValue < 0)
@@ -1560,18 +1577,7 @@ namespace MINER_A1_NAV_V_6
                         UpAccel = -minUpAccel;
                     if ((UpAccel > 0) && (UpAccel < minUpAccel))
                         UpAccel = minUpAccel;
-                    if (UpAccel < 0)
-                    {
-                        thrusts.SetOverrideAccel("D", Math.Abs(UpAccel));
-                        //thrusts.SetOverrideAccel("U", 0);
-                    }
-                    else
-                    {
-                        thrusts.SetOverrideAccel("U", UpAccel);
-                        //thrusts.SetOverrideAccel("D", 0);
-                    }
-
-
+                    thrusts.SetOverrideAccel("U", UpAccel);
                 }
                 else
                 {
@@ -1622,7 +1628,7 @@ namespace MINER_A1_NAV_V_6
                 if ((UpVelocityVector.Length() < DrillSpeedLimit) && (!StoneDumpNeeded))
                 {
                     if ((Math.Abs(MyPosDrill.GetDim(0)) < 1) && (Math.Abs(MyPosDrill.GetDim(2)) < 1))
-                        thrusts.SetOverrideAccel("D", (DrillAccel));
+                        thrusts.SetOverrideAccel("U", (-DrillAccel));
                     else
                     {
                         thrusts.SetOverrideAccel("U", (DrillAccel));
@@ -2118,10 +2124,4 @@ namespace MINER_A1_NAV_V_6
     }
 }
 
-// T0: GPS:TargetConnector:53567.3705051079:-26769.2952025845:11925.7372278272:
-//GPS:T0:53567.3682644915:-26769.3032342576:11925.7283974891:
-
-//GPS: T1: 53567.327347393:-26810.0214231395:11834.3936969047:
-
-//GPS: T2: 53742.7857451991:-26897.7059714201:11873.4548109712:
 
