@@ -589,8 +589,6 @@ namespace MINER_A1_NAV_V_6
             {
 
             }
-
-
         }
         public class Gyros : BaseListTerminalBlock<IMyGyro>
         {

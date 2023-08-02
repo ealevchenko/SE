@@ -52,10 +52,6 @@ namespace KLEPA_A1
 
         public class PText
         {
-            static public string GetVector3D(Vector3D vector)
-            {
-                return "X: " + Math.Round(vector.GetDim(0), 2).ToString() + "Y: " + Math.Round(vector.GetDim(1), 2).ToString() + "Z: " + Math.Round(vector.GetDim(2), 2).ToString();
-            }
             static public string GetPersent(double perse)
             {
                 return " - " + Math.Round((perse * 100), 1) + "%";
@@ -78,51 +74,13 @@ namespace KLEPA_A1
             {
                 return "[ " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]";
             }
-            static public string GetSign(int x, int y)
-            {
-                if (x == y) { return "="; }
-                if (x > y) { return ">"; }
-                if (x < y) { return "<"; }
-                return "";
-            }
-            static public string GetCountObj(int count, int count_on)
-            {
-                return count_on + GetSign(count_on, count) + count;
-            }
-            //------------------------------------------------------------------------
-            static public string GetCapacityTanks(double perse, float capacity)
-            {
-                return "[ " + Math.Round(((perse * capacity) / 1000000), 1) + "МЛ / " + Math.Round((capacity / 1000000), 1) + "МЛ ]";
-            }
             static public string GetThrust(float value)
             {
                 return Math.Round(value / 1000000, 1) + "МН";
             }
-            static public string GetCurrentThrust(float to, float cur, float max)
+            static public string GetGPS(string name, Vector3D target)
             {
-                return "[ " + GetThrust(to) + " / " + GetThrust(cur) + " / " + GetThrust(max) + " ]";
-            }
-            static public string GetCurrentThrust(float cur, float max)
-            {
-                return "[ " + GetThrust(cur) + " / " + GetThrust(max) + " ]";
-            }
-            static public string GetCountDetaliThrust(int count_a, int count_h, int count_i, int count_on_a, int count_on_h, int count_on_i)
-            {
-                string result = "[";
-                if (count_a > 0)
-                {
-                    result += "{А-" + count_on_a + "|" + count_a + "}";
-                }
-                if (count_h > 0)
-                {
-                    result += "{В-" + count_on_h + "|" + count_h + "}";
-                }
-                if (count_i > 0)
-                {
-                    result += "{И-" + count_on_i + "|" + count_i + "}";
-                }
-                result += "]";
-                return result;
+                return "GPS:" + name + ":" + target.GetDim(0) + ":" + target.GetDim(1) + ":" + target.GetDim(2) + ":\n";
             }
         }
         public class BaseListTerminalBlock<T> where T : class
@@ -143,8 +101,6 @@ namespace KLEPA_A1
                 }
                 _scr.Echo("Найдено" + typeof(T).Name + "[" + name_obj + "],[" + tag + "]: " + list_obj.Count());
             }
-
-            // Команды включения\выключения
             private void Off(List<T> list)
             {
                 foreach (IMyTerminalBlock obj in list)
@@ -221,9 +177,7 @@ namespace KLEPA_A1
         public class BaseTerminalBlock<T> where T : class
         {
             public T obj;
-
-            //public T _obj { get { return obj; } }
-
+            public string CustomName { get { return ((IMyTerminalBlock)this.obj).CustomName; } set { ((IMyTerminalBlock)this.obj).CustomName = value; } }
             public BaseTerminalBlock(string name)
             {
                 obj = _scr.GridTerminalSystem.GetBlockWithName(name) as T;
@@ -238,8 +192,6 @@ namespace KLEPA_A1
             {
                 return ((IMyEntity)obj).GetPosition();
             }
-
-            // Команды включения\выключения
             public void Off()
             {
                 if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_Off");
