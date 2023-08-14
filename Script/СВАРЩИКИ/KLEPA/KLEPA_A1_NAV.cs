@@ -356,7 +356,7 @@ namespace KLEPA_A1_NAV
                 {
                     clock_main = 0;
                     StringBuilder values_info2 = new StringBuilder();
-                    values_info2.Append(cargo_components.TextInfo());
+                    values_info2.Append(cargo_components.TextInfo1());
                     cockpit.OutText(values_info2, 2);
                 }
                 clock_main++;
@@ -848,6 +848,16 @@ namespace KLEPA_A1_NAV
                 PowerCell = 18,
                 Superconductor = 19,
             };
+            public class LocationCargos
+            {
+                public Component? component { get; set; }
+                public string SubtypeId { get; set; }
+                public int Amount { get; set; }
+                public IMyInventory myInventory { get; set; }
+                public int num_item { get; set; }
+
+            }
+
             public static string[] name_component = {
                 "Строительный ком.",
                 "Балка",
@@ -872,6 +882,10 @@ namespace KLEPA_A1_NAV
             public int[] Amounts = new int[20];
             public int[] AmountsAll = new int[20] { 1000, 500, 500, 1000, 5000, 1000, 200, 1000, 500, 1000, 1000, 100, 100, 100, 3, 100, 100, 1000, 500, 500 };
             public int[] AmountsBase = new int[20] { 2000, 500, 500, 2000, 5000, 2000, 200, 2000, 500, 0, 2000, 0, 0, 0, 0, 0, 0, 0, 1000, 0 };
+
+            public List<LocationCargos> local_cargos = new List<LocationCargos>();
+            public List<LocationCargos> base_cargos = new List<LocationCargos>();
+
             public enum cargo_mode : int
             {
                 none = 0,
@@ -881,15 +895,19 @@ namespace KLEPA_A1_NAV
             public static string[] name_mode = { "ПУСТО", "ВСЕ", "БАЗОВЫЙ", };
             public cargo_mode curent_mode = cargo_mode.none;
 
-            private List<IMyTerminalBlock> list = new List<IMyTerminalBlock>();
-            public List<IMyTerminalBlock> cargos = new List<IMyTerminalBlock>();
+            public List<IMyTerminalBlock> cargos_local = new List<IMyTerminalBlock>();
+            public List<IMyTerminalBlock> cargos_base = new List<IMyTerminalBlock>();
             public string name_obj;
-            public int MaxVolume { get; private set; }
-            public int CurrentVolume { get; private set; }
-            public int CurrentMass { get; private set; }
+            public int MaxVolume { get; set; } = 0;
+            public int CurrentVolume { get; set; } = 0;
+            public int CurrentMass { get; set; } = 0;
+            public int MaxVolumeBase { get; set; } = 0;
+            public int CurrentVolumeBase { get; set; } = 0;
+            public int CurrentMassBase { get; set; } = 0;
             public CargoComponents(string name_obj)
             {
                 this.name_obj = name_obj;
+                List<IMyTerminalBlock> list = new List<IMyTerminalBlock>();
                 _scr.GridTerminalSystem.GetBlocksOfType(list, r => r.CustomName.Contains(name_obj));
                 foreach (IMyTerminalBlock cargo in list)
                 {
@@ -898,10 +916,10 @@ namespace KLEPA_A1_NAV
                         MaxVolume += (int)cargo.GetInventory(0).MaxVolume;
                         CurrentVolume += (int)(cargo.GetInventory(0).CurrentVolume * 1000);
                         CurrentMass += (int)cargo.GetInventory(0).CurrentMass;
-                        cargos.Add(cargo);
+                        cargos_local.Add(cargo);
                     }
                 }
-                _scr.Echo("Найдено Cargos : " + cargos.Count());
+                _scr.Echo("Найдено Cargos : " + cargos_local.Count());
             }
             public void Update()
             {
@@ -913,7 +931,7 @@ namespace KLEPA_A1_NAV
                     Amounts[a] = 0;
                 }
 
-                foreach (IMyTerminalBlock cargo in cargos)
+                foreach (IMyTerminalBlock cargo in cargos_local)
                 {
                     if (cargo != null)
                     {
@@ -934,104 +952,174 @@ namespace KLEPA_A1_NAV
                     }
                 }
             }
-            public void UnLoad()
+            public void UpdateCargos(List<IMyTerminalBlock> list_cargos, ref List<LocationCargos> cargos, ref int CurrentVolume, ref int CurrentMass)
             {
-                List<IMyCargoContainer> base_cargos = new List<IMyCargoContainer>();
-                _scr.GridTerminalSystem.GetBlocksOfType(base_cargos, r => r.CustomName.Contains(this.name_obj) != true);
-                foreach (IMyCargoContainer bc in base_cargos)
+                CurrentVolume = 0;
+                CurrentMass = 0;
+
+                cargos.Clear();
+
+                foreach (IMyTerminalBlock cargo in list_cargos)
                 {
-                    var Destination = bc.GetInventory(0);
-                    foreach (IMyTerminalBlock cargo in cargos)
+                    if (cargo != null)
                     {
-                        var containerInv = cargo.GetInventory(0);
-                        var containerItems = new List<MyInventoryItem>();
-                        containerInv.GetItems(containerItems);
-                        foreach (MyInventoryItem inv in containerItems)
+                        CurrentVolume += (int)cargo.GetInventory(0).CurrentVolume;
+                        CurrentMass += (int)cargo.GetInventory(0).CurrentMass;
+                        var crateItems = new List<MyInventoryItem>();
+                        cargo.GetInventory(0).GetItems(crateItems);
+                        for (int j = crateItems.Count - 1; j >= 0; j--)
                         {
-                            containerInv.TransferItemTo(Destination, 0, null, true, null);
-                        }
-                    }
-                }
-                Update();
-            }
-            public void Load(int[] list)
-            {
-                lcd_debug.OutText("Start" + "\n", false);
-                Update();
-                List<IMyCargoContainer> base_cargos = new List<IMyCargoContainer>();
-                _scr.GridTerminalSystem.GetBlocksOfType(base_cargos, r => r.CustomName.Contains(this.name_obj) != true);
-                lcd_debug.OutText("base_cargos " + (base_cargos != null ? base_cargos.Count().ToString() : "null") + "\n", true);
-                lcd_debug.OutText("cargos " + (cargos != null ? cargos.Count().ToString() : "null") + "\n", true);
-                for (int a = list.Length - 1; a >= 0; a--)
-                {
-                    lcd_debug.OutText("in:" + a + " list:" + list[a] + " Amounts:" + Amounts[a] +"\n", true);
-                    if (list[a] > 0 && Amounts[a] < list[a])
-                    {
-                        int count_amount = list[a] - Amounts[a];
-                        // добрать компонент
-                        foreach (IMyCargoContainer bc in cargos)
-                        {
-                            if (count_amount == 0) break;
-                            var Destination = bc.GetInventory(0);
-                            foreach (IMyCargoContainer cargo in base_cargos)
+                            LocationCargos location_cargos = new LocationCargos()
                             {
-                                if (count_amount == 0) break;
-                                var containerInv = cargo.GetInventory(0);
-                                var containerItems = new List<MyInventoryItem>();
-                                containerInv.GetItems(containerItems);
-
-                                for (int j = containerItems.Count - 1; j >= 0; j--)
+                                component = null,
+                                SubtypeId = crateItems[j].Type.SubtypeId,
+                                Amount = (int)crateItems[j].Amount,
+                                myInventory = cargo.GetInventory(0),
+                                num_item = j
+                            };
+                            foreach (Component comp in Enum.GetValues(typeof(Component)))
+                            {
+                                if (crateItems[j].Type.SubtypeId == comp.ToString())
                                 {
-                                    if (count_amount == 0) break;
-                                    Component comp = (Component)Enum.GetValues(typeof(Component)).GetValue(a);
-                                    if (containerItems[j].Type.SubtypeId == comp.ToString())
-                                    {
-                                        int count_base = (int)containerItems[j].Amount;
-                                        if (count_base > 0)
-                                        {
-                                            if (count_base >= count_amount)
-                                            {
-                                                containerInv.TransferItemTo(Destination, j, null, true, count_amount);
-                                                count_amount = 0;
-                                            }
-                                            else
-                                            {
-                                                containerInv.TransferItemTo(Destination, j, null, true, count_base);
-                                                count_amount -= count_base;
-                                            }
-                                            count_amount = count_amount - count_base;
-                                        }
-
-                                    }
+                                    location_cargos.component = comp;
                                 }
+                            }
+                            if (location_cargos.Amount > 0)
+                            {
+                                cargos.Add(location_cargos);
                             }
                         }
                     }
-                    else
-                    {
-                        if (Amounts[a] > 0)
-                        {
-                            // скинуть
-                        }
-                    }
                 }
-                if (base_cargos == null) return;
-                foreach (IMyCargoContainer bc in base_cargos)
-                {
-                    var Destination = bc.GetInventory(0);
-                    foreach (IMyTerminalBlock cargo in cargos)
-                    {
-                        var containerInv = cargo.GetInventory(0);
-                        var containerItems = new List<MyInventoryItem>();
-                        containerInv.GetItems(containerItems);
-                        foreach (MyInventoryItem inv in containerItems)
-                        {
-                            containerInv.TransferItemTo(Destination, 0, null, true, null);
-                        }
-                    }
-                }
-                Update();
             }
+            public void UpdateLocal()
+            {
+                int Volume = 0;
+                int Mass = 0;
+                UpdateCargos(cargos_local, ref local_cargos, ref Volume, ref Mass);
+                this.CurrentVolume = Volume;
+                this.CurrentMass = Mass;
+            }
+            public void UpdateBase()
+            {
+                int Volume = 0;
+                int Mass = 0;
+                List<IMyTerminalBlock> list = new List<IMyTerminalBlock>();
+                _scr.GridTerminalSystem.GetBlocksOfType(list, r => r.CustomName.Contains(this.name_obj) != true);
+                cargos_base.Clear();
+                foreach (IMyTerminalBlock cargo in list)
+                {
+                    if ((cargo is IMyCargoContainer) || (cargo is IMyShipConnector))
+                    {
+                        MaxVolumeBase += (int)cargo.GetInventory(0).MaxVolume;
+                        CurrentVolumeBase += (int)(cargo.GetInventory(0).CurrentVolume * 1000);
+                        CurrentMassBase += (int)cargo.GetInventory(0).CurrentMass;
+                        cargos_base.Add(cargo);
+                    }
+                }
+                _scr.Echo("Найдено Cargos : " + cargos_base.Count());
+                UpdateCargos(cargos_base, ref base_cargos, ref Volume, ref Mass);
+                this.CurrentVolumeBase = Volume;
+                this.CurrentMassBase = Mass;
+            }
+            //public void UnLoad()
+            //{
+            //    //List<IMyCargoContainer> base_cargos = new List<IMyCargoContainer>();
+            //    _scr.GridTerminalSystem.GetBlocksOfType(cargos_base, r => r.CustomName.Contains(this.name_obj) != true);
+            //    foreach (IMyCargoContainer bc in cargos_base)
+            //    {
+            //        var Destination = bc.GetInventory(0);
+            //        foreach (IMyTerminalBlock cargo in cargos_local)
+            //        {
+            //            var containerInv = cargo.GetInventory(0);
+            //            var containerItems = new List<MyInventoryItem>();
+            //            containerInv.GetItems(containerItems);
+            //            foreach (MyInventoryItem inv in containerItems)
+            //            {
+            //                containerInv.TransferItemTo(Destination, 0, null, true, null);
+            //            }
+            //        }
+            //    }
+            //    Update();
+            //}
+            //public void Load(int[] list)
+            //{
+            //    lcd_debug.OutText("Start" + "\n", false);
+            //    Update();
+            //    List<IMyCargoContainer> base_cargos = new List<IMyCargoContainer>();
+            //    _scr.GridTerminalSystem.GetBlocksOfType(base_cargos, r => r.CustomName.Contains(this.name_obj) != true);
+            //    lcd_debug.OutText("base_cargos " + (base_cargos != null ? base_cargos.Count().ToString() : "null") + "\n", true);
+            //    lcd_debug.OutText("cargos " + (cargos_local != null ? cargos_local.Count().ToString() : "null") + "\n", true);
+            //    for (int a = list.Length - 1; a >= 0; a--)
+            //    {
+            //        lcd_debug.OutText("in:" + a + " list:" + list[a] + " Amounts:" + Amounts[a] + "\n", true);
+            //        if (list[a] > 0 && Amounts[a] < list[a])
+            //        {
+            //            int count_amount = list[a] - Amounts[a];
+            //            // добрать компонент
+            //            foreach (IMyCargoContainer bc in cargos_local)
+            //            {
+            //                if (count_amount == 0) break;
+            //                var Destination = bc.GetInventory(0);
+            //                foreach (IMyCargoContainer cargo in base_cargos)
+            //                {
+            //                    if (count_amount == 0) break;
+            //                    var containerInv = cargo.GetInventory(0);
+            //                    var containerItems = new List<MyInventoryItem>();
+            //                    containerInv.GetItems(containerItems);
+
+            //                    for (int j = containerItems.Count - 1; j >= 0; j--)
+            //                    {
+            //                        if (count_amount == 0) break;
+            //                        Component comp = (Component)Enum.GetValues(typeof(Component)).GetValue(a);
+            //                        if (containerItems[j].Type.SubtypeId == comp.ToString())
+            //                        {
+            //                            int count_base = (int)containerItems[j].Amount;
+            //                            if (count_base > 0)
+            //                            {
+            //                                if (count_base >= count_amount)
+            //                                {
+            //                                    containerInv.TransferItemTo(Destination, j, null, true, count_amount);
+            //                                    count_amount = 0;
+            //                                }
+            //                                else
+            //                                {
+            //                                    containerInv.TransferItemTo(Destination, j, null, true, count_base);
+            //                                    count_amount -= count_base;
+            //                                }
+            //                                count_amount = count_amount - count_base;
+            //                            }
+
+            //                        }
+            //                    }
+            //                }
+            //            }
+            //        }
+            //        else
+            //        {
+            //            if (Amounts[a] > 0)
+            //            {
+            //                // скинуть
+            //            }
+            //        }
+            //    }
+            //    if (base_cargos == null) return;
+            //    foreach (IMyCargoContainer bc in base_cargos)
+            //    {
+            //        var Destination = bc.GetInventory(0);
+            //        foreach (IMyTerminalBlock cargo in cargos_local)
+            //        {
+            //            var containerInv = cargo.GetInventory(0);
+            //            var containerItems = new List<MyInventoryItem>();
+            //            containerInv.GetItems(containerItems);
+            //            foreach (MyInventoryItem inv in containerItems)
+            //            {
+            //                containerInv.TransferItemTo(Destination, 0, null, true, null);
+            //            }
+            //        }
+            //    }
+            //    Update();
+            //}
             public void Logic(string argument, UpdateType updateSource)
             {
                 switch (argument)
@@ -1055,16 +1143,18 @@ namespace KLEPA_A1_NAV
                 {
                     if (clock >= 10)
                     {
+                        UpdateLocal();
                         clock = 0;
                         if (connector.Connected)
                         {
+                            //UpdateBase();
                             if (curent_mode == cargo_mode.none)
                             {
-                                UnLoad();
+                                //UnLoad();
                             }
                             else if (curent_mode == cargo_mode.all)
                             {
-                                Load(AmountsAll);
+                                //Load(AmountsAll);
                             }
                             else if (curent_mode == cargo_mode.bases)
                             {
@@ -1072,7 +1162,6 @@ namespace KLEPA_A1_NAV
                             }
                         }
                     }
-                    Update();
                     clock++;
                 }
             }
@@ -1088,6 +1177,32 @@ namespace KLEPA_A1_NAV
                     {
                         values.Append(name_component[(int)comp] + " : " + Amounts[(int)comp] + "\n");
                     }
+                }
+                return values.ToString();
+            }
+            public string TextInfo1()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("ТЕК.МАССА: " + CurrentMass.ToString() + "\n");
+                values.Append("|- ЗАГРУЖ:  " + PText.GetScalePersent(CurrentVolume / MaxVolume, 20) + "\n");
+                values.Append("|- КОМПОНЕНТЫ:  " + name_mode[(int)curent_mode] + "\n");
+                List<IGrouping<string, LocationCargos>> group_lc = local_cargos.GroupBy(c => c.SubtypeId).ToList();
+                foreach (IGrouping<string, LocationCargos> gr_lc in group_lc)
+                {
+                    values.Append(gr_lc.Key + " : " + gr_lc.Sum(c => c.Amount) + "\n");
+                }
+                return values.ToString();
+            }
+            public string TextInfo2()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("ТЕК.МАССА: " + CurrentMassBase.ToString() + "\n");
+                values.Append("|- ЗАГРУЖ:  " + PText.GetScalePersent(CurrentVolumeBase / MaxVolumeBase, 20) + "\n");
+                values.Append("|- КОМПОНЕНТЫ:  " + name_mode[(int)curent_mode] + "\n");
+                List<IGrouping<string, LocationCargos>> group_lc = base_cargos.GroupBy(c => c.SubtypeId).ToList();
+                foreach (IGrouping<string, LocationCargos> gr_lc in group_lc)
+                {
+                    values.Append(gr_lc.Key + " : " + gr_lc.Sum(c => c.Amount) + "\n");
                 }
                 return values.ToString();
             }
