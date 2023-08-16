@@ -33,10 +33,13 @@ namespace KLEPA_A1_NAV
         // v3
         string NameObj = "[KLEPA_A1]";
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
+        static string tag_motor_welders = "[motor_welders]"; // шарниры для сварщиков
         static float GyroMult = 1f;
         static int CriticalMass = 180000;       // Критическая масса
         static float TargetSize = 100;
         static float AlignAccelMult = 0.3f;
+        static float ReturnOnCharge = 0.2f;     // Процент заряда
+        static float ReturnOffCharge = 0.9f;    // Процент заряда
 
         const char igreen = '\uE001';
         const char iblue = '\uE002';
@@ -58,6 +61,7 @@ namespace KLEPA_A1_NAV
         static Cockpit cockpit;
         static LandingGears landing_gears;
         static CargoComponents cargo_components;
+        static MotorStators motor_welders;
         static Navigation navigation;
         static Program _scr;
 
@@ -321,6 +325,7 @@ namespace KLEPA_A1_NAV
             thrusts = new Thrusts(NameObj);
             landing_gears = new LandingGears(NameObj);
             cargo_components = new CargoComponents(NameObj);
+            motor_welders = new MotorStators(NameObj, tag_motor_welders);
             navigation = new Navigation();
         }
         public void Save()
@@ -333,6 +338,7 @@ namespace KLEPA_A1_NAV
             StringBuilder values_info = new StringBuilder();
             bats.Logic(argument, updateSource);
             cargo_components.Logic(argument, updateSource);
+            motor_welders.Logic(argument, updateSource);
             navigation.Logic(argument, updateSource);
             switch (argument)
             {
@@ -351,6 +357,7 @@ namespace KLEPA_A1_NAV
                 lcd_info.OutText(test_info);
                 StringBuilder values_info1 = new StringBuilder();
                 values_info1.Append(navigation.TextInfo2());
+                values_info1.Append(motor_welders.TextInfo());
                 cockpit.OutText(values_info1, 1);
                 if (clock_main >= 10)
                 {
@@ -517,68 +524,92 @@ namespace KLEPA_A1_NAV
                 return null;
             }
         }
-        public class MotorStator : BaseTerminalBlock<IMyMotorStator>
+        public class MotorStators : BaseListTerminalBlock<IMyMotorStator>
         {
-            public float? task_degr { get; set; } = null;
+            public float task_degr { get; set; } = 0;
             private float tolerance = 0.1f;
             private float multiply_speed = 0.1f;
-            public MotorStator(string name_obj) : base(name_obj)
-            {
 
+            public MotorStators(string name_obj, string tag) : base(name_obj)
+            {
+                if (!String.IsNullOrWhiteSpace(tag))
+                {
+                    list_obj = list_obj.Where(n => n.CustomName.Contains(tag)).ToList();
+                }
+                _scr.Echo("Найдено MotorStator:[" + tag + "]: " + list_obj.Count());
+            }
+            public void RotateToGradus(float degr)
+            {
+                foreach (IMyMotorStator mt in base.list_obj)
+                {
+                    float speed = 0f;
+                    double curennt_degr = RadToGradus(mt.Angle);
+                    if (curennt_degr > (degr + tolerance))
+                    {
+                        double dist = curennt_degr - degr;
+                        if (Math.Abs(dist) <= 180.1f)
+                        {
+                            speed = -(float)(Math.Abs(dist) * multiply_speed);
+                        }
+                        else
+                        {
+                            speed = (float)(Math.Abs(dist) * multiply_speed);
+                        }
+
+                        mt.TargetVelocityRPM = speed;
+                    }
+                    else if (curennt_degr < (degr - tolerance))
+                    {
+                        double dist = (degr - curennt_degr);
+                        if (Math.Abs(dist) <= 180.1f)
+                        {
+                            speed = (float)(Math.Abs(degr - curennt_degr) * multiply_speed);
+                        }
+                        else
+                        {
+                            speed = -(float)(Math.Abs(degr - curennt_degr) * multiply_speed);
+                        }
+
+                        mt.TargetVelocityRPM = speed;
+                    }
+                    else
+                    {
+                        mt.TargetVelocityRPM = speed;
+                    }
+                }
             }
             public double RadToGradus(float rad)
             {
                 return rad * 180 / Math.PI;
             }
-            public void RotateToGradus(float degr)
+            public float GetAngle()
             {
-                if (this.obj == null) return;
-                float speed = 0f;
-                // Текущее положение
-                double curennt_degr = RadToGradus(this.obj.Angle);
-                if (curennt_degr > (degr + tolerance))
+                float angle = 0f;
+                foreach (IMyMotorStator mt in base.list_obj)
                 {
-                    double dist = curennt_degr - degr;
-                    if (Math.Abs(dist) <= 180.1f)
-                    {
-                        speed = -(float)(Math.Abs(dist) * multiply_speed);
-                    }
-                    else
-                    {
-                        speed = (float)(Math.Abs(dist) * multiply_speed);
-                    }
-
-                    this.obj.TargetVelocityRPM = speed;
+                    angle += (float)RadToGradus(mt.Angle);
                 }
-                else if (curennt_degr < (degr - tolerance))
-                {
-                    double dist = (degr - curennt_degr);
-                    if (Math.Abs(dist) <= 180.1f)
-                    {
-                        speed = (float)(Math.Abs(degr - curennt_degr) * multiply_speed);
-                    }
-                    else
-                    {
-                        speed = -(float)(Math.Abs(degr - curennt_degr) * multiply_speed);
-                    }
-
-                    this.obj.TargetVelocityRPM = speed;
-                }
-                else
-                {
-                    this.obj.TargetVelocityRPM = speed;
-                    this.task_degr = null;
-                }
-            }
-            public double GetCurrentGradus()
-            {
-                if (this.obj == null) return 0;
-                return RadToGradus(this.obj.Angle);
+                return angle / base.list_obj.Count();
             }
             public void Logic(string argument, UpdateType updateSource)
             {
                 switch (argument)
                 {
+                    case "welders+":
+                        task_degr += 15.0f; if (task_degr > 45.0f) task_degr = 0f;
+                        break;
+                    case "welders_0":
+                        task_degr = 0;
+                        break;
+                    case "welders_15":
+                        task_degr = 15.0f;
+                        break;
+                    case "welders_30":
+                        task_degr = 30.0f;
+                        break;
+                    case "welders_45":
+                        task_degr = 45.0f;
+                        break;
                     default:
                         break;
                 }
@@ -592,11 +623,8 @@ namespace KLEPA_A1_NAV
             }
             public string TextInfo()
             {
-                if (this.obj == null) return "";
                 StringBuilder values = new StringBuilder();
-                values.Append("ШАРНИР : " + this.obj.CustomName + "\n");
-                values.Append("БЛОК : " + (this.obj.RotorLock ? ired.ToString() : igreen.ToString()) + " НИЗ: " + Math.Round(this.obj.LowerLimitDeg, 1) + " ВЕРХ: " + Math.Round(this.obj.UpperLimitDeg, 1) + "\n");
-                values.Append("УГОЛ : " + Math.Round(RadToGradus(this.obj.Angle), 1) + " СКОРОСТЬ : " + Math.Round(this.obj.TargetVelocityRPM, 3) + " ЗАД : " + this.task_degr + "\n");
+                values.Append("СВАР. ШАРН. ЗАД : " + this.task_degr + ", ТЕК : " + Math.Round(GetAngle(), 1) + "\n");
                 return values.ToString();
             }
         }
@@ -1807,6 +1835,7 @@ namespace KLEPA_A1_NAV
                 paused = mystorage.GetValBool("pause", str.ToString());
                 go_home = mystorage.GetValBool("go_home", str.ToString());
                 FlyHeight = mystorage.GetVal("FlyHeight", str.ToString());
+                motor_welders.task_degr = (float)mystorage.GetVal("AngleWelder", str.ToString());
                 EmergencyReturn = mystorage.GetValBool("EmergencyReturn", str.ToString());
                 DockMatrix = new MatrixD(mystorage.GetVal("DM11", str.ToString()), mystorage.GetVal("DM12", str.ToString()), mystorage.GetVal("DM13", str.ToString()), mystorage.GetVal("DM14", str.ToString()),
                 mystorage.GetVal("DM21", str.ToString()), mystorage.GetVal("DM22", str.ToString()), mystorage.GetVal("DM23", str.ToString()), mystorage.GetVal("DM24", str.ToString()),
@@ -1828,6 +1857,7 @@ namespace KLEPA_A1_NAV
                 values.Append("pause: " + paused.ToString() + ";\n");
                 values.Append("go_home: " + go_home.ToString() + ";\n");
                 values.Append("FlyHeight: " + Math.Round(FlyHeight, 0) + ";\n");
+                values.Append("AngleWelder: " + Math.Round(motor_welders.task_degr, 0) + ";\n");
                 values.Append("EmergencyReturn: " + EmergencyReturn.ToString() + ";\n");
                 values.Append(DockMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "DM"));
                 values.Append(WorkMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "WM"));
@@ -1838,7 +1868,7 @@ namespace KLEPA_A1_NAV
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("СКОРОСТЬ    : " + Math.Round(cockpit.obj.GetShipSpeed(), 2) + "\n");
-                //values.Append("ВЫСОТА    : " + Math.Round(cockpit.CurrentHeight, 2) + ", Sт : " + Math.Round(S, 2) + "\n");
+                values.Append("ВЫСОТА    : " + Math.Round(cockpit.CurrentHeight, 2) + "\n");
                 //values.Append("ГОРИЗОНТ    : " + (current_vector_axis != null ? igreen.ToString() : ired.ToString()) + ",  Vector : " + (TackVector != null ? igreen.ToString() : ired.ToString()) + "\n");
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
@@ -1849,11 +1879,10 @@ namespace KLEPA_A1_NAV
             public string TextInfo2()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("Height            : " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(FlyHeight).ToString() + "\n");
+                values.Append("Height (zpl)      : " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(FlyHeight).ToString() + "\n");
                 values.Append("Distance          : " + Math.Round(Distance).ToString() + "\n");
                 values.Append("Phys./Crit.(Mass) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? ired.ToString() : igreen.ToString()) + "\n");
-                // values.Append("Volume/Mass       : " + cargos.CurrentVolume + " / " + cargos.CurrentMass + "\n");
-                // values.Append("Батарея %         : " + PText.GetPersent(bats.CurrentPersent()) + " " + (bats.CurrentPersent() <= ReturnOnCharge ? red.ToString() : green.ToString()) + "\n");
+                values.Append("Батарея %         : " + PText.GetPersent(bats.CurrentPersent()) + " " + (bats.CurrentPersent() <= ReturnOnCharge ? ired.ToString() : igreen.ToString()) + "\n");
                 return values.ToString();
             }
             public string TextTEST()
