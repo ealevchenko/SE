@@ -32,12 +32,13 @@ namespace KLEPA_A1_NAV
     {
         // v3
         string NameObj = "[KLEPA_A1]";
-        static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
-        static string tag_motor_welders = "[motor_welders]"; // шарниры для сварщиков
+        static string tag_batterys_duty = "[batterys_duty]";    // дежурная батарея
+        static string tag_motor_welders = "[motor_welders]";    // шарниры для сварщиков
+        static string tag_lightings_warning = "[warning]";      // сигнализация предуприждения
         static float GyroMult = 1f;
         static int CriticalMass = 180000;       // Критическая масса
         static float TargetSize = 100;
-        static float AlignAccelMult = 0.3f;
+        static float AlignAccelMult = 0.6f;
         static float ReturnOnCharge = 0.2f;     // Процент заряда
         static float ReturnOffCharge = 0.9f;    // Процент заряда
 
@@ -56,6 +57,7 @@ namespace KLEPA_A1_NAV
         static Connector connector;
         static ShipWelders welders;
         static ReflectorsLight reflectors_light;
+        static Lightings lightings;
         static Gyros gyros;
         static Thrusts thrusts;
         static Cockpit cockpit;
@@ -326,6 +328,8 @@ namespace KLEPA_A1_NAV
             landing_gears = new LandingGears(NameObj);
             cargo_components = new CargoComponents(NameObj);
             motor_welders = new MotorStators(NameObj, tag_motor_welders);
+            lightings = new Lightings(NameObj, tag_lightings_warning);
+            lightings.Off();
             navigation = new Navigation();
         }
         public void Save()
@@ -348,7 +352,7 @@ namespace KLEPA_A1_NAV
             if (updateSource == UpdateType.Update10)
             {
                 values_info.Append(bats.TextInfo());
-                values_info.Append(connector.TextInfo());
+                values_info.Append(connector.TextInfo() + " " + landing_gears.TextInfo());
                 values_info.Append(welders.TextInfo());
                 //values_info.Append(special_inventory.TextInfo());
                 values_info.Append(navigation.TextInfo1());
@@ -527,8 +531,8 @@ namespace KLEPA_A1_NAV
         public class MotorStators : BaseListTerminalBlock<IMyMotorStator>
         {
             public float task_degr { get; set; } = 0;
-            private float tolerance = 0.1f;
-            private float multiply_speed = 0.1f;
+            private float tolerance = 0.0f;
+            private float multiply_speed = 0.2f;
 
             public MotorStators(string name_obj, string tag) : base(name_obj)
             {
@@ -596,19 +600,10 @@ namespace KLEPA_A1_NAV
                 switch (argument)
                 {
                     case "welders+":
-                        task_degr += 15.0f; if (task_degr > 45.0f) task_degr = 0f;
+                        task_degr += 15.0f; if (task_degr > 30.0f) task_degr = -30.0f; navigation.SaveToStorage();
                         break;
                     case "welders_0":
-                        task_degr = 0;
-                        break;
-                    case "welders_15":
-                        task_degr = 15.0f;
-                        break;
-                    case "welders_30":
-                        task_degr = 30.0f;
-                        break;
-                    case "welders_45":
-                        task_degr = 45.0f;
+                        task_degr = 0; navigation.SaveToStorage();
                         break;
                     default:
                         break;
@@ -640,7 +635,7 @@ namespace KLEPA_A1_NAV
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("СВАРЩИКИ: " + (base.Enabled() ? "ВКЛ" : "ОТК") + "\n");
+                values.Append("СВАРЩИКИ: " + (base.Enabled() ? igreen.ToString() : ired.ToString()) + "\n");
                 return values.ToString();
             }
         }
@@ -652,6 +647,17 @@ namespace KLEPA_A1_NAV
             public ReflectorsLight(string name_obj, string tag) : base(name_obj, tag)
             {
 
+            }
+        }
+        public class Lightings : BaseListTerminalBlock<IMyInteriorLight>
+        {
+            public Lightings(string name_obj, string tag) : base(name_obj)
+            {
+                if (!String.IsNullOrWhiteSpace(tag))
+                {
+                    list_obj = list_obj.Where(n => n.CustomName.Contains(tag)).ToList();
+                }
+                _scr.Echo("Найдено Lighting:[" + tag + "]: " + list_obj.Count());
             }
         }
         public class Gyros : BaseListTerminalBlock<IMyGyro>
@@ -931,6 +937,12 @@ namespace KLEPA_A1_NAV
                     obj.AutoLock = on;
                 }
             }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("ШАССИ: " + (IsLocked() ? igreen.ToString() : ired.ToString()) + "\n");
+                return values.ToString();
+            }
 
         }
         public class CargoComponents
@@ -1109,11 +1121,11 @@ namespace KLEPA_A1_NAV
             }
             public void Load(int[] list)
             {
-                lcd_debug.OutText("Start" + "\n", false);
+                //lcd_debug.OutText("Start" + "\n", false);
                 List<LocationCargos> comp_null = local_cargos.Where(l => l.component == null).ToList();
                 if (comp_null != null && comp_null.Count() > 0)
                 {
-                    lcd_debug.OutText("comp_null :" + comp_null.Count() + "\n", true);
+                    //lcd_debug.OutText("comp_null :" + comp_null.Count() + "\n", true);
                     // Уберем лишнее
                     foreach (LocationCargos lc in comp_null)
                     {
@@ -1129,11 +1141,11 @@ namespace KLEPA_A1_NAV
                                 {
                                     // Проверим поместится? если нет следующий
                                     bool beadded = base_inv.CanItemsBeAdded(del_amount, comp_null[0].myItemType);
-                                    lcd_debug.OutText("Поместится :" + beadded + "\n", true);
+                                    //lcd_debug.OutText("Поместится :" + beadded + "\n", true);
                                     if (!beadded) continue;
-                                    lcd_debug.OutText("lc.Amount_null -> base\n", true);
+                                    //lcd_debug.OutText("lc.Amount_null -> base\n", true);
                                     bool transf = lc.myInventory.TransferItemTo(base_inv, lc.num_item, null, true, null);
-                                    lcd_debug.OutText("Перенес :" + transf + "\n", true);
+                                    //lcd_debug.OutText("Перенес :" + transf + "\n", true);
                                     if (transf) del_amount = 0;
                                 }
 
@@ -1144,11 +1156,11 @@ namespace KLEPA_A1_NAV
                 for (int a = list.Length - 1; a >= 0; a--)
                 {
                     Component comp = (Component)Enum.GetValues(typeof(Component)).GetValue(a);
-                    lcd_debug.OutText("Component :" + (comp != null ? comp.ToString() : "null") + "\n", true);
+                    //lcd_debug.OutText("Component :" + (comp != null ? comp.ToString() : "null") + "\n", true);
                     int local_amouts = local_cargos.Where(l => l.component == comp).Sum(s => (int)s.Amount);
-                    lcd_debug.OutText("local_amouts :" + local_amouts + "\n", true);
+                    //lcd_debug.OutText("local_amouts :" + local_amouts + "\n", true);
                     int base_amouts = base_cargos.Where(l => l.component == comp).Sum(s => (int)s.Amount);
-                    lcd_debug.OutText("base_amouts :" + base_amouts + "\n", true);
+                    //lcd_debug.OutText("base_amouts :" + base_amouts + "\n", true);
                     List<LocationCargos> comp_cargos = base_cargos.Where(l => l.component == comp).OrderByDescending(c => (int)c.Amount).ToList();
                     List<LocationCargos> comp_local = local_cargos.Where(l => l.component == comp).ToList();
 
@@ -1156,7 +1168,7 @@ namespace KLEPA_A1_NAV
                     {
                         // Добаввить
                         MyFixedPoint add_amount = list[a] - local_amouts;
-                        lcd_debug.OutText("add_amount :" + add_amount + "\n", true);
+                        //lcd_debug.OutText("add_amount :" + add_amount + "\n", true);
                         foreach (IMyTerminalBlock bc in cargos_local)
                         {
                             if (add_amount == 0) break;
@@ -1166,27 +1178,27 @@ namespace KLEPA_A1_NAV
                                 IMyInventory local_inv = bc.GetInventory(i);
                                 if (local_inv != null)
                                 {
-                                    lcd_debug.OutText("comp_cargos :" + comp_cargos.Count() + "\n", true);
+                                    //lcd_debug.OutText("comp_cargos :" + comp_cargos.Count() + "\n", true);
                                     if (comp_cargos != null && comp_cargos.Count > 0)
                                     {
                                         // Проверим поместится? если нет следующий
                                         bool beadded = local_inv.CanItemsBeAdded(add_amount, comp_cargos[0].myItemType);
-                                        lcd_debug.OutText("Поместится :" + beadded + "\n", true);
+                                        //lcd_debug.OutText("Поместится :" + beadded + "\n", true);
                                         if (!beadded) continue;
                                         foreach (LocationCargos lc in comp_cargos)
                                         {
                                             if (add_amount == 0) break;
                                             if (lc.Amount >= add_amount)
                                             {
-                                                lcd_debug.OutText("lc.Amount >= add_amount\n", true);
+                                                //lcd_debug.OutText("lc.Amount >= add_amount\n", true);
                                                 bool transf = lc.myInventory.TransferItemTo(local_inv, lc.num_item, null, true, add_amount);
-                                                lcd_debug.OutText("Перенес :" + transf + "\n", true);
+                                                //lcd_debug.OutText("Перенес :" + transf + "\n", true);
                                                 if (transf) add_amount = 0;
                                             }
                                             else
                                             {
 
-                                                lcd_debug.OutText("lc.Amount < add_amount = " + (add_amount - lc.Amount) + "\n", true);
+                                                //lcd_debug.OutText("lc.Amount < add_amount = " + (add_amount - lc.Amount) + "\n", true);
                                                 if (lc.myInventory.TransferItemTo(local_inv, lc.num_item, null, true, lc.Amount)) add_amount -= lc.Amount;
                                             }
 
@@ -1203,7 +1215,7 @@ namespace KLEPA_A1_NAV
                     {
                         // Убрать
                         MyFixedPoint del_amount = local_amouts - list[a];
-                        lcd_debug.OutText("del_amount :" + del_amount + "\n", true);
+                        //lcd_debug.OutText("del_amount :" + del_amount + "\n", true);
                         foreach (IMyTerminalBlock bc in cargos_base)
                         {
                             if (del_amount == 0) break;
@@ -1213,19 +1225,19 @@ namespace KLEPA_A1_NAV
                                 IMyInventory base_inv = bc.GetInventory(i);
                                 if (base_inv != null)
                                 {
-                                    lcd_debug.OutText("comp_local :" + comp_local.Count() + "\n", true);
+                                    //lcd_debug.OutText("comp_local :" + comp_local.Count() + "\n", true);
                                     if (comp_local != null && comp_local.Count > 0)
                                     {
                                         // Проверим поместится? если нет следующий
                                         bool beadded = base_inv.CanItemsBeAdded(del_amount, comp_local[0].myItemType);
-                                        lcd_debug.OutText("Поместится :" + beadded + "\n", true);
+                                        //lcd_debug.OutText("Поместится :" + beadded + "\n", true);
                                         if (!beadded) continue;
                                         foreach (LocationCargos lc in comp_local)
                                         {
                                             if (del_amount == 0) break;
-                                            lcd_debug.OutText("lc.Amount >= add_amount\n", true);
+                                            //lcd_debug.OutText("lc.Amount >= add_amount\n", true);
                                             bool transf = lc.myInventory.TransferItemTo(base_inv, lc.num_item, null, true, del_amount);
-                                            lcd_debug.OutText("Перенес :" + transf + "\n", true);
+                                            //lcd_debug.OutText("Перенес :" + transf + "\n", true);
                                             if (transf) del_amount = 0;
                                         }
                                     }
@@ -1357,13 +1369,12 @@ namespace KLEPA_A1_NAV
 
             public Vector3D PlanetCenter = new Vector3D(0.50, 0.50, 0.50);
             private Vector3D BaseDockPoint = new Vector3D(0, 0, 200);
-            private Vector3D ConnectorPoint = new Vector3D(0, 0, -5);
+            private Vector3D ConnectorPoint = new Vector3D(0, 0, -10);
             private Vector3D WorkPoint = new Vector3D(0, 0, 0);
             public MatrixD DockMatrix { get; private set; }
             public MatrixD WorkMatrix { get; private set; }
 
             public double FlyHeight;
-            public bool StoneDumpNeeded { get; private set; } // Признак нужно сбросить груз
             public bool CriticalMassReached { get; private set; }// Признак критической массы
             public bool EmergencyReturn = false;
             public bool go_home = false; // вернутся домой и остатся
@@ -1482,6 +1493,7 @@ namespace KLEPA_A1_NAV
             {
                 if (curent_mode == mode.none)
                 {
+                    SetWorkMatrix();
                     curent_mode = mode.to_base;
                     SaveToStorage();
                 }
@@ -1549,6 +1561,7 @@ namespace KLEPA_A1_NAV
                 ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
                 XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
                 if (PhysicalMass > CriticalMass) { CriticalMassReached = true; } else { CriticalMassReached = false; }
+                EmergencyReturn = bats.CurrentPersent() <= ReturnOnCharge || PhysicalMass >= CriticalMass;
             }
             public void Pause(bool enable)
             {
@@ -1585,6 +1598,7 @@ namespace KLEPA_A1_NAV
             public bool ToBase()
             {
                 bool Complete = false;
+                welders.Off();
                 float MaxUSpeed, MaxFSpeed;
                 Vector3D gyrAng = GetNavAngles(BaseDockPoint, DockMatrix);
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, DockMatrix);
@@ -1626,6 +1640,7 @@ namespace KLEPA_A1_NAV
             }
             public bool Dock()
             {
+                welders.Off();
                 bool Complete = false;
                 float MaxUSpeed, MaxLSpeed, MaxFSpeed;
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, DockMatrix);
@@ -1636,7 +1651,7 @@ namespace KLEPA_A1_NAV
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 2;
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 2;
                 MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 2;
-                if (Distance < 15)
+                if (Distance < 20)
                     MaxFSpeed = MaxFSpeed / 5;
                 if (Math.Abs(MyPosCon.GetDim(1)) < 1)
                     MaxUSpeed = 0.1f;
@@ -1649,7 +1664,7 @@ namespace KLEPA_A1_NAV
                     thrusts.SetOverridePercent("L", 0);
                 }
                 float UpAccel = -(float)(MyPosCon.GetDim(1) * AlignAccelMult);
-                float minUpAccel = 0.1f;
+                float minUpAccel = 0.05f;
                 if ((UpAccel < 0) && (UpAccel > -minUpAccel))
                     UpAccel = -minUpAccel;
                 if ((UpAccel > 0) && (UpAccel < minUpAccel))
@@ -1671,7 +1686,7 @@ namespace KLEPA_A1_NAV
                     thrusts.SetOverridePercent("F", 0);
                     thrusts.SetOverridePercent("B", 0);
                 }
-                if (Distance < 6)
+                if (Distance < 15)
                 {
                     if (connector.Status == MyShipConnectorStatus.Connectable)
                     {
@@ -1718,6 +1733,7 @@ namespace KLEPA_A1_NAV
             public bool ToWorkPoint()
             {
                 bool Complete = false;
+                welders.Off();
                 float MaxUSpeed, MaxFSpeed;
                 Vector3D gyrAng = GetNavAngles(new Vector3D(0, 0, 0), WorkMatrix);
                 Vector3D MyPosWork = Vector3D.Transform(MyPos, WorkMatrix);
@@ -1757,6 +1773,7 @@ namespace KLEPA_A1_NAV
             public bool WorkAlign()
             {
                 bool Complete = false;
+                welders.Off();
                 float MaxUSpeed, MaxLSpeed, MaxFSpeed;
                 float UpAccel = 0;
                 Vector3D MyPosDrill = Vector3D.Transform(MyPos, WorkMatrix) - WorkPoint;
@@ -1809,8 +1826,8 @@ namespace KLEPA_A1_NAV
             {
                 StringBuilder values = new StringBuilder();
                 values.Append(" STATUS\n");
-                Vector3D MyPosPoint = Vector3D.Transform(MyPos, WorkMatrix) - WorkPoint;
-                //Vector3D MyPosPoint = Vector3D.Transform(MyPos, DockMatrix);
+                //Vector3D MyPosPoint = Vector3D.Transform(MyPos, WorkMatrix) - WorkPoint;
+                Vector3D MyPosPoint = Vector3D.Transform(MyPos, DockMatrix);
                 values.Append("My_Length   : " + Math.Round(MyPosPoint.Length(), 2) + "\n");
                 values.Append("MyPosDrill[0]   : " + Math.Round(MyPosPoint.GetDim(0), 2) + "\n");
                 values.Append("MyPosDrill[1]   : " + Math.Round(MyPosPoint.GetDim(1), 2) + "\n");
@@ -1824,7 +1841,7 @@ namespace KLEPA_A1_NAV
                 values.Append("YMaxA (U-D) : " + Math.Round(YMaxA, 2).ToString() + "MaxUSpeed: " + Math.Round(MaxUSpeed, 2).ToString() + "\n");
                 values.Append("XMaxA (L-R) : " + Math.Round(XMaxA, 2).ToString() + "MaxLSpeed: " + Math.Round(MaxLSpeed, 2).ToString() + "\n");
                 //values.Append(thrusts.TextInfo());
-                //lcd_debug.OutText(values);
+                lcd_debug.OutText(values);
             }
             public void LoadFromStorage()
             {
@@ -1869,20 +1886,24 @@ namespace KLEPA_A1_NAV
                 StringBuilder values = new StringBuilder();
                 values.Append("СКОРОСТЬ    : " + Math.Round(cockpit.obj.GetShipSpeed(), 2) + "\n");
                 values.Append("ВЫСОТА    : " + Math.Round(cockpit.CurrentHeight, 2) + "\n");
-                //values.Append("ГОРИЗОНТ    : " + (current_vector_axis != null ? igreen.ToString() : ired.ToString()) + ",  Vector : " + (TackVector != null ? igreen.ToString() : ired.ToString()) + "\n");
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
                 values.Append("ПАУЗА : " + (paused ? igreen.ToString() : ired.ToString()) + "\n");
                 values.Append("ДОМОЙ : " + (go_home ? igreen.ToString() : ired.ToString()) + "\n");
+                values.Append("ГОРИЗОНТ    : " + (horizont ? igreen.ToString() : ired.ToString()) + "\n");
                 return values.ToString();
             }
             public string TextInfo2()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("Height (zpl)      : " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(FlyHeight).ToString() + "\n");
-                values.Append("Distance          : " + Math.Round(Distance).ToString() + "\n");
-                values.Append("Phys./Crit.(Mass) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? ired.ToString() : igreen.ToString()) + "\n");
-                values.Append("Батарея %         : " + PText.GetPersent(bats.CurrentPersent()) + " " + (bats.CurrentPersent() <= ReturnOnCharge ? ired.ToString() : igreen.ToString()) + "\n");
+                values.Append("ВЫСОТА (Цен.план.): " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(FlyHeight).ToString() + "\n");
+                values.Append("ДИСТАНЦИЯ         : " + Math.Round(Distance).ToString() + "\n");
+                values.Append("--------------------------------------\n");
+                values.Append("АВАРИЙНЫЙ ВОЗВРАТ   : " + (EmergencyReturn ? ired.ToString() : igreen.ToString()) + "\n");
+                values.Append("|-ФИЗ./КРИТ.(МАССА) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? ired.ToString() : igreen.ToString()) + "\n");
+                values.Append("|-БАТАРЕЯ %         : " + PText.GetPersent(bats.CurrentPersent()) + " " + (bats.CurrentPersent() <= ReturnOnCharge ? ired.ToString() : igreen.ToString()) + "\n");
+                values.Append("--------------------------------------\n");
+
                 return values.ToString();
             }
             public string TextTEST()
@@ -1940,7 +1961,6 @@ namespace KLEPA_A1_NAV
                         curent_programm = programm.fly_place_work;
                         SaveToStorage();
                         break;
-
                     case "go_home":
                         {
                             go_home = true;
@@ -1972,13 +1992,14 @@ namespace KLEPA_A1_NAV
                 if (updateSource == UpdateType.Update10)
                 {
                     cockpit.Logic(argument, updateSource);
-                    if (!connector.Connected)
+                    landing_gears.AutoLock(cockpit.CurrentHeight < 2.2f);
+                    if (!connector.Connected && !landing_gears.IsLocked())
                     {
-                        if (cockpit.CurrentHeight > 5.0f)
-                        {
+                        //if (cockpit.CurrentHeight > 5.0f)
+                        //{
                             bats.Auto();
                             thrusts.On();
-                        }
+                        //}
                     }
                     else
                     {
@@ -1990,6 +2011,7 @@ namespace KLEPA_A1_NAV
                     }
                     // Обновим состояние навигации
                     UpdateCalc();
+                    if (EmergencyReturn) lightings.On(); else lightings.Off();
                     if (curent_programm == programm.none)
                     {
                         if (horizont)
