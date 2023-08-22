@@ -19,14 +19,14 @@ using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
 using VRageMath;
 /// <summary>
-/// v5.0
+/// v6.0  Модифицирован под Down и Up ускорители (малая гравитация) + Ионый
 /// </summary>
-namespace MINER_A1_NAV_V_5
+namespace MINER_A2_E1
 {
     public sealed class Program : MyGridProgram
     {
-        // m.v5
-        string NameObj = "[MINER_A1_X]";
+        // m.v6
+        string NameObj = "[MINER_I2_E1]";
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
         static string tag_ejector = "[ejector]"; // дежурная батарея
         static float GyroMult = 1f;
@@ -41,7 +41,7 @@ namespace MINER_A1_NAV_V_5
         static int MaxShafts = 20;              // макс кол дыр
         static float DrillFrameWidth = 6f;     // размеры буровика
         static float DrillFrameLength = 7f;
-        static int CriticalMass = 180000;       // Критическая масса
+        static int CriticalMass = 150000;       // Критическая масса
         const char green = '\uE001';
         const char blue = '\uE002';
         const char red = '\uE003';
@@ -321,7 +321,7 @@ namespace MINER_A1_NAV_V_5
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj);
             cargos = new Cargos(NameObj);
-            ejector = new Ejector(NameObj, tag_ejector);ejector.ThrowOut(false);
+            ejector = new Ejector(NameObj, tag_ejector); ejector.ThrowOut(false);
             navigation = new Navigation();
         }
         public void Save()
@@ -589,8 +589,6 @@ namespace MINER_A1_NAV_V_5
             {
 
             }
-
-
         }
         public class Gyros : BaseListTerminalBlock<IMyGyro>
         {
@@ -653,6 +651,9 @@ namespace MINER_A1_NAV_V_5
         public class Thrusts : BaseListTerminalBlock<IMyThrust>
         {
             private RemoteControl remote_control;
+            public float Value;
+            public string axis;
+
             //------------------------------------------------
             public List<IMyThrust> UpThrusters = new List<IMyThrust>();
             public List<IMyThrust> DownThrusters = new List<IMyThrust>();
@@ -730,7 +731,6 @@ namespace MINER_A1_NAV_V_5
             }
             public void SetOverridePercent(List<IMyThrust> Thrusts, float persent)
             {
-
                 foreach (IMyThrust tr in Thrusts)
                 {
                     tr.ThrustOverridePercentage = persent;
@@ -766,7 +766,8 @@ namespace MINER_A1_NAV_V_5
             public void SetOverrideN(string axis, float OverrideValue)
             {
                 double MaxThrust = 0;
-                float Value = 0;
+                Value = 0;
+                this.axis = axis;
                 if (axis == "D") { MaxThrust = UpThrMax; SetOverridePercent("U", 0f); }
                 else if (axis == "U") { MaxThrust = DownThrMax; SetOverridePercent("D", 0f); }
                 else if (axis == "F") { MaxThrust = BackwardThrMax; SetOverridePercent("B", 0f); }
@@ -788,7 +789,26 @@ namespace MINER_A1_NAV_V_5
                 switch (axis)
                 {
                     case "U":
-                        OverrideValue += (float)this.remote_control.obj.GetNaturalGravity().Length();
+                        if (OverrideValue < 0)
+                        {
+                            axis = "D";
+                            OverrideValue = -OverrideValue;
+                        }
+                        else
+                        {
+                            OverrideValue += (float)this.remote_control.obj.GetNaturalGravity().Length();
+                        }
+                        break;
+                    case "D":
+                        if (OverrideValue < 0)
+                        {
+                            axis = "U";
+                            OverrideValue = -OverrideValue;
+                        }
+                        else
+                        {
+                            OverrideValue -= (float)this.remote_control.obj.GetNaturalGravity().Length();
+                        }
                         break;
                     case "L":
                         if (OverrideValue < 0)
@@ -826,6 +846,7 @@ namespace MINER_A1_NAV_V_5
                 StringBuilder values = new StringBuilder();
                 values.Append("PhysicalMass : " + Math.Round(this.remote_control.obj.CalculateShipMass().PhysicalMass) + "\n");
                 values.Append("Grav         : " + Math.Round(this.remote_control.obj.GetNaturalGravity().Length()) + "\n");
+                values.Append("axis         : " + axis + " , Value : " + Value + "\n");
                 values.Append("------------------------------------------\n");
                 values.Append("UP MAX       : " + PText.GetThrust((float)UpThrMax) + "\n");
                 values.Append("DOWN MAX     : " + PText.GetThrust((float)DownThrMax) + "\n");
@@ -944,12 +965,15 @@ namespace MINER_A1_NAV_V_5
                 Update();
             }
         }
-        public class Ejector : BaseListTerminalBlock<IMyShipConnector> {
+        public class Ejector : BaseListTerminalBlock<IMyShipConnector>
+        {
             public Ejector(string name_obj) : base(name_obj) { }
             public Ejector(string name_obj, string tag) : base(name_obj, tag) { }
-            public void ThrowOut(bool enable) {
-                foreach (IMyShipConnector enj in base.list_obj) {
-                    enj.ThrowOut =enable;
+            public void ThrowOut(bool enable)
+            {
+                foreach (IMyShipConnector enj in base.list_obj)
+                {
+                    enj.ThrowOut = enable;
                 }
             }
         }
@@ -1376,6 +1400,7 @@ namespace MINER_A1_NAV_V_5
                 else
                 {
                     thrusts.SetOverridePercent("U", 0);
+                    thrusts.SetOverridePercent("D", 0);
                 }
                 if (Distance > TargetSize)
                 {
@@ -1397,7 +1422,7 @@ namespace MINER_A1_NAV_V_5
                     curent_mode = mode.none;
                     Complete = true;
                 }
-                OutStatusMode(MaxFSpeed, MaxUSpeed, 0);
+                OutStatusMode(MaxFSpeed, MaxUSpeed, 0, 0);
                 return Complete;
             }
             public bool Dock()
@@ -1430,8 +1455,14 @@ namespace MINER_A1_NAV_V_5
                 if ((UpAccel > 0) && (UpAccel < minUpAccel))
                     UpAccel = minUpAccel;
                 if (UpVelocityVector.Length() < MaxUSpeed)
+                {
                     thrusts.SetOverrideAccel("U", UpAccel);
-                else { thrusts.SetOverridePercent("U", 0); }
+                }
+                else
+                {
+                    thrusts.SetOverridePercent("U", 0);
+                    thrusts.SetOverridePercent("D", 0);
+                }
                 if (((Distance > 100) || ((Math.Abs(MyPosCon.GetDim(0)) < (Distance / 10 + 0.2f)) && (Math.Abs(MyPosCon.GetDim(1)) < (Distance / 10 + 0.2f)))) && (ForwVelocityVector.Length() < MaxFSpeed))
                 {
                     thrusts.SetOverrideAccel("F", (float)(Distance * AlignAccelMult));
@@ -1456,7 +1487,7 @@ namespace MINER_A1_NAV_V_5
                         Complete = true;
                     }
                 }
-                OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed);
+                OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel);
                 return Complete;
             }
             public bool UnDock()
@@ -1471,6 +1502,7 @@ namespace MINER_A1_NAV_V_5
                     Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
                     gyros.SetOverride(true, gyrAng * GyroMult, 1);
                     thrusts.SetOverridePercent("U", 0);
+                    thrusts.SetOverridePercent("D", 0);
                     thrusts.SetOverridePercent("R", 0);
                     thrusts.SetOverridePercent("L", 0);
                     thrusts.SetOverridePercent("F", 0);
@@ -1481,7 +1513,7 @@ namespace MINER_A1_NAV_V_5
                         Complete = true;
                     }
                 }
-                OutStatusMode(0, 0, 0);
+                OutStatusMode(0, 0, 0, 0);
                 return Complete;
             }
             public bool ToDrillPoint()
@@ -1501,6 +1533,7 @@ namespace MINER_A1_NAV_V_5
                 else
                 {
                     thrusts.SetOverridePercent("U", 0);
+                    thrusts.SetOverridePercent("D", 0);
                 }
                 if (Distance > TargetSize)
                 {
@@ -1519,13 +1552,14 @@ namespace MINER_A1_NAV_V_5
                 {
                     Complete = true;
                 }
-                OutStatusMode(MaxFSpeed, MaxUSpeed, 0);
+                OutStatusMode(MaxFSpeed, MaxUSpeed, 0, 0);
                 return Complete;
             }
             public bool DrillAlign()
             {
                 bool Complete = false;
                 float MaxUSpeed, MaxLSpeed, MaxFSpeed;
+                float UpAccel = 0;
                 Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
                 Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrix);
                 gyros.SetOverride(true, gyrAng * GyroMult, 1);
@@ -1551,8 +1585,8 @@ namespace MINER_A1_NAV_V_5
                 }
                 if (UpVelocityVector.Length() < MaxUSpeed)
                 {
-                    float UpAccel = -(float)(MyPosDrill.GetDim(1) * AlignAccelMult);
-                    float minUpAccel = 0.3f;
+                    UpAccel = -(float)(MyPosDrill.GetDim(1) * AlignAccelMult);
+                    float minUpAccel = 0.1f;
                     if ((UpAccel < 0) && (UpAccel > -minUpAccel))
                         UpAccel = -minUpAccel;
                     if ((UpAccel > 0) && (UpAccel < minUpAccel))
@@ -1562,12 +1596,13 @@ namespace MINER_A1_NAV_V_5
                 else
                 {
                     thrusts.SetOverridePercent("U", 0);
+                    thrusts.SetOverridePercent("D", 0);
                 }
                 if (MyPosDrill.Length() < 0.5)
                 {
                     Complete = true;
                 }
-                OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed);
+                OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel);
                 return Complete;
             }
             public bool Drill(out bool Emergency)
@@ -1619,6 +1654,7 @@ namespace MINER_A1_NAV_V_5
                 else
                 {
                     thrusts.SetOverridePercent("U", 0);
+                    thrusts.SetOverridePercent("D", 0);
                 }
                 if (MyPosDrill.GetDim(1) < -DrillDepth) // растояние
                 {
@@ -1629,7 +1665,7 @@ namespace MINER_A1_NAV_V_5
                     Complete = true;
                     Emergency = true;
                 }
-                OutStatusMode(MaxFSpeed, 0, MaxLSpeed); // DrillAccel
+                OutStatusMode(MaxFSpeed, 0, MaxLSpeed, DrillAccel); // DrillAccel
                 return Complete;
             }
             public bool PullUp()
@@ -1661,6 +1697,7 @@ namespace MINER_A1_NAV_V_5
                 else
                 {
                     thrusts.SetOverridePercent("U", 0);
+                    thrusts.SetOverridePercent("D", 0);
                 }
                 if ((MyPosDrill.GetDim(1) > 0) || ((MyPosDrill.GetDim(0) < 0.15) && (MyPosDrill.GetDim(2) < 0.15)))
                 {
@@ -1698,6 +1735,7 @@ namespace MINER_A1_NAV_V_5
                 else
                 {
                     thrusts.SetOverridePercent("U", 0);
+                    thrusts.SetOverridePercent("D", 0);
                 }
                 if (MyPosDrill.GetDim(1) > 0)
                     Complete = true;
@@ -1745,10 +1783,17 @@ namespace MINER_A1_NAV_V_5
                 return new Vector3D(X * W, 0, Y * L);
             }
             //-------------------------------------------------
-            public void OutStatusMode(float MaxFSpeed, float MaxUSpeed, float MaxLSpeed)
+            public void OutStatusMode(float MaxFSpeed, float MaxUSpeed, float MaxLSpeed, float UpAccel)
             {
                 StringBuilder values = new StringBuilder();
                 values.Append(" STATUS\n");
+                //Vector3D MyPosDrill = Vector3D.Transform(MyPos, DockMatrix) - DrillPoint;
+                //values.Append("My_Length   : " + Math.Round(MyPosDrill.Length(), 2) + "\n");
+                //values.Append("YMaxA (U-D) : " + Math.Round(YMaxA, 2).ToString() + "MaxUSpeed: " + Math.Round(MaxUSpeed, 2).ToString() + "\n");
+                //values.Append("MyPosDrill[1]   : " + Math.Round(MyPosDrill.GetDim(1), 2) + "\n");
+                //values.Append("UpAccel   : " + Math.Round(UpAccel, 2) + "\n");
+                //values.Append("MyPosDrill[0]   : " + Math.Round(MyPosDrill.GetDim(0), 2) + "\n");
+                //values.Append("MyPosDrill[2]   : " + Math.Round(MyPosDrill.GetDim(2), 2) + "\n");
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
                 values.Append("DeltaHeight: " + Math.Round(FlyHeight - (MyPos - PlanetCenter).Length()).ToString() + "\n");
@@ -1870,6 +1915,7 @@ namespace MINER_A1_NAV_V_5
             public string TextInfo2()
             {
                 StringBuilder values = new StringBuilder();
+                //values.Append(thrusts.TextInfo());
                 values.Append("Height            : " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(FlyHeight).ToString() + "\n");
                 values.Append("Distance          : " + Math.Round(Distance).ToString() + "\n");
                 values.Append("Глубина шахты     : " + DrillDepth + ", кол. шахт : " + MaxShafts + "\n");
@@ -1887,6 +1933,12 @@ namespace MINER_A1_NAV_V_5
             {
                 switch (argument)
                 {
+                    case "Up":
+                        thrusts.SetOverrideAccel("U", 0.3f);
+                        break;
+                    case "Down":
+                        thrusts.SetOverrideAccel("U", -0.3f);
+                        break;
                     case "depth+":
                         DrillDepth++;
                         if (DrillDepth > 150) DrillDepth = 150;
@@ -2099,10 +2151,4 @@ namespace MINER_A1_NAV_V_5
     }
 }
 
-// T0: GPS:TargetConnector:53567.3705051079:-26769.2952025845:11925.7372278272:
-//GPS:T0:53567.3682644915:-26769.3032342576:11925.7283974891:
-
-//GPS: T1: 53567.327347393:-26810.0214231395:11834.3936969047:
-
-//GPS: T2: 53742.7857451991:-26897.7059714201:11873.4548109712:
 

@@ -26,7 +26,7 @@ namespace MINER_I2_E1
     public sealed class Program : MyGridProgram
     {
         // m.v6
-        string NameObj = "[MINER_I2_E1]";//[MINER_A1_X] [MINER_I2_E1]
+        string NameObj = "[MINER_A2_E1]";//[MINER_A1_X] [MINER_I2_E1]
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
         static string tag_ejector = "[ejector]"; // дежурная батарея
         static float GyroMult = 1f;
@@ -667,7 +667,6 @@ namespace MINER_I2_E1
             public double RightThrMax { get { return RightThrusters.Sum(t => t.MaxEffectiveThrust); } }
             public double ForwardThrMax { get { return ForwardThrusters.Sum(t => t.MaxEffectiveThrust); } }
             public double BackwardThrMax { get { return BackwardThrusters.Sum(t => t.MaxEffectiveThrust); } }
-
             public Thrusts(string name_obj) : base(name_obj)
             {
             }
