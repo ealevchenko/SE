@@ -1033,7 +1033,7 @@ namespace MINER_A1_NAV_V_5
             public Navigation()
             {
                 thrusts.InitThrusts(remote_control); // Привяжем трастеры к контроллеру
-                LoadFromStorage();
+                //LoadFromStorage();
                 FindPlanetCenter();
             }
             //-------------------------------------

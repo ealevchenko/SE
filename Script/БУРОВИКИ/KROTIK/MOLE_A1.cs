@@ -19,7 +19,7 @@ using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
 using VRageMath;
 /// <summary>
-/// v5.0
+/// Кротик - бурильщик горизонтального бурения
 /// </summary>
 namespace MOLE_A1
 {
@@ -58,7 +58,6 @@ namespace MOLE_A1
         static ShipDrill drill;
         static ReflectorsLight reflectors_light;
         static Cockpit cockpit;
-        static RemoteControl remote_control;
         static Gyros gyros;
         static Thrusts thrusts;
         static Cargos cargos;
@@ -320,7 +319,6 @@ namespace MOLE_A1
             reflectors_light = new ReflectorsLight(NameObj);
             reflectors_light.Off();
             cockpit = new Cockpit(NameObj + "-Cocpit [LCD]");
-            remote_control = new RemoteControl(NameObj + "-RC parking");
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj);
             cargos = new Cargos(NameObj);
@@ -2111,10 +2109,4 @@ namespace MOLE_A1
     }
 }
 
-// T0: GPS:TargetConnector:53567.3705051079:-26769.2952025845:11925.7372278272:
-//GPS:T0:53567.3682644915:-26769.3032342576:11925.7283974891:
-
-//GPS: T1: 53567.327347393:-26810.0214231395:11834.3936969047:
-
-//GPS: T2: 53742.7857451991:-26897.7059714201:11873.4548109712:
 

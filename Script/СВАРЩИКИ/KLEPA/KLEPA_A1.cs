@@ -316,9 +316,9 @@ namespace KLEPA_A1
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_info = new LCD(NameObj + "-LCD-INFO");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
-            cockpit = new Cockpit(NameObj + "-Промышленный кокпит [LCD]");
+            cockpit = new Cockpit(NameObj + "-Промышленный кокпит [LCD] Locked");
             bats = new Batterys(NameObj);
-            connector = new Connector(NameObj + "-Коннектор парковка");
+            connector = new Connector(NameObj + "-Коннектор парковка Locked");
             welders = new ShipWelders(NameObj);
             welders.Off();
             reflectors_light = new ReflectorsLight(NameObj);
@@ -950,23 +950,23 @@ namespace KLEPA_A1
             int clock = 0;
             public enum Component : int
             {
-                ConstructionComponent = 0,
-                GirderComponent = 1,
+                Construction = 0,
+                Girder = 1,
                 MetalGrid = 2,
                 InteriorPlate = 3,
                 SteelPlate = 4,
                 SmallTube = 5,
                 LargeTube = 6,
-                MotorComponent = 7,
+                Motor = 7,
                 Display = 8,
                 BulletproofGlass = 9,
-                ComputerComponent = 10,
-                ReactorComponent = 11,
-                ThrustComponent = 12,
-                GravityGeneratorComponent = 13,
-                MedicalComponent = 14,
-                RadioCommunicationComponent = 15,
-                DetectorComponent = 16,
+                Computer = 10,
+                Reactor = 11,
+                Thrust = 12,
+                GravityGenerator = 13,
+                Medical = 14,
+                RadioCommunication = 15,
+                Detector = 16,
                 SolarCell = 17,
                 PowerCell = 18,
                 Superconductor = 19,
@@ -1004,8 +1004,8 @@ namespace KLEPA_A1
                 "Сверхпроводник" };
             public int[] Amounts = new int[20];
 
-            public int[] AmountsAll = new int[20] { 4000, 2000, 2000, 4000, 10000, 4000, 500, 4000, 2000, 4000, 4000, 500, 500, 500, 3, 500, 500, 4000, 2000, 2000 };
-            public int[] AmountsBase = new int[20] { 2000, 500, 500, 2000, 5000, 2000, 200, 2000, 500, 0, 2000, 0, 0, 0, 0, 0, 0, 0, 1000, 0 };
+            public int[] AmountsAll = new int[20] { 4000, 2000, 2000, 4000, 10000, 2000, 500, 2000, 2000, 2000, 2000, 500, 500, 500, 3, 500, 500, 2000, 2000, 2000 };
+            public int[] AmountsBase = new int[20] { 5000, 500, 500, 5000, 10000, 2000, 200, 2000, 500, 0, 2000, 0, 0, 0, 0, 0, 0, 0, 1000, 0 };
 
             public List<LocationCargos> local_cargos = new List<LocationCargos>();
             public List<LocationCargos> base_cargos = new List<LocationCargos>();

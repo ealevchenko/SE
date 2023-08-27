@@ -26,12 +26,12 @@ namespace MINER_I2_E1
     public sealed class Program : MyGridProgram
     {
         // m.v6
-        string NameObj = "[MINER_A2_E1]";//[MINER_A1_X] [MINER_I2_E1]
+        string NameObj = "[MINER_A2_3]";//[MINER_A1_X] [MINER_I2_E1]
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
         static string tag_ejector = "[ejector]"; // дежурная батарея
         static float GyroMult = 1f;
         static float AlignAccelMult = 0.3f;
-        static float DrillGyroMult = 1f;
+        static float DrillGyroMult = 2f;
         static float TargetSize = 100;
         static float ReturnOnCharge = 0.2f;     // Процент заряда
         static float ReturnOffCharge = 0.9f;    // Процент заряда
@@ -39,9 +39,11 @@ namespace MINER_I2_E1
         static float DrillAccel = 0.5f;
         static float DrillDepth = 25;           // глубина шахты
         static int MaxShafts = 20;              // макс кол дыр
-        static float DrillFrameWidth = 6f;     // размеры буровика
+        static float DrillFrameWidth = 8f;     // размеры буровика
         static float DrillFrameLength = 7f;
-        static int CriticalMass = 100000;       // Критическая масса
+        static int CriticalMass = 150000;       // Критическая масса
+        static int StoneDumpOn = 250000;
+
         const char green = '\uE001';
         const char blue = '\uE002';
         const char red = '\uE003';
@@ -1348,7 +1350,15 @@ namespace MINER_I2_E1
                 ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
                 XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
                 cargos.Update();
-                if (PhysicalMass > CriticalMass) { CriticalMassReached = true; } else { CriticalMassReached = false; }
+                if (PhysicalMass > CriticalMass) { CriticalMassReached = true; } else
+                {
+
+                    CriticalMassReached = false;
+                    if (cargos.StoneAmount > StoneDumpOn)
+                        StoneDumpNeeded = true;
+                    if (cargos.StoneAmount < 100)
+                        StoneDumpNeeded = false;
+                }
             }
             public void Pause(bool enable)
             {
@@ -1641,8 +1651,8 @@ namespace MINER_I2_E1
                     drill.On();
                 if ((UpVelocityVector.Length() < DrillSpeedLimit) && (!StoneDumpNeeded))
                 {
-                    if ((Math.Abs(MyPosDrill.GetDim(0)) < 1) && (Math.Abs(MyPosDrill.GetDim(2)) < 1))
-                        thrusts.SetOverrideAccel("U", (-DrillAccel));
+                    if ((Math.Abs(MyPosDrill.GetDim(0)) < 0.6) && (Math.Abs(MyPosDrill.GetDim(2)) < 0.6))
+                        thrusts.SetOverrideAccel("D", (DrillAccel));
                     else
                     {
                         thrusts.SetOverrideAccel("U", (DrillAccel));
@@ -1786,13 +1796,15 @@ namespace MINER_I2_E1
             {
                 StringBuilder values = new StringBuilder();
                 values.Append(" STATUS\n");
+                Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
                 //Vector3D MyPosDrill = Vector3D.Transform(MyPos, DockMatrix) - DrillPoint;
                 //values.Append("My_Length   : " + Math.Round(MyPosDrill.Length(), 2) + "\n");
                 //values.Append("YMaxA (U-D) : " + Math.Round(YMaxA, 2).ToString() + "MaxUSpeed: " + Math.Round(MaxUSpeed, 2).ToString() + "\n");
-                //values.Append("MyPosDrill[1]   : " + Math.Round(MyPosDrill.GetDim(1), 2) + "\n");
+                values.Append("MyPosDrill[0]   : " + Math.Round(MyPosDrill.GetDim(0), 2) + "\n");
+                values.Append("MyPosDrill[1]   : " + Math.Round(MyPosDrill.GetDim(1), 2) + "\n");
                 //values.Append("UpAccel   : " + Math.Round(UpAccel, 2) + "\n");
-                //values.Append("MyPosDrill[0]   : " + Math.Round(MyPosDrill.GetDim(0), 2) + "\n");
-                //values.Append("MyPosDrill[2]   : " + Math.Round(MyPosDrill.GetDim(2), 2) + "\n");
+
+                values.Append("MyPosDrill[2]   : " + Math.Round(MyPosDrill.GetDim(2), 2) + "\n");
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
                 values.Append("DeltaHeight: " + Math.Round(FlyHeight - (MyPos - PlanetCenter).Length()).ToString() + "\n");
@@ -1921,6 +1933,7 @@ namespace MINER_I2_E1
                 values.Append("Phys./Crit.(Mass) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? red.ToString() : green.ToString()) + "\n");
                 values.Append("Volume/Mass       : " + cargos.CurrentVolume + " / " + cargos.CurrentMass + "\n");
                 values.Append("Батарея %         : " + PText.GetPersent(bats.CurrentPersent()) + " " + (bats.CurrentPersent() <= ReturnOnCharge ? red.ToString() : green.ToString()) + "\n");
+                values.Append("Поднять           : " + (PullUpNeeded ? green.ToString() : yellow.ToString()) + "\n");
                 return values.ToString();
             }
             public string TextTEST()
@@ -2075,6 +2088,62 @@ namespace MINER_I2_E1
                         {
                             reflectors_light.On();
                         }
+                        if (curent_mode == mode.un_dock && !paused)
+                        {
+                            if (UnDock() && curent_programm == programm.none)
+                            {
+                                curent_mode = mode.none;
+                            }
+                        }
+                        if (curent_mode == mode.to_base && !paused)
+                        {
+                            if (ToBase() && curent_programm == programm.none)
+                            {
+                                curent_mode = mode.none;
+                            }
+                        }
+                        if (curent_mode == mode.dock && !paused)
+                        {
+                            if (Dock() && curent_programm == programm.none)
+                            {
+                                curent_mode = mode.none;
+                            }
+                        }
+                        if (curent_mode == mode.to_drill && !paused)
+                        {
+                            if (ToDrillPoint() && curent_programm == programm.none)
+                            {
+                                curent_mode = mode.none;
+                            }
+                        }
+                        if (curent_mode == mode.drill_align && !paused)
+                        {
+                            if (DrillAlign() && curent_programm == programm.none)
+                            {
+                                curent_mode = mode.none;
+                            }
+                        }
+                        if (curent_mode == mode.drill && !paused)
+                        {
+                            if (Drill(out EmergencyReturn) && curent_programm == programm.none)
+                            {
+                                curent_mode = mode.none;
+                            }
+                        }
+                        if (curent_mode == mode.pull_up && !paused)
+                        {
+                            if (PullUp() && curent_programm == programm.none)
+                            {
+                                curent_mode = mode.none;
+                            }
+                        }
+                        if (curent_mode == mode.pull_out && !paused)
+                        {
+                            if (PullOut() && curent_programm == programm.none)
+                            {
+                                curent_mode = mode.none;
+                            }
+                        }
                     }
                     if (curent_programm == programm.fly_connect_base && !paused)
                     {
@@ -2087,62 +2156,6 @@ namespace MINER_I2_E1
                     if (curent_programm == programm.start_drill && !paused)
                     {
                         StartDrill();
-                    }
-                    if (curent_mode == mode.un_dock && !paused)
-                    {
-                        if (UnDock() && curent_programm == programm.none)
-                        {
-                            curent_mode = mode.none;
-                        }
-                    }
-                    if (curent_mode == mode.to_base && !paused)
-                    {
-                        if (ToBase() && curent_programm == programm.none)
-                        {
-                            curent_mode = mode.none;
-                        }
-                    }
-                    if (curent_mode == mode.dock && !paused)
-                    {
-                        if (Dock() && curent_programm == programm.none)
-                        {
-                            curent_mode = mode.none;
-                        }
-                    }
-                    if (curent_mode == mode.to_drill && !paused)
-                    {
-                        if (ToDrillPoint() && curent_programm == programm.none)
-                        {
-                            curent_mode = mode.none;
-                        }
-                    }
-                    if (curent_mode == mode.drill_align && !paused)
-                    {
-                        if (DrillAlign() && curent_programm == programm.none)
-                        {
-                            curent_mode = mode.none;
-                        }
-                    }
-                    if (curent_mode == mode.drill && !paused)
-                    {
-                        if (Drill(out EmergencyReturn) && curent_programm == programm.none)
-                        {
-                            curent_mode = mode.none;
-                        }
-                    }
-                    if (curent_mode == mode.pull_up && !paused)
-                    {
-                        if (PullUp() && curent_programm == programm.none)
-                        {
-                            curent_mode = mode.none;
-                        }
-                    }
-                    if (curent_mode == mode.pull_out && !paused)
-                    {
-                        if (PullOut() && curent_programm == programm.none)
-                        {
-                            curent_mode = mode.none;
-                        }
                     }
                 }
             }
