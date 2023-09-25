@@ -116,7 +116,7 @@
     <Compile Include="БУРОВИКИ\test\KROTIK_A1M.cs" />
     <Compile Include="БУРОВИКИ\test\KROTIK_A1K21.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\KROTIK_H1.cs" />
-    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\BUG\BUG_A1_NAV.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\BUG\BUG_A1_H2_NAV.cs" />
     <Compile Include="КОРАБЛИ\APOLN1.cs" />
     <Compile Include="Setup_Example\Primary_bur.cs" />
     <Compile Include="Basa_Earth\BASE_EARTH_PROJECTOR_SG.cs" />

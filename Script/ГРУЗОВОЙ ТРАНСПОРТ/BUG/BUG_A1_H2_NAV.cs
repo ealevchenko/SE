@@ -19,13 +19,11 @@ using VRage;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
 using VRageMath;
-using static BUG_A1_NAV.Program;
-using static VRage.Game.ObjectBuilders.Definitions.MyObjectBuilder_GameDefinition;
 
 /// <summary>
 /// Транспортный корабль атмосферный (груз-водород)
 /// </summary>
-namespace BUG_A1_NAV
+namespace BUG_A1_H2_NAV
 {
     /// <summary>
     /// Транспортный корабль атмосферный (груз-водород)
@@ -33,7 +31,7 @@ namespace BUG_A1_NAV
     public sealed class Program : MyGridProgram
     {
         // v1
-        string NameObj = "[BUG-A1-x]";
+        string NameObj = "[BUG-A1-H2-x]";
         static string tag_batterys_duty = "[batterys_duty]";
         static string tag_lightings_warning = "[warning]";
         static float GyroMult = 1f;
@@ -41,7 +39,7 @@ namespace BUG_A1_NAV
         static float BaseDistance = 200f;
         static float Conn_Distance = 10f;
         static float Pos_Y_Correct = 0.85f;
-        static float AlignAccelMult = 0.3f;
+        static float AlignAccelMult = 0.5f;
         static float ReturnOnCharge = 0.2f;
         static float ReturnOffCharge = 0.9f;
         const char igreen = '\uE001';
