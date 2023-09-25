@@ -19,6 +19,7 @@ using VRage;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
 using VRageMath;
+using static BUG_A1_NAV.Program;
 using static VRage.Game.ObjectBuilders.Definitions.MyObjectBuilder_GameDefinition;
 
 /// <summary>
@@ -43,8 +44,6 @@ namespace BUG_A1_NAV
         static float AlignAccelMult = 0.3f;
         static float ReturnOnCharge = 0.2f;
         static float ReturnOffCharge = 0.9f;
-        static float MinHeight = 1000f;
-        static float MinDistance = 500f;
         const char igreen = '\uE001';
         const char iblue = '\uE002';
         const char ired = '\uE003';
@@ -61,10 +60,12 @@ namespace BUG_A1_NAV
         static Connector connector_forw;
         static Connector connector_back;
         static ReflectorsLight reflectors_light;
+        static Lightings lightings;
         static Gyros gyros;
         static Thrusts thrusts;
         static Cockpit cockpit;
         static LandingGear landing_gears;
+        static HydrogenTanks hydrogen_tanks;
         static Navigation navigation;
         static Program _scr;
         public class PText
@@ -137,6 +138,9 @@ namespace BUG_A1_NAV
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj);
             landing_gears = new LandingGear(NameObj);
+            hydrogen_tanks = new HydrogenTanks(NameObj);
+            lightings = new Lightings(NameObj, tag_lightings_warning);
+            lightings.Off();
             navigation = new Navigation();
         }
         public void Save() { }
@@ -165,6 +169,7 @@ namespace BUG_A1_NAV
 
                 StringBuilder values_cockpit0 = new StringBuilder();
                 values_cockpit0.Append(bats.TextInfo());
+                values_cockpit0.Append(hydrogen_tanks.TextInfo());
                 values_cockpit0.Append(connector_forw.TextInfo());
                 values_cockpit0.Append(connector_back.TextInfo());
                 values_cockpit0.Append(landing_gears.TextInfo());
@@ -229,6 +234,7 @@ namespace BUG_A1_NAV
             public ReflectorsLight(string name_obj) : base(name_obj) { }
             public ReflectorsLight(string name_obj, string tag) : base(name_obj, tag) { }
         }
+        public class Lightings : BaseListTerminalBlock<IMyInteriorLight> { public Lightings(string name_obj, string tag) : base(name_obj) { if (!String.IsNullOrWhiteSpace(tag)) { list_obj = list_obj.Where(n => n.CustomName.Contains(tag)).ToList(); } _scr.Echo("Найдено Lighting:[" + tag + "]: " + list_obj.Count()); } }
         public class Gyros : BaseListTerminalBlock<IMyGyro>
         {
             public Gyros(string name_obj) : base(name_obj) { }
@@ -466,6 +472,29 @@ namespace BUG_A1_NAV
                 return values.ToString();
             }
         }
+        public class HydrogenTanks : BaseListTerminalBlock<IMyGasTank>
+        {
+            public double AverageFilledRatio { get { return base.list_obj.Average(t => t.FilledRatio); } }
+            public double CountStockpile { get { return base.list_obj.Count(t => t.Stockpile); } }
+            public double CountAutoRefillBottles { get { return base.list_obj.Count(t => t.AutoRefillBottles); } }
+            public double Capacity { get { return base.list_obj.Sum(t => t.Capacity); } }
+
+            public HydrogenTanks(string name_obj) : base(name_obj)
+            {
+            }
+            public HydrogenTanks(string name_obj, string tag) : base(name_obj, tag)
+            {
+
+            }
+            public void Stockpile(bool on) { foreach (IMyGasTank obj in base.list_obj) { obj.Stockpile = on; } }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("БАКИ : [" + base.list_obj.Count() + "] [А-" + CountAutoRefillBottles + " З-" + CountStockpile + "]" + PText.GetCurrentOfMax((float)(Capacity * AverageFilledRatio) / 1000000, (float)Capacity / 1000000, "МЛ") + "\n");
+                values.Append("|- ЗАП:  " + PText.GetScalePersent(AverageFilledRatio, 20) + "\n");
+                return values.ToString();
+            }
+        }
         public class Navigation
         {
             public int clock = 0;
@@ -475,12 +504,8 @@ namespace BUG_A1_NAV
             public bool gravity { get; set; } = false;
             public bool horizont { get; private set; } = false;
             public Vector3D? TackVector { get; set; } = null;
-            public enum programm : int
-            {
-                none = 0,
-                fly_bp_bp = 1,      // перелет 
-            };
-            public static string[] name_programm = { "", "Б:ПЛАНЕТА->Б:ПЛАНЕТА" };
+            public enum programm : int { none = 0, fly_bp_bp = 1, carriage = 2, };
+            public static string[] name_programm = { "", "Б:ПЛАНЕТА->Б:ПЛАНЕТА", "ПЕРЕВОЗКА ГРУЗА" };
             programm curent_programm = programm.none;
             public enum mode : int
             {
@@ -520,6 +545,8 @@ namespace BUG_A1_NAV
                 public double FlyHeight { get; set; } = 0;
                 public long EntityId { get; set; } = 0;
                 public string Name { get; set; } = null;
+                public bool Home { get; set; } = false;
+                public bool Loading { get; set; } = false;
             }
             public PointDock[] PointsDock = new PointDock[2];
             public int CurrDockPoint { get; set; } = 0;
@@ -528,7 +555,7 @@ namespace BUG_A1_NAV
             public bool go_home = false; // вернутся домой и остатся
             public bool paused = false;
             public string Message { get; set; } = "";
-            public double S { get; set; } = 0;
+            //public double S { get; set; } = 0;
             public Navigation()
             {
                 thrusts.InitThrusts(cockpit);
@@ -588,6 +615,16 @@ namespace BUG_A1_NAV
             {
                 PointsDock[CurrDockPoint].FlyHeight = (MyPos - PlanetCenter).Length();
                 PointsDock[CurrDockPoint].BaseDockPoint = new Vector3D(0, 0, -BaseDistance);
+                SaveToStorage();
+            }
+            public void SetHomeDock()
+            {
+                PointsDock[CurrDockPoint].Home = true;
+                SaveToStorage();
+            }
+            public void SetLoadingDock()
+            {
+                PointsDock[CurrDockPoint].Loading = true;
                 SaveToStorage();
             }
             public void FindPlanetCenter()
@@ -676,6 +713,72 @@ namespace BUG_A1_NAV
                     if (curent_mode == mode.un_dock && UnDock()) { curent_mode = mode.to_base; SaveToStorage(); }
                     if (curent_mode == mode.to_base && ToBase()) { curent_mode = mode.dock; SaveToStorage(); }
                     if (curent_mode == mode.dock && Dock()) { Clear(); curent_programm = programm.none; SaveToStorage(); }
+                }
+                else
+                {
+                    Message = String.Format("Точка {0}->{1} - неопределена!", CurrDockPoint, CurrDockPoint == 0 ? 1 : 0);
+                    curent_programm = programm.none;
+                    SaveToStorage();
+                }
+            }
+            public void Carriage()
+            {
+                Message = "";
+                if (IsCorrectBasePoints(CurrDockPoint) && IsCorrectBasePoints(CurrDockPoint == 0 ? 1 : 0))
+                {
+                    if (curent_mode == mode.none)
+                    {
+                        go_home = false;
+                        if (connector_forw.Connected)
+                        {
+                            curent_mode = mode.base_operation;
+                            SaveToStorage();
+                        }
+                        else
+                        {
+                            if (landing_gears.IsLocked())
+                            {
+                                curent_mode = mode.un_dock;
+                                SaveToStorage();
+                            }
+                            else
+                            {
+                                // Проверка на вес и отправка на нужную базу
+                                curent_mode = mode.to_base;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (go_home && (PointsDock[CurrDockPoint].Home || PointsDock[(CurrDockPoint == 0 ? 1 : 0)].Home))
+                        {
+                            if (!PointsDock[(CurrDockPoint == 0 ? 1 : 0)].Home)
+                            {
+                                if (curent_mode == mode.to_base || curent_mode == mode.dock || curent_mode == mode.un_dock)
+                                {
+                                    CurrDockPoint = (CurrDockPoint == 0 ? 1 : 0);
+                                    curent_mode = mode.to_base;
+                                    SaveToStorage();
+                                }
+                            }
+                            if (!PointsDock[CurrDockPoint].Home)
+                            {
+                                if (curent_mode == mode.base_operation)
+                                {
+                                    curent_mode = mode.un_dock;
+                                    SaveToStorage();
+                                }
+                            }
+                        }
+                        else
+                        {
+                            if (curent_mode == mode.un_dock && UnDock()) { curent_mode = mode.to_base; SaveToStorage(); }
+                            if (curent_mode == mode.to_base && ToBase()) { curent_mode = mode.dock; SaveToStorage(); }
+                            if (curent_mode == mode.dock && Dock()) { curent_mode = mode.base_operation; SaveToStorage(); }
+                            if (curent_mode == mode.base_operation && BaseOperation()) { curent_mode = mode.un_dock; SaveToStorage(); }
+                        }
+                    }
+
                 }
                 else
                 {
@@ -936,6 +1039,30 @@ namespace BUG_A1_NAV
                 else { Message = String.Format("Точка {0} - неопределена!", CurrDockPoint); }
                 return Complete;
             }
+            public bool BaseOperation()
+            {
+                bool Complete = false;
+                bats.Charger();
+                thrusts.Off();
+                hydrogen_tanks.Stockpile(PointsDock[CurrDockPoint].Loading);
+                if (go_home && PointsDock[CurrDockPoint].Home)
+                {
+                    Stop();
+                }
+                else
+                {
+                    if ((PointsDock[CurrDockPoint].Loading && hydrogen_tanks.AverageFilledRatio == 1.0f) || (!PointsDock[CurrDockPoint].Loading && hydrogen_tanks.AverageFilledRatio == 0.0f))
+                    {
+                        if (bats.CurrentPersent() >= ReturnOffCharge)
+                        {
+                            bats.Auto();
+                            //thrusts.On();
+                            Complete = true;
+                        }
+                    }
+                }
+                return Complete;
+            }
             //-------------------------------------------------
             public void OutStatusMode(float MaxFSpeed, float MaxUSpeed, float MaxLSpeed)
             {
@@ -981,6 +1108,8 @@ namespace BUG_A1_NAV
                     PointsDock[i].FlyHeight = mystorage.GetValDouble("PD_FlyHeight_" + i, str.ToString());
                     PointsDock[i].EntityId = mystorage.GetValInt64("PD_EntityId_" + i, str.ToString());
                     PointsDock[i].Name = mystorage.GetValString("PD_Name_" + i, str.ToString());
+                    PointsDock[i].Home = mystorage.GetValBool("PD_Home_" + i, str.ToString());
+                    PointsDock[i].Loading = mystorage.GetValBool("PD_Loading_" + i, str.ToString());
                 }
                 PlanetCenter = new Vector3D(mystorage.GetValDouble("PX", str.ToString()), mystorage.GetValDouble("PY", str.ToString()), mystorage.GetValDouble("PZ", str.ToString()));
             }
@@ -1001,6 +1130,8 @@ namespace BUG_A1_NAV
                     values.Append("PD_FlyHeight_" + i + ": " + Math.Round(PointsDock[i].FlyHeight, 0) + ";\n");
                     values.Append("PD_EntityId_" + i + ": " + PointsDock[i].EntityId.ToString() + ";\n");
                     values.Append("PD_Name_" + i + ": " + PointsDock[i].Name + ";\n");
+                    values.Append("PD_Home_" + i + ": " + PointsDock[i].Home.ToString() + ";\n");
+                    values.Append("PD_Loading_" + i + ": " + PointsDock[i].Loading.ToString() + ";\n");
                 }
                 values.Append(PlanetCenter.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PX").Replace("Y", "PY").Replace("Z", "PZ") + ";\n");
                 lcd_storage.OutText(values);
@@ -1014,6 +1145,8 @@ namespace BUG_A1_NAV
                 values.Append("АВАРИЙНЫЙ ВОЗВРАТ   : " + (EmergencyReturn ? ired.ToString() : igreen.ToString()) + "\n");
                 values.Append("|-ФИЗ./КРИТ.(МАССА) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? ired.ToString() : igreen.ToString()) + "\n");
                 values.Append("|-БАТАРЕЯ %         : " + PText.GetPersent(bats.CurrentPersent()) + " " + (bats.CurrentPersent() <= ReturnOnCharge ? ired.ToString() : igreen.ToString()) + "\n");
+                values.Append("--------------------------------------\n");               
+                values.Append("БАКИ H2 %           : " + PText.GetPersent(hydrogen_tanks.AverageFilledRatio) + " " + (hydrogen_tanks.AverageFilledRatio < 1.0f  ? ired.ToString() : igreen.ToString()) + "\n");
                 values.Append("--------------------------------------\n");
                 values.Append("ERROR: " + Message + "\n");
                 return values.ToString();
@@ -1036,6 +1169,7 @@ namespace BUG_A1_NAV
                 bool vf = PointsDock[CurrDockPoint].FlyHeight > 0;
                 values.Append("==[ СПИСОК БАЗ ]==================================\n");
                 values.Append((IsCorrectBasePoints(CurrDockPoint) ? igreen.ToString() : ired.ToString()) + "БАЗА #: " + CurrDockPoint.ToString() + " Id:" + PointsDock[CurrDockPoint].EntityId + "\n");
+                values.Append("БАЗА ОСНОВНАЯ " + (PointsDock[CurrDockPoint].Home ? igreen.ToString() : ired.ToString()) + ", БАЗА ЗАГРУЗКИ " + (PointsDock[CurrDockPoint].Loading ? igreen.ToString() : ired.ToString()) + "\n");
                 values.Append(PointsDock[CurrDockPoint].Name + "\n");
                 values.Append("--------------------------------------------------\n");
                 values.Append((!vdm ? ired.ToString() : igreen.ToString()) + PText.GetGPSMatrixD("DockMatrix:", PointsDock[CurrDockPoint].DockMatrix) + "\n");
@@ -1061,7 +1195,7 @@ namespace BUG_A1_NAV
                 values.Append("-----------------------------------------------\n");
                 values.Append("ГРАВИТАЦИЯ          : " + Math.Round(GravVector.Length(), 2) + "\n");
                 values.Append("СКОРОСТЬ            : " + Math.Round(cockpit.obj.GetShipSpeed(), 2) + "\n");
-                values.Append("ВЫСОТА (над.пл)     : " + Math.Round(cockpit.CurrentHeight, 2) + ", Sт : " + Math.Round(S, 2) + "\n");
+                values.Append("ВЫСОТА (над.пл)     : " + Math.Round(cockpit.CurrentHeight, 2) + "\n");
                 values.Append("ВЫСОТА (от цен.пл.) : " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(PointsDock[CurrDockPoint == 0 ? 1 : 0].FlyHeight).ToString() + "\n");
                 values.Append("ДИСТАНЦИЯ           : " + Math.Round(Distance).ToString() + "\n");
                 values.Append("----------------------------------------------\n");
@@ -1084,9 +1218,12 @@ namespace BUG_A1_NAV
                     case "pause": Pause(!paused); break;
                     case "stop": Stop(); break;
                     case "clear": Clear(); curent_programm = programm.none; SaveToStorage(); break;
-                    case "save_height": SetFlyHeight(); break;
                     case "save_base": SetDockMatrix(connector_forw); break;
+                    case "save_height": SetFlyHeight(); break;
+                    case "save_home": SetHomeDock(); break;
+                    case "save_loading": SetLoadingDock(); break;
                     case "fly_bp_bp": curent_programm = programm.fly_bp_bp; SaveToStorage(); break;
+                    case "carriage": curent_programm = programm.carriage; SaveToStorage(); break;
                     case "go_home": { go_home = true; break; }
                     case "to_base": curent_mode = mode.to_base; SaveToStorage(); break;
                     case "dock": curent_mode = mode.dock; SaveToStorage(); break;
@@ -1125,12 +1262,13 @@ namespace BUG_A1_NAV
                         bats.Charger();
                         thrusts.Off();
                     }
-                    if (clock >= 10)
-                    {
-                        clock = 0;
-                    }
-                    clock++;
+                    //if (clock >= 10)
+                    //{
+                    //    clock = 0;
+                    //}
+                    //clock++;
                     UpdateCalc();
+                    if (EmergencyReturn) lightings.On(); else lightings.Off();
                     if (curent_programm == programm.none)
                     {
                         if (horizont) { Horizon(); } else { gyros.SetOverride(false, 1); }
@@ -1157,6 +1295,7 @@ namespace BUG_A1_NAV
                         }
                     }
                     if (curent_programm == programm.fly_bp_bp && !paused) { Fly_BP_BP(); }
+                    if (curent_programm == programm.carriage && !paused) { Carriage(); }
                 }
             }
         }
