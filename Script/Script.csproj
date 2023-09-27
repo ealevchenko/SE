@@ -123,6 +123,7 @@
     <Compile Include="OCTOPUS\Octopus.cs" />
     <Compile Include="Setup_Example\Connection.cs" />
     <Compile Include="Setup_Example\gorizontcs.cs" />
+    <Compile Include="СORVETTE\СORVETTE_H1\СORVETTE_H1_NAV - Копировать.cs" />
     <Compile Include="СORVETTE\СORVETTE_H1\СORVETTE_H1_NAV.cs" />
     <Compile Include="СORVETTE\СORVETTE_H1\СORVETTE_H1_DOOR.cs" />
     <Compile Include="СВАРЩИКИ\KLEPA3.cs" />
