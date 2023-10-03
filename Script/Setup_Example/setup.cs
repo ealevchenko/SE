@@ -556,8 +556,8 @@ namespace SETUP
 
         //info:NASTYA1-info [door-info] [factory]
         //replace:[CP-E1]-|[CP-E-ICE-2]-
-        //add:[CP-E1]-
-        //[CP-E1]
+        //add:[OS-E1]-
+        //[OS-E1]
         void Main(string argument, UpdateType updateSource)
         {
             StringBuilder values_info = new StringBuilder();
