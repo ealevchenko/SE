@@ -160,30 +160,25 @@ namespace СORVETTE_H1_NAV
             {
                 StringBuilder values_nav1 = new StringBuilder();
                 //values_nav1.Append(thrusts.TextInfo());
-                values_nav1.Append(navigation.TextPanel());
+                values_nav1.Append(navigation.TextPanelNav1());
                 lcd_nav1.OutText(values_nav1);
 
                 StringBuilder values_nav3 = new StringBuilder();
-                values_nav3.Append(bats.TextInfo());
-                values_nav3.Append(connector.TextInfo());
-                values_nav3.Append(connector_down.TextInfo());
-                values_nav3.Append(landing_gears.TextInfo());
-                values_nav3.Append(navigation.TextInfo1());
+                values_nav3.Append(navigation.TextPanelNav2());
                 lcd_nav3.OutText(values_nav3);
 
-                //StringBuilder values_info = new StringBuilder();
-                //values_info.Append(bats.TextInfo());
-                //values_info.Append(connector.TextInfo());
-                //values_info.Append(connector_down.TextInfo());
-                //values_info.Append(landing_gears.TextInfo());
-                ////values_info.Append(special_inventory.TextInfo());
-                //values_info.Append(navigation.TextInfo1());
-                //cockpit.OutText(values_info, 0);
-                //StringBuilder test_info = new StringBuilder();
-                //lcd_info.OutText(test_info);
+                StringBuilder values_cockpit0 = new StringBuilder();
+                values_cockpit0.Append(bats.TextInfo());
+                values_cockpit0.Append(connector.TextInfo());
+                values_cockpit0.Append(connector_down.TextInfo());
+                values_cockpit0.Append(landing_gears.TextInfo());
+                values_cockpit0.Append(navigation.TextInfo1());
+                cockpit.OutText(values_cockpit0, 0);
+
                 StringBuilder values_info1 = new StringBuilder();
                 values_info1.Append(navigation.TextInfo2());
-                cockpit.OutText(values_info1, 0);
+                cockpit.OutText(values_info1, 1);
+
                 if (clock_main >= 10)
                 {
                     clock_main = 0;
@@ -659,13 +654,12 @@ namespace СORVETTE_H1_NAV
                 public long EntityId { get; set; } = 0;
                 public string Name { get; set; } = null;
                 public bool gravity { get; set; } = false;
+                public bool Home { get; set; } = false;
             }
             public PointDock[] PointsDock = new PointDock[10];
             public int CurrDockPoint { get; set; } = 0;
             public int NextDockPoint { get; set; } = 0;
             public int panel { get; set; } = 0;
-            public int route { get; set; } = 0;
-            public MatrixD WorkMatrix { get; private set; }
             public bool CriticalMassReached { get; private set; }// Признак критической массы
             public bool EmergencyReturn = false;
             public bool go_home = false; // вернутся домой и остатся
@@ -728,10 +722,9 @@ namespace СORVETTE_H1_NAV
                     }
                 }
             }
-            public void SetWorkMatrix()
+            public void SetHomeDock()
             {
-                WorkMatrix = GetNormTransMatrixFromMyPos();
-                WorkPoint = new Vector3D(0, 0, 0);
+                PointsDock[CurrDockPoint].Home = true;
                 SaveToStorage();
             }
             public void SetFlyHeight()
@@ -1387,11 +1380,18 @@ namespace СORVETTE_H1_NAV
                 StringBuilder str = lcd_storage.GetText();
                 curent_programm = (programm)mystorage.GetValInt("curent_programm", str.ToString());
                 curent_mode = (mode)mystorage.GetValInt("curent_mode", str.ToString());
+                horizont = mystorage.GetValBool("horizont", str.ToString());
+                scaning = mystorage.GetValBool("scaning", str.ToString());
+                curse = mystorage.GetValBool("curse", str.ToString());
                 paused = mystorage.GetValBool("pause", str.ToString());
                 go_home = mystorage.GetValBool("go_home", str.ToString());
                 EmergencyReturn = mystorage.GetValBool("EmergencyReturn", str.ToString());
                 CurrDockPoint = mystorage.GetValInt("CurrDockPoint", str.ToString());
                 NextDockPoint = mystorage.GetValInt("NextDockPoint", str.ToString());
+                dist_scan = mystorage.GetValDouble("dist_scan", str.ToString());
+                panel = mystorage.GetValInt("panel", str.ToString());
+                Vector3D tv = new Vector3D(mystorage.GetValDouble("PX", str.ToString()), mystorage.GetValDouble("PY", str.ToString()), mystorage.GetValDouble("PZ", str.ToString()));
+                if (tv.IsZero()) { TackVector = null; } else { TackVector = tv; }
                 for (int i = 0; i < 10; i++)
                 {
                     PointsDock[i].DockMatrix = new MatrixD(mystorage.GetValDouble("PD_DM" + i + "_11", str.ToString()), mystorage.GetValDouble("PD_DM" + i + "_12", str.ToString()), mystorage.GetValDouble("PD_DM" + i + "_13", str.ToString()), mystorage.GetValDouble("PD_DM" + i + "_14", str.ToString()),
@@ -1405,10 +1405,6 @@ namespace СORVETTE_H1_NAV
                     PointsDock[i].Name = mystorage.GetValString("PD_Name_" + i, str.ToString());
                     PointsDock[i].gravity = mystorage.GetValBool("PD_gravity_" + i, str.ToString());
                 }
-                WorkMatrix = new MatrixD(mystorage.GetValDouble("WM11", str.ToString()), mystorage.GetValDouble("WM12", str.ToString()), mystorage.GetValDouble("WM13", str.ToString()), mystorage.GetValDouble("WM14", str.ToString()),
-                mystorage.GetValDouble("WM21", str.ToString()), mystorage.GetValDouble("WM22", str.ToString()), mystorage.GetValDouble("WM23", str.ToString()), mystorage.GetValDouble("WM24", str.ToString()),
-                mystorage.GetValDouble("WM31", str.ToString()), mystorage.GetValDouble("WM32", str.ToString()), mystorage.GetValDouble("WM33", str.ToString()), mystorage.GetValDouble("WM34", str.ToString()),
-                mystorage.GetValDouble("WM41", str.ToString()), mystorage.GetValDouble("WM42", str.ToString()), mystorage.GetValDouble("WM43", str.ToString()), mystorage.GetValDouble("WM44", str.ToString()));
                 PlanetCenter = new Vector3D(mystorage.GetValDouble("PX", str.ToString()), mystorage.GetValDouble("PY", str.ToString()), mystorage.GetValDouble("PZ", str.ToString()));
             }
             public void SaveToStorage()
@@ -1416,13 +1412,18 @@ namespace СORVETTE_H1_NAV
                 StringBuilder values = new StringBuilder();
                 values.Append("curent_programm: " + ((int)curent_programm).ToString() + ";\n");
                 values.Append("curent_mode: " + ((int)curent_mode).ToString() + ";\n");
-                // values.Append("cargo_mode: " + ((int)cargo_components.curent_mode).ToString() + ";\n");
+                values.Append("horizont: " + horizont.ToString() + ";\n");
+                values.Append("scaning: " + scaning.ToString() + ";\n");
+                values.Append("curse: " + curse.ToString() + ";\n");
                 values.Append("pause: " + paused.ToString() + ";\n");
                 values.Append("go_home: " + go_home.ToString() + ";\n");
-                //values.Append("FlyHeight: " + Math.Round(FlyHeight, 0) + ";\n");
                 values.Append("EmergencyReturn: " + EmergencyReturn.ToString() + ";\n");
                 values.Append("CurrDockPoint: " + CurrDockPoint.ToString() + ";\n");
                 values.Append("NextDockPoint: " + NextDockPoint.ToString() + ";\n");
+                values.Append("dist_scan: " + Math.Round(dist_scan, 0) + ";\n");
+                values.Append("panel: " + panel.ToString() + ";\n");
+                Vector3D tv = (TackVector != null ? (Vector3D)TackVector : new Vector3D());
+                values.Append(tv.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "TVX").Replace("Y", "TVY").Replace("Z", "TVZ") + ";\n");
                 for (int i = 0; i < 10; i++)
                 {
                     values.Append(PointsDock[i].DockMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "PD_DM" + i + "_"));
@@ -1432,9 +1433,8 @@ namespace СORVETTE_H1_NAV
                     values.Append("PD_EntityId_" + i + ": " + PointsDock[i].EntityId.ToString() + ";\n");
                     values.Append("PD_Name_" + i + ": " + PointsDock[i].Name + ";\n");
                     values.Append("PD_gravity_" + i + ": " + PointsDock[i].gravity.ToString() + ";\n");
+                    values.Append("PD_Home_" + i + ": " + PointsDock[i].Home.ToString() + ";\n");
                 }
-                // values.Append(DockMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "DM"));
-                values.Append(WorkMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "WM"));
                 values.Append(PlanetCenter.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PX").Replace("Y", "PY").Replace("Z", "PZ") + ";\n");
                 lcd_storage.OutText(values);
             }
@@ -1490,7 +1490,7 @@ namespace СORVETTE_H1_NAV
                 values.Append((!vf ? ired.ToString() : igreen.ToString()) + "БЕЗОП. ВЫСОТА : " + Math.Round(PointsDock[CurrDockPoint].FlyHeight).ToString() + "\n");
                 values.Append("ГРАВИТАЦИЯ: " + (PointsDock[CurrDockPoint].gravity ? igreen.ToString() : ired.ToString()) + "\n");
                 values.Append("------------------------------------------------\n");
-                values.Append("=[1:P+]=[3:M+]=[5:S]=[7:H]=[9:Clear]==============\n");
+                values.Append("================================================\n");
                 return values.ToString();
             }
             public string TextProgramm()
@@ -1499,8 +1499,8 @@ namespace СORVETTE_H1_NAV
                 values.Append("=[P:" + panel + "]==[ МАРШРУТЫ ]==============\n");
                 values.Append((IsCorrectBasePoints(CurrDockPoint) ? igreen.ToString() : ired.ToString()) + "БАЗА ТЕКУЩАЯ#    : " + CurrDockPoint.ToString() + "\n");
                 values.Append((IsCorrectBasePoints(NextDockPoint) ? igreen.ToString() : ired.ToString()) + "БАЗА НАЗНАЧЕНИЯ# : " + NextDockPoint.ToString() + "\n");
-                values.Append("МАРШРУТ: " + name_programm[route] + "\n");
-                values.Append("-----------------------------------------------\n");
+                values.Append("МАРШРУТ: " + name_programm[(int)curent_programm] + "\n");
+                values.Append("----------------------------------------------\n");
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
                 values.Append("ПАУЗА       : " + (paused ? igreen.ToString() : ired.ToString()) + "\n");
@@ -1510,10 +1510,10 @@ namespace СORVETTE_H1_NAV
                 values.Append("ВЫСОТА (над.пл)     : " + Math.Round(cockpit.CurrentHeight, 2) + ", Sт : " + Math.Round(S, 2) + "\n");
                 values.Append("ВЫСОТА (от цен.пл.) : " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(PointsDock[NextDockPoint].FlyHeight).ToString() + "\n");
                 values.Append("ДИСТАНЦИЯ           : " + Math.Round(Distance).ToString() + "\n");
-                values.Append("----------------------------------------------\n");
+                values.Append("-----------------------------------------------\n");
                 values.Append("ФИЗ./КРИТ.(МАССА) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? ired.ToString() : igreen.ToString()) + "\n");
                 values.Append("ERROR: " + Message + "\n");
-                values.Append("=[1:P+]=[3:N+]=[5:P+]=[7:Start]=[9:Stop]======\n");
+                values.Append("==============================================\n");
                 return values.ToString();
             }
             public string TextScaner()
@@ -1526,7 +1526,7 @@ namespace СORVETTE_H1_NAV
                 values.Append(camera_course.GetTextDetectedEntityInfo(info_scan).ToString() + "\n");
                 values.Append("------------------------------------------------------\n");
                 values.Append("ERROR: " + Message + "\n");
-                values.Append("=[1:P+]=[3:Д+]=[5:Д-]=[7:Start]=[9:Stop]==============\n");
+                values.Append("======================================================\n");
                 return values.ToString();
             }
             public string TextCurse()
@@ -1538,24 +1538,31 @@ namespace СORVETTE_H1_NAV
                 values.Append("Name         : " + (info_scan != null ? ((MyDetectedEntityInfo)info_scan).Name : "") + "\n");
                 values.Append("Type         : " + (info_scan != null ? ((MyDetectedEntityInfo)info_scan).Type : MyDetectedEntityType.None) + "\n");
                 values.Append("ДИСТАНЦИЯ : " + (dist_curse != null ? Math.Round((double)dist_curse).ToString() : "") + ", Sт : " + Math.Round(S, 2) + "\n");
-                values.Append("-----------------------------------------------\n");
+                values.Append("------------------------------------------------------\n");
                 values.Append("ГРАВИТАЦИЯ : " + Math.Round(GravVector.Length(), 2) + "\n");
                 values.Append("СКОРОСТЬ   : " + Math.Round(cockpit.obj.GetShipSpeed(), 2) + "\n");
                 values.Append("ПАУЗА      : " + (paused ? igreen.ToString() : ired.ToString()) + "\n");
                 values.Append("------------------------------------------------------\n");
                 values.Append("ERROR: " + Message + "\n");
-                values.Append("=[1:P+]=[3:Курс]=[5:Камера]=[7:Start]=[9:Stop]==============\n");
+                values.Append("======================================================\n");
                 return values.ToString();
             }
-            public string TextPanel()
+            public string TextPanelNav1()
             {
                 switch (panel)
                 {
                     case 0: { return TextPointsDock(); }
-                    case 1: { return TextProgramm(); }
-                    case 2: { return TextScaner(); }
-                    case 3: { return TextCurse(); }
-                    default: return "";
+                    case 1: { return TextScaner(); }
+                    default: return "Невыбрана!";
+                }
+            }
+            public string TextPanelNav2()
+            {
+                switch (panel)
+                {
+                    case 0: { return TextProgramm(); }
+                    case 1: { return TextCurse(); }
+                    default: return "Невыбрана";
                 }
             }
             public void Logic(string argument, UpdateType updateSource)
@@ -1564,74 +1571,36 @@ namespace СORVETTE_H1_NAV
                 {
                     case "horizont": if (curent_programm == programm.none) { if (horizont) { horizont = false; } else { horizont = true; } } break;
                     case "scaning": if (curent_programm == programm.none) { if (scaning) { scaning = false; } else { scaning = true; } } break;
-                    case "curse": if (curent_programm == programm.none) { if (curse) { curse = false; } else { curse = true; } } break;
-                    case "load":
-                        LoadFromStorage();
-                        break;
-                    case "save":
-                        SaveToStorage();
-                        break;
-                    case "pause":
-                        Pause(!paused);
-                        break;
-                    case "stop":
-                        Stop();
-                        break;
-                    case "clear":
-                        Clear();
-                        curent_programm = programm.none;
-                        SaveToStorage();
-                        break;
-                    case "save_height":
-                        SetFlyHeight();
-                        break;
+                    case "tack_vector": if (curent_mode == mode.none && curent_programm == programm.none) { TackVector = camera_course.obj.WorldMatrix.Forward; } SaveToStorage(); break;
+                    case "curse": if ((curent_programm == programm.none && curent_mode == mode.none) || (curse)) { if (curse) { curse = false; } else { curse = true; scaning = false; } } break;
+                    case "load": LoadFromStorage(); break;
+                    case "save": SaveToStorage(); break;
+                    case "pause": Pause(!paused); break;
+                    case "stop": Stop(); break;
+                    case "clear": Clear(); curent_programm = programm.none; SaveToStorage(); break;
                     case "save_base": SetDockMatrix(connector); break;
+                    case "save_home": SetHomeDock(); break;
+                    case "save_height": SetFlyHeight(); break;
                     case "fly_bp_bs": curent_programm = programm.fly_bp_bs; SaveToStorage(); break;
                     case "fly_bs_bp": curent_programm = programm.fly_bs_bp; SaveToStorage(); break;
                     case "fly_bp_up": curent_programm = programm.fly_bp_up; SaveToStorage(); break;
                     case "fly_down_bp": curent_programm = programm.fly_down_bp; SaveToStorage(); break;
                     case "fly_bp_bp": curent_programm = programm.fly_bp_bp; SaveToStorage(); break;
-                    case "go_home":
-                        {
-                            go_home = true;
-                            break;
-                        }
+                    case "go_home": { go_home = true; break; }
                     case "to_base": curent_mode = mode.to_base; SaveToStorage(); break;
                     case "dock": curent_mode = mode.dock; SaveToStorage(); break;
                     case "un_dock": curent_mode = mode.un_dock; SaveToStorage(); break;
                     case "planet_up": curent_mode = mode.planet_up; SaveToStorage(); break;
                     case "planet_down": curent_mode = mode.planet_down; SaveToStorage(); break;
-                    case "P+": panel++; if (panel > 3) panel = 0; SaveToStorage(); break;
-                    case "P-": panel--; if (panel < 0) panel = 3; SaveToStorage(); break;
-                    case "1": panel++; if (panel > 3) panel = 0; SaveToStorage(); SaveToStorage(); break;
-                    case "3":
-                        if (panel == 0) { CurrDockPoint++; if (CurrDockPoint > 9) CurrDockPoint = 0; }
-                        if (panel == 1) { if (curent_mode == mode.none && curent_programm == programm.none) { NextDockPoint++; if (NextDockPoint > 9) NextDockPoint = 0; } }
-                        if (panel == 2) { dist_scan += 500; if (dist_scan > 10000f) dist_scan = 500f; }
-                        if (panel == 3) { TackVector = camera_course.obj.WorldMatrix.Forward; }
-                        SaveToStorage();
-                        break;
-                    case "5":
-                        if (panel == 0) { SetDockMatrix(connector); }
-                        if (panel == 1) { if (curent_mode == mode.none && curent_programm == programm.none) { route++; if (route > 5) route = 0; } }
-                        if (panel == 2) { dist_scan -= 500; if (dist_scan < 500f) dist_scan = 10000f; }
-                        //if (panel == 3) { camera_course.obj.ApplyAction("View"); }
-                        SaveToStorage();
-                        break;
-                    case "7":
-                        if (panel == 0) { SetFlyHeight(); }
-                        if (panel == 1) { curent_programm = (programm)route; }
-                        if (panel == 2) { if (curent_programm == programm.none) { { scaning = true; } } break; }
-                        if (panel == 3) { if (curent_programm == programm.none && curent_mode == mode.none) { { curse = true; scaning = false; } } break; }
-                        SaveToStorage();
-                        break;
-                    case "9":
-                        if (panel == 0) { }
-                        if (panel == 1) { Stop(); }
-                        if (panel == 2) { scaning = false; ; }
-                        if (panel == 3) { thrusts.On(); Stop(); }
-                        SaveToStorage();
-                        break;
+                    case "panel+": panel++; if (panel > 1) panel = 0; SaveToStorage(); break;
+                    case "panel-": panel--; if (panel < 0) panel = 1; SaveToStorage(); break;
+                    case "point+": if (!connector.Connected && !connector_down.Connected) { CurrDockPoint++; if (CurrDockPoint > 9) CurrDockPoint = 0; } SaveToStorage(); break;
+                    case "point-": if (!connector.Connected && !connector_down.Connected) { CurrDockPoint--; if (CurrDockPoint < 0) CurrDockPoint = 9; } SaveToStorage(); break;
+                    case "reverse_point": if (!connector.Connected && !connector_down.Connected) { int px = CurrDockPoint; CurrDockPoint = NextDockPoint; NextDockPoint = px; } SaveToStorage(); break;
+                    case "n_point+": if (curent_mode == mode.none && curent_programm == programm.none) { NextDockPoint++; if (NextDockPoint > 9) NextDockPoint = 0; } SaveToStorage(); break;
+                    case "n_point-": if (curent_mode == mode.none && curent_programm == programm.none) { NextDockPoint--; if (NextDockPoint < 0) NextDockPoint = 9; } SaveToStorage(); break;
+                    case "dist_scan+": dist_scan += 500; if (dist_scan > 10000f) dist_scan = 10000f; SaveToStorage(); break;
+                    case "dist_scan-": dist_scan -= 500; if (dist_scan < 500) dist_scan = 500; SaveToStorage(); break;
                     default:
                         break;
                 }
