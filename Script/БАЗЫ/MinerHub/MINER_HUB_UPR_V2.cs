@@ -769,7 +769,7 @@ namespace MINER_HUB_UPR_V2
                 StringBuilder values = new StringBuilder();
                 foreach (power_result pr in list_power_result)
                 {
-                    values.Append(pr.TyepID.Replace("MyObjectBuilder_", "") + "C-W-P: [" + pr.count + "-" + pr.working + "-" + pr.count_power_by + "]" + "\n");
+                    values.Append(pr.TyepID.Replace("MyObjectBuilder_", "") + " C-W-P: [" + pr.count + "-" + pr.working + "-" + pr.count_power_by + "]" + "\n");
                     if (pr.out_max > 0)
                     {
                         values.Append("|- OUT: [" + PText.GetCurrentOfMax(pr.out_cur, pr.out_max, "W") + "\n");
