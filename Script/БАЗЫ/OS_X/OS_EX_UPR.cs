@@ -34,18 +34,19 @@ namespace OS_EX_UPR
         string tag_info_tablo = "[door-info]";
         public enum room : int
         {
-            none = 0,
-            space = 1,
-            operators = 2,
+            space = 0,
+            operators = 1,
+            station = 2,
+            gateway = 3,
         };
-        public static string[] name_room = { "", "КОСМОС", "ОПЕРАТОРСКАЯ" };
-        public static int[] count_room = { 0, 0, 0};
+        public static string[] name_room = { "КОСМОС", "ОПЕРАТОРСКАЯ", "СТАНЦИЯ", "ШЛЮЗ" };
+        public static int[] count_room = { 0, 0, 0, 0 };
         public enum doors_gareways : int
         {
-            operators_space_left_downn = 0,
+            operators_space_left_down = 0,
             operators_space_right_down = 1,
             operators_space_left_up = 2,
-            operators_space_right_up = 3,  
+            operators_space_right_up = 3,
         }
 
         public static Color red = new Color(255, 0, 0);
@@ -303,10 +304,10 @@ namespace OS_EX_UPR
                 {
                     door1 = null;
                     sensor1 = null;
-                    room1 = room.none;
+                    room1 = room.space;
                     door2 = null;
                     sensor2 = null;
-                    room2 = room.none;
+                    room2 = room.space;
 
                     List<IMyDoor> l_drs = doors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).ToList();
                     List<IMySensorBlock> l_sns = sensors.Where(d => d.CustomName.Contains("[" + gw.ToString() + "]")).ToList();
@@ -543,10 +544,13 @@ namespace OS_EX_UPR
     }
 }
 
-// door [door-gateway] [operators_external_2] [external]
-// sn [door-gateway] [operators_external_2] [external]
-// door [door-gateway] [operators_external_2] [operators]
-// sn [door-gateway] [operators_external_2] [operators]
+// door [door-gateway] [operators_space_left_down] [space]
+// sn [door-gateway] [operators_space_left_down] [space]
+// door [door-gateway] [operators_space_right_down] [space]
+// sn [door-gateway] [operators_space_right_down] [space]
+
+// door [door-gateway] [operators_space_left_down] [operators_space_right_down] [operators]
+// sn [door-gateway] [operators_space_left_down] [operators_space_right_down] [operators]
 
 // sn [door-transition] [module_transition] [module]
 // sn [door-transition] [module_transition] [transition]
@@ -556,8 +560,8 @@ namespace OS_EX_UPR
 // sn [door-transition] [cabin_energy_module_right] [cabin]
 // door [door-transition] [cabin_energy_module_right]
 
-//[SPB-MARS-1]-light [lighting_room] [operators]
-//[SPB-MARS-1]-mLCD [door-info] [operators]
+//[OS-E1]-light [lighting_room] [operators]
+//[OS-E1]-mLCD [door-info] [operators]
 
 // [piston-wind-generator]
 // [main-hinge]
