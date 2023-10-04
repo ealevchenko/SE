@@ -82,18 +82,19 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MinerHub\MINER_HUB_UPR_V2.cs" />
-    <Compile Include="MinerHub\MINER_HUB_UPR.cs" />
-    <Compile Include="MPB\MPB_NAV.cs" />
-    <Compile Include="MPB\MPB_UPR.cs" />
+    <Compile Include="БАЗЫ\MinerHub\MINER_HUB_UPR_V2.cs" />
+    <Compile Include="БАЗЫ\MinerHub\MINER_HUB_UPR.cs" />
+    <Compile Include="БАЗЫ\MPB\MPB_NAV.cs" />
+    <Compile Include="БАЗЫ\MPB\MPB_UPR.cs" />
     <Compile Include="OCTOPUS\Roach1.cs" />
     <Compile Include="OCTOPUS\Hrv4.cs" />
     <Compile Include="OCTOPUS\Octopus2.cs" />
-    <Compile Include="OSS\OSS_BM_UPR.cs" />
-    <Compile Include="OSS\OSS_BM_DORS.cs" />
+    <Compile Include="БАЗЫ\OSS\OSS_BM_UPR.cs" />
+    <Compile Include="БАЗЫ\OSS\OSS_BM_DORS.cs" />
     <Compile Include="OCTOPUS\Octopus1.cs" />
-    <Compile Include="SPB\SPB_EUROPE_DORS.cs" />
-    <Compile Include="SPB\SPB_MARS_DORS.cs" />
+    <Compile Include="БАЗЫ\OS_X\OS_EX_UPR.cs" />
+    <Compile Include="БАЗЫ\SPB\SPB_EUROPE_DORS.cs" />
+    <Compile Include="БАЗЫ\SPB\SPB_MARS_DORS.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\MOLE_A1.cs" />
     <Compile Include="БУРОВИКИ\MINER\MINER_I2_E1.cs" />
     <Compile Include="БУРОВИКИ\MINER\MINER_A2_E1.cs" />
@@ -119,7 +120,7 @@
     <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\BUG\BUG_A1_H2_NAV.cs" />
     <Compile Include="КОРАБЛИ\APOLN1.cs" />
     <Compile Include="Setup_Example\Primary_bur.cs" />
-    <Compile Include="Basa_Earth\BASE_EARTH_PROJECTOR_SG.cs" />
+    <Compile Include="БАЗЫ\Basa_Earth\BASE_EARTH_PROJECTOR_SG.cs" />
     <Compile Include="OCTOPUS\Octopus.cs" />
     <Compile Include="Setup_Example\Connection.cs" />
     <Compile Include="Setup_Example\gorizontcs.cs" />
@@ -131,26 +132,26 @@
     <Compile Include="СВАРЩИКИ\KLEPA\KLEPA_A1.cs" />
     <Compile Include="СВАРЩИКИ\KLEPA\KLEPA_H1.cs" />
     <Compile Include="СВАРЩИКИ\KLEPA\test\KLEPA_A1.cs" />
-    <Compile Include="ТЯГАЧИ\MUL_CARGO.cs" />
-    <Compile Include="ТЯГАЧИ\MUL_H1_NAV.cs" />
-    <Compile Include="ТЯГАЧИ\Arhiv\MUL_H2_NAV - Копировать.cs" />
-    <Compile Include="ТЯГАЧИ\Arhiv\MUL_H2_NAV - К2.cs" />
-    <Compile Include="ТЯГАЧИ\Arhiv\MUL_H2_NAV - Копировать %282%29.cs" />
-    <Compile Include="ТЯГАЧИ\Arhiv\MUL_H2_NAV - Копировать%283%29.cs" />
-    <Compile Include="ТЯГАЧИ\MUL_H2_NAV - Копировать.cs" />
-    <Compile Include="ТЯГАЧИ\MUL_H2_NAV.cs" />
-    <Compile Include="ТЯГАЧИ\MUL_H2_DOOR.cs" />
-    <Compile Include="ТЯГАЧИ\MUL_H1_UPR.cs" />
-    <Compile Include="ТЯГАЧИ\MUL1.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\MUL_CARGO.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\MUL_H1_NAV.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\Arhiv\MUL_H2_NAV - Копировать.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\Arhiv\MUL_H2_NAV - К2.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\Arhiv\MUL_H2_NAV - Копировать %282%29.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\Arhiv\MUL_H2_NAV - Копировать%283%29.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\MUL_H2_NAV - Копировать.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\MUL_H2_NAV.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\MUL_H2_DOOR.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\MUL_H1_UPR.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\MUL1.cs" />
     <Compile Include="КОРАБЛИ\NASTYA\NASTYA_LOGIC_DOORS.cs" />
     <Compile Include="КОРАБЛИ\NASTYA\NASTYA_PROJECTOR.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="БУРОВИКИ\SANA\SANA1-NAVIGATION.cs" />
     <Compile Include="БУРОВИКИ\SANA\SANA1-Управление.cs" />
     <Compile Include="Setup_Example\setup.cs" />
-    <Compile Include="БАЗА_МЗ1\БАЗА-МЗ1.cs" />
-    <Compile Include="БАЗА_МЗ1\БАЗА_МЗ1_PROJECTOR_LM.cs" />
-    <Compile Include="БАЗА_МЗ1\БАЗА_МЗ1_PROJECTOR_SG.cs" />
+    <Compile Include="БАЗЫ\БАЗА_МЗ1\БАЗА-МЗ1.cs" />
+    <Compile Include="БАЗЫ\БАЗА_МЗ1\БАЗА_МЗ1_PROJECTOR_LM.cs" />
+    <Compile Include="БАЗЫ\БАЗА_МЗ1\БАЗА_МЗ1_PROJECTOR_SG.cs" />
     <Compile Include="БУРОВИКИ\test\KROTIK_A1.cs" />
   </ItemGroup>
   <ItemGroup>
