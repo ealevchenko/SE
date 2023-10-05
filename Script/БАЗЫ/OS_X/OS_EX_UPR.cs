@@ -15,6 +15,7 @@ using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
+using VRage.Scripting;
 using VRageMath;
 using static SPB_MARS_DORS.Program;
 
@@ -61,6 +62,7 @@ namespace OS_EX_UPR
 
         static LCD lcd_storage;
         static LCD lcd_debug;
+        static LCD lcd_nav1;
 
         static ReflectorsLight reflectors_light;
         static Gateways gateways_doors;
@@ -72,6 +74,7 @@ namespace OS_EX_UPR
         static ShipController cockpit_nav;
         static Gyros gyros;
         static Thrusts thrusts;
+        static MotorStator motor_sp_left, motor_sp_right;
         static SolarPower solar_power;
 
         static Program _scr;
@@ -118,6 +121,7 @@ namespace OS_EX_UPR
             _scr = this;
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
+            lcd_nav1 = new LCD(NameObj + "-LCD Nav1");
             air_vent = new AirVent(NameObj);
             air_vent.On();
             air_info = new AirInfo(NameObj, tag_info_tablo);
@@ -126,11 +130,13 @@ namespace OS_EX_UPR
             room_light.Off();
             reflectors_light = new ReflectorsLight(NameObj);
             reflectors_light.Off();
-            camera_course = new Camera(NameObj + "-Камера [curse]");
-            cockpit_nav = new ShipController(NameObj + "-Cocpit navigation [LCD]");
+            camera_course = new Camera(NameObj + "-Камера curse");
+            cockpit_nav = new ShipController(NameObj + "-Cocpit [navigation] [LCD]");
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj);
             thrusts.InitThrusts(cockpit_nav);
+            motor_sp_left = new MotorStator(NameObj + "-Ротор панели [left]");
+            motor_sp_right = new MotorStator(NameObj + "-Ротор панели [right]");
             solar_power = new SolarPower();
             storage = new MyStorage();
             storage.LoadFromStorage();
@@ -151,8 +157,24 @@ namespace OS_EX_UPR
             room_light.Logic(argument, updateSource);// Логика отработки включения и выключения освещения
             if (updateSource == UpdateType.Update10)
             {
-                
+
             }
+            StringBuilder cockpit_nav0 = new StringBuilder();
+            cockpit_nav0.Append(solar_power.TextInfo());
+            cockpit_nav0.Append("Левая панель---------\n");
+            cockpit_nav0.Append(motor_sp_left.TextInfo());
+            cockpit_nav0.Append("Правая панель -------\n");
+            cockpit_nav0.Append(motor_sp_right.TextInfo());
+            cockpit_nav.OutText(cockpit_nav0, 0);
+
+            StringBuilder values_nav1 = new StringBuilder();
+            values_nav1.Append(solar_power.TextInfo());
+            values_nav1.Append("Левая панель---------\n");
+            values_nav1.Append(motor_sp_left.TextInfo());
+            values_nav1.Append("Правая панель -------\n");
+            values_nav1.Append(motor_sp_right.TextInfo());
+            values_nav1.Append(thrusts.TextInfo());
+            lcd_nav1.OutText(values_nav1);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
@@ -286,7 +308,7 @@ namespace OS_EX_UPR
                 if (count_room[(int)rm1] < 0) { count_room[(int)rm1] = 0; storage.SaveToStorage(); }
 
                 if (count_room[(int)rm2] < 0) { count_room[(int)rm2] = 0; storage.SaveToStorage(); }
-               
+
             }
         }
         public class Gateways
@@ -553,7 +575,7 @@ namespace OS_EX_UPR
         }
         public class ShipController : BaseTerminalBlock<IMyShipController>
         {
-            public ShipController(string name) : base(name) {  }
+            public ShipController(string name) : base(name) { }
             public void OutText(StringBuilder values, int num_lcd) { if (base.obj is IMyTextSurfaceProvider) { IMyTextSurfaceProvider ipp = this.obj as IMyTextSurfaceProvider; if (num_lcd > ipp.SurfaceCount) return; IMyTextSurface ts = ipp.GetSurface(num_lcd); if (ts != null) { ts.WriteText(values, false); } } }
             public void OutText(string text, bool append, int num_lcd) { if (this.obj is IMyTextSurfaceProvider) { IMyTextSurfaceProvider ipp = this.obj as IMyTextSurfaceProvider; if (num_lcd > ipp.SurfaceCount) return; IMyTextSurface ts = ipp.GetSurface(num_lcd); if (ts != null) { ts.WriteText(text, append); } } }
             public StringBuilder GetText(int num_lcd) { StringBuilder values = new StringBuilder(); if (this.obj is IMyTextSurfaceProvider) { IMyTextSurfaceProvider ipp = this.obj as IMyTextSurfaceProvider; if (num_lcd > ipp.SurfaceCount) return null; IMyTextSurface ts = ipp.GetSurface(num_lcd); if (ts != null) { ts.ReadText(values); } } return values; }
@@ -762,11 +784,12 @@ namespace OS_EX_UPR
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
+                values.Append("== СТАНЦИЯ =======================\n");
                 values.Append("PhysicalMass : " + Math.Round(this.remote_control.obj.CalculateShipMass().PhysicalMass) + "\n");
                 values.Append("TotalMass : " + Math.Round(this.remote_control.obj.CalculateShipMass().TotalMass) + "\n");
                 values.Append("Grav         : " + Math.Round(this.remote_control.obj.GetNaturalGravity().Length()) + "\n");
-                values.Append("axis         : " + axis + " , Value : " + Value + "\n");
-                values.Append("------------------------------------------\n");
+                //values.Append("axis         : " + axis + " , Value : " + Value + "\n");
+                values.Append("== ТРАСТЕРЫ =======================\n");
                 values.Append("UP MAX       : " + PText.GetThrust((float)UpThrMax) + "\n");
                 values.Append("DOWN MAX     : " + PText.GetThrust((float)DownThrMax) + "\n");
                 values.Append("Forward MAX  : " + PText.GetThrust((float)ForwardThrMax) + "\n");
@@ -784,7 +807,7 @@ namespace OS_EX_UPR
                 StringBuilder str = lcd_storage.GetText();
                 solar_power.Axis = new Vector3D(GetValDouble("SPAxisX", str.ToString()), GetValDouble("SPAxisY", str.ToString()), GetValDouble("SPAxisZ", str.ToString()));
                 solar_power.vector_axis = GetValBool("SPvector_axis", str.ToString());
-                solar_power.parkong = GetValBool("SPparkong", str.ToString());
+                solar_power.parking = GetValBool("SPparkong", str.ToString());
                 for (int i = 0; i < count_room.Length; i++)
                 {
                     int count = GetValInt("count_room_" + i, str.ToString());
@@ -796,7 +819,7 @@ namespace OS_EX_UPR
                 StringBuilder values = new StringBuilder();
                 values.Append(solar_power.Axis.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "SPAxisX").Replace("Y", "SPAxisY").Replace("Z", "SPAxisZ") + ";\n");
                 values.Append("SPvector_axis: " + solar_power.vector_axis.ToString() + ";\n");
-                values.Append("SPparkong: " + solar_power.parkong.ToString() + ";\n");
+                values.Append("SPparkong: " + solar_power.parking.ToString() + ";\n");
                 for (int i = 0; i < count_room.Length; i++)
                 {
                     values.Append("count_room_" + i + ": " + (count_room[i]).ToString() + ";\n");
@@ -810,25 +833,141 @@ namespace OS_EX_UPR
             public long GetValInt64(string Key, string str) { return Convert.ToInt64(GetVal(Key, str, "0")); }
             public bool GetValBool(string Key, string str) { return Convert.ToBoolean(GetVal(Key, str, "False")); }
         }
-        public class SolarPower {
+        public class MotorStator : BaseTerminalBlock<IMyMotorStator>
+        {
+            public float? task_degr { get; set; } = null;
+            private float tolerance = 0.1f;
+            private float multiply_speed = 0.1f;
+            public MotorStator(string name_obj) : base(name_obj)
+            {
+
+            }
+            public double RadToGradus(float rad)
+            {
+                return rad * 180 / Math.PI;
+            }
+            public void RotateToGradus(float degr)
+            {
+                if (this.obj == null) return;
+                float speed = 0f;
+                // Текущее положение
+                double curennt_degr = RadToGradus(this.obj.Angle);
+                if (curennt_degr > (degr + tolerance))
+                {
+                    double dist = curennt_degr - degr;
+                    if (Math.Abs(dist) <= 180.1f)
+                    {
+                        speed = -(float)(Math.Abs(dist) * multiply_speed);
+                    }
+                    else
+                    {
+                        speed = (float)(Math.Abs(dist) * multiply_speed);
+                    }
+
+                    this.obj.TargetVelocityRPM = speed;
+                }
+                else if (curennt_degr < (degr - tolerance))
+                {
+                    double dist = (degr - curennt_degr);
+                    if (Math.Abs(dist) <= 180.1f)
+                    {
+                        speed = (float)(Math.Abs(degr - curennt_degr) * multiply_speed);
+                    }
+                    else
+                    {
+                        speed = -(float)(Math.Abs(degr - curennt_degr) * multiply_speed);
+                    }
+
+                    this.obj.TargetVelocityRPM = speed;
+                }
+                else
+                {
+                    this.obj.TargetVelocityRPM = speed;
+                    this.task_degr = null;
+                }
+            }
+            public double GetCurrentGradus()
+            {
+                if (this.obj == null) return 0;
+                return RadToGradus(this.obj.Angle);
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+                    if (task_degr != null)
+                    {
+                        RotateToGradus((float)task_degr);
+                    }
+                }
+            }
+            public string TextInfo()
+            {
+                if (this.obj == null) return "";
+                StringBuilder values = new StringBuilder();
+                values.Append("БЛОК : " + (this.obj.RotorLock ? ired.ToString() : igreen.ToString()) + " УГОЛ : " + Math.Round(RadToGradus(this.obj.Angle), 1) + " СКОРОСТЬ : " + Math.Round(this.obj.TargetVelocityRPM, 3) + " ЗАД : " + this.task_degr + "\n");
+                return values.ToString();
+            }
+        }
+        public class SolarPower
+        {
             public Vector3D VS1 { get; set; }
             public Vector3D VS2 { get; set; }
             public Vector3D Axis { get; set; }
             public bool vector_axis { get; set; } = false;
-            public bool parkong { get; set; } = false;
+            public bool parking { get; set; } = false;
             public SolarPower()
             {
 
             }
-            public void SetToVector() {
-                double gF = Axis.Dot(cockpit_nav.obj.WorldMatrix.Forward);
-                double gL = Axis.Dot(cockpit_nav.obj.WorldMatrix.Up);
-                double gU = Axis.Dot(cockpit_nav.obj.WorldMatrix.Right);
-                //Получаем сигналы по тангажу и крены операцией atan2
+            public void SetToVector()
+            {
+                Vector3D GravNorm = Vector3D.Normalize(Axis);
+                double gF = GravNorm.Dot(cockpit_nav.obj.WorldMatrix.Forward);
+                double gL = GravNorm.Dot(cockpit_nav.obj.WorldMatrix.Up);
+                double gU = GravNorm.Dot(cockpit_nav.obj.WorldMatrix.Right);
                 double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
                 double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
                 double TargetYaw = cockpit_nav.obj.RotationIndicator.Y;
-                gyros.SetOverride(true, new Vector3D(TargetPitch, -TargetYaw, TargetRoll), 1);
+                gyros.SetOverride(true, new Vector3D(-TargetPitch, TargetYaw, TargetRoll), 1);
+            }
+            public bool SetParking()
+            {
+                bool Complete = false;
+                double gr_sp_left = motor_sp_left.GetCurrentGradus();
+                double gr_sp_right = motor_sp_right.GetCurrentGradus();
+
+                if (gr_sp_left > 0.1f)
+                {
+                    motor_sp_left.obj.RotorLock = false;
+                    motor_sp_left.RotateToGradus(0f);
+                }
+                if (gr_sp_right > 0.1f)
+                {
+                    motor_sp_right.obj.RotorLock = false;
+                    motor_sp_right.RotateToGradus(0f);
+                }
+                if (gr_sp_left <= 0.1f && gr_sp_right <= 0.1f)
+                {
+                    motor_sp_left.obj.RotorLock = true;
+                    motor_sp_right.obj.RotorLock = true;
+                    Complete = true;
+                }
+                return Complete;
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("==СОЛНЕЧНЫЕ ПАНЕЛИ ==============\n");
+                values.Append("ВЕКТОР НА СОЛНЦЕ : " + (vector_axis ? igreen.ToString() : ired.ToString()) + "\n");
+                values.Append("ПАРКОВКА ПАНЕЛЕЙ : " + (parking ? igreen.ToString() : ired.ToString()) + "\n");
+                values.Append(PText.GetGPS("ВЕКТОР", Axis) + "\n");
+                return values.ToString();
             }
             public void Logic(string argument, UpdateType updateSource)
             {
@@ -837,25 +976,22 @@ namespace OS_EX_UPR
                     case "vs1": VS1 = camera_course.obj.WorldMatrix.Forward; break;
                     case "vs2": VS2 = camera_course.obj.WorldMatrix.Forward; Axis = VS1.Cross(VS2); storage.SaveToStorage(); break;
                     case "set_to_vector": if (vector_axis) { vector_axis = false; } else { vector_axis = true; } storage.SaveToStorage(); break;
-                    case "parking_panel": if (parkong) { parkong = false; } else { parkong = true; } storage.SaveToStorage(); break;
+                    case "parking_panel": if (parking) { parking = false; } else { parking = true; } storage.SaveToStorage(); break;
                     default:
                         break;
                 }
                 if (updateSource == UpdateType.Update10)
                 {
-                    if (vector_axis)
-                    {
-                        thrusts.On();
-                        SetToVector();
-                    }
+                    if (vector_axis) { thrusts.On(); SetToVector(); }
                     else
                     {
-                        thrusts.ClearThrustOverridePersent();
-                        gyros.SetOverride(false, 1);
-                        if (cockpit_nav.obj.GetShipSpeed() < 0.1f) thrusts.Off();
-                       
+                        thrusts.ClearThrustOverridePersent(); gyros.SetOverride(false, 1);
+                        //if (cockpit_nav.obj.GetShipSpeed() < 0.1f) thrusts.Off();
                     }
+                    if (parking && SetParking()) { parking = false; storage.SaveToStorage(); }
+
                 }
+
             }
         }
     }
