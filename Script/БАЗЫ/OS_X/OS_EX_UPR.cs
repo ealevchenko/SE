@@ -68,7 +68,11 @@ namespace OS_EX_UPR
         static AirInfo air_info;
         static AirVent air_vent;
         static MyStorage storage;
-
+        static Camera camera_course;
+        static ShipController cockpit_nav;
+        static Gyros gyros;
+        static Thrusts thrusts;
+        static SolarPower solar_power;
 
         static Program _scr;
         public class PText
@@ -114,8 +118,6 @@ namespace OS_EX_UPR
             _scr = this;
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
-            storage = new MyStorage();
-            storage.LoadFromStorage();
             air_vent = new AirVent(NameObj);
             air_vent.On();
             air_info = new AirInfo(NameObj, tag_info_tablo);
@@ -124,6 +126,15 @@ namespace OS_EX_UPR
             room_light.Off();
             reflectors_light = new ReflectorsLight(NameObj);
             reflectors_light.Off();
+            camera_course = new Camera(NameObj + "-Камера [curse]");
+            cockpit_nav = new ShipController(NameObj + "-Cocpit navigation [LCD]");
+            gyros = new Gyros(NameObj);
+            thrusts = new Thrusts(NameObj);
+            thrusts.InitThrusts(cockpit_nav);
+            solar_power = new SolarPower();
+            storage = new MyStorage();
+            storage.LoadFromStorage();
+
         }
         public void Save()
         {
@@ -132,22 +143,15 @@ namespace OS_EX_UPR
         // Переключить батареи
         public void Main(string argument, UpdateType updateSource)
         {
-            switch (argument)
-            {
-                default:
-                    break;
-            }
+            switch (argument) { default: break; }
+            solar_power.Logic(argument, updateSource);
             air_info.Logic(argument, updateSource);
-            // Логика отработки шлюзовых дверей
-            gateways_doors.Logic(argument, updateSource);
-            // В космосе людей не считаем
-            count_room[(int)room.space] = 0;
-            // Логика отработки включения и выключения освещения
-            room_light.Logic(argument, updateSource);
-            storage.SaveToStorage();
+            gateways_doors.Logic(argument, updateSource);// Логика отработки шлюзовых дверей
+            count_room[(int)room.space] = 0;// В космосе людей не считаем
+            room_light.Logic(argument, updateSource);// Логика отработки включения и выключения освещения
             if (updateSource == UpdateType.Update10)
             {
-
+                
             }
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
@@ -249,13 +253,14 @@ namespace OS_EX_UPR
                     // Игрокнайден возле внутр дверь закрыта и внешняя закрыта
                     door2.OpenDoor();
                 }
-                // Логика направдения движения
+                // Логика направления движения
                 if (sn1_active && !sn2_active && sn2.IsActive)
                 {
                     // Выход
                     sn2_active = true;
                     count_room[(int)rm1]--;
                     count_room[(int)rm2]++;
+                    storage.SaveToStorage();
                 }
                 if (sn2_active && !sn1_active && sn1.IsActive)
                 {
@@ -263,6 +268,7 @@ namespace OS_EX_UPR
                     sn1_active = true;
                     count_room[(int)rm1]++;
                     count_room[(int)rm2]--;
+                    storage.SaveToStorage();
                 }
                 if (sn2_active && sn1_active && !sn2.IsActive && !sn1.IsActive)
                 {
@@ -277,8 +283,10 @@ namespace OS_EX_UPR
                     sn1_active = sn1.IsActive;
                     sn2_active = sn2.IsActive;
                 }
-                if (count_room[(int)rm1] < 0) count_room[(int)rm1] = 0;
-                if (count_room[(int)rm2] < 0) count_room[(int)rm2] = 0;
+                if (count_room[(int)rm1] < 0) { count_room[(int)rm1] = 0; storage.SaveToStorage(); }
+
+                if (count_room[(int)rm2] < 0) { count_room[(int)rm2] = 0; storage.SaveToStorage(); }
+               
             }
         }
         public class Gateways
@@ -392,7 +400,6 @@ namespace OS_EX_UPR
                         }
                     }
                 }
-
             }
         }
         public class InfoTablo : BaseListTerminalBlock<IMyTextPanel>
@@ -512,13 +519,272 @@ namespace OS_EX_UPR
 
             }
         }
+        public class Camera : BaseTerminalBlock<IMyCameraBlock>
+        {
+            public Camera(string name) : base(name) { base.obj.EnableRaycast = true; }
+            public MyDetectedEntityInfo? Raycast(double dist_scan, float pitch_scan, float yaw_scan)
+            {
+                MyDetectedEntityInfo? result = null;
+                if (base.obj.CanScan(dist_scan))
+                {
+                    result = base.obj.Raycast(dist_scan, pitch_scan, yaw_scan);
+                }
+                return result;
+            }
+            public string TextInfo() { StringBuilder values = new StringBuilder(); return values.ToString(); }
+            public string GetTextDetectedEntityInfo(MyDetectedEntityInfo? info)
+            {
+                StringBuilder values = new StringBuilder();
+                if (info != null)
+                {
+                    Vector3D? HitPosition = ((MyDetectedEntityInfo)info).HitPosition;
+                    values.Append("РАССТОЯНИЕ   : " + (HitPosition != null ? Math.Round(((Vector3D)((Vector3D)HitPosition) - base.obj.GetPosition()).Length(), 2).ToString() : "") + "\n");
+                    values.Append("Name         : " + ((MyDetectedEntityInfo)info).Name + "\n");
+                    values.Append("Type         : " + ((MyDetectedEntityInfo)info).Type + "\n");
+                    values.Append("HitPosition  : " + HitPosition + "\n");
+                    values.Append("Orientation  : " + ((MyDetectedEntityInfo)info).Orientation + "\n");
+                    values.Append("Velocity     : " + ((MyDetectedEntityInfo)info).Velocity + "\n");
+                    values.Append("Relationship : " + ((MyDetectedEntityInfo)info).Relationship + "\n");
+                    values.Append("BoundingBox  : " + ((MyDetectedEntityInfo)info).BoundingBox + "\n");
+                }
+                else { values.Append("РАССТОЯНИЕ   : \n"); values.Append("Name         : \n"); values.Append("Type         : \n"); values.Append("HitPosition  : \n"); values.Append("Orientation  : \n"); values.Append("Velocity     : \n"); values.Append("Relationship : \n"); values.Append("BoundingBox  : \n"); };
+                return values.ToString();
+            }
+        }
+        public class ShipController : BaseTerminalBlock<IMyShipController>
+        {
+            public ShipController(string name) : base(name) {  }
+            public void OutText(StringBuilder values, int num_lcd) { if (base.obj is IMyTextSurfaceProvider) { IMyTextSurfaceProvider ipp = this.obj as IMyTextSurfaceProvider; if (num_lcd > ipp.SurfaceCount) return; IMyTextSurface ts = ipp.GetSurface(num_lcd); if (ts != null) { ts.WriteText(values, false); } } }
+            public void OutText(string text, bool append, int num_lcd) { if (this.obj is IMyTextSurfaceProvider) { IMyTextSurfaceProvider ipp = this.obj as IMyTextSurfaceProvider; if (num_lcd > ipp.SurfaceCount) return; IMyTextSurface ts = ipp.GetSurface(num_lcd); if (ts != null) { ts.WriteText(text, append); } } }
+            public StringBuilder GetText(int num_lcd) { StringBuilder values = new StringBuilder(); if (this.obj is IMyTextSurfaceProvider) { IMyTextSurfaceProvider ipp = this.obj as IMyTextSurfaceProvider; if (num_lcd > ipp.SurfaceCount) return null; IMyTextSurface ts = ipp.GetSurface(num_lcd); if (ts != null) { ts.ReadText(values); } } return values; }
+        }
+        public class Gyros : BaseListTerminalBlock<IMyGyro>
+        {
+            public Gyros(string name_obj) : base(name_obj) { }
+            public Gyros(string name_obj, string tag) : base(name_obj, tag) { }
+            public void SetOverride(bool OverrideOnOff, Vector3 settings, float Power = 1) { foreach (IMyGyro gyro in base.list_obj) { if ((!gyro.GyroOverride) && OverrideOnOff) gyro.ApplyAction("Override"); gyro.GyroPower = Power; gyro.Yaw = settings.GetDim(0); gyro.Pitch = settings.GetDim(1); gyro.Roll = settings.GetDim(2); } }
+            public void SetOverride(bool OverrideOnOff = true, float OverrideValue = 0, float Power = 1) { foreach (IMyGyro gyro in base.list_obj) { if (((!gyro.GyroOverride) && OverrideOnOff) || ((gyro.GyroOverride) && !OverrideOnOff)) gyro.ApplyAction("Override"); gyro.GyroPower = Power; gyro.Yaw = OverrideValue; gyro.Pitch = OverrideValue; gyro.Roll = OverrideValue; } }
+            public string TextDebug() { StringBuilder values = new StringBuilder(); values.Append("Yaw :" + base.list_obj.Select(g => g.Yaw).Average() + "\n"); values.Append("Pitch :" + base.list_obj.Select(g => g.Pitch).Average() + "\n"); values.Append("Roll :" + base.list_obj.Select(g => g.Roll).Average() + "\n"); return values.ToString(); }
+        }
+        public class Thrusts : BaseListTerminalBlock<IMyThrust>
+        {
+            private ShipController remote_control;
+            public float Value;
+            public string axis;
+            //------------------------------------------------
+            public List<IMyThrust> UpThrusters = new List<IMyThrust>();
+            public List<IMyThrust> DownThrusters = new List<IMyThrust>();
+            public List<IMyThrust> LeftThrusters = new List<IMyThrust>();
+            public List<IMyThrust> RightThrusters = new List<IMyThrust>();
+            public List<IMyThrust> ForwardThrusters = new List<IMyThrust>();
+            public List<IMyThrust> BackwardThrusters = new List<IMyThrust>();
+            public double UpThrMax { get { return UpThrusters.Sum(t => t.MaxEffectiveThrust); } }
+            public double DownThrMax { get { return DownThrusters.Sum(t => t.MaxEffectiveThrust); } }
+            public double LeftThrMax { get { return LeftThrusters.Sum(t => t.MaxEffectiveThrust); } }
+            public double RightThrMax { get { return RightThrusters.Sum(t => t.MaxEffectiveThrust); } }
+            public double ForwardThrMax { get { return ForwardThrusters.Sum(t => t.MaxEffectiveThrust); } }
+            public double BackwardThrMax { get { return BackwardThrusters.Sum(t => t.MaxEffectiveThrust); } }
+            public Thrusts(string name_obj) : base(name_obj)
+            {
+            }
+            public Thrusts(string name_obj, string tag) : base(name_obj, tag)
+            {
+
+            }
+            public void InitThrusts(ShipController remote_control)
+            {
+                this.remote_control = remote_control;
+                Matrix CockpitMatrix = new MatrixD();
+                this.remote_control.obj.Orientation.GetMatrix(out CockpitMatrix);
+                MatrixD OrientationCocpit = CockpitMatrix;
+                // Список трастеров
+                UpThrusters.Clear();
+                DownThrusters.Clear();
+                LeftThrusters.Clear();
+                RightThrusters.Clear();
+                ForwardThrusters.Clear();
+                BackwardThrusters.Clear();
+                // Орентация трастеров
+                Matrix ThrusterMatrix = new MatrixD();
+                foreach (IMyThrust thrust in this.list_obj)
+                {
+                    thrust.Orientation.GetMatrix(out ThrusterMatrix);
+                    //Y
+                    if (ThrusterMatrix.Forward == OrientationCocpit.Up)
+                    {
+                        UpThrusters.Add(thrust);
+                    }
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Down)
+                    {
+                        DownThrusters.Add(thrust);
+                    }
+                    //X
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Left)
+                    {
+                        LeftThrusters.Add(thrust);
+                    }
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Right)
+                    {
+                        RightThrusters.Add(thrust);
+                    }
+                    //Z
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Forward)
+                    {
+                        ForwardThrusters.Add(thrust);
+                    }
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Backward)
+                    {
+                        BackwardThrusters.Add(thrust);
+                    }
+                }
+            }
+            public void ClearThrustOverridePersent()
+            {
+                SetOverridePercent(UpThrusters, 0f);
+                SetOverridePercent(DownThrusters, 0f);
+                SetOverridePercent(LeftThrusters, 0f);
+                SetOverridePercent(RightThrusters, 0f);
+                SetOverridePercent(ForwardThrusters, 0f);
+                SetOverridePercent(BackwardThrusters, 0f);
+            }
+            public void SetOverridePercent(List<IMyThrust> Thrusts, float persent)
+            {
+                foreach (IMyThrust tr in Thrusts)
+                {
+                    tr.ThrustOverridePercentage = persent;
+                }
+            }
+            public void SetOverridePercent(string axis, float persentValue)
+            {
+                if (axis == "U")
+                {
+                    SetOverridePercent(DownThrusters, persentValue);
+                }
+                else if (axis == "D")
+                {
+                    SetOverridePercent(UpThrusters, persentValue);
+                }
+                else if (axis == "L")
+                {
+                    SetOverridePercent(RightThrusters, persentValue);
+                }
+                else if (axis == "R")
+                {
+                    SetOverridePercent(LeftThrusters, persentValue);
+                }
+                else if (axis == "F")
+                {
+                    SetOverridePercent(BackwardThrusters, persentValue);
+                }
+                else if (axis == "B")
+                {
+                    SetOverridePercent(ForwardThrusters, persentValue);
+                }
+            }
+            public void SetOverrideN(string axis, float OverrideValue)
+            {
+                double MaxThrust = 0;
+                Value = 0;
+                this.axis = axis;
+                if (axis == "D") { MaxThrust = UpThrMax; SetOverridePercent("U", 0f); }
+                else if (axis == "U") { MaxThrust = DownThrMax; SetOverridePercent("D", 0f); }
+                else if (axis == "F") { MaxThrust = BackwardThrMax; SetOverridePercent("B", 0f); }
+                else if (axis == "B") { MaxThrust = ForwardThrMax; SetOverridePercent("F", 0f); }
+                else if (axis == "R") { MaxThrust = LeftThrMax; SetOverridePercent("L", 0f); }
+                else if (axis == "L") { MaxThrust = RightThrMax; SetOverridePercent("R", 0f); }
+                if (OverrideValue == 0)
+                {
+                    Value = 0;
+                }
+                else
+                {
+                    Value = (float)Math.Max(OverrideValue / MaxThrust, 0.1f);
+                }
+                SetOverridePercent(axis, Value);
+            }
+            public void SetOverrideAccel(string axis, float OverrideValue)
+            {
+                switch (axis)
+                {
+                    case "U":
+                        if (OverrideValue < 0)
+                        {
+                            axis = "D";
+                            OverrideValue = -OverrideValue;
+                        }
+                        else
+                        {
+                            OverrideValue += (float)this.remote_control.obj.GetNaturalGravity().Length();
+                        }
+                        break;
+                    case "D":
+                        if (OverrideValue < 0)
+                        {
+                            axis = "U";
+                            OverrideValue = -OverrideValue;
+                        }
+                        else
+                        {
+                            OverrideValue -= (float)this.remote_control.obj.GetNaturalGravity().Length();
+                        }
+                        break;
+                    case "L":
+                        if (OverrideValue < 0)
+                        {
+                            axis = "R";
+                            OverrideValue = -OverrideValue;
+                        }
+                        break;
+                    case "R":
+                        if (OverrideValue < 0)
+                        {
+                            axis = "L";
+                            OverrideValue = -OverrideValue;
+                        }
+                        break;
+                    case "F":
+                        if (OverrideValue < 0)
+                        {
+                            axis = "B";
+                            OverrideValue = -OverrideValue;
+                        }
+                        break;
+                    case "B":
+                        if (OverrideValue < 0)
+                        {
+                            axis = "F";
+                            OverrideValue = -OverrideValue;
+                        }
+                        break;
+                }
+                SetOverrideN(axis, OverrideValue * this.remote_control.obj.CalculateShipMass().PhysicalMass);
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("PhysicalMass : " + Math.Round(this.remote_control.obj.CalculateShipMass().PhysicalMass) + "\n");
+                values.Append("TotalMass : " + Math.Round(this.remote_control.obj.CalculateShipMass().TotalMass) + "\n");
+                values.Append("Grav         : " + Math.Round(this.remote_control.obj.GetNaturalGravity().Length()) + "\n");
+                values.Append("axis         : " + axis + " , Value : " + Value + "\n");
+                values.Append("------------------------------------------\n");
+                values.Append("UP MAX       : " + PText.GetThrust((float)UpThrMax) + "\n");
+                values.Append("DOWN MAX     : " + PText.GetThrust((float)DownThrMax) + "\n");
+                values.Append("Forward MAX  : " + PText.GetThrust((float)ForwardThrMax) + "\n");
+                values.Append("Backward MAX : " + PText.GetThrust((float)BackwardThrMax) + "\n");
+                values.Append("Left MAX     : " + PText.GetThrust((float)LeftThrMax) + "\n");
+                values.Append("Right MAX    : " + PText.GetThrust((float)RightThrMax) + "\n");
+                return values.ToString();
+            }
+        }
         public class MyStorage
         {
             public MyStorage() { }
             public void LoadFromStorage()
             {
                 StringBuilder str = lcd_storage.GetText();
-
+                solar_power.Axis = new Vector3D(GetValDouble("SPAxisX", str.ToString()), GetValDouble("SPAxisY", str.ToString()), GetValDouble("SPAxisZ", str.ToString()));
+                solar_power.vector_axis = GetValBool("SPvector_axis", str.ToString());
+                solar_power.parkong = GetValBool("SPparkong", str.ToString());
                 for (int i = 0; i < count_room.Length; i++)
                 {
                     int count = GetValInt("count_room_" + i, str.ToString());
@@ -528,6 +794,9 @@ namespace OS_EX_UPR
             public void SaveToStorage()
             {
                 StringBuilder values = new StringBuilder();
+                values.Append(solar_power.Axis.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "SPAxisX").Replace("Y", "SPAxisY").Replace("Z", "SPAxisZ") + ";\n");
+                values.Append("SPvector_axis: " + solar_power.vector_axis.ToString() + ";\n");
+                values.Append("SPparkong: " + solar_power.parkong.ToString() + ";\n");
                 for (int i = 0; i < count_room.Length; i++)
                 {
                     values.Append("count_room_" + i + ": " + (count_room[i]).ToString() + ";\n");
@@ -540,6 +809,54 @@ namespace OS_EX_UPR
             public int GetValInt(string Key, string str) { return Convert.ToInt32(GetVal(Key, str, "0")); }
             public long GetValInt64(string Key, string str) { return Convert.ToInt64(GetVal(Key, str, "0")); }
             public bool GetValBool(string Key, string str) { return Convert.ToBoolean(GetVal(Key, str, "False")); }
+        }
+        public class SolarPower {
+            public Vector3D VS1 { get; set; }
+            public Vector3D VS2 { get; set; }
+            public Vector3D Axis { get; set; }
+            public bool vector_axis { get; set; } = false;
+            public bool parkong { get; set; } = false;
+            public SolarPower()
+            {
+
+            }
+            public void SetToVector() {
+                double gF = Axis.Dot(cockpit_nav.obj.WorldMatrix.Forward);
+                double gL = Axis.Dot(cockpit_nav.obj.WorldMatrix.Up);
+                double gU = Axis.Dot(cockpit_nav.obj.WorldMatrix.Right);
+                //Получаем сигналы по тангажу и крены операцией atan2
+                double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
+                double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+                double TargetYaw = cockpit_nav.obj.RotationIndicator.Y;
+                gyros.SetOverride(true, new Vector3D(TargetPitch, -TargetYaw, TargetRoll), 1);
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    case "vs1": VS1 = camera_course.obj.WorldMatrix.Forward; break;
+                    case "vs2": VS2 = camera_course.obj.WorldMatrix.Forward; Axis = VS1.Cross(VS2); storage.SaveToStorage(); break;
+                    case "set_to_vector": if (vector_axis) { vector_axis = false; } else { vector_axis = true; } storage.SaveToStorage(); break;
+                    case "parking_panel": if (parkong) { parkong = false; } else { parkong = true; } storage.SaveToStorage(); break;
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+                    if (vector_axis)
+                    {
+                        thrusts.On();
+                        SetToVector();
+                    }
+                    else
+                    {
+                        thrusts.ClearThrustOverridePersent();
+                        gyros.SetOverride(false, 1);
+                        if (cockpit_nav.obj.GetShipSpeed() < 0.1f) thrusts.Off();
+                       
+                    }
+                }
+            }
         }
     }
 }
