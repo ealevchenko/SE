@@ -17,7 +17,6 @@ using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Scripting;
 using VRageMath;
-using static SPB_MARS_DORS.Program;
 
 /// <summary>
 /// v1.0
@@ -63,7 +62,9 @@ namespace OS_EX_UPR
         static LCD lcd_storage;
         static LCD lcd_debug;
         static LCD lcd_nav1;
+        static LCD lcd_st1, lcd_st2, lcd_st3;
 
+        static Connector connector_forw, connector_back, connector_l1, connector_l2, connector_r1, connector_r2;
         static ReflectorsLight reflectors_light;
         static Gateways gateways_doors;
         static Lightings room_light;
@@ -75,7 +76,10 @@ namespace OS_EX_UPR
         static Gyros gyros;
         static Thrusts thrusts;
         static MotorStator motor_sp_left, motor_sp_right;
+        static SolarPanels solar_panels_left, solar_panels_right;
         static SolarPower solar_power;
+        static Connectors connectors;
+        int clock = 0;
 
         static Program _scr;
         public class PText
@@ -122,6 +126,15 @@ namespace OS_EX_UPR
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
             lcd_nav1 = new LCD(NameObj + "-LCD Nav1");
+            lcd_st1 = new LCD(NameObj + "-LCD ST1");
+            lcd_st2 = new LCD(NameObj + "-LCD ST2");
+            lcd_st3 = new LCD(NameObj + "-LCD ST3");
+            connector_forw = new Connector(NameObj + "-Коннектор forw");
+            connector_back = new Connector(NameObj + "-Коннектор back");
+            connector_l1 = new Connector(NameObj + "-Коннектор L1");
+            connector_l2 = new Connector(NameObj + "-Коннектор L2");
+            connector_r1 = new Connector(NameObj + "-Коннектор R1");
+            connector_r2 = new Connector(NameObj + "-Коннектор R2");
             air_vent = new AirVent(NameObj);
             air_vent.On();
             air_info = new AirInfo(NameObj, tag_info_tablo);
@@ -137,7 +150,10 @@ namespace OS_EX_UPR
             thrusts.InitThrusts(cockpit_nav);
             motor_sp_left = new MotorStator(NameObj + "-Ротор панели [left]");
             motor_sp_right = new MotorStator(NameObj + "-Ротор панели [right]");
+            solar_panels_left = new SolarPanels(NameObj, "[left]");
+            solar_panels_right = new SolarPanels(NameObj, "[right]");
             solar_power = new SolarPower();
+            connectors = new Connectors();
             storage = new MyStorage();
             storage.LoadFromStorage();
 
@@ -157,22 +173,34 @@ namespace OS_EX_UPR
             room_light.Logic(argument, updateSource);// Логика отработки включения и выключения освещения
             if (updateSource == UpdateType.Update10)
             {
-
+                if (clock >= 10)
+                {
+                    clock = 0;
+                    connectors.Update();
+                    StringBuilder values_st2 = new StringBuilder();
+                    values_st2.Append(connectors.TextInfo());
+                    lcd_st2.OutText(values_st2);
+                }
+                clock++;
             }
             StringBuilder cockpit_nav0 = new StringBuilder();
             cockpit_nav0.Append(solar_power.TextInfo());
             cockpit_nav0.Append("Левая панель---------\n");
             cockpit_nav0.Append(motor_sp_left.TextInfo());
+            cockpit_nav0.Append(solar_panels_left.TextInfo("L"));
             cockpit_nav0.Append("Правая панель -------\n");
             cockpit_nav0.Append(motor_sp_right.TextInfo());
+            cockpit_nav0.Append(solar_panels_left.TextInfo("R"));
             cockpit_nav.OutText(cockpit_nav0, 0);
 
             StringBuilder values_nav1 = new StringBuilder();
             values_nav1.Append(solar_power.TextInfo());
             values_nav1.Append("Левая панель---------\n");
             values_nav1.Append(motor_sp_left.TextInfo());
+            values_nav1.Append(solar_panels_left.TextInfo("L"));
             values_nav1.Append("Правая панель -------\n");
             values_nav1.Append(motor_sp_right.TextInfo());
+            values_nav1.Append(solar_panels_left.TextInfo("R"));
             values_nav1.Append(thrusts.TextInfo());
             lcd_nav1.OutText(values_nav1);
         }
@@ -206,22 +234,7 @@ namespace OS_EX_UPR
                 return values.ToString();
             }
         }
-        public class Connector : BaseTerminalBlock<IMyShipConnector>
-        {
-            public MyShipConnectorStatus Status { get { return base.obj.Status; } }
-            public bool Connected { get { return base.obj.Status == MyShipConnectorStatus.Connected ? true : false; } }
-            public bool Unconnected { get { return base.obj.Status == MyShipConnectorStatus.Unconnected ? true : false; } }
-            public bool Connectable { get { return base.obj.Status == MyShipConnectorStatus.Connectable ? true : false; } }
-            public Connector(string name) : base(name) { if (base.obj != null) { } }
-            public string TextInfo()
-            {
-                StringBuilder values = new StringBuilder();
-                values.Append("КОННЕКТОР: " + (Connected ? igreen.ToString() : (Connectable ? iyellow.ToString() : ired.ToString())) + "\n");
-                return values.ToString();
-            }
-            public long? getEntityIdRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn.EntityId; } return null; }
-            public IMyShipConnector getRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn; } return null; }
-        }
+
         public class ReflectorsLight : BaseListTerminalBlock<IMyReflectorLight>
         {
             public ReflectorsLight(string name_obj) : base(name_obj) { }
@@ -807,7 +820,8 @@ namespace OS_EX_UPR
                 StringBuilder str = lcd_storage.GetText();
                 solar_power.Axis = new Vector3D(GetValDouble("SPAxisX", str.ToString()), GetValDouble("SPAxisY", str.ToString()), GetValDouble("SPAxisZ", str.ToString()));
                 solar_power.vector_axis = GetValBool("SPvector_axis", str.ToString());
-                solar_power.parking = GetValBool("SPparkong", str.ToString());
+                solar_power.parking = GetValBool("SPparking", str.ToString());
+                solar_power.track = GetValBool("SPtrack", str.ToString());
                 for (int i = 0; i < count_room.Length; i++)
                 {
                     int count = GetValInt("count_room_" + i, str.ToString());
@@ -819,7 +833,8 @@ namespace OS_EX_UPR
                 StringBuilder values = new StringBuilder();
                 values.Append(solar_power.Axis.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "SPAxisX").Replace("Y", "SPAxisY").Replace("Z", "SPAxisZ") + ";\n");
                 values.Append("SPvector_axis: " + solar_power.vector_axis.ToString() + ";\n");
-                values.Append("SPparkong: " + solar_power.parking.ToString() + ";\n");
+                values.Append("SPparking: " + solar_power.parking.ToString() + ";\n");
+                values.Append("SPtrack: " + solar_power.track.ToString() + ";\n");
                 for (int i = 0; i < count_room.Length; i++)
                 {
                     values.Append("count_room_" + i + ": " + (count_room[i]).ToString() + ";\n");
@@ -914,6 +929,20 @@ namespace OS_EX_UPR
                 return values.ToString();
             }
         }
+        public class SolarPanels : BaseListTerminalBlock<IMySolarPanel>
+        {
+            public SolarPanels(string name_obj) : base(name_obj) { }
+            public SolarPanels(string name_obj, string tag) : base(name_obj, tag) { }
+            public float MaxOutput { get { return this.list_obj.Sum(s => s.MaxOutput); } }
+            public float CurrentOutput { get { return this.list_obj.Sum(s => s.CurrentOutput); } }
+            public string TextInfo(string name)
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("СОЛН. ПАНЕЛЬ " + name + " : [" + Count + "] " + PText.GetCurrentOfMax(CurrentOutput, MaxOutput, "MW") + "\n");
+                values.Append("|- ВЫХ:  " + PText.GetScalePersent(CurrentOutput / MaxOutput, 20) + "\n");
+                return values.ToString();
+            }
+        }
         public class SolarPower
         {
             public Vector3D VS1 { get; set; }
@@ -921,6 +950,11 @@ namespace OS_EX_UPR
             public Vector3D Axis { get; set; }
             public bool vector_axis { get; set; } = false;
             public bool parking { get; set; } = false;
+            public bool track { get; set; } = false;
+            public float LSolarOutput { get; set; } = 0f;
+            public float RSolarOutput { get; set; } = 0f;
+            public float speed_left_motor { get; set; } = 0f;
+            public float speed_right_motor { get; set; } = 0f;
             public SolarPower()
             {
 
@@ -960,13 +994,41 @@ namespace OS_EX_UPR
                 }
                 return Complete;
             }
+            public void TrackSun()
+            {
+                motor_sp_left.obj.RotorLock = false;
+                motor_sp_right.obj.RotorLock = false;
+                float LOutputGain = solar_panels_left.MaxOutput - LSolarOutput;
+                float ROutputGain = solar_panels_right.MaxOutput - RSolarOutput;
+                if (LOutputGain < 0)
+                {
+                    speed_left_motor = -0.1f;
+                }
+                else
+                {
+                    speed_left_motor = 0.1f;
+                }
+                if (ROutputGain < 0)
+                {
+                    speed_right_motor = 0.1f;
+                }
+                else
+                {
+                    speed_right_motor = -0.1f;
+                }
+                motor_sp_left.obj.TargetVelocityRPM = speed_left_motor;
+                motor_sp_right.obj.TargetVelocityRPM = speed_right_motor;
+                LSolarOutput = solar_panels_left.MaxOutput;
+                RSolarOutput = solar_panels_right.MaxOutput;
+            }
+
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("==СОЛНЕЧНЫЕ ПАНЕЛИ ==============\n");
-                values.Append("ВЕКТОР НА СОЛНЦЕ : " + (vector_axis ? igreen.ToString() : ired.ToString()) + "\n");
-                values.Append("ПАРКОВКА ПАНЕЛЕЙ : " + (parking ? igreen.ToString() : ired.ToString()) + "\n");
                 values.Append(PText.GetGPS("ВЕКТОР", Axis) + "\n");
+                values.Append("ВЕКТОР НА СОЛНЦЕ : " + (vector_axis ? igreen.ToString() : ired.ToString()) + "\n");
+                values.Append("ПАРКОВКА ПАНЕЛЕЙ : " + (parking ? igreen.ToString() : ired.ToString()) + "ПОИСК СОЛНЦА : " + (track ? igreen.ToString() : ired.ToString()) + "\n");
                 return values.ToString();
             }
             public void Logic(string argument, UpdateType updateSource)
@@ -977,6 +1039,7 @@ namespace OS_EX_UPR
                     case "vs2": VS2 = camera_course.obj.WorldMatrix.Forward; Axis = VS1.Cross(VS2); storage.SaveToStorage(); break;
                     case "set_to_vector": if (vector_axis) { vector_axis = false; } else { vector_axis = true; } storage.SaveToStorage(); break;
                     case "parking_panel": if (parking) { parking = false; } else { parking = true; } storage.SaveToStorage(); break;
+                    case "track_sun": if (track) { track = false; } else { track = true; } storage.SaveToStorage(); break;
                     default:
                         break;
                 }
@@ -989,9 +1052,79 @@ namespace OS_EX_UPR
                         //if (cockpit_nav.obj.GetShipSpeed() < 0.1f) thrusts.Off();
                     }
                     if (parking && SetParking()) { parking = false; storage.SaveToStorage(); }
+                    if (track) { TrackSun(); } else { parking = true; }
 
                 }
 
+            }
+        }
+        public class Connector : BaseTerminalBlock<IMyShipConnector>
+        {
+            public MyShipConnectorStatus Status { get { return base.obj.Status; } }
+            public bool Connected { get { return base.obj.Status == MyShipConnectorStatus.Connected ? true : false; } }
+            public bool Unconnected { get { return base.obj.Status == MyShipConnectorStatus.Unconnected ? true : false; } }
+            public bool Connectable { get { return base.obj.Status == MyShipConnectorStatus.Connectable ? true : false; } }
+            public Connector(string name) : base(name) { if (base.obj != null) { } }
+            public string TextInfo(string name)
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append((name != null ? name : "КОННЕКТОР") + " : " + (Connected ? igreen.ToString() : (Connectable ? iyellow.ToString() : ired.ToString())) + "\n");
+                return values.ToString();
+            }
+            public long? getEntityIdRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn.EntityId; } return null; }
+            public IMyShipConnector getRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn; } return null; }
+        }
+        public class Connectors
+        {
+            public class ConnInfo
+            {
+                public Connector connector { get; set; }
+                public string name { get; set; } = null;
+                public string tags { get; set; } = null;
+            }
+            public ConnInfo[] conn_info = new ConnInfo[6];
+            public string GetTagConnectors(Connector connector)
+            {
+                if (connector != null && connector.Connected)
+                {
+                    IMyShipConnector con = connector.getRemoteConnector();
+                    if (con != null && !String.IsNullOrWhiteSpace(con.DisplayNameText))
+                    {
+                        string name = con.DisplayNameText;
+                        int istart = name.IndexOf('[');
+                        int istop = name.IndexOf(']');
+                        string tags = name.Substring(istart, istop + 1);
+                        return tags;
+                    }
+                }
+                return null;
+            }
+            public Connectors()
+            {
+                conn_info[0] = new ConnInfo() { connector = connector_forw, name = "ОСНОВНОЙ", tags = "" };
+                conn_info[1] = new ConnInfo() { connector = connector_back, name = "ГРУЗОВОЙ", tags = "" };
+                conn_info[2] = new ConnInfo() { connector = connector_l1, name = "СЛУЖЕБНЫЙ Л-1", tags = "" };
+                conn_info[3] = new ConnInfo() { connector = connector_l2, name = "СЛУЖЕБНЫЙ Л-2", tags = "" };
+                conn_info[4] = new ConnInfo() { connector = connector_r1, name = "СЛУЖЕБНЫЙ П-1", tags = "" };
+                conn_info[5] = new ConnInfo() { connector = connector_r2, name = "СЛУЖЕБНЫЙ П-2", tags = "" };
+            }
+            public void Update()
+            {
+                for (int i = 0; i < 6; i++)
+                {
+                    conn_info[i].tags = GetTagConnectors(conn_info[i].connector);
+                }
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("== ПРИСТЫКОВАННЫЕ КОРАБЛИ ====\n");
+                for (int i = 0; i < 6; i++)
+                {
+                    values.Append(conn_info[i].connector.TextInfo(conn_info[i].name) + "\n");
+                    values.Append("|- " + conn_info[i].tags + "\n");
+                }
+                return values.ToString();
             }
         }
     }
