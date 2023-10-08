@@ -64,7 +64,7 @@ namespace OS_EX_UPR
         static LCD lcd_nav1;
         static LCD lcd_st1, lcd_st2, lcd_st3;
 
-        static Connector connector_forw, connector_back, connector_l1, connector_l2, connector_r1, connector_r2;
+        static Connector connector_forw, connector_back, connector_l1, connector_l2, connector_r1, connector_r2, connector_pl1, connector_pl2, connector_work;
         static ReflectorsLight reflectors_light;
         static Gateways gateways_doors;
         static Lightings room_light;
@@ -77,6 +77,7 @@ namespace OS_EX_UPR
         static Thrusts thrusts;
         static MotorStator motor_sp_left, motor_sp_right;
         static SolarPanels solar_panels_left, solar_panels_right;
+        static OxygenFarm oxygen_farm_left, oxygen_farm_right;
         static SolarPower solar_power;
         static Connectors connectors;
         int clock = 0;
@@ -88,6 +89,7 @@ namespace OS_EX_UPR
             static public string GetScalePersent(double perse, int scale) { string prog = "["; for (int i = 0; i < Math.Round((perse * scale), 0); i++) { prog += "|"; } for (int i = 0; i < scale - Math.Round((perse * scale), 0); i++) { prog += "'"; } prog += "]" + GetPersent(perse); return prog; }
             static public string GetCurrentOfMax(float cur, float max, string units) { return "[ " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]"; }
             static public string GetThrust(float value) { return Math.Round(value / 1000000, 1) + "МН"; }
+            static public string GetFarm(float value) { return Math.Round(value, 1) + "L"; }
             static public string GetGPS(string name, Vector3D target) { return "GPS:" + name + ":" + target.GetDim(0) + ":" + target.GetDim(1) + ":" + target.GetDim(2) + ":\n"; }
             static public string GetGPSMatrixD(string name, MatrixD target) { return "MatrixD:" + name + "\n" + "M11:" + target.M11 + "M12:" + target.M12 + "M13:" + target.M13 + "M14:" + target.M14 + ":\n" + "M21:" + target.M21 + "M22:" + target.M22 + "M23:" + target.M23 + "M24:" + target.M24 + ":\n" + "M31:" + target.M31 + "M32:" + target.M32 + "M33:" + target.M33 + "M34:" + target.M34 + ":\n" + "M41:" + target.M41 + "M42:" + target.M42 + "M43:" + target.M43 + "M44:" + target.M44 + ":\n"; }
         }
@@ -131,10 +133,13 @@ namespace OS_EX_UPR
             lcd_st3 = new LCD(NameObj + "-LCD ST3");
             connector_forw = new Connector(NameObj + "-Коннектор forw");
             connector_back = new Connector(NameObj + "-Коннектор back");
-            connector_l1 = new Connector(NameObj + "-Коннектор L1");
-            connector_l2 = new Connector(NameObj + "-Коннектор L2");
-            connector_r1 = new Connector(NameObj + "-Коннектор R1");
-            connector_r2 = new Connector(NameObj + "-Коннектор R2");
+            connector_l1 = new Connector(NameObj + "-Коннектор left-1");
+            connector_l2 = new Connector(NameObj + "-Коннектор left-2");
+            connector_r1 = new Connector(NameObj + "-Коннектор right-1");
+            connector_r2 = new Connector(NameObj + "-Коннектор right-2");
+            connector_pl1 = new Connector(NameObj + "-Коннектор pl-1");
+            connector_pl2 = new Connector(NameObj + "-Коннектор pl-2");
+            connector_work = new Connector(NameObj + "-Коннектор work");
             air_vent = new AirVent(NameObj);
             air_vent.On();
             air_info = new AirInfo(NameObj, tag_info_tablo);
@@ -152,6 +157,8 @@ namespace OS_EX_UPR
             motor_sp_right = new MotorStator(NameObj + "-Ротор панели [right]");
             solar_panels_left = new SolarPanels(NameObj, "[left]");
             solar_panels_right = new SolarPanels(NameObj, "[right]");
+            oxygen_farm_left = new OxygenFarm(NameObj, "[left]");
+            oxygen_farm_right = new OxygenFarm(NameObj, "[right]");
             solar_power = new SolarPower();
             connectors = new Connectors();
             storage = new MyStorage();
@@ -179,7 +186,7 @@ namespace OS_EX_UPR
                     connectors.Update();
                     StringBuilder values_st2 = new StringBuilder();
                     values_st2.Append(connectors.TextInfo());
-                    lcd_st2.OutText(values_st2);
+                    lcd_st1.OutText(values_st2);
                 }
                 clock++;
             }
@@ -187,20 +194,24 @@ namespace OS_EX_UPR
             cockpit_nav0.Append(solar_power.TextInfo());
             cockpit_nav0.Append("Левая панель---------\n");
             cockpit_nav0.Append(motor_sp_left.TextInfo());
+            cockpit_nav0.Append(oxygen_farm_left.TextInfo("L"));
             cockpit_nav0.Append(solar_panels_left.TextInfo("L"));
             cockpit_nav0.Append("Правая панель -------\n");
             cockpit_nav0.Append(motor_sp_right.TextInfo());
-            cockpit_nav0.Append(solar_panels_left.TextInfo("R"));
+            cockpit_nav0.Append(oxygen_farm_right.TextInfo("R"));
+            cockpit_nav0.Append(solar_panels_right.TextInfo("R"));
             cockpit_nav.OutText(cockpit_nav0, 0);
 
             StringBuilder values_nav1 = new StringBuilder();
             values_nav1.Append(solar_power.TextInfo());
             values_nav1.Append("Левая панель---------\n");
             values_nav1.Append(motor_sp_left.TextInfo());
+            values_nav1.Append(oxygen_farm_left.TextInfo("L"));
             values_nav1.Append(solar_panels_left.TextInfo("L"));
             values_nav1.Append("Правая панель -------\n");
             values_nav1.Append(motor_sp_right.TextInfo());
-            values_nav1.Append(solar_panels_left.TextInfo("R"));
+            values_nav1.Append(oxygen_farm_right.TextInfo("R"));
+            values_nav1.Append(solar_panels_right.TextInfo("R"));
             values_nav1.Append(thrusts.TextInfo());
             lcd_nav1.OutText(values_nav1);
         }
@@ -234,7 +245,6 @@ namespace OS_EX_UPR
                 return values.ToString();
             }
         }
-
         public class ReflectorsLight : BaseListTerminalBlock<IMyReflectorLight>
         {
             public ReflectorsLight(string name_obj) : base(name_obj) { }
@@ -943,14 +953,29 @@ namespace OS_EX_UPR
                 return values.ToString();
             }
         }
+        public class OxygenFarm : BaseListTerminalBlock<IMyOxygenFarm>
+        {
+            public OxygenFarm(string name_obj) : base(name_obj) { }
+            public OxygenFarm(string name_obj, string tag) : base(name_obj, tag) { }
+            public float CurrentOutput { get { return this.list_obj.Sum(s => s.GetOutput()); } }
+            public string TextInfo(string name)
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("O2 ФЕРМА " + name + " : [" + Count + "] " + PText.GetFarm(CurrentOutput) + "\n");
+                return values.ToString();
+            }
+        }
         public class SolarPower
         {
+            private int cnt = 0, cnt1 = 0;
             public Vector3D VS1 { get; set; }
             public Vector3D VS2 { get; set; }
             public Vector3D Axis { get; set; }
             public bool vector_axis { get; set; } = false;
             public bool parking { get; set; } = false;
             public bool track { get; set; } = false;
+            public float LCurrentOxygen { get; set; } = 0f;
+            public float RCurrentOxygen { get; set; } = 0f;
             public float LSolarOutput { get; set; } = 0f;
             public float RSolarOutput { get; set; } = 0f;
             public float speed_left_motor { get; set; } = 0f;
@@ -994,34 +1019,120 @@ namespace OS_EX_UPR
                 }
                 return Complete;
             }
+            public void LTrackSun()
+            {
+                motor_sp_left.obj.RotorLock = false;
+                float curr_O2_left = oxygen_farm_left.CurrentOutput;
+                float max_solar_left = solar_panels_left.MaxOutput;
+                lcd_debug.OutText("cnt            :" + cnt + "\n", false);
+                lcd_debug.OutText("curr_O2_left   :" + curr_O2_left + "\n", true);
+                lcd_debug.OutText("max_solar_left :" + max_solar_left + "\n", true);
+                lcd_debug.OutText("LSolarOutput   :" + LSolarOutput + "\n", true);
+                lcd_debug.OutText("speed_left_mot :" + speed_left_motor + "\n", true);
+                if (curr_O2_left == 0f)
+                {
+                    speed_left_motor = 2.0f;
+                }
+                else
+                {
+                    
+                    cnt++;
+                    if (cnt > 20)
+                    {
+                        if (max_solar_left > LSolarOutput)
+                        {
+                            speed_left_motor = 0.5f;
+
+                        }
+                        else if (max_solar_left < LSolarOutput)
+                        {
+                            speed_left_motor = speed_left_motor*-1;
+                        }
+                        else
+                        {
+                            if (max_solar_left < 7.0f)
+                            {
+                                speed_left_motor = 0.5f;
+                            }
+                            else { speed_left_motor = 0.0f; }
+
+                        }
+                        cnt = 0;
+                        LSolarOutput = max_solar_left;
+                    }
+                }
+            }
             public void TrackSun()
             {
                 motor_sp_left.obj.RotorLock = false;
-                motor_sp_right.obj.RotorLock = false;
-                float LOutputGain = solar_panels_left.MaxOutput - LSolarOutput;
-                float ROutputGain = solar_panels_right.MaxOutput - RSolarOutput;
-                if (LOutputGain < 0)
+                float curr_O2_left = oxygen_farm_left.CurrentOutput;
+                if (curr_O2_left == 0f)
                 {
-                    speed_left_motor = -0.1f;
+                    speed_left_motor = 0.5f;
                 }
                 else
                 {
-                    speed_left_motor = 0.1f;
-                }
-                if (ROutputGain < 0)
-                {
-                    speed_right_motor = 0.1f;
-                }
-                else
-                {
-                    speed_right_motor = -0.1f;
+                    cnt++;
+                    if (cnt > 50)
+                    {
+                        if (curr_O2_left > LCurrentOxygen)
+                        {
+                            speed_left_motor = 0.1f;
+
+                        }
+                        if (curr_O2_left < LCurrentOxygen)
+                        {
+                            speed_left_motor = -0.1f;
+                        }
+                        else
+                        {
+                            if (curr_O2_left < 4.0f)
+                            {
+                                speed_left_motor = 0.1f;
+                            }
+                            else { speed_left_motor = 0.0f; }
+
+                        }
+                        cnt = 0;
+                        LCurrentOxygen = curr_O2_left;
+                    }
                 }
                 motor_sp_left.obj.TargetVelocityRPM = speed_left_motor;
-                motor_sp_right.obj.TargetVelocityRPM = speed_right_motor;
-                LSolarOutput = solar_panels_left.MaxOutput;
-                RSolarOutput = solar_panels_right.MaxOutput;
-            }
 
+                //motor_sp_right.obj.RotorLock = false;
+                //float curr_O2_right = oxygen_farm_right.CurrentOutput;
+                //if (curr_O2_right == 0f)
+                //{
+                //    speed_right_motor = 0.5f;
+                //}
+                //else
+                //{
+                //    cnt1++;
+                //    if (cnt1 > 50)
+                //    {
+                //        if (curr_O2_right > RCurrentOxygen)
+                //        {
+                //            speed_right_motor = -0.1f;
+
+                //        }
+                //        if (curr_O2_right < RCurrentOxygen)
+                //        {
+                //            speed_right_motor = 0.1f;
+                //        }
+                //        else
+                //        {
+                //            if (curr_O2_right < 4.0f)
+                //            {
+                //                speed_right_motor = -0.1f;
+                //            }
+                //            else { speed_right_motor = 0.0f; }
+                //        }
+                //        cnt1 = 0;
+                //        RCurrentOxygen = curr_O2_right;
+                //    }
+                //}
+                //motor_sp_right.obj.TargetVelocityRPM = speed_right_motor;
+            }
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
@@ -1039,7 +1150,7 @@ namespace OS_EX_UPR
                     case "vs2": VS2 = camera_course.obj.WorldMatrix.Forward; Axis = VS1.Cross(VS2); storage.SaveToStorage(); break;
                     case "set_to_vector": if (vector_axis) { vector_axis = false; } else { vector_axis = true; } storage.SaveToStorage(); break;
                     case "parking_panel": if (parking) { parking = false; } else { parking = true; } storage.SaveToStorage(); break;
-                    case "track_sun": if (track) { track = false; } else { track = true; } storage.SaveToStorage(); break;
+                    case "track_sun": if (track) { track = false; } else { LCurrentOxygen = 0f; RCurrentOxygen = 0f; track = true; } storage.SaveToStorage(); break;
                     default:
                         break;
                 }
@@ -1052,7 +1163,7 @@ namespace OS_EX_UPR
                         //if (cockpit_nav.obj.GetShipSpeed() < 0.1f) thrusts.Off();
                     }
                     if (parking && SetParking()) { parking = false; storage.SaveToStorage(); }
-                    if (track) { TrackSun(); } else { parking = true; }
+                    if (track) { parking = false; LTrackSun(); } else { parking = true; }
 
                 }
 
@@ -1068,7 +1179,7 @@ namespace OS_EX_UPR
             public string TextInfo(string name)
             {
                 StringBuilder values = new StringBuilder();
-                values.Append((name != null ? name : "КОННЕКТОР") + " : " + (Connected ? igreen.ToString() : (Connectable ? iyellow.ToString() : ired.ToString())) + "\n");
+                values.Append((name != null ? name : "КОННЕКТОР") + " : " + (Connected ? igreen.ToString() : (Connectable ? iyellow.ToString() : ired.ToString())));
                 return values.ToString();
             }
             public long? getEntityIdRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn.EntityId; } return null; }
@@ -1082,7 +1193,7 @@ namespace OS_EX_UPR
                 public string name { get; set; } = null;
                 public string tags { get; set; } = null;
             }
-            public ConnInfo[] conn_info = new ConnInfo[6];
+            public ConnInfo[] conn_info = new ConnInfo[9];
             public string GetTagConnectors(Connector connector)
             {
                 if (connector != null && connector.Connected)
@@ -1107,10 +1218,13 @@ namespace OS_EX_UPR
                 conn_info[3] = new ConnInfo() { connector = connector_l2, name = "СЛУЖЕБНЫЙ Л-2", tags = "" };
                 conn_info[4] = new ConnInfo() { connector = connector_r1, name = "СЛУЖЕБНЫЙ П-1", tags = "" };
                 conn_info[5] = new ConnInfo() { connector = connector_r2, name = "СЛУЖЕБНЫЙ П-2", tags = "" };
+                conn_info[6] = new ConnInfo() { connector = connector_pl1, name = "ПЛАТФОРМА-1", tags = "" };
+                conn_info[7] = new ConnInfo() { connector = connector_pl2, name = "ПЛАТФОРМА-2", tags = "" };
+                conn_info[8] = new ConnInfo() { connector = connector_work, name = "ЗАВОД", tags = "" };
             }
             public void Update()
             {
-                for (int i = 0; i < 6; i++)
+                for (int i = 0; i < 9; i++)
                 {
                     conn_info[i].tags = GetTagConnectors(conn_info[i].connector);
                 }
@@ -1119,10 +1233,9 @@ namespace OS_EX_UPR
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("== ПРИСТЫКОВАННЫЕ КОРАБЛИ ====\n");
-                for (int i = 0; i < 6; i++)
+                for (int i = 0; i < 9; i++)
                 {
-                    values.Append(conn_info[i].connector.TextInfo(conn_info[i].name) + "\n");
-                    values.Append("|- " + conn_info[i].tags + "\n");
+                    values.Append("  " + conn_info[i].connector.TextInfo(conn_info[i].name) + " -> " + conn_info[i].tags + "\n" + "\n");
                 }
                 return values.ToString();
             }
