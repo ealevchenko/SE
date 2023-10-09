@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Scripting;
 using VRageMath;
+using static VRageMath.Base6Directions;
 
 /// <summary>
 /// v1.0
@@ -63,6 +64,7 @@ namespace OS_EX_UPR
         static LCD lcd_debug;
         static LCD lcd_nav1;
         static LCD lcd_st1, lcd_st2, lcd_st3;
+        static LCD lcd_cntr1, lcd_cntr2;
 
         static Connector connector_forw, connector_back, connector_l1, connector_l2, connector_r1, connector_r2, connector_pl1, connector_pl2, connector_work;
         static ReflectorsLight reflectors_light;
@@ -131,6 +133,8 @@ namespace OS_EX_UPR
             lcd_st1 = new LCD(NameObj + "-LCD ST1");
             lcd_st2 = new LCD(NameObj + "-LCD ST2");
             lcd_st3 = new LCD(NameObj + "-LCD ST3");
+            lcd_cntr1 = new LCD(NameObj + "-LCD CNTR1");
+            lcd_cntr2 = new LCD(NameObj + "-LCD CNTR2 [LCD]");
             connector_forw = new Connector(NameObj + "-Коннектор forw");
             connector_back = new Connector(NameObj + "-Коннектор back");
             connector_l1 = new Connector(NameObj + "-Коннектор left-1");
@@ -160,7 +164,7 @@ namespace OS_EX_UPR
             oxygen_farm_left = new OxygenFarm(NameObj, "[left]");
             oxygen_farm_right = new OxygenFarm(NameObj, "[right]");
             solar_power = new SolarPower();
-            connectors = new Connectors();
+            connectors = new Connectors(lcd_cntr1, lcd_cntr2);
             storage = new MyStorage();
             storage.LoadFromStorage();
 
@@ -176,19 +180,12 @@ namespace OS_EX_UPR
             solar_power.Logic(argument, updateSource);
             air_info.Logic(argument, updateSource);
             gateways_doors.Logic(argument, updateSource);// Логика отработки шлюзовых дверей
+            connectors.Logic(argument, updateSource);// Логика управления коннекторами
             count_room[(int)room.space] = 0;// В космосе людей не считаем
             room_light.Logic(argument, updateSource);// Логика отработки включения и выключения освещения
             if (updateSource == UpdateType.Update10)
             {
-                if (clock >= 10)
-                {
-                    clock = 0;
-                    connectors.Update();
-                    StringBuilder values_st2 = new StringBuilder();
-                    values_st2.Append(connectors.TextInfo());
-                    lcd_st1.OutText(values_st2);
-                }
-                clock++;
+
             }
             StringBuilder cockpit_nav0 = new StringBuilder();
             cockpit_nav0.Append(solar_power.TextInfo());
@@ -822,42 +819,7 @@ namespace OS_EX_UPR
                 return values.ToString();
             }
         }
-        public class MyStorage
-        {
-            public MyStorage() { }
-            public void LoadFromStorage()
-            {
-                StringBuilder str = lcd_storage.GetText();
-                solar_power.Axis = new Vector3D(GetValDouble("SPAxisX", str.ToString()), GetValDouble("SPAxisY", str.ToString()), GetValDouble("SPAxisZ", str.ToString()));
-                solar_power.vector_axis = GetValBool("SPvector_axis", str.ToString());
-                solar_power.parking = GetValBool("SPparking", str.ToString());
-                solar_power.track = GetValBool("SPtrack", str.ToString());
-                for (int i = 0; i < count_room.Length; i++)
-                {
-                    int count = GetValInt("count_room_" + i, str.ToString());
-                    count_room[i] = count;
-                }
-            }
-            public void SaveToStorage()
-            {
-                StringBuilder values = new StringBuilder();
-                values.Append(solar_power.Axis.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "SPAxisX").Replace("Y", "SPAxisY").Replace("Z", "SPAxisZ") + ";\n");
-                values.Append("SPvector_axis: " + solar_power.vector_axis.ToString() + ";\n");
-                values.Append("SPparking: " + solar_power.parking.ToString() + ";\n");
-                values.Append("SPtrack: " + solar_power.track.ToString() + ";\n");
-                for (int i = 0; i < count_room.Length; i++)
-                {
-                    values.Append("count_room_" + i + ": " + (count_room[i]).ToString() + ";\n");
-                }
-                lcd_storage.OutText(values);
-            }
-            private string GetVal(string Key, string str, string val) { string pattern = @"(" + Key + "):([^:^;]+);"; System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(str.Replace("\n", ""), pattern); if (match.Success) { val = match.Groups[2].Value; } return val; }
-            public string GetValString(string Key, string str) { return GetVal(Key, str, ""); }
-            public double GetValDouble(string Key, string str) { return Convert.ToDouble(GetVal(Key, str, "0")); }
-            public int GetValInt(string Key, string str) { return Convert.ToInt32(GetVal(Key, str, "0")); }
-            public long GetValInt64(string Key, string str) { return Convert.ToInt64(GetVal(Key, str, "0")); }
-            public bool GetValBool(string Key, string str) { return Convert.ToBoolean(GetVal(Key, str, "False")); }
-        }
+
         public class MotorStator : BaseTerminalBlock<IMyMotorStator>
         {
             public float? task_degr { get; set; } = null;
@@ -968,6 +930,7 @@ namespace OS_EX_UPR
         public class SolarPower
         {
             private int cnt = 0, cnt1 = 0;
+            private int dir = 1;
             public Vector3D VS1 { get; set; }
             public Vector3D VS2 { get; set; }
             public Vector3D Axis { get; set; }
@@ -1019,47 +982,77 @@ namespace OS_EX_UPR
                 }
                 return Complete;
             }
+            //public void LTrackSun()
+            //{
+            //    motor_sp_left.obj.RotorLock = false;
+            //    float curr_O2_left = oxygen_farm_left.CurrentOutput;
+            //    float max_solar_left = solar_panels_left.MaxOutput;
+            //    lcd_debug.OutText("cnt            :" + cnt + "\n", false);
+            //    lcd_debug.OutText("curr_O2_left   :" + curr_O2_left + "\n", true);
+            //    lcd_debug.OutText("max_solar_left :" + max_solar_left + "\n", true);
+            //    lcd_debug.OutText("LSolarOutput   :" + LSolarOutput + "\n", true);
+            //    lcd_debug.OutText("speed_left_mot :" + speed_left_motor + "\n", true);
+            //    if (curr_O2_left == 0f)
+            //    {
+            //        speed_left_motor = 2.0f;
+            //    }
+            //    else
+            //    {
+
+            //        cnt++;
+            //        if (cnt > 20)
+            //        {
+            //            if (max_solar_left > LSolarOutput)
+            //            {
+            //                speed_left_motor = 0.5f;
+
+            //            }
+            //            else if (max_solar_left < LSolarOutput)
+            //            {
+            //                speed_left_motor = speed_left_motor*-1;
+            //            }
+            //            else
+            //            {
+            //                if (max_solar_left < 7.0f)
+            //                {
+            //                    speed_left_motor = 0.5f;
+            //                }
+            //                else { speed_left_motor = 0.0f; }
+
+            //            }
+            //            cnt = 0;
+            //            LSolarOutput = max_solar_left;
+            //        }
+            //    }
+            //}
             public void LTrackSun()
             {
                 motor_sp_left.obj.RotorLock = false;
                 float curr_O2_left = oxygen_farm_left.CurrentOutput;
                 float max_solar_left = solar_panels_left.MaxOutput;
-                lcd_debug.OutText("cnt            :" + cnt + "\n", false);
+                lcd_debug.OutText("----------------" + cnt + "\n", false);
                 lcd_debug.OutText("curr_O2_left   :" + curr_O2_left + "\n", true);
                 lcd_debug.OutText("max_solar_left :" + max_solar_left + "\n", true);
                 lcd_debug.OutText("LSolarOutput   :" + LSolarOutput + "\n", true);
-                lcd_debug.OutText("speed_left_mot :" + speed_left_motor + "\n", true);
-                if (curr_O2_left == 0f)
+
+                if (curr_O2_left < 0.5f)
                 {
                     speed_left_motor = 2.0f;
                 }
                 else
                 {
-                    
                     cnt++;
-                    if (cnt > 20)
+                    lcd_debug.OutText("cnt            :" + cnt + "\n", true);
+                    if (cnt > 100)
                     {
-                        if (max_solar_left > LSolarOutput)
-                        {
-                            speed_left_motor = 0.5f;
-
-                        }
-                        else if (max_solar_left < LSolarOutput)
-                        {
-                            speed_left_motor = speed_left_motor*-1;
-                        }
-                        else
-                        {
-                            if (max_solar_left < 7.0f)
-                            {
-                                speed_left_motor = 0.5f;
-                            }
-                            else { speed_left_motor = 0.0f; }
-
-                        }
-                        cnt = 0;
+                        float OutputGain = max_solar_left - LSolarOutput;
+                        lcd_debug.OutText("OutputGain :" + OutputGain + "\n", true);
+                        if (OutputGain < 0) dir *= -1;
                         LSolarOutput = max_solar_left;
+                        cnt = 0;
                     }
+                    speed_left_motor = dir * 0.5f;
+                    lcd_debug.OutText("speed_left_mot :" + speed_left_motor + "\n", true);
                 }
             }
             public void TrackSun()
@@ -1187,6 +1180,10 @@ namespace OS_EX_UPR
         }
         public class Connectors
         {
+            int clock = 0;
+            LCD lcd1, lcd2;
+            public int curr_connector { get; set; } = 0;
+            public int group_out { get; set; } = 0;
             public class ConnInfo
             {
                 public Connector connector { get; set; }
@@ -1210,8 +1207,9 @@ namespace OS_EX_UPR
                 }
                 return null;
             }
-            public Connectors()
+            public Connectors(LCD lcd1, LCD lcd2)
             {
+                this.lcd1 = lcd1; this.lcd2 = lcd2;
                 conn_info[0] = new ConnInfo() { connector = connector_forw, name = "ОСНОВНОЙ", tags = "" };
                 conn_info[1] = new ConnInfo() { connector = connector_back, name = "ГРУЗОВОЙ", tags = "" };
                 conn_info[2] = new ConnInfo() { connector = connector_l1, name = "СЛУЖЕБНЫЙ Л-1", tags = "" };
@@ -1221,6 +1219,8 @@ namespace OS_EX_UPR
                 conn_info[6] = new ConnInfo() { connector = connector_pl1, name = "ПЛАТФОРМА-1", tags = "" };
                 conn_info[7] = new ConnInfo() { connector = connector_pl2, name = "ПЛАТФОРМА-2", tags = "" };
                 conn_info[8] = new ConnInfo() { connector = connector_work, name = "ЗАВОД", tags = "" };
+                Update();
+                UpdateLCD2();
             }
             public void Update()
             {
@@ -1229,16 +1229,128 @@ namespace OS_EX_UPR
                     conn_info[i].tags = GetTagConnectors(conn_info[i].connector);
                 }
             }
-            public string TextInfo()
+            public void UpdateLCD2()
+            {
+                StringBuilder values = new StringBuilder();
+                if (curr_connector == 0)
+                {
+                    values.Append("echo ОБЩАЯ ИНФОРМАЦИЯ\n");
+                }
+                else
+                {
+                    string tag = conn_info[curr_connector - 1].tags;
+                    if (!String.IsNullOrWhiteSpace(tag))
+                    {
+
+                        switch (group_out)
+                        {
+                            case 0:
+                                {
+                                    values.Append("echo " + tag + "-COMMON:\n");
+                                    values.Append("power {" + tag + "}\n");
+                                    break;
+                                }
+                            case 1:
+                                {
+                                    values.Append("echo " + tag + "-POWER:\n");
+                                    values.Append("power {" + tag + "}\n");
+                                    break;
+                                }
+                            case 2:
+                                {
+                                    values.Append("echo " + tag + "-H2:\n");
+                                    values.Append("Tank {" + tag + "} Hydrogen\n");
+                                    break;
+                                }
+                            case 3:
+                                {
+                                    values.Append("echo " + tag + "-CARGO:\n");
+                                    values.Append("Tank {" + tag + "} Hydrogen\n");
+                                    break;
+                                }
+                        }
+                    }
+                    else
+                    {
+                        values.Append("echo Нет подключения!\n");
+                    }
+                }
+                this.lcd2.obj.CustomData = values.ToString();
+            }
+            public void TextInfo1()
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("== ПРИСТЫКОВАННЫЕ КОРАБЛИ ====\n");
                 for (int i = 0; i < 9; i++)
                 {
-                    values.Append("  " + conn_info[i].connector.TextInfo(conn_info[i].name) + " -> " + conn_info[i].tags + "\n" + "\n");
+                    values.Append((i + 1 == curr_connector ? "=>" : "  ") + conn_info[i].connector.TextInfo(conn_info[i].name) + " -> " + conn_info[i].tags + "\n" + "\n");
                 }
-                return values.ToString();
+                this.lcd1.OutText(values);
             }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    case "cntr_all": curr_connector = 0; storage.SaveToStorage(); UpdateLCD2(); break;
+                    case "cntr+": curr_connector++; if (curr_connector > 10) curr_connector = 10; storage.SaveToStorage(); UpdateLCD2(); break;
+                    case "cntr-": curr_connector--; if (curr_connector < 1) curr_connector = 1; storage.SaveToStorage(); UpdateLCD2(); break;
+                    case "cntr_gr+": group_out++; if (group_out > 9) group_out = 0; storage.SaveToStorage(); UpdateLCD2(); break;
+                    case "cntr_gr-": group_out--; if (group_out < 0) group_out = 0; storage.SaveToStorage(); UpdateLCD2(); break;
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+                    if (clock >= 10)
+                    {
+                        clock = 0;
+                        connectors.Update();
+                    }
+                    clock++;
+                    TextInfo1();
+                }
+            }
+        }
+        public class MyStorage
+        {
+            public MyStorage() { }
+            public void LoadFromStorage()
+            {
+                StringBuilder str = lcd_storage.GetText();
+                solar_power.Axis = new Vector3D(GetValDouble("SPAxisX", str.ToString()), GetValDouble("SPAxisY", str.ToString()), GetValDouble("SPAxisZ", str.ToString()));
+                solar_power.vector_axis = GetValBool("SPvector_axis", str.ToString());
+                solar_power.parking = GetValBool("SPparking", str.ToString());
+                solar_power.track = GetValBool("SPtrack", str.ToString());
+                connectors.curr_connector = GetValInt("CNRScurr_connector", str.ToString());
+                connectors.group_out = GetValInt("CNRSgroup_out", str.ToString());
+
+                for (int i = 0; i < count_room.Length; i++)
+                {
+                    int count = GetValInt("count_room_" + i, str.ToString());
+                    count_room[i] = count;
+                }
+            }
+            public void SaveToStorage()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append(solar_power.Axis.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "SPAxisX").Replace("Y", "SPAxisY").Replace("Z", "SPAxisZ") + ";\n");
+                values.Append("SPvector_axis: " + solar_power.vector_axis.ToString() + ";\n");
+                values.Append("SPparking: " + solar_power.parking.ToString() + ";\n");
+                values.Append("SPtrack: " + solar_power.track.ToString() + ";\n");
+                values.Append("CNRScurr_connector: " + connectors.curr_connector.ToString() + ";\n");
+                values.Append("CNRSgroup_out: " + connectors.group_out.ToString() + ";\n");
+                for (int i = 0; i < count_room.Length; i++)
+                {
+                    values.Append("count_room_" + i + ": " + (count_room[i]).ToString() + ";\n");
+                }
+                lcd_storage.OutText(values);
+            }
+            private string GetVal(string Key, string str, string val) { string pattern = @"(" + Key + "):([^:^;]+);"; System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(str.Replace("\n", ""), pattern); if (match.Success) { val = match.Groups[2].Value; } return val; }
+            public string GetValString(string Key, string str) { return GetVal(Key, str, ""); }
+            public double GetValDouble(string Key, string str) { return Convert.ToDouble(GetVal(Key, str, "0")); }
+            public int GetValInt(string Key, string str) { return Convert.ToInt32(GetVal(Key, str, "0")); }
+            public long GetValInt64(string Key, string str) { return Convert.ToInt64(GetVal(Key, str, "0")); }
+            public bool GetValBool(string Key, string str) { return Convert.ToBoolean(GetVal(Key, str, "False")); }
         }
     }
 }
