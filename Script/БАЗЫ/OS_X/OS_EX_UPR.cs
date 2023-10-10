@@ -21,7 +21,7 @@ using static VRageMath.Base6Directions;
 
 /// <summary>
 /// v1.0
-/// Управление дверями и освещением на станции.
+/// Управление орбитальной станцией
 /// </summary>
 namespace OS_EX_UPR
 {
@@ -65,6 +65,7 @@ namespace OS_EX_UPR
         static LCD lcd_nav1;
         static LCD lcd_st1, lcd_st2, lcd_st3;
         static LCD lcd_cntr1, lcd_cntr2;
+        static LCD lcd_con_forw, lcd_con_back;
 
         static Connector connector_forw, connector_back, connector_l1, connector_l2, connector_r1, connector_r2, connector_pl1, connector_pl2, connector_work;
         static ReflectorsLight reflectors_light;
@@ -82,7 +83,7 @@ namespace OS_EX_UPR
         static OxygenFarm oxygen_farm_left, oxygen_farm_right;
         static SolarPower solar_power;
         static Connectors connectors;
-        int clock = 0;
+        //int clock = 0;
 
         static Program _scr;
         public class PText
@@ -135,6 +136,8 @@ namespace OS_EX_UPR
             lcd_st3 = new LCD(NameObj + "-LCD ST3");
             lcd_cntr1 = new LCD(NameObj + "-LCD CNTR1");
             lcd_cntr2 = new LCD(NameObj + "-LCD CNTR2 [LCD]");
+            lcd_con_forw = new LCD(NameObj + "-LCD CNTR [forw] [LCD]");
+            lcd_con_back = new LCD(NameObj + "-LCD CNTR [back] [LCD]");
             connector_forw = new Connector(NameObj + "-Коннектор forw");
             connector_back = new Connector(NameObj + "-Коннектор back");
             connector_l1 = new Connector(NameObj + "-Коннектор left-1");
@@ -164,7 +167,7 @@ namespace OS_EX_UPR
             oxygen_farm_left = new OxygenFarm(NameObj, "[left]");
             oxygen_farm_right = new OxygenFarm(NameObj, "[right]");
             solar_power = new SolarPower();
-            connectors = new Connectors(lcd_cntr1, lcd_cntr2);
+            connectors = new Connectors(lcd_cntr1, lcd_cntr2, lcd_con_forw, lcd_con_back);
             storage = new MyStorage();
             storage.LoadFromStorage();
 
@@ -940,10 +943,7 @@ namespace OS_EX_UPR
             public float RCurrentOxygen { get; set; } = 0f;
             public float speed_left_motor { get; set; } = 0f;
             public float speed_right_motor { get; set; } = 0f;
-            public SolarPower()
-            {
-
-            }
+            public SolarPower() { }
             public void SetToVector()
             {
                 Vector3D GravNorm = Vector3D.Normalize(Axis);
@@ -1004,14 +1004,8 @@ namespace OS_EX_UPR
             }
             public void RTrackSun()
             {
-
-
                 motor_sp_right.obj.RotorLock = false;
                 float curr_O2_right = oxygen_farm_right.CurrentOutput;
-                //lcd_debug.OutText("cnt            :" + rcnt + "\n", false);
-                //lcd_debug.OutText("curr_O2_right   :" + curr_O2_right + "\n", true);
-                //lcd_debug.OutText("RCurrentOxygen   :" + RCurrentOxygen + "\n", true);
-
                 if (curr_O2_right < 0.1f)
                 {
                     speed_right_motor = -5.0f;
@@ -1022,7 +1016,6 @@ namespace OS_EX_UPR
                     if (rcnt > 10)
                     {
                         float OutputGain = curr_O2_right - RCurrentOxygen;
-                        //lcd_debug.OutText("OutputGain   :" + OutputGain + "\n", true);
                         if (OutputGain < 0) rdir *= -1;
                         RCurrentOxygen = curr_O2_right;
                         rcnt = 0;
@@ -1030,14 +1023,9 @@ namespace OS_EX_UPR
                     speed_right_motor = rdir * -0.2f;
 
                 }
-                //lcd_debug.OutText("speed_right_motor :" + speed_right_motor + "\n", true);
                 motor_sp_right.obj.TargetVelocityRPM = speed_right_motor;
             }
-            public void TrackSun()
-            {
-                LTrackSun();
-                RTrackSun();
-            }
+            public void TrackSun() { LTrackSun(); RTrackSun(); }
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
@@ -1087,17 +1075,23 @@ namespace OS_EX_UPR
                 values.Append((name != null ? name : "КОННЕКТОР") + " : " + (Connected ? igreen.ToString() : (Connectable ? iyellow.ToString() : ired.ToString())));
                 return values.ToString();
             }
+            public string TextStatus()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append(Connected ? igreen.ToString() : (Connectable ? iyellow.ToString() : ired.ToString()));
+                return values.ToString();
+            }
             public long? getEntityIdRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn.EntityId; } return null; }
             public IMyShipConnector getRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn; } return null; }
         }
         public class Connectors
         {
             int clock = 0;
-            LCD lcd1, lcd2;
+            LCD lcd1, lcd2, lcd_con_forw, lcd_con_back;
             public int curr_connector { get; set; } = 0;
             public int group_out { get; set; } = 0;
 
-            public string[] sgroup = { "COMMON", "POWER", "TANKS", "CARGO", "ORE", "INGOT", "COMPONENT", "7", "8", "9" };
+            public string[] sgroup = { "COMMON", "POWER", "HYDROGEN", "OXYGEN", "CARGO", "ORE", "INGOT", "COMPONENT", "AMMO", "9" };
             public class ConnInfo
             {
                 public Connector connector { get; set; }
@@ -1121,9 +1115,9 @@ namespace OS_EX_UPR
                 }
                 return null;
             }
-            public Connectors(LCD lcd1, LCD lcd2)
+            public Connectors(LCD lcd1, LCD lcd2, LCD lcd_con_forw, LCD lcd_con_back)
             {
-                this.lcd1 = lcd1; this.lcd2 = lcd2;
+                this.lcd1 = lcd1; this.lcd2 = lcd2; this.lcd_con_forw = lcd_con_forw; this.lcd_con_back = lcd_con_back;
                 conn_info[0] = new ConnInfo() { connector = connector_forw, name = "ОСНОВНОЙ", tags = "" };
                 conn_info[1] = new ConnInfo() { connector = connector_back, name = "ГРУЗОВОЙ", tags = "" };
                 conn_info[2] = new ConnInfo() { connector = connector_l1, name = "СЛУЖЕБНЫЙ Л-1", tags = "" };
@@ -1143,6 +1137,76 @@ namespace OS_EX_UPR
                     conn_info[i].tags = GetTagConnectors(conn_info[i].connector);
                 }
             }
+            public void SetValueTag(ref StringBuilder values, string tag)
+            {
+                switch (group_out)
+                {
+                    case 0:
+                        {
+                            values.Append("echo " + tag + "-" + sgroup[group_out] + ":\n");
+                            values.Append("PowerSummary {" + tag + "}\n");
+                            values.Append("PowerStored {" + tag + "}\n");
+                            values.Append("PowerTime {" + tag + "}\n");
+                            values.Append("Tanks {" + tag + "} Hydrogen\n");
+                            values.Append("Cargo {" + tag + "}\n");
+                            values.Append("Inventory {" + tag + "} +ingot/uranium +ice\n");
+                            //Inventory {[OS-E1]} +ingot/uranium
+                            break;
+                        }
+                    case 1:
+                        {
+                            values.Append("echo " + tag + "-" + sgroup[group_out] + ":\n");
+                            values.Append("Power {" + tag + "}\n");
+                            break;
+                        }
+                    case 2:
+                        {
+                            values.Append("echo " + tag + "-" + sgroup[group_out] + ":\n");
+                            values.Append("Tanks {" + tag + "} Hydrogen\n");
+                            break;
+                        }
+                    case 3:
+                        {
+                            values.Append("echo " + tag + "-" + sgroup[group_out] + ":\n");
+                            values.Append("Oxygen {" + tag + "}\n");
+                            break;
+                        }
+                    case 4:
+                        {
+                            values.Append("echo " + tag + "-" + sgroup[group_out] + "\n");
+                            values.Append("Cargo {" + tag + "}\n");
+                            break;
+                        }
+                    case 5:
+                        {
+                            values.Append("echo " + tag + "-" + sgroup[group_out] + "\n");
+                            values.Append("Inventory {" + tag + "} +ore\n");
+                            //Inventory {[EARTH-B-ICE]} +ore
+                            break;
+                        }
+                    case 6:
+                        {
+                            values.Append("echo " + tag + "-" + sgroup[group_out] + "\n");
+                            values.Append("Inventory {" + tag + "} +ingot -scrap\n");
+                            //Inventory {[EARTH-B-ICE]} +ingot -scrap
+                            break;
+                        }
+                    case 7:
+                        {
+                            values.Append("echo " + tag + "-" + sgroup[group_out] + "\n");
+                            values.Append("Inventory {" + tag + "} +component\n");
+                            //Inventory {[EARTH-B-ICE]} +component
+                            break;
+                        }
+                    case 8:
+                        {
+                            values.Append("echo " + tag + "-" + sgroup[group_out] + "\n");
+                            values.Append("Inventory {" + tag + "} +ammo\n");
+                            //Inventory {[EARTH-B-ICE]} +component
+                            break;
+                        }
+                }
+            }
             public void UpdateLCD2()
             {
 
@@ -1150,63 +1214,7 @@ namespace OS_EX_UPR
                 if (curr_connector == 0)
                 {
                     values.Append("echo ОБЩАЯ ИНФОРМАЦИЯ\n");
-                    switch (group_out)
-                    {
-                        case 0:
-                            {
-                                values.Append("echo " + sgroup[group_out] + ":\n");
-                                values.Append("PowerSummary \n");
-                                values.Append("PowerStored \n");
-                                values.Append("PowerTime \n");
-                                values.Append("Tanks * Hydrogen\n");
-                                values.Append("Cargo *\n");
-                                values.Append("Inventory * +ingot/uranium +ice\n");
-                                //Inventory {[OS-E1]} +ingot/uranium
-                                break;
-                            }
-                        case 1:
-                            {
-                                values.Append("echo " + sgroup[group_out] + ":\n");
-                                values.Append("Power \n");
-                                break;
-                            }
-                        case 2:
-                            {
-                                values.Append("echo " +  sgroup[group_out] + ":\n");
-                                values.Append("Tanks * Hydrogen\n");
-                                values.Append("Oxygen \n");
-                                break;
-                            }
-                        case 3:
-                            {
-                                values.Append("echo " + sgroup[group_out] + "\n");
-                                values.Append("Cargo *\n");
-                                break;
-                            }
-                        case 4:
-                            {
-                                values.Append("echo " +  sgroup[group_out] + "\n");
-                                values.Append("Inventory * +ore\n");
-                                //Inventory {[EARTH-B-ICE]} +ore
-                                break;
-                            }
-                        case 5:
-                            {
-                                values.Append("echo " + sgroup[group_out] + "\n");
-                                values.Append("Inventory * +ingot -scrap\n");
-                                //Inventory {[EARTH-B-ICE]} +ingot -scrap
-                                break;
-                            }
-                        case 6:
-                            {
-                                values.Append("echo " + sgroup[group_out] + "\n");
-                                values.Append("Inventory * +component\n");
-                                //Inventory {[EARTH-B-ICE]} +component
-                                break;
-                            }
-
-                    }
-                    //Inventory {[OS-E1]} +ingot/uranium
+                    SetValueTag(ref values, "*");
                 }
                 else
                 {
@@ -1215,62 +1223,7 @@ namespace OS_EX_UPR
                     string tag = conn_info[curr_connector - 1].tags;
                     if (!String.IsNullOrWhiteSpace(tag))
                     {
-                        switch (group_out)
-                        {
-                            case 0:
-                                {
-                                    values.Append("echo " + tag + "-" + sgroup[group_out] + ":\n");
-                                    values.Append("PowerSummary {" + tag + "}\n");
-                                    values.Append("PowerStored {" + tag + "}\n");
-                                    values.Append("PowerTime {" + tag + "}\n");
-                                    values.Append("Tanks {" + tag + "} Hydrogen\n");
-                                    values.Append("Cargo {" + tag + "}\n");
-                                    values.Append("Inventory {" + tag + "} +ingot/uranium +ice\n");
-                                    //Inventory {[OS-E1]} +ingot/uranium
-                                    break;
-                                }
-                            case 1:
-                                {
-                                    values.Append("echo " + tag + "-" + sgroup[group_out] + ":\n");
-                                    values.Append("Power {" + tag + "}\n");
-                                    break;
-                                }
-                            case 2:
-                                {
-                                    values.Append("echo " + tag + "-" + sgroup[group_out] + ":\n");
-                                    values.Append("Tanks {" + tag + "} Hydrogen\n");
-                                    values.Append("Oxygen {" + tag + "}\n");
-                                    break;
-                                }
-                            case 3:
-                                {
-                                    values.Append("echo " + tag + "-" + sgroup[group_out] + "\n");
-                                    values.Append("Cargo {" + tag + "}\n");
-                                    break;
-                                }
-                            case 4:
-                                {
-                                    values.Append("echo " + tag + "-" + sgroup[group_out] + "\n");
-                                    values.Append("Inventory {" + tag + "} +ore\n");
-                                    //Inventory {[EARTH-B-ICE]} +ore
-                                    break;
-                                }
-                            case 5:
-                                {
-                                    values.Append("echo " + tag + "-" + sgroup[group_out] + "\n");
-                                    values.Append("Inventory {" + tag + "} +ingot -scrap\n");
-                                    //Inventory {[EARTH-B-ICE]} +ingot -scrap
-                                    break;
-                                }
-                            case 6:
-                                {
-                                    values.Append("echo " + tag + "-" + sgroup[group_out] + "\n");
-                                    values.Append("Inventory {" + tag + "} +component\n");
-                                    //Inventory {[EARTH-B-ICE]} +component
-                                    break;
-                                }
-
-                        }
+                        SetValueTag(ref values, tag);
                     }
                     else
                     {
@@ -1283,13 +1236,30 @@ namespace OS_EX_UPR
             public void TextInfo1()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("== КОРАБЛИ -- ["+ sgroup[group_out] + "] ->\n");
+                values.Append("== КОРАБЛИ -- [" + sgroup[group_out] + "] ->\n");
                 values.Append("---------------------------------------------\n\n");
                 for (int i = 0; i < 9; i++)
                 {
-                    values.Append((i + 1 == curr_connector ? " -> " : "    ") + conn_info[i].connector.TextInfo(conn_info[i].name) + " -> " + conn_info[i].tags + (i + 1 == curr_connector ? " -->" : "  ") +  "\n" + "\n");
+                    values.Append((i + 1 == curr_connector ? " -> " : "    ") + conn_info[i].connector.TextInfo(conn_info[i].name) + " -> " + conn_info[i].tags + (i + 1 == curr_connector ? " -->" : "  ") + "\n" + "\n");
                 }
                 values.Append("\n---------------------------------------------\n");
+                this.lcd1.OutText(values);
+            }
+            public void TextInfo2()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("== КОННЕКТОРЫ ==\n\n");
+                values.Append("            " + conn_info[0].connector.TextStatus() + " forw\n");
+                values.Append("            |\n");
+                values.Append("l-1 " + conn_info[2].connector.TextStatus() + "---+---+-------" + conn_info[4].connector.TextStatus() + " r-1\n");
+                values.Append("        |   |\n");
+                values.Append("   pl-1 " + conn_info[6].connector.TextStatus() + "   |\n");
+                values.Append("            +---" + conn_info[8].connector.TextStatus() + " work\n");
+                values.Append("   pl-2 " + conn_info[7].connector.TextStatus() + "   |\n");
+                values.Append("        |   |\n");
+                values.Append("l-2 " + conn_info[3].connector.TextStatus() + "---+---+-------" + conn_info[5].connector.TextStatus() + " r-2\n");
+                values.Append("            |\n");
+                values.Append("            " + conn_info[1].connector.TextStatus() + " back\n");
                 this.lcd1.OutText(values);
             }
             public void Logic(string argument, UpdateType updateSource)
@@ -1310,6 +1280,22 @@ namespace OS_EX_UPR
                     {
                         clock = 0;
                         connectors.Update();
+                        if (!String.IsNullOrWhiteSpace(conn_info[0].tags))
+                        {
+                            lcd_con_forw.obj.CustomData = "Power {" + conn_info[0].tags + "}\nPowerTime {" + conn_info[0].tags + "}\n";
+                        }
+                        else
+                        {
+                            lcd_con_forw.obj.CustomData = ""; lcd_con_forw.OutText("The ship is not docked!", false);
+                        }
+                        if (!String.IsNullOrWhiteSpace(conn_info[1].tags))
+                        {
+                            lcd_con_back.obj.CustomData = "Power {" + conn_info[0].tags + "}\nPowerTime {" + conn_info[0].tags + "}\n";
+                        }
+                        else
+                        {
+                            lcd_con_back.obj.CustomData = ""; lcd_con_forw.OutText("The ship is not docked!", false);
+                        }
                     }
                     clock++;
                     TextInfo1();
@@ -1359,8 +1345,6 @@ namespace OS_EX_UPR
         }
     }
 }
-
-// Коннекторс - вывод на экраны forw back - инфу по зарядке
 
 // door [door-gateway] [operators_space_left_down] [space]
 // sn [door-gateway] [operators_space_left_down] [space]
