@@ -65,7 +65,7 @@ namespace OS_EX_UPR
         static LCD lcd_nav1;
         static LCD lcd_st1, lcd_st2, lcd_st3;
         static LCD lcd_cntr1, lcd_cntr2;
-        static LCD lcd_con_forw, lcd_con_back;
+        static LCD lcd_con_forw, lcd_con_back, lcd_con_info;
 
         static Connector connector_forw, connector_back, connector_l1, connector_l2, connector_r1, connector_r2, connector_pl1, connector_pl2, connector_work;
         static ReflectorsLight reflectors_light;
@@ -138,6 +138,7 @@ namespace OS_EX_UPR
             lcd_cntr2 = new LCD(NameObj + "-LCD CNTR2 [LCD]");
             lcd_con_forw = new LCD(NameObj + "-LCD CNTR [forw] [LCD]");
             lcd_con_back = new LCD(NameObj + "-LCD CNTR [back] [LCD]");
+            lcd_con_info = new LCD(NameObj + "-LCD [connectors-info]");
             connector_forw = new Connector(NameObj + "-Коннектор forw");
             connector_back = new Connector(NameObj + "-Коннектор back");
             connector_l1 = new Connector(NameObj + "-Коннектор left-1");
@@ -167,7 +168,7 @@ namespace OS_EX_UPR
             oxygen_farm_left = new OxygenFarm(NameObj, "[left]");
             oxygen_farm_right = new OxygenFarm(NameObj, "[right]");
             solar_power = new SolarPower();
-            connectors = new Connectors(lcd_cntr1, lcd_cntr2, lcd_con_forw, lcd_con_back);
+            connectors = new Connectors(lcd_cntr1, lcd_cntr2, lcd_con_forw, lcd_con_back, lcd_con_info);
             storage = new MyStorage();
             storage.LoadFromStorage();
 
@@ -1087,7 +1088,7 @@ namespace OS_EX_UPR
         public class Connectors
         {
             int clock = 0;
-            LCD lcd1, lcd2, lcd_con_forw, lcd_con_back;
+            LCD lcd1, lcd2, lcd_con_forw, lcd_con_back, lcd_con_info;
             public int curr_connector { get; set; } = 0;
             public int group_out { get; set; } = 0;
 
@@ -1115,9 +1116,9 @@ namespace OS_EX_UPR
                 }
                 return null;
             }
-            public Connectors(LCD lcd1, LCD lcd2, LCD lcd_con_forw, LCD lcd_con_back)
+            public Connectors(LCD lcd1, LCD lcd2, LCD lcd_con_forw, LCD lcd_con_back, LCD lcd_con_info)
             {
-                this.lcd1 = lcd1; this.lcd2 = lcd2; this.lcd_con_forw = lcd_con_forw; this.lcd_con_back = lcd_con_back;
+                this.lcd1 = lcd1; this.lcd2 = lcd2; this.lcd_con_forw = lcd_con_forw; this.lcd_con_back = lcd_con_back; this.lcd_con_info = lcd_con_info;
                 conn_info[0] = new ConnInfo() { connector = connector_forw, name = "ОСНОВНОЙ", tags = "" };
                 conn_info[1] = new ConnInfo() { connector = connector_back, name = "ГРУЗОВОЙ", tags = "" };
                 conn_info[2] = new ConnInfo() { connector = connector_l1, name = "СЛУЖЕБНЫЙ Л-1", tags = "" };
@@ -1250,17 +1251,17 @@ namespace OS_EX_UPR
                 StringBuilder values = new StringBuilder();
                 values.Append("== КОННЕКТОРЫ ==\n\n");
                 values.Append("            " + conn_info[0].connector.TextStatus() + " forw\n");
-                values.Append("            |\n");
+                values.Append("             |\n");
                 values.Append("l-1 " + conn_info[2].connector.TextStatus() + "---+---+-------" + conn_info[4].connector.TextStatus() + " r-1\n");
-                values.Append("        |   |\n");
-                values.Append("   pl-1 " + conn_info[6].connector.TextStatus() + "   |\n");
-                values.Append("            +---" + conn_info[8].connector.TextStatus() + " work\n");
-                values.Append("   pl-2 " + conn_info[7].connector.TextStatus() + "   |\n");
-                values.Append("        |   |\n");
+                values.Append("         |   |\n");
+                values.Append("    pl-1 " + conn_info[6].connector.TextStatus() + "  |\n");
+                values.Append("             +---" + conn_info[8].connector.TextStatus() + " work\n");
+                values.Append("    pl-2 " + conn_info[7].connector.TextStatus() + "  |\n");
+                values.Append("         |   |\n");
                 values.Append("l-2 " + conn_info[3].connector.TextStatus() + "---+---+-------" + conn_info[5].connector.TextStatus() + " r-2\n");
-                values.Append("            |\n");
+                values.Append("             |\n");
                 values.Append("            " + conn_info[1].connector.TextStatus() + " back\n");
-                this.lcd1.OutText(values);
+                this.lcd_con_info.OutText(values);
             }
             public void Logic(string argument, UpdateType updateSource)
             {
@@ -1282,7 +1283,7 @@ namespace OS_EX_UPR
                         connectors.Update();
                         if (!String.IsNullOrWhiteSpace(conn_info[0].tags))
                         {
-                            lcd_con_forw.obj.CustomData = "Power {" + conn_info[0].tags + "}\nPowerTime {" + conn_info[0].tags + "}\n";
+                            lcd_con_forw.obj.CustomData = "Power {" + conn_info[0].tags + "}\nPowerTime {" + conn_info[0].tags + "}\nTanks {" + conn_info[0].tags + "} Hydrogen\n";
                         }
                         else
                         {
@@ -1290,12 +1291,13 @@ namespace OS_EX_UPR
                         }
                         if (!String.IsNullOrWhiteSpace(conn_info[1].tags))
                         {
-                            lcd_con_back.obj.CustomData = "Power {" + conn_info[0].tags + "}\nPowerTime {" + conn_info[0].tags + "}\n";
+                            lcd_con_back.obj.CustomData = "Power {" + conn_info[0].tags + "}\nPowerTime {" + conn_info[0].tags + "}\nTanks {" + conn_info[0].tags + "} Hydrogen\n";
                         }
                         else
                         {
-                            lcd_con_back.obj.CustomData = ""; lcd_con_forw.OutText("The ship is not docked!", false);
+                            lcd_con_back.obj.CustomData = ""; lcd_con_back.OutText("The ship is not docked!", false);
                         }
+                        TextInfo2();
                     }
                     clock++;
                     TextInfo1();
