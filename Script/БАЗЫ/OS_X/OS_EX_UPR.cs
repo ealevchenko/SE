@@ -63,7 +63,7 @@ namespace OS_EX_UPR
         static LCD lcd_storage;
         static LCD lcd_debug;
         static LCD lcd_nav1;
-        static LCD lcd_st1, lcd_st2, lcd_st3;
+        static LCD lcd_st1, lcd_st2, lcd_st3, lcd_st4;
         static LCD lcd_cntr1, lcd_cntr2;
         static LCD lcd_con_forw, lcd_con_back, lcd_con_info;
 
@@ -134,6 +134,7 @@ namespace OS_EX_UPR
             lcd_st1 = new LCD(NameObj + "-LCD ST1");
             lcd_st2 = new LCD(NameObj + "-LCD ST2");
             lcd_st3 = new LCD(NameObj + "-LCD ST3");
+            lcd_st4 = new LCD(NameObj + "-LCD ST4");
             lcd_cntr1 = new LCD(NameObj + "-LCD CNTR1");
             lcd_cntr2 = new LCD(NameObj + "-LCD CNTR2 [LCD]");
             lcd_con_forw = new LCD(NameObj + "-LCD CNTR [forw] [LCD]");
@@ -191,6 +192,9 @@ namespace OS_EX_UPR
             {
 
             }
+            StringBuilder values_st4 = new StringBuilder();
+            values_st4.Append(connectors.TextInfo2());
+            lcd_st4.OutText(values_st4);
             //StringBuilder cockpit_nav0 = new StringBuilder();
             //cockpit_nav0.Append(solar_power.TextInfo());
             //cockpit_nav0.Append("Левая панель---------\n");
@@ -1246,7 +1250,7 @@ namespace OS_EX_UPR
                 values.Append("\n---------------------------------------------\n");
                 this.lcd1.OutText(values);
             }
-            public void TextInfo2()
+            public string TextInfo2()
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("== КОННЕКТОРЫ ==\n\n");
@@ -1261,7 +1265,7 @@ namespace OS_EX_UPR
                 values.Append("l-2 " + conn_info[3].connector.TextStatus() + "---+---+-------" + conn_info[5].connector.TextStatus() + " r-2\n");
                 values.Append("             |\n");
                 values.Append("            " + conn_info[1].connector.TextStatus() + " back\n");
-                this.lcd_con_info.OutText(values);
+                return values.ToString();
             }
             public void Logic(string argument, UpdateType updateSource)
             {
@@ -1297,10 +1301,10 @@ namespace OS_EX_UPR
                         {
                             lcd_con_back.obj.CustomData = ""; lcd_con_back.OutText("The ship is not docked!", false);
                         }
-                        TextInfo2();
+                        this.lcd_con_info.OutText(TextInfo2(), false);
                     }
                     clock++;
-                    TextInfo1();
+                    
                 }
             }
         }
