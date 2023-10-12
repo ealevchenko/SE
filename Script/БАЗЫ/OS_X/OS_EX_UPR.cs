@@ -17,7 +17,6 @@ using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Scripting;
 using VRageMath;
-using static VRageMath.Base6Directions;
 
 /// <summary>
 /// v1.0
@@ -28,7 +27,7 @@ namespace OS_EX_UPR
     public sealed class Program : MyGridProgram
     {
         // v1.
-        string NameObj = "[OS-E1]";
+        static string NameObj = "[OS-E1]";
 
         string tag_door_gateway = "[door-gateway]";
         string tag_lighting_room = "[lighting_room]";
@@ -66,6 +65,7 @@ namespace OS_EX_UPR
         static LCD lcd_st1, lcd_st2, lcd_st3, lcd_st4;
         static LCD lcd_cntr1, lcd_cntr2;
         static LCD lcd_con_forw, lcd_con_back, lcd_con_info;
+        static LCD lcd_base1, lcd_base2;
 
         static Connector connector_forw, connector_back, connector_l1, connector_l2, connector_r1, connector_r2, connector_pl1, connector_pl2, connector_work;
         static ReflectorsLight reflectors_light;
@@ -76,6 +76,7 @@ namespace OS_EX_UPR
         static MyStorage storage;
         static Camera camera_course;
         static ShipController cockpit_nav;
+        static RemoteControl remote_control;
         static Gyros gyros;
         static Thrusts thrusts;
         static MotorStator motor_sp_left, motor_sp_right;
@@ -83,6 +84,7 @@ namespace OS_EX_UPR
         static OxygenFarm oxygen_farm_left, oxygen_farm_right;
         static SolarPower solar_power;
         static Connectors connectors;
+        static BaseInfo base_info;
         //int clock = 0;
 
         static Program _scr;
@@ -140,6 +142,8 @@ namespace OS_EX_UPR
             lcd_con_forw = new LCD(NameObj + "-LCD CNTR [forw] [LCD]");
             lcd_con_back = new LCD(NameObj + "-LCD CNTR [back] [LCD]");
             lcd_con_info = new LCD(NameObj + "-LCD [connectors-info]");
+            lcd_base1 = new LCD(NameObj + "-LCD BASE1 [LCD]");
+            lcd_base2 = new LCD(NameObj + "-LCD BASE2 [LCD]");
             connector_forw = new Connector(NameObj + "-Коннектор forw");
             connector_back = new Connector(NameObj + "-Коннектор back");
             connector_l1 = new Connector(NameObj + "-Коннектор left-1");
@@ -159,9 +163,10 @@ namespace OS_EX_UPR
             reflectors_light.Off();
             camera_course = new Camera(NameObj + "-Камера curse");
             cockpit_nav = new ShipController(NameObj + "-Cocpit [navigation]");
+            remote_control = new RemoteControl(NameObj + "-RC UPR");
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj);
-            thrusts.InitThrusts(cockpit_nav);
+            thrusts.InitThrusts(remote_control);
             motor_sp_left = new MotorStator(NameObj + "-Ротор панели [left]");
             motor_sp_right = new MotorStator(NameObj + "-Ротор панели [right]");
             solar_panels_left = new SolarPanels(NameObj, "[left]");
@@ -170,6 +175,7 @@ namespace OS_EX_UPR
             oxygen_farm_right = new OxygenFarm(NameObj, "[right]");
             solar_power = new SolarPower();
             connectors = new Connectors(lcd_cntr1, lcd_cntr2, lcd_con_forw, lcd_con_back, lcd_con_info);
+            base_info = new BaseInfo(lcd_base1, lcd_base2);
             storage = new MyStorage();
             storage.LoadFromStorage();
 
@@ -186,6 +192,7 @@ namespace OS_EX_UPR
             air_info.Logic(argument, updateSource);
             gateways_doors.Logic(argument, updateSource);// Логика отработки шлюзовых дверей
             connectors.Logic(argument, updateSource);// Логика управления коннекторами
+            base_info.Logic(argument, updateSource);// Логика управления коннекторами
             count_room[(int)room.space] = 0;// В космосе людей не считаем
             room_light.Logic(argument, updateSource);// Логика отработки включения и выключения освещения
             if (updateSource == UpdateType.Update10)
@@ -195,18 +202,6 @@ namespace OS_EX_UPR
             StringBuilder values_st4 = new StringBuilder();
             values_st4.Append(connectors.TextInfo2());
             lcd_st4.OutText(values_st4);
-            //StringBuilder cockpit_nav0 = new StringBuilder();
-            //cockpit_nav0.Append(solar_power.TextInfo());
-            //cockpit_nav0.Append("Левая панель---------\n");
-            //cockpit_nav0.Append(motor_sp_left.TextInfo());
-            //cockpit_nav0.Append(oxygen_farm_left.TextInfo("L"));
-            //cockpit_nav0.Append(solar_panels_left.TextInfo("L"));
-            //cockpit_nav0.Append("Правая панель -------\n");
-            //cockpit_nav0.Append(motor_sp_right.TextInfo());
-            //cockpit_nav0.Append(oxygen_farm_right.TextInfo("R"));
-            //cockpit_nav0.Append(solar_panels_right.TextInfo("R"));
-            //cockpit_nav.OutText(cockpit_nav0, 0);
-
             StringBuilder values_nav1 = new StringBuilder();
             values_nav1.Append(solar_power.TextInfo());
             values_nav1.Append("Левая панель---------\n");
@@ -608,6 +603,10 @@ namespace OS_EX_UPR
             public void OutText(string text, bool append, int num_lcd) { if (this.obj is IMyTextSurfaceProvider) { IMyTextSurfaceProvider ipp = this.obj as IMyTextSurfaceProvider; if (num_lcd > ipp.SurfaceCount) return; IMyTextSurface ts = ipp.GetSurface(num_lcd); if (ts != null) { ts.WriteText(text, append); } } }
             public StringBuilder GetText(int num_lcd) { StringBuilder values = new StringBuilder(); if (this.obj is IMyTextSurfaceProvider) { IMyTextSurfaceProvider ipp = this.obj as IMyTextSurfaceProvider; if (num_lcd > ipp.SurfaceCount) return null; IMyTextSurface ts = ipp.GetSurface(num_lcd); if (ts != null) { ts.ReadText(values); } } return values; }
         }
+        public class RemoteControl : BaseTerminalBlock<IMyRemoteControl>
+        {
+            public RemoteControl(string name) : base(name) { }
+        }
         public class Gyros : BaseListTerminalBlock<IMyGyro>
         {
             public Gyros(string name_obj) : base(name_obj) { }
@@ -618,7 +617,7 @@ namespace OS_EX_UPR
         }
         public class Thrusts : BaseListTerminalBlock<IMyThrust>
         {
-            private ShipController remote_control;
+            private RemoteControl remote_control;
             public float Value;
             public string axis;
             //------------------------------------------------
@@ -641,7 +640,7 @@ namespace OS_EX_UPR
             {
 
             }
-            public void InitThrusts(ShipController remote_control)
+            public void InitThrusts(RemoteControl remote_control)
             {
                 this.remote_control = remote_control;
                 Matrix CockpitMatrix = new MatrixD();
@@ -952,12 +951,12 @@ namespace OS_EX_UPR
             public void SetToVector()
             {
                 Vector3D GravNorm = Vector3D.Normalize(Axis);
-                double gF = GravNorm.Dot(cockpit_nav.obj.WorldMatrix.Forward);
-                double gL = GravNorm.Dot(cockpit_nav.obj.WorldMatrix.Up);
-                double gU = GravNorm.Dot(cockpit_nav.obj.WorldMatrix.Right);
+                double gF = GravNorm.Dot(remote_control.obj.WorldMatrix.Forward);
+                double gL = GravNorm.Dot(remote_control.obj.WorldMatrix.Up);
+                double gU = GravNorm.Dot(remote_control.obj.WorldMatrix.Right);
                 double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
                 double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
-                double TargetYaw = cockpit_nav.obj.RotationIndicator.Y;
+                double TargetYaw = remote_control.obj.RotationIndicator.Y;
                 gyros.SetOverride(true, new Vector3D(-TargetPitch, TargetYaw, TargetRoll), 1);
             }
             public bool SetParking()
@@ -1058,7 +1057,7 @@ namespace OS_EX_UPR
                     else
                     {
                         thrusts.ClearThrustOverridePersent(); gyros.SetOverride(false, 1);
-                        //if (cockpit_nav.obj.GetShipSpeed() < 0.1f) thrusts.Off();
+                        //if (remote_control.obj.GetShipSpeed() < 0.1f) thrusts.Off();
                     }
                     if (parking && SetParking()) { parking = false; storage.SaveToStorage(); }
                     if (track) { parking = false; TrackSun(); } else { parking = true; }
@@ -1304,7 +1303,142 @@ namespace OS_EX_UPR
                         this.lcd_con_info.OutText(TextInfo2(), false);
                     }
                     clock++;
-                    
+
+                }
+            }
+        }
+        public class BaseInfo
+        {
+            LCD lcd1, lcd2;
+            public int info_out { get; set; } = 0;
+            public BaseInfo(LCD lcd1, LCD lcd2)
+            {
+                this.lcd1 = lcd1; this.lcd2 = lcd2;
+            }
+            public void UpdateLCD()
+            {
+                StringBuilder values1 = new StringBuilder();
+                StringBuilder values2 = new StringBuilder();
+
+                switch (info_out)
+                {
+                    case 0:
+                        {
+
+                            break;
+                        }
+                    case 1:
+                        {
+                            values1.Append("center POWER:\n");
+                            values1.Append("Power {" + NameObj + "}\n");
+                            values1.Append("PowerTime {" + NameObj + "}\n");
+
+                            values2.Append("center POWER DETALI:\n");
+                            break;
+                        }
+                    case 2:
+                        {
+                            values1.Append("center batteries:\n");
+                            values1.Append("PowerStored {" + NameObj + "}\n");
+                            values1.Append("PowerTime {" + NameObj + "}\n");
+
+                            values2.Append("center batteries detali:\n");
+                            break;
+                        }
+                    case 3:
+                        {
+                            values1.Append("center reactor\\generator:\n");
+                            values1.Append("Power {" + NameObj + "} reactor\n");
+                            values1.Append("Power {" + NameObj + "} reactor\n");
+
+                            values2.Append("center reactor\\generator detali:\n");
+                            values2.Append("Inventory {" + NameObj + "} +ingot/uranium\n");
+                            values2.Append("Tanks {" + NameObj + "} Hydrogen\n");
+                            break;
+                        }
+                    case 4:
+                        {
+                            values1.Append("center H2\\O2:\n");
+                            values1.Append("Tanks {" + NameObj + "} Hydrogen\n");
+                            values1.Append("Oxygen {" + NameObj + "}\n");
+
+                            values2.Append("center H2\\O2 detali:\n");
+                            values2.Append("Inventory {" + NameObj + "} +ice\n");
+                            break;
+                        }
+                    case 5:
+                        {
+                            values1.Append("center CARGO:\n");
+                            values1.Append("Cargo {" + NameObj + "}\n");
+                            values1.Append("echo {" + NameObj + " БПК 1 } \n");
+                            values1.Append("Cargo {" + NameObj + " БПК 1 } \n");
+                            values1.Append("echo {" + NameObj + " БПК 2 } \n");
+                            values1.Append("Cargo {" + NameObj + " БПК 2 } \n");
+                            values1.Append("echo {" + NameObj + " БПК 3 } \n");
+                            values1.Append("Cargo {" + NameObj + " БПК 3 } \n");
+                            values1.Append("echo {" + NameObj + " БПК 4 } \n");
+                            values1.Append("Cargo {" + NameObj + " БПК 4 } \n");
+                            values1.Append("echo {" + NameObj + " МК} \n");
+                            values1.Append("Cargo {" + NameObj + " МК} \n");
+
+                            values2.Append("center CARGO detali:\n");
+                            break;
+                        }
+                    case 6:
+                        {
+                            values1.Append("center РУДА:\n");
+                            values1.Append("Inventory {" + NameObj + "} +ore\n");
+
+                            values2.Append("center ОЧИСТИТЕЛЬ detali:\n");
+                            break;
+                        }
+                    case 7:
+                        {
+                            values1.Append("center СЛИТКИ:\n");
+                            values1.Append("Inventory {" + NameObj + "} +ingot -scrap\n");
+
+                            values2.Append("center ОЧИСТИТЕЛЬ detali:\n");
+                            break;
+                        }
+                    case 8:
+                        {
+                            values1.Append("center КОМПОНЕНТЫ:\n");
+                            values1.Append("Inventory {" + NameObj + "} +component\n");
+
+                            values2.Append("center СБОРЩИКИ detali:\n");
+                            break;
+                        }
+                    case 9:
+                        {
+                            values1.Append("center БОЕПРИПАСЫ:\n");
+                            values1.Append("Inventory {" + NameObj + "} ammo\n");
+
+                            values2.Append("center ВООРУЖЕНИЕ detali:\n");
+                            break;
+                        }
+                }
+                this.lcd1.obj.CustomData = values1.ToString();
+                this.lcd2.obj.CustomData = values2.ToString();
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    case "bi-1": if (info_out != 1) { info_out = 1; storage.SaveToStorage(); UpdateLCD(); } break; // бат
+                    case "bi-2": if (info_out != 2) { info_out = 2; storage.SaveToStorage(); UpdateLCD(); } break; // пит
+                    case "bi-3": if (info_out != 3) { info_out = 3; storage.SaveToStorage(); UpdateLCD(); } break; // вод\
+                    case "bi-4": if (info_out != 4) { info_out = 4; storage.SaveToStorage(); UpdateLCD(); } break; //
+                    case "bi-5": if (info_out != 5) { info_out = 5; storage.SaveToStorage(); UpdateLCD(); } break; //
+                    case "bi-6": if (info_out != 6) { info_out = 6; storage.SaveToStorage(); UpdateLCD(); } break; //
+                    case "bi-7": if (info_out != 7) { info_out = 7; storage.SaveToStorage(); UpdateLCD(); } break; //
+                    case "bi-8": if (info_out != 8) { info_out = 8; storage.SaveToStorage(); UpdateLCD(); } break; //
+                    case "bi-9": if (info_out != 9) { info_out = 9; storage.SaveToStorage(); UpdateLCD(); } break; //
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+
                 }
             }
         }
@@ -1320,7 +1454,7 @@ namespace OS_EX_UPR
                 solar_power.track = GetValBool("SPtrack", str.ToString());
                 connectors.curr_connector = GetValInt("CNRScurr_connector", str.ToString());
                 connectors.group_out = GetValInt("CNRSgroup_out", str.ToString());
-
+                base_info.info_out = GetValInt("BIinfo_out", str.ToString());
                 for (int i = 0; i < count_room.Length; i++)
                 {
                     int count = GetValInt("count_room_" + i, str.ToString());
@@ -1336,6 +1470,7 @@ namespace OS_EX_UPR
                 values.Append("SPtrack: " + solar_power.track.ToString() + ";\n");
                 values.Append("CNRScurr_connector: " + connectors.curr_connector.ToString() + ";\n");
                 values.Append("CNRSgroup_out: " + connectors.group_out.ToString() + ";\n");
+                values.Append("BIinfo_out: " + base_info.info_out.ToString() + ";\n");
                 for (int i = 0; i < count_room.Length; i++)
                 {
                     values.Append("count_room_" + i + ": " + (count_room[i]).ToString() + ";\n");
@@ -1351,26 +1486,11 @@ namespace OS_EX_UPR
         }
     }
 }
-
+// Добавить управление work 
 // door [door-gateway] [operators_space_left_down] [space]
 // sn [door-gateway] [operators_space_left_down] [space]
 // door [door-gateway] [operators_space_right_down] [space]
 // sn [door-gateway] [operators_space_right_down] [space]
 
-// door [door-gateway] [operators_space_left_down] [operators_space_right_down] [operators]
-// sn [door-gateway] [operators_space_left_down] [operators_space_right_down] [operators]
-
-// sn [door-transition] [module_transition] [module]
-// sn [door-transition] [module_transition] [transition]
-// door [door-transition] [module_transition]
-
-// sn [door-transition] [cabin_energy_module_right] [energy_module_right]
-// sn [door-transition] [cabin_energy_module_right] [cabin]
-// door [door-transition] [cabin_energy_module_right]
-
 //[OS-E1]-light [lighting_room] [operators]
 //[OS-E1]-mLCD [door-info] [operators]
-
-// [piston-wind-generator]
-// [main-hinge]
-// [MPB-1]-Шарнир [articulated-joint] 1-1 back
