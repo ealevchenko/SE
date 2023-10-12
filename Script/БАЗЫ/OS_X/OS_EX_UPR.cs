@@ -1132,6 +1132,7 @@ namespace OS_EX_UPR
                 conn_info[7] = new ConnInfo() { connector = connector_pl2, name = "ПЛАТФОРМА-2", tags = "" };
                 conn_info[8] = new ConnInfo() { connector = connector_work, name = "ЗАВОД", tags = "" };
                 Update();
+                TextInfo1();
                 UpdateLCD2();
             }
             public void Update()
@@ -1303,6 +1304,7 @@ namespace OS_EX_UPR
                         this.lcd_con_info.OutText(TextInfo2(), false);
                     }
                     clock++;
+                    TextInfo1();
 
                 }
             }
@@ -1319,7 +1321,8 @@ namespace OS_EX_UPR
             {
                 StringBuilder values1 = new StringBuilder();
                 StringBuilder values2 = new StringBuilder();
-
+                this.lcd1.obj.CustomData = "";this.lcd1.OutText("Загружаю ["+ info_out + "]...", false);
+                this.lcd2.obj.CustomData = "";this.lcd2.OutText("Загружаю ["+ info_out + "]...", false);
                 switch (info_out)
                 {
                     case 0:
@@ -1329,7 +1332,7 @@ namespace OS_EX_UPR
                         }
                     case 1:
                         {
-                            values1.Append("center POWER:\n");
+                            values1.Append("center ["+ info_out + "]-POWER:\n");
                             values1.Append("Power {" + NameObj + "}\n");
                             values1.Append("PowerTime {" + NameObj + "}\n");
 
@@ -1338,82 +1341,118 @@ namespace OS_EX_UPR
                         }
                     case 2:
                         {
-                            values1.Append("center batteries:\n");
+                            values1.Append("center ["+ info_out + "]-batteries:\n");
                             values1.Append("PowerStored {" + NameObj + "}\n");
                             values1.Append("PowerTime {" + NameObj + "}\n");
 
                             values2.Append("center batteries detali:\n");
+                            values2.Append("Working {" + NameObj + "-Battery}\n");
+                            values2.Append("ProdCount {" + NameObj + "-Battery}\n");
                             break;
                         }
                     case 3:
                         {
-                            values1.Append("center reactor\\generator:\n");
-                            values1.Append("Power {" + NameObj + "} reactor\n");
-                            values1.Append("Power {" + NameObj + "} reactor\n");
+                            values1.Append("center ["+ info_out + "]-Реактор\\Генератор:\n");
+                            values1.Append("Power {" + NameObj + "-Реактор}\n");
+                            values1.Append("Power {" + NameObj + "-Вод. генерато}\n");
 
-                            values2.Append("center reactor\\generator detali:\n");
+                            values2.Append("center Реактор\\Генератор detali:\n");
                             values2.Append("Inventory {" + NameObj + "} +ingot/uranium\n");
+                            values2.Append("Working {" + NameObj + "} Reactor\n");
+                            values2.Append("ProdCount {" + NameObj + "-Реактор }\n");
                             values2.Append("Tanks {" + NameObj + "} Hydrogen\n");
+                            values2.Append("Working {" + NameObj + "} hydrogenengine\n");
+                            values2.Append("ProdCount {" + NameObj + "-Вод. генератор}\n");
                             break;
                         }
                     case 4:
                         {
-                            values1.Append("center H2\\O2:\n");
+                            values1.Append("center ["+ info_out + "]-H2\\O2:\n");
                             values1.Append("Tanks {" + NameObj + "} Hydrogen\n");
                             values1.Append("Oxygen {" + NameObj + "}\n");
 
                             values2.Append("center H2\\O2 detali:\n");
                             values2.Append("Inventory {" + NameObj + "} +ice\n");
+                            values2.Append("Working {" + NameObj + "-Генератор O2/H2 }\n");
+                            values2.Append("ProdCount {" + NameObj + "-Генератор O2/H2 }\n");
+                            values2.Append("Working {" + NameObj + "-Бак H2}\n");
+                            values2.Append("ProdCount {" + NameObj + "-Бак H2}\n");
+                            values2.Append("Working {" + NameObj + "-Бак O2}\n");
+                            values2.Append("ProdCount {" + NameObj + "-Бак O2}\n");
                             break;
                         }
                     case 5:
                         {
-                            values1.Append("center CARGO:\n");
+                            values1.Append("center ["+ info_out + "]-CARGO:\n");
                             values1.Append("Cargo {" + NameObj + "}\n");
-                            values1.Append("echo {" + NameObj + " БПК 1 } \n");
-                            values1.Append("Cargo {" + NameObj + " БПК 1 } \n");
-                            values1.Append("echo {" + NameObj + " БПК 2 } \n");
-                            values1.Append("Cargo {" + NameObj + " БПК 2 } \n");
-                            values1.Append("echo {" + NameObj + " БПК 3 } \n");
-                            values1.Append("Cargo {" + NameObj + " БПК 3 } \n");
-                            values1.Append("echo {" + NameObj + " БПК 4 } \n");
-                            values1.Append("Cargo {" + NameObj + " БПК 4 } \n");
-                            values1.Append("echo {" + NameObj + " МК} \n");
-                            values1.Append("Cargo {" + NameObj + " МК} \n");
-
+                            values1.Append("echo {" + NameObj + "-БПК 1 } \n");
+                            values1.Append("Cargo {" + NameObj + "-БПК 1 } \n");
+                            values1.Append("echo {" + NameObj + "-БПК 2 } \n");
+                            values1.Append("Cargo {" + NameObj + "-БПК 2 } \n");
+                            values1.Append("echo {" + NameObj + "-БПК 3 } \n");
+                            values1.Append("Cargo {" + NameObj + "-БПК 3 } \n");
+                            values1.Append("echo {" + NameObj + "-БПК 4 } \n");
+                            values1.Append("Cargo {" + NameObj + "-БПК 4 } \n");
+                            values1.Append("echo {" + NameObj + "-МК} \n");
+                            values1.Append("Cargo {" + NameObj + "-МК} \n");
+                            //[OS-E1]-БПК 1 
                             values2.Append("center CARGO detali:\n");
+                            values2.Append("Working {" + NameObj + "-БПК }\n");
+                            values2.Append("ProdCount {" + NameObj + "-БПК }\n");
+                            values2.Append("Working {" + NameObj + "-МК }\n");
+                            values2.Append("ProdCount {" + NameObj + "-МК }\n");
                             break;
                         }
                     case 6:
                         {
-                            values1.Append("center РУДА:\n");
+
+                            values1.Append("center ["+ info_out + "]-РУДА:\n");
                             values1.Append("Inventory {" + NameObj + "} +ore\n");
 
-                            values2.Append("center ОЧИСТИТЕЛЬ detali:\n");
+                            values2.Append("center ОЧИСТИТЕЛИ detali:\n");
+                            values2.Append("Working {" + NameObj + "-Очистительный завод}\n");
+                            values2.Append("ProdCount {" + NameObj + "-Очистительный завод}\n");
+                            values2.Append("center СБОРЩИКИ detali:\n");
+                            values2.Append("Working {" + NameObj + "-Сборщик}\n");
+                            values2.Append("ProdCount {" + NameObj + "-Сборщик }\n");
                             break;
                         }
                     case 7:
                         {
-                            values1.Append("center СЛИТКИ:\n");
+                            values1.Append("center ["+ info_out + "]-СЛИТКИ:\n");
                             values1.Append("Inventory {" + NameObj + "} +ingot -scrap\n");
 
-                            values2.Append("center ОЧИСТИТЕЛЬ detali:\n");
+                            values2.Append("center ОЧИСТИТЕЛИ detali:\n");
+                            values2.Append("Working {" + NameObj + "-Очистительный завод}\n");
+                            values2.Append("ProdCount {" + NameObj + "-Очистительный завод}\n");
+                            values2.Append("center СБОРЩИКИ detali:\n");
+                            values2.Append("Working {" + NameObj + "-Сборщик}\n");
+                            values2.Append("ProdCount {" + NameObj + "-Сборщик }\n");
                             break;
                         }
                     case 8:
                         {
-                            values1.Append("center КОМПОНЕНТЫ:\n");
+                            values1.Append("center ["+ info_out + "]-КОМПОНЕНТЫ:\n");
                             values1.Append("Inventory {" + NameObj + "} +component\n");
 
+                            values2.Append("center ОЧИСТИТЕЛИ detali:\n");
+                            values2.Append("Working {" + NameObj + "-Очистительный завод}\n");
+                            values2.Append("ProdCount {" + NameObj + "-Очистительный завод}\n");
                             values2.Append("center СБОРЩИКИ detali:\n");
+                            values2.Append("Working {" + NameObj + "-Сборщик}\n");
+                            values2.Append("ProdCount {" + NameObj + "-Сборщик }\n");
                             break;
                         }
                     case 9:
                         {
-                            values1.Append("center БОЕПРИПАСЫ:\n");
+                            values1.Append("center ["+ info_out + "]-БОЕПРИПАСЫ:\n");
                             values1.Append("Inventory {" + NameObj + "} ammo\n");
 
                             values2.Append("center ВООРУЖЕНИЕ detali:\n");
+                            values2.Append("ProdCount {" + NameObj + "-Турель Гатлинга}\n");
+                            values2.Append("ProdCount {" + NameObj + "-Турель штурмовой пушки}\n");
+                            values2.Append("ProdCount {" + NameObj + "-Ракетная турель}\n");
+                            values2.Append("ProdCount {" + NameObj + "-Артиллерийская турель}\n");
                             break;
                         }
                 }
