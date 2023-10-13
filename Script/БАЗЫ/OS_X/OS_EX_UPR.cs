@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Scripting;
 using VRageMath;
+using static OS_EX_UPR.Program;
 
 /// <summary>
 /// v1.0
@@ -75,7 +76,7 @@ namespace OS_EX_UPR
         static AirVent air_vent;
         static MyStorage storage;
         static Camera camera_course;
-        static ShipController cockpit_nav;
+        static ShipController cockpit_nav, cockpit_work;
         static RemoteControl remote_control;
         static Gyros gyros;
         static Thrusts thrusts;
@@ -85,6 +86,10 @@ namespace OS_EX_UPR
         static SolarPower solar_power;
         static Connectors connectors;
         static BaseInfo base_info;
+        static Sensor sensor_work;
+        static ShipWelders ship_welders;
+        static PistonsBase pistones_left, pistones_right, pistones_conn;
+        static WeldingPlant welding_plant;
         //int clock = 0;
 
         static Program _scr;
@@ -93,6 +98,7 @@ namespace OS_EX_UPR
             static public string GetPersent(double perse) { return " - " + Math.Round((perse * 100), 1) + "%"; }
             static public string GetScalePersent(double perse, int scale) { string prog = "["; for (int i = 0; i < Math.Round((perse * scale), 0); i++) { prog += "|"; } for (int i = 0; i < scale - Math.Round((perse * scale), 0); i++) { prog += "'"; } prog += "]" + GetPersent(perse); return prog; }
             static public string GetCurrentOfMax(float cur, float max, string units) { return "[ " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]"; }
+            static public string GetCurrentOfMinMax(float cur, float min, float max, string units) { return "[ " + Math.Round(min, 1) + units + " / " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]"; }
             static public string GetThrust(float value) { return Math.Round(value / 1000000, 1) + "МН"; }
             static public string GetFarm(float value) { return Math.Round(value, 1) + "L"; }
             static public string GetGPS(string name, Vector3D target) { return "GPS:" + name + ":" + target.GetDim(0) + ":" + target.GetDim(1) + ":" + target.GetDim(2) + ":\n"; }
@@ -110,6 +116,7 @@ namespace OS_EX_UPR
             public void OffOfTag(string tag) { OffOfTag(list_obj, tag); }
             private void On(List<T> list) { foreach (IMyTerminalBlock obj in list) { obj.ApplyAction("OnOff_On"); } }
             public void On() { On(list_obj); }
+            public void OnOff(bool on_off) { if (on_off) On(); else Off(); }
             private void OnOfTag(List<T> list, string tag)
             { foreach (IMyTerminalBlock obj in list) { if (obj.CustomName.Contains(tag)) { obj.ApplyAction("OnOff_On"); } } }
             public void OnOfTag(string tag) { OnOfTag(list_obj, tag); }
@@ -176,6 +183,13 @@ namespace OS_EX_UPR
             solar_power = new SolarPower();
             connectors = new Connectors(lcd_cntr1, lcd_cntr2, lcd_con_forw, lcd_con_back, lcd_con_info);
             base_info = new BaseInfo(lcd_base1, lcd_base2);
+            sensor_work = new Sensor(NameObj + "-sn work");
+            cockpit_work = new ShipController(NameObj + "-Cocpit [work]");
+            ship_welders = new ShipWelders(NameObj, "[work]");
+            pistones_left = new PistonsBase(NameObj, "[work-left]");
+            pistones_right = new PistonsBase(NameObj, "[work-right]");
+            pistones_conn = new PistonsBase(NameObj, "[work-conn]");
+            welding_plant = new WeldingPlant();
             storage = new MyStorage();
             storage.LoadFromStorage();
 
@@ -193,6 +207,7 @@ namespace OS_EX_UPR
             gateways_doors.Logic(argument, updateSource);// Логика отработки шлюзовых дверей
             connectors.Logic(argument, updateSource);// Логика управления коннекторами
             base_info.Logic(argument, updateSource);// Логика управления коннекторами
+            welding_plant.Logic(argument, updateSource);
             count_room[(int)room.space] = 0;// В космосе людей не считаем
             room_light.Logic(argument, updateSource);// Логика отработки включения и выключения освещения
             if (updateSource == UpdateType.Update10)
@@ -1321,8 +1336,8 @@ namespace OS_EX_UPR
             {
                 StringBuilder values1 = new StringBuilder();
                 StringBuilder values2 = new StringBuilder();
-                this.lcd1.obj.CustomData = "";this.lcd1.OutText("Загружаю ["+ info_out + "]...", false);
-                this.lcd2.obj.CustomData = "";this.lcd2.OutText("Загружаю ["+ info_out + "]...", false);
+                this.lcd1.obj.CustomData = ""; this.lcd1.OutText("Загружаю [" + info_out + "]...", false);
+                this.lcd2.obj.CustomData = ""; this.lcd2.OutText("Загружаю [" + info_out + "]...", false);
                 switch (info_out)
                 {
                     case 0:
@@ -1332,7 +1347,7 @@ namespace OS_EX_UPR
                         }
                     case 1:
                         {
-                            values1.Append("center ["+ info_out + "]-POWER:\n");
+                            values1.Append("center [" + info_out + "]-POWER:\n");
                             values1.Append("Power {" + NameObj + "}\n");
                             values1.Append("PowerTime {" + NameObj + "}\n");
 
@@ -1341,7 +1356,7 @@ namespace OS_EX_UPR
                         }
                     case 2:
                         {
-                            values1.Append("center ["+ info_out + "]-batteries:\n");
+                            values1.Append("center [" + info_out + "]-batteries:\n");
                             values1.Append("PowerStored {" + NameObj + "}\n");
                             values1.Append("PowerTime {" + NameObj + "}\n");
 
@@ -1352,7 +1367,7 @@ namespace OS_EX_UPR
                         }
                     case 3:
                         {
-                            values1.Append("center ["+ info_out + "]-Реактор\\Генератор:\n");
+                            values1.Append("center [" + info_out + "]-Реактор\\Генератор:\n");
                             values1.Append("Power {" + NameObj + "-Реактор}\n");
                             values1.Append("Power {" + NameObj + "-Вод. генерато}\n");
 
@@ -1367,7 +1382,7 @@ namespace OS_EX_UPR
                         }
                     case 4:
                         {
-                            values1.Append("center ["+ info_out + "]-H2\\O2:\n");
+                            values1.Append("center [" + info_out + "]-H2\\O2:\n");
                             values1.Append("Tanks {" + NameObj + "} Hydrogen\n");
                             values1.Append("Oxygen {" + NameObj + "}\n");
 
@@ -1383,7 +1398,7 @@ namespace OS_EX_UPR
                         }
                     case 5:
                         {
-                            values1.Append("center ["+ info_out + "]-CARGO:\n");
+                            values1.Append("center [" + info_out + "]-CARGO:\n");
                             values1.Append("Cargo {" + NameObj + "}\n");
                             values1.Append("echo {" + NameObj + "-БПК 1 } \n");
                             values1.Append("Cargo {" + NameObj + "-БПК 1 } \n");
@@ -1406,7 +1421,7 @@ namespace OS_EX_UPR
                     case 6:
                         {
 
-                            values1.Append("center ["+ info_out + "]-РУДА:\n");
+                            values1.Append("center [" + info_out + "]-РУДА:\n");
                             values1.Append("Inventory {" + NameObj + "} +ore\n");
 
                             values2.Append("center ОЧИСТИТЕЛИ detali:\n");
@@ -1419,7 +1434,7 @@ namespace OS_EX_UPR
                         }
                     case 7:
                         {
-                            values1.Append("center ["+ info_out + "]-СЛИТКИ:\n");
+                            values1.Append("center [" + info_out + "]-СЛИТКИ:\n");
                             values1.Append("Inventory {" + NameObj + "} +ingot -scrap\n");
 
                             values2.Append("center ОЧИСТИТЕЛИ detali:\n");
@@ -1432,7 +1447,7 @@ namespace OS_EX_UPR
                         }
                     case 8:
                         {
-                            values1.Append("center ["+ info_out + "]-КОМПОНЕНТЫ:\n");
+                            values1.Append("center [" + info_out + "]-КОМПОНЕНТЫ:\n");
                             values1.Append("Inventory {" + NameObj + "} +component\n");
 
                             values2.Append("center ОЧИСТИТЕЛИ detali:\n");
@@ -1445,7 +1460,7 @@ namespace OS_EX_UPR
                         }
                     case 9:
                         {
-                            values1.Append("center ["+ info_out + "]-БОЕПРИПАСЫ:\n");
+                            values1.Append("center [" + info_out + "]-БОЕПРИПАСЫ:\n");
                             values1.Append("Inventory {" + NameObj + "} ammo\n");
 
                             values2.Append("center ВООРУЖЕНИЕ detali:\n");
@@ -1481,6 +1496,128 @@ namespace OS_EX_UPR
                 }
             }
         }
+        public class ShipWelders : BaseListTerminalBlock<IMyShipWelder>
+        {
+            public ShipWelders(string name_obj) : base(name_obj) { }
+            public ShipWelders(string name_obj, string tag) : base(name_obj, tag) { }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("СВАРЩИКИ: " + (base.Enabled() ? igreen.ToString() : ired.ToString()) + "\n");
+                return values.ToString();
+            }
+        }
+        public class PistonsBase : BaseListTerminalBlock<IMyPistonBase>
+        {
+            public float speed_piston { get; set; } = 0.5f;
+            public float multiply_speed { get; set; } = 1f;
+            public float? new_position { get; set; } = null;
+            public float Position { get { return this.list_obj.Sum(s => s.CurrentPosition); } }
+            public float MinLimit { get { return this.list_obj.Sum(s => s.MinLimit); } }
+            public float MaxLimit { get { return this.list_obj.Sum(s => s.MaxLimit); } }
+            public float Velocity { get { return this.list_obj.Average(s => s.Velocity); } }
+            public PistonsBase(string name_obj, string tag) : base(name_obj) { if (!String.IsNullOrWhiteSpace(tag)) { list_obj = list_obj.Where(n => n.CustomName.Contains(tag)).ToList(); } _scr.Echo("Найдено PistonBase:[" + tag + "]: " + list_obj.Count()); }
+            public void SetVelocity(float speed) { foreach (IMyPistonBase p in base.list_obj) { p.Velocity = speed; } }
+            public void Open(float speed) { foreach (IMyPistonBase p in base.list_obj) { p.Velocity = speed; p.Extend(); } }
+            public void Close(float speed) { foreach (IMyPistonBase p in base.list_obj) { p.Velocity = speed_piston; p.Retract(); } }
+            public void Open() { Open(this.speed_piston); }
+            public void Close() { Close(this.speed_piston); }
+            public void SetPosition()
+            {
+                float speed = 0f;
+                if (new_position != null)
+                {
+                    double curennt_position = this.Position;
+                    if (curennt_position > new_position)
+                    {
+                        speed = -(float)(Math.Abs(curennt_position - (float)new_position) * multiply_speed);
+                        SetVelocity(speed);
+                    }
+                    else if (curennt_position < new_position)
+                    {
+                        speed = (float)(Math.Abs((float)new_position - curennt_position) * multiply_speed);
+                        SetVelocity(speed);
+                    }
+                    else
+                    {
+                        SetVelocity(speed);
+                        new_position = null;
+                    }
+                }
+
+
+            }
+            public string TextInfo(string name)
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append(name + ": [" + Count + "] " + PText.GetCurrentOfMinMax(MinLimit, Position, MaxLimit, "m") + "\n");
+                values.Append("|- Поз:  " + PText.GetScalePersent(Position - MinLimit / MaxLimit - MinLimit, 20) + "\n");
+                return values.ToString();
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+                    if (new_position != null)
+                    {
+                        SetPosition();
+                    }
+                }
+            }
+        }
+        public class Sensor : BaseTerminalBlock<IMySensorBlock>
+        {
+            public bool IsActive { get { return obj.IsActive; } }
+            public Sensor(string name) : base(name) { }
+        }
+        public class WeldingPlant
+        {
+            public WeldingPlant()
+            {
+                Parking();
+                if (!connector_work.Connected)
+                {
+                    pistones_conn.new_position = 0f;
+                }
+            }
+            public void Parking() {
+                ship_welders.Off();
+                pistones_left.speed_piston = 2f;
+                pistones_left.new_position = pistones_left.MinLimit;
+                pistones_right.speed_piston = 2f;
+                pistones_right.new_position = pistones_right.MinLimit;
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                ship_welders.OnOff(!sensor_work.IsActive);
+                pistones_left.Logic(argument, updateSource);
+                pistones_right.Logic(argument, updateSource);
+                switch (argument)
+                {
+                    case "wp_parking": Parking(); break;
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+
+                }
+                StringBuilder values_cp = new StringBuilder();
+                values_cp.Append(connector_work.TextInfo("К-Work"));
+                values_cp.Append(pistones_conn.TextInfo("П-КОНН"));
+                values_cp.Append(ship_welders.TextInfo());
+                values_cp.Append(pistones_left.TextInfo("П-Левый"));
+                values_cp.Append(pistones_right.TextInfo("П-Правый"));
+                cockpit_work.OutText(values_cp, 0);
+            }
+        }
+
         public class MyStorage
         {
             public MyStorage() { }
@@ -1523,6 +1660,7 @@ namespace OS_EX_UPR
             public long GetValInt64(string Key, string str) { return Convert.ToInt64(GetVal(Key, str, "0")); }
             public bool GetValBool(string Key, string str) { return Convert.ToBoolean(GetVal(Key, str, "False")); }
         }
+
     }
 }
 // Добавить управление work 
