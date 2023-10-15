@@ -98,7 +98,7 @@ namespace OS_EX_UPR
             static public string GetPersent(double perse) { return " - " + Math.Round((perse * 100), 1) + "%"; }
             static public string GetScalePersent(double perse, int scale) { string prog = "["; for (int i = 0; i < Math.Round((perse * scale), 0); i++) { prog += "|"; } for (int i = 0; i < scale - Math.Round((perse * scale), 0); i++) { prog += "'"; } prog += "]" + GetPersent(perse); return prog; }
             static public string GetCurrentOfMax(float cur, float max, string units) { return "[ " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]"; }
-            static public string GetCurrentOfMinMax(float cur, float min, float max, string units) { return "[ " + Math.Round(min, 1) + units + " / " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]"; }
+            static public string GetCurrentOfMinMax(float min, float cur, float max, string units) { return "[ " + Math.Round(min, 1) + units + " / " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]"; }
             static public string GetThrust(float value) { return Math.Round(value / 1000000, 1) + "МН"; }
             static public string GetFarm(float value) { return Math.Round(value, 1) + "L"; }
             static public string GetGPS(string name, Vector3D target) { return "GPS:" + name + ":" + target.GetDim(0) + ":" + target.GetDim(1) + ":" + target.GetDim(2) + ":\n"; }
@@ -184,7 +184,7 @@ namespace OS_EX_UPR
             connectors = new Connectors(lcd_cntr1, lcd_cntr2, lcd_con_forw, lcd_con_back, lcd_con_info);
             base_info = new BaseInfo(lcd_base1, lcd_base2);
             sensor_work = new Sensor(NameObj + "-sn work");
-            cockpit_work = new ShipController(NameObj + "-Cocpit [work]");
+            cockpit_work = new ShipController(NameObj + "-Cocpit [work] [LCD]");
             ship_welders = new ShipWelders(NameObj, "[work]");
             pistones_left = new PistonsBase(NameObj, "[work-left]");
             pistones_right = new PistonsBase(NameObj, "[work-right]");
@@ -1551,7 +1551,7 @@ namespace OS_EX_UPR
             {
                 StringBuilder values = new StringBuilder();
                 values.Append(name + ": [" + Count + "] " + PText.GetCurrentOfMinMax(MinLimit, Position, MaxLimit, "m") + "\n");
-                values.Append("|- Поз:  " + PText.GetScalePersent(Position - MinLimit / MaxLimit - MinLimit, 20) + "\n");
+                values.Append("|- Поз:  " + PText.GetScalePersent((Position - MinLimit) / (MaxLimit - MinLimit), 20) + "\n");
                 return values.ToString();
             }
             public void Logic(string argument, UpdateType updateSource)
@@ -1578,6 +1578,9 @@ namespace OS_EX_UPR
         }
         public class WeldingPlant
         {
+            public bool welders { get; set; } = false;
+            public bool pause { get; set; } = false;
+            public float step { get; set; } = 0.2f;
             public WeldingPlant()
             {
                 Parking();
@@ -1586,21 +1589,74 @@ namespace OS_EX_UPR
                     pistones_conn.new_position = 0f;
                 }
             }
-            public void Parking() {
+            public void Parking()
+            {
                 ship_welders.Off();
-                pistones_left.speed_piston = 2f;
+                pistones_left.speed_piston = 1f;
                 pistones_left.new_position = pistones_left.MinLimit;
-                pistones_right.speed_piston = 2f;
+                pistones_right.speed_piston = 1f;
                 pistones_right.new_position = pistones_right.MinLimit;
+            }
+            public void Starting()
+            {
+                ship_welders.Off();
+                pistones_left.speed_piston = 1f;
+                pistones_left.new_position = pistones_left.MaxLimit;
+                pistones_right.speed_piston = 1f;
+                pistones_right.new_position = pistones_right.MaxLimit;
+            }
+            public void StepAdd()
+            {
+                pistones_left.speed_piston = 0.2f;
+                pistones_right.speed_piston = 0.2f;
+                float pl = pistones_left.Position + step;
+                if (pl > pistones_left.MaxLimit) pl = pistones_left.MaxLimit;
+                float pr = pistones_right.Position + step;
+                if (pr > pistones_right.MaxLimit) pr = pistones_right.MaxLimit;
+                pistones_left.new_position = pl;
+                pistones_right.new_position = pr;
+            }
+            public void StepSub()
+            {
+                pistones_left.speed_piston = 0.2f;
+                pistones_right.speed_piston = 0.2f;
+                float pl = pistones_left.Position - step;
+                if (pl < pistones_left.MinLimit) pl = pistones_left.MinLimit;
+                float pr = pistones_right.Position - step;
+                if (pr < pistones_right.MinLimit) pr = pistones_right.MinLimit;
+                pistones_left.new_position = pl;
+                pistones_right.new_position = pr;
             }
             public void Logic(string argument, UpdateType updateSource)
             {
-                ship_welders.OnOff(!sensor_work.IsActive);
+                if (sensor_work.IsActive || pause)
+                {
+                    if (ship_welders.Enabled())
+                    {
+                        welders = true;
+                    }
+                    ship_welders.Off();
+                }
+                else
+                {
+                    if (welders)
+                    {
+                        ship_welders.On();
+                        welders = false;
+
+                    }
+                    //ship_welders.OnOff(welders);
+                }
+                
                 pistones_left.Logic(argument, updateSource);
                 pistones_right.Logic(argument, updateSource);
                 switch (argument)
                 {
                     case "wp_parking": Parking(); break;
+                    case "wp_starting": Starting(); break;
+                    case "wp+": StepAdd(); break;
+                    case "wp-": StepSub(); break;
+
                     default:
                         break;
                 }
@@ -1610,14 +1666,18 @@ namespace OS_EX_UPR
                 }
                 StringBuilder values_cp = new StringBuilder();
                 values_cp.Append(connector_work.TextInfo("К-Work"));
+                values_cp.Append("\n");
                 values_cp.Append(pistones_conn.TextInfo("П-КОНН"));
                 values_cp.Append(ship_welders.TextInfo());
                 values_cp.Append(pistones_left.TextInfo("П-Левый"));
                 values_cp.Append(pistones_right.TextInfo("П-Правый"));
+                //values_cp.Append("welders :" + (welders ? igreen.ToString() : ired.ToString()) + "\n");
+                values_cp.Append("pause :" + (pause ? igreen.ToString() : ired.ToString()) + "\n");
+                values_cp.Append("sensor :" + (sensor_work.IsActive ? igreen.ToString() : ired.ToString()) + "\n");
                 cockpit_work.OutText(values_cp, 0);
+                //if (!pause && !sensor_work.IsActive) { welders = ship_welders.Enabled(); }
             }
         }
-
         public class MyStorage
         {
             public MyStorage() { }
@@ -1660,7 +1720,6 @@ namespace OS_EX_UPR
             public long GetValInt64(string Key, string str) { return Convert.ToInt64(GetVal(Key, str, "0")); }
             public bool GetValBool(string Key, string str) { return Convert.ToBoolean(GetVal(Key, str, "False")); }
         }
-
     }
 }
 // Добавить управление work 
