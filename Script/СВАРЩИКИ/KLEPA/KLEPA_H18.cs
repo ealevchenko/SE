@@ -16,6 +16,7 @@ using System.Threading.Tasks;
 using VRage;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
+using VRage.Scripting;
 using VRageMath;
 
 namespace KLEPA_H18
@@ -26,9 +27,12 @@ namespace KLEPA_H18
     public sealed class Program : MyGridProgram
     {
         // v3
-        string NameObj = "[KLEPA_H18_1]";
+        string NameObj = "[KLEPA_H18-01]";
         static string tag_batterys_duty = "[batterys_duty]";    // дежурная батарея
         static string tag_lightings_warning = "[warning]";      // сигнализация предуприждения
+        static float BaseDistance = 200f;
+        static float Conn_Distance = 25f;
+        static float Pos_Y_Correct = 0.0f;
         static float GyroMult = 1f;
         static int CriticalMass = 180000;       // Критическая масса
         static float TargetSize = 100;
@@ -36,7 +40,6 @@ namespace KLEPA_H18
         static float ReturnOnCharge = 0.2f;     // Процент заряда
         static float ReturnOffCharge = 0.9f;    // Процент заряда
         static float ReturnHydrogen = 0.2f;     // Возрат по водороду
-
 
         const char igreen = '\uE001';
         const char iblue = '\uE002';
@@ -286,13 +289,12 @@ namespace KLEPA_H18
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
             _scr = this;
-            mystorage = new MyStorage();
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_info = new LCD(NameObj + "-LCD-INFO");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
-            cockpit = new Cockpit(NameObj + "-Промышленный кокпит [LCD] Locked");
+            cockpit = new Cockpit(NameObj + "-Cocpit [LCD] Locked");
             bats = new Batterys(NameObj);
-            connector = new Connector(NameObj + "-Коннектор парковка Locked");
+            connector = new Connector(NameObj + "-Коннектор Locked");
             welders = new ShipWelders(NameObj);
             welders.Off();
             reflectors_light = new ReflectorsLight(NameObj);
@@ -305,6 +307,8 @@ namespace KLEPA_H18
             lightings = new Lightings(NameObj, tag_lightings_warning);
             lightings.Off();
             navigation = new Navigation();
+            mystorage = new MyStorage();
+            mystorage.LoadFromStorage();
         }
         public void Save()
         {
@@ -1220,7 +1224,7 @@ namespace KLEPA_H18
         public class Navigation
         {
             public bool gravity = false;
-            public bool horizont { get; private set; } = false;  // держим горизонтальное направление
+            public bool horizont { get; set; } = false;  // держим горизонтальное направление
             public Vector3D? TackVector { get; set; } = null;
             public enum programm : int
             {
@@ -1262,7 +1266,7 @@ namespace KLEPA_H18
 
             public Vector3D PlanetCenter = new Vector3D(0.50, 0.50, 0.50);
             public Vector3D BaseDockPoint = new Vector3D(0, 0, 200);
-            public Vector3D ConnectorPoint = new Vector3D(0, 0, -10);
+            public Vector3D ConnectorPoint = new Vector3D(0, 0, -25);
             public Vector3D WorkPoint = new Vector3D(0, 0, 0);
             public MatrixD DockMatrix { get; set; }
             public MatrixD WorkMatrix { get; set; }
@@ -1275,7 +1279,7 @@ namespace KLEPA_H18
             public Navigation()
             {
                 thrusts.InitThrusts(cockpit); // Привяжем трастеры к контроллеру
-                mystorage.LoadFromStorage();
+                //mystorage.LoadFromStorage();
                 FindPlanetCenter();
             }
             //-------------------------------------
@@ -1283,7 +1287,8 @@ namespace KLEPA_H18
             {
                 MatrixD mRot;
                 Vector3D V3Dcenter = MyPos;
-                Vector3D V3Dup = -Vector3D.Normalize(GravVector);
+                Vector3D V3Dup = WMCocpit.Up;
+                if (gravity) V3Dup = -Vector3D.Normalize(GravVector);
                 Vector3D V3Dleft = Vector3D.Normalize(Vector3D.Reject(WMCocpit.Left, V3Dup));
                 Vector3D V3Dfow = Vector3D.Normalize(Vector3D.Cross(V3Dleft, V3Dup));
                 mRot = new MatrixD(V3Dleft.GetDim(0), V3Dleft.GetDim(1), V3Dleft.GetDim(2), 0, V3Dup.GetDim(0), V3Dup.GetDim(1), V3Dup.GetDim(2), 0, V3Dfow.GetDim(0), V3Dfow.GetDim(1), V3Dfow.GetDim(2), 0, 0, 0, 0, 1);
@@ -1315,18 +1320,27 @@ namespace KLEPA_H18
                 if (cockpit.obj.TryGetPlanetPosition(out PlanetCenter)) { mystorage.SaveToStorage(); }
             }
             //---------------------------------------------
-            public Vector3D GetNavAngles(Vector3D Target, MatrixD InvMatrix, double sfiftX = 0, double shiftZ = 0)
+            public Vector3D GetNavAngles(Vector3D Target, MatrixD InvMatrix)
             {
                 Vector3D V3Dcenter = cockpit.obj.GetPosition();
                 Vector3D V3Dfow = cockpit.obj.WorldMatrix.Forward + V3Dcenter;
                 Vector3D V3Dup = cockpit.obj.WorldMatrix.Up + V3Dcenter;
                 Vector3D V3Dleft = cockpit.obj.WorldMatrix.Left + V3Dcenter;
-                Vector3D GravNorm = Vector3D.Normalize(GravVector) + V3Dcenter;
+                //Vector3D GravNorm = Vector3D.Normalize(GravVector) + V3Dcenter;
                 V3Dcenter = Vector3D.Transform(V3Dcenter, InvMatrix);
                 V3Dfow = (Vector3D.Transform(V3Dfow, InvMatrix)) - V3Dcenter;
                 V3Dup = (Vector3D.Transform(V3Dup, InvMatrix)) - V3Dcenter;
                 V3Dleft = (Vector3D.Transform(V3Dleft, InvMatrix)) - V3Dcenter;
-                GravNorm = Vector3D.Normalize((Vector3D.Transform(GravNorm, InvMatrix)) - V3Dcenter - new Vector3D(sfiftX, 0, shiftZ));
+
+                //GravNorm = Vector3D.Normalize((Vector3D.Transform(GravNorm, InvMatrix)) - V3Dcenter - new Vector3D(sfiftX, 0, shiftZ));
+                Vector3D GravNorm = Vector3D.Normalize(new Vector3D(-0, -1, -0));
+                Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
+
+                if (gravity)
+                {
+                    GravNorm = Vector3D.Normalize(GravVector);
+                    GravNorm = Vector3D.Normalize(Vector3D.Transform(GravNorm + cockpit.obj.GetPosition(), InvMatrix) - V3Dcenter);
+                }
                 //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
                 double gF = GravNorm.Dot(V3Dfow);
                 double gL = GravNorm.Dot(V3Dleft);
@@ -1334,11 +1348,12 @@ namespace KLEPA_H18
                 //Получаем сигналы по тангажу и крены операцией atan2
                 double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
                 double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
-                Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
+                //Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
                 //Рысканием прицеливаемся на точку Target.
                 double tF = TargetNorm.Dot(V3Dfow);
                 double tL = TargetNorm.Dot(V3Dleft);
                 double TargetYaw = -(float)Math.Atan2(tL, tF);
+
                 if (double.IsNaN(TargetYaw)) TargetYaw = 0;
                 if (double.IsNaN(TargetPitch)) TargetPitch = 0;
                 if (double.IsNaN(TargetRoll)) TargetRoll = 0;
@@ -1533,20 +1548,18 @@ namespace KLEPA_H18
             }
             public bool Dock()
             {
-                welders.Off();
                 bool Complete = false;
                 float MaxUSpeed, MaxLSpeed, MaxFSpeed;
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, DockMatrix);
                 Vector3D gyrAng = GetNavAngles(MyPosCon * 2 - ConnectorPoint, DockMatrix);
                 //Vector3D gyrAng = GetNavAngles(ConnectorPoint, DockMatrix);
                 Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
-
-                MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 2;
+                MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 3;
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 2;
-                MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 2;
-                if (Distance < 20)
+                MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 3;
+                if (Distance < Conn_Distance + 40)
                     MaxFSpeed = MaxFSpeed / 5;
-                if (Math.Abs(MyPosCon.GetDim(1)) < 1)
+                if (Math.Abs((MyPosCon.GetDim(1) - Pos_Y_Correct)) < 1f)
                     MaxUSpeed = 0.1f;
                 gyros.SetOverride(true, gyrAng * GyroMult, 1);
                 if (LeftVelocityVector.Length() < MaxLSpeed)
@@ -1556,8 +1569,8 @@ namespace KLEPA_H18
                     thrusts.SetOverridePercent("R", 0);
                     thrusts.SetOverridePercent("L", 0);
                 }
-                float UpAccel = -(float)(MyPosCon.GetDim(1) * AlignAccelMult);
-                float minUpAccel = 0.05f;
+                float UpAccel = -(float)((MyPosCon.GetDim(1) - Pos_Y_Correct) * AlignAccelMult);
+                float minUpAccel = 0.3f;
                 if ((UpAccel < 0) && (UpAccel > -minUpAccel))
                     UpAccel = -minUpAccel;
                 if ((UpAccel > 0) && (UpAccel < minUpAccel))
@@ -1566,10 +1579,11 @@ namespace KLEPA_H18
                     thrusts.SetOverrideAccel("U", UpAccel);
                 else
                 {
-                    thrusts.SetOverridePercent("U", 0);
                     thrusts.SetOverridePercent("D", 0);
+                    thrusts.SetOverridePercent("U", 0);
+
                 }
-                if (((Distance > 100) || ((Math.Abs(MyPosCon.GetDim(0)) < (Distance / 10 + 0.2f)) && (Math.Abs(MyPosCon.GetDim(1)) < (Distance / 10 + 0.2f)))) && (ForwVelocityVector.Length() < MaxFSpeed))
+                if (((Distance > BaseDistance) || ((Math.Abs(MyPosCon.GetDim(0)) < (Distance / 10 + 0.2f)) && (Math.Abs((MyPosCon.GetDim(1) - Pos_Y_Correct)) < (Distance / 10 + 0.2f)))) && (ForwVelocityVector.Length() < MaxFSpeed))
                 {
                     thrusts.SetOverrideAccel("B", (float)(Distance * AlignAccelMult));
                     thrusts.SetOverridePercent("F", 0);
@@ -1579,7 +1593,7 @@ namespace KLEPA_H18
                     thrusts.SetOverridePercent("F", 0);
                     thrusts.SetOverridePercent("B", 0);
                 }
-                if (Distance < 15)
+                if (Distance < Conn_Distance + 20)
                 {
                     if (connector.Status == MyShipConnectorStatus.Connectable)
                     {
@@ -1771,22 +1785,8 @@ namespace KLEPA_H18
             {
                 switch (argument)
                 {
-                    case "horizont":
-                        if (curent_programm == programm.none)
-                        {
-                            if (horizont)
-                            {
-                                horizont = false;
-                            }
-                            else
-                            {
-                                horizont = true;
-                            }
-                        }
-                        break;
-                    case "load":
-                        mystorage.LoadFromStorage();
-                        break;
+                    case "horizont": if (curent_programm == programm.none) { if (horizont) { horizont = false; } else { horizont = true; } } mystorage.SaveToStorage(); break;
+                    case "load": mystorage.LoadFromStorage(); break;
                     case "save":
                         mystorage.SaveToStorage();
                         break;
@@ -1925,7 +1925,6 @@ namespace KLEPA_H18
         }
         public class MyStorage
         {
-            //public Vector3D PlanetCenter = new Vector3D(0.50, 0.50, 0.50);
             public MyStorage() { }
             public void LoadFromStorage()
             {
@@ -1972,5 +1971,3 @@ namespace KLEPA_H18
         }
     }
 }
-
-
