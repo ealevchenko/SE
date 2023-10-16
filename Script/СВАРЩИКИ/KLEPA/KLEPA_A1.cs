@@ -17,7 +17,6 @@ using VRage;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
 using VRageMath;
-using static VRage.Game.ObjectBuilders.Definitions.MyObjectBuilder_GameDefinition;
 
 /// <summary>
 /// + Добавить рен на 45 град

@@ -17,7 +17,6 @@ using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Scripting;
 using VRageMath;
-using static OS_EX_UPR.Program;
 
 /// <summary>
 /// v1.0

@@ -1,5 +1,4 @@
-﻿using ParallelTasks;
-using Sandbox.Definitions;
+﻿using Sandbox.Definitions;
 using Sandbox.Game.GameSystems;
 using Sandbox.ModAPI.Ingame;
 using Sandbox.ModAPI.Interfaces;
@@ -19,7 +18,6 @@ using VRage;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
 using VRageMath;
-using static VRage.Game.ObjectBuilders.Definitions.MyObjectBuilder_GameDefinition;
 
 /// <summary>
 /// Корвет водородный
@@ -1719,3 +1717,5 @@ namespace СORVETTE_H1_NAV
         }
     }
 }
+// Добавить клас H2 баки HydrogenTanks
+// добавить функционад запровлять при подключении коннектора
