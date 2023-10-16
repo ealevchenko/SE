@@ -129,6 +129,7 @@
     <Compile Include="СORVETTE\СORVETTE_H1\СORVETTE_H1_DOOR.cs" />
     <Compile Include="СВАРЩИКИ\KLEPA3.cs" />
     <Compile Include="БУРОВИКИ\test\KROTIK_old1.cs" />
+    <Compile Include="СВАРЩИКИ\KLEPA\KLEPA_H18.cs" />
     <Compile Include="СВАРЩИКИ\KLEPA\KLEPA_A1.cs" />
     <Compile Include="СВАРЩИКИ\KLEPA\KLEPA_H1.cs" />
     <Compile Include="СВАРЩИКИ\KLEPA\test\KLEPA_A1.cs" />
