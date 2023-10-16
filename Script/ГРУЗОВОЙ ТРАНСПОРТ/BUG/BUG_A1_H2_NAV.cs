@@ -472,18 +472,14 @@ namespace BUG_A1_H2_NAV
         }
         public class HydrogenTanks : BaseListTerminalBlock<IMyGasTank>
         {
+            public HydrogenTanks(string name_obj) : base(name_obj) { AutoRefillBottles(true); }
+            public HydrogenTanks(string name_obj, string tag) : base(name_obj, tag) { AutoRefillBottles(true); }
+            public float MaxCapacity() { return base.list_obj.Select(b => b.Capacity).Sum(); }
             public double AverageFilledRatio { get { return base.list_obj.Average(t => t.FilledRatio); } }
-            public double CountStockpile { get { return base.list_obj.Count(t => t.Stockpile); } }
             public double CountAutoRefillBottles { get { return base.list_obj.Count(t => t.AutoRefillBottles); } }
+            public double CountStockpile { get { return base.list_obj.Count(t => t.Stockpile); } }
             public double Capacity { get { return base.list_obj.Sum(t => t.Capacity); } }
-
-            public HydrogenTanks(string name_obj) : base(name_obj)
-            {
-            }
-            public HydrogenTanks(string name_obj, string tag) : base(name_obj, tag)
-            {
-
-            }
+            public void AutoRefillBottles(bool on) { foreach (IMyGasTank obj in base.list_obj) { obj.AutoRefillBottles = on; } }
             public void Stockpile(bool on) { foreach (IMyGasTank obj in base.list_obj) { obj.Stockpile = on; } }
             public string TextInfo()
             {
