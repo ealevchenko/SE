@@ -34,11 +34,11 @@ namespace KLEPA_H18
         static float Conn_Distance = 25f;
         static float Pos_Y_Correct = 0.0f;
         static float GyroMult = 1f;
-        static int CriticalMass = 180000;       // Критическая масса
+        static int CriticalMass = 200000;       // Критическая масса
         static float TargetSize = 100;
         static float AlignAccelMult = 0.6f;
         static float ReturnOnCharge = 0.2f;     // Процент заряда
-        static float ReturnOffCharge = 0.9f;    // Процент заряда
+        //static float ReturnOffCharge = 0.9f;    // Процент заряда
         static float ReturnHydrogen = 0.2f;     // Возрат по водороду
 
         const char igreen = '\uE001';
@@ -309,6 +309,7 @@ namespace KLEPA_H18
             navigation = new Navigation();
             mystorage = new MyStorage();
             mystorage.LoadFromStorage();
+            navigation.FindPlanetCenter();
         }
         public void Save()
         {
@@ -882,9 +883,9 @@ namespace KLEPA_H18
                 "Сверхпроводник" };
             public int[] Amounts = new int[20];
 
-            public int[] AmountsAll = new int[20] { 4000, 2000, 2000, 4000, 10000, 2000, 500, 2000, 2000, 2000, 2000, 500, 500, 500, 3, 500, 500, 2000, 2000, 2000 };
+            public int[] AmountsAll = new int[20] { 4000, 2000, 2000, 4000, 10000, 2000, 500, 2000, 2000, 2000, 2000, 500, 500, 500, 10, 500, 500, 2000, 2000, 2000 };
             public int[] AmountsBase = new int[20] { 5000, 500, 500, 5000, 10000, 2000, 200, 2000, 500, 0, 2000, 0, 0, 0, 0, 0, 0, 0, 1000, 0 };
-
+            public int[] AmountsBaseOs = new int[20] { 22000, 1200, 4000, 11000, 40000, 11000, 1600, 3000, 500, 2000, 3700, 300, 100, 10, 10, 400, 300, 2000, 500, 600 };
             public List<LocationCargos> local_cargos = new List<LocationCargos>();
             public List<LocationCargos> base_cargos = new List<LocationCargos>();
 
@@ -893,12 +894,14 @@ namespace KLEPA_H18
                 none = 0,
                 all = 1,
                 bases = 2,
+                bases_os = 3,
             };
-            public static string[] name_mode = { "ПУСТО", "ВСЕ", "БАЗОВЫЙ", };
+            public static string[] name_mode = { "ПУСТО", "ВСЕ", "БАЗОВЫЙ", "ОС-БАЗА"};
             public cargo_mode curent_mode = cargo_mode.none;
 
             public List<IMyTerminalBlock> cargos_local = new List<IMyTerminalBlock>();
             public List<IMyTerminalBlock> cargos_base = new List<IMyTerminalBlock>();
+            public List<IMyTerminalBlock> cargos_base_os = new List<IMyTerminalBlock>();
             public string name_obj;
             public int MaxVolume { get; set; } = 0;
             public int CurrentVolume { get; set; } = 0;
@@ -1146,6 +1149,10 @@ namespace KLEPA_H18
                         curent_mode = cargo_mode.bases;
                         mystorage.SaveToStorage();
                         break;
+                    case "cargo_base_os":
+                        curent_mode = cargo_mode.bases_os;
+                        mystorage.SaveToStorage();
+                        break;
                     default:
                         break;
                 }
@@ -1169,6 +1176,10 @@ namespace KLEPA_H18
                             else if (curent_mode == cargo_mode.bases)
                             {
                                 Load(AmountsBase);
+                            }
+                            else if (curent_mode == cargo_mode.bases_os)
+                            {
+                                Load(AmountsBaseOs);
                             }
                         }
                     }
@@ -1279,8 +1290,6 @@ namespace KLEPA_H18
             public Navigation()
             {
                 thrusts.InitThrusts(cockpit); // Привяжем трастеры к контроллеру
-                //mystorage.LoadFromStorage();
-                FindPlanetCenter();
             }
             //-------------------------------------
             public MatrixD GetNormTransMatrixFromMyPos()
@@ -1317,7 +1326,10 @@ namespace KLEPA_H18
             }
             public void FindPlanetCenter()
             {
-                if (cockpit.obj.TryGetPlanetPosition(out PlanetCenter)) { mystorage.SaveToStorage(); }
+                if (cockpit.obj.TryGetPlanetPosition(out PlanetCenter))
+                {
+                    mystorage.SaveToStorage();
+                }
             }
             //---------------------------------------------
             public Vector3D GetNavAngles(Vector3D Target, MatrixD InvMatrix)
@@ -1851,13 +1863,13 @@ namespace KLEPA_H18
                     landing_gears.AutoLock(cockpit.CurrentHeight < 2.2f);
                     if (!connector.Connected && !landing_gears.IsLocked())
                     {
-                        //if (cockpit.CurrentHeight > 5.0f)
-                        //{
-                        hydrogen_tanks.Stockpile(false);
-                        bats.Auto();
-                        thrusts.On();
+                        if (gravity || (!gravity && connector.Connectable))
+                        {
+                            hydrogen_tanks.Stockpile(false);
+                            bats.Auto();
+                            thrusts.On();
 
-                        //}
+                        }
                     }
                     else
                     {
