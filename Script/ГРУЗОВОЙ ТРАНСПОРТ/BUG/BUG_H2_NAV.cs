@@ -36,10 +36,10 @@ namespace BUG_H2_NAV
         static string tag_lightings_warning = "[warning]";
         static float GyroMult = 1f;
         static int CriticalMass = 600000;
-        static float BaseDistance = 200f;
-        static float Conn_Distance_Forw = 10f;
-        static float Conn_Distance_Back = 30f;
-        static float Pos_Y_Correct = 0.85f;
+        static float BaseDistance = 300f;
+        static float Conn_Distance_Forw = 20f;
+        static float Conn_Distance_Back = 60f;
+        static float Pos_Y_Correct = 0.0f;
         static float AlignAccelMult = 0.5f;
         static float ReturnOnCharge = 0.2f;
         static float ReturnOffCharge = 0.9f;
@@ -496,7 +496,7 @@ namespace BUG_H2_NAV
         {
             public int clock = 0;
             public bool m_forw { get; set; } = false;       // Направление расстыковки-стыковка
-            public bool m_up { get; set; } = false;         // Направление расстыковки-стыковка
+            public bool m_back { get; set; } = false;       // Направление расстыковки-стыковка
             public bool m_up_gears { get; set; } = false;   // Направление расстыковки-стыковка
             public bool gravity { get; set; } = false;
             public bool horizont { get; private set; } = false;
@@ -553,7 +553,6 @@ namespace BUG_H2_NAV
             public bool go_home = false; // вернутся домой и остатся
             public bool paused = false;
             public string Message { get; set; } = "";
-            //public double S { get; set; } = 0;
             public Navigation()
             {
                 thrusts.InitThrusts(cockpit);
@@ -848,6 +847,7 @@ namespace BUG_H2_NAV
                 Message = "";
                 if (IsCorrectBasePoints(CurrDockPoint == 0 ? 1 : 0))
                 {
+                    thrusts.On();
                     float MaxUSpeed, MaxFSpeed;
                     Vector3D gyrAng = GetNavAngles(PointsDock[CurrDockPoint == 0 ? 1 : 0].BaseDockPoint, PointsDock[CurrDockPoint == 0 ? 1 : 0].DockMatrix);
                     Vector3D MyPosCon = Vector3D.Transform(MyPos, PointsDock[CurrDockPoint == 0 ? 1 : 0].DockMatrix);
@@ -896,18 +896,29 @@ namespace BUG_H2_NAV
             public bool Dock()
             {
                 bool Complete = false;
+
                 Message = "";
                 if (IsCorrectBasePoints(CurrDockPoint == 0 ? 1 : 0))
                 {
+                    thrusts.On();
                     float MaxUSpeed, MaxLSpeed, MaxFSpeed;
                     Vector3D MyPosCon = Vector3D.Transform(MyPos, PointsDock[CurrDockPoint == 0 ? 1 : 0].DockMatrix);
-                    //Vector3D gyrAng = GetNavAngles(MyPosCon * 2 - PointsDock[CurrDockPoint == 0 ? 1 : 0].ConnectorPoint, PointsDock[CurrDockPoint == 0 ? 1 : 0].DockMatrix);
-                    Vector3D gyrAng = GetNavAngles(PointsDock[CurrDockPoint == 0 ? 1 : 0].ConnectorPoint, PointsDock[CurrDockPoint == 0 ? 1 : 0].DockMatrix);
+                    Vector3D gyrAng = new Vector3D();
+                    bool back = PointsDock[CurrDockPoint == 0 ? 1 : 0].back;
+                    if (back)
+                    {
+                        // back
+                        gyrAng = GetNavAngles(MyPosCon * 2 - PointsDock[CurrDockPoint == 0 ? 1 : 0].ConnectorPoint, PointsDock[CurrDockPoint == 0 ? 1 : 0].DockMatrix);
+                    }
+                    else
+                    {
+                        gyrAng = GetNavAngles(PointsDock[CurrDockPoint == 0 ? 1 : 0].ConnectorPoint, PointsDock[CurrDockPoint == 0 ? 1 : 0].DockMatrix);
+                    }
                     Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, PointsDock[CurrDockPoint == 0 ? 1 : 0].DockMatrix)))).Length() + PointsDock[CurrDockPoint == 0 ? 1 : 0].ConnectorPoint.Length());
                     MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 3;
                     MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 2;
                     MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 3;
-                    if (Distance < Conn_Distance + 30)
+                    if (Distance < (back ? Conn_Distance_Back : Conn_Distance_Forw) + 30)
                         MaxFSpeed = MaxFSpeed / 5;
                     if (Math.Abs((MyPosCon.GetDim(1) - Pos_Y_Correct)) < 1f)
                         MaxUSpeed = 0.1f;
@@ -935,27 +946,31 @@ namespace BUG_H2_NAV
                     }
                     if (((Distance > BaseDistance) || ((Math.Abs(MyPosCon.GetDim(0)) < (Distance / 10 + 0.2f)) && (Math.Abs((MyPosCon.GetDim(1) - Pos_Y_Correct)) < (Distance / 10 + 0.2f)))) && (ForwVelocityVector.Length() < MaxFSpeed))
                     {
-                        thrusts.SetOverrideAccel("F", (float)(Distance * AlignAccelMult));
-                        thrusts.SetOverridePercent("B", 0);
+                        thrusts.SetOverrideAccel((back ? "B" : "F"), (float)(Distance * AlignAccelMult));
+                        thrusts.SetOverridePercent((back ? "F" : "B"), 0);
                     }
                     else
                     {
                         thrusts.SetOverridePercent("F", 0);
                         thrusts.SetOverridePercent("B", 0);
                     }
-                    if (Distance < Conn_Distance + 10)
+                    if (Distance < (back ? Conn_Distance_Back : Conn_Distance_Forw) + 10)
                     {
-                        if (connector_forw.Status == MyShipConnectorStatus.Connectable)
+                        if (!back && connector_forw.Status == MyShipConnectorStatus.Connectable)
                         {
                             connector_forw.obj.Connect();
                         }
-                        if (connector_forw.Status == MyShipConnectorStatus.Connected)
+                        if (back && connector_back.Status == MyShipConnectorStatus.Connectable)
+                        {
+                            connector_back.obj.Connect();
+                        }
+                        if ((!back && connector_forw.Status == MyShipConnectorStatus.Connected) || (back && connector_back.Status == MyShipConnectorStatus.Connected))
                         {
                             thrusts.ClearThrustOverridePersent();
                             gyros.SetOverride(false, 1);
                             curent_mode = mode.none;
                             m_forw = false;
-                            m_up = false;
+                            m_back = false;
                             m_up_gears = false;
                             Complete = true;
                         }
@@ -971,12 +986,12 @@ namespace BUG_H2_NAV
                 Message = "";
                 if (IsCorrectBasePoints(CurrDockPoint) || landing_gears.IsLocked())
                 {
-                    //Distance = 0;
                     Vector3D MyPosCon = Vector3D.Transform(MyPos, PointsDock[CurrDockPoint].DockMatrix);
                     Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, PointsDock[CurrDockPoint].DockMatrix)))).Length() + PointsDock[CurrDockPoint].ConnectorPoint.Length());
-                    if ((!m_forw && !connector_forw.Connected && !m_up_gears && !landing_gears.IsLocked()) ||
-                        (m_forw && Distance > BaseDistance / 2 && !connector_forw.Connected) ||
-                        (m_up_gears && cockpit.CurrentHeight > 50f && !connector_forw.Connected && !landing_gears.IsLocked()))
+                    if ((!m_forw && !connector_forw.Connected && !m_back && !connector_back.Connected && !m_up_gears && !landing_gears.IsLocked()) ||
+                        (m_forw && Distance > BaseDistance / 2 && !connector_forw.Connected && !connector_back.Connected) ||
+                        (m_back && Distance > BaseDistance / 2 && !connector_back.Connected && !connector_forw.Connected) ||
+                        (m_up_gears && cockpit.CurrentHeight > 50f && !connector_forw.Connected && !connector_back.Connected && !landing_gears.IsLocked()))
                     {
                         thrusts.ClearThrustOverridePersent();
                         gyros.SetOverride(false, 1);
@@ -984,6 +999,7 @@ namespace BUG_H2_NAV
                         {
                             curent_mode = mode.none;
                             m_forw = false;
+                            m_back = false;
                             m_up_gears = false;
                             Complete = true;
                         }
@@ -995,6 +1011,11 @@ namespace BUG_H2_NAV
                             connector_forw.obj.Disconnect();
                             m_forw = true;
                         }
+                        else if (connector_back.Connected)
+                        {
+                            connector_back.obj.Disconnect();
+                            m_back = true;
+                        }
                         else
                         {
                             if (landing_gears.IsLocked())
@@ -1005,10 +1026,7 @@ namespace BUG_H2_NAV
                         }
                         if (!connector_forw.Connected && m_forw)
                         {
-                            //Vector3D MyPosCon = Vector3D.Transform(MyPos, PointsDock[CurrDockPoint].DockMatrix);
                             Vector3D gyrAng = GetNavAngles(PointsDock[CurrDockPoint].ConnectorPoint, PointsDock[CurrDockPoint].DockMatrix);
-                            //Vector3D gyrAng = GetNavAngles(MyPosCon * 2 - PointsDock[CurrDockPoint].ConnectorPoint, PointsDock[CurrDockPoint].DockMatrix);
-                            //Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, PointsDock[CurrDockPoint].DockMatrix)))).Length() + PointsDock[CurrDockPoint].ConnectorPoint.Length());
                             gyros.SetOverride(true, gyrAng * GyroMult, 1);
                             thrusts.SetOverridePercent("U", 0);
                             thrusts.SetOverridePercent("D", 0);
@@ -1016,22 +1034,29 @@ namespace BUG_H2_NAV
                             thrusts.SetOverridePercent("L", 0);
                             thrusts.SetOverridePercent("F", 0);
                             thrusts.SetOverrideAccel("B", 10);
-                            //if (Distance > BaseDistance)
-                            //{
-                            //    thrusts.SetOverrideAccel("F", 0);
-                            //    m_forw = false;
-                            //    m_up = false;
-                            //    Complete = true;
-                            //}
                         }
-                        if (m_up_gears && !landing_gears.IsLocked())
+                        else if (!connector_back.Connected && m_back)
                         {
-                            if (cockpit.CurrentHeight < 50f)
+                            Vector3D gyrAng = GetNavAngles(MyPosCon * 2 - PointsDock[CurrDockPoint == 0 ? 1 : 0].ConnectorPoint, PointsDock[CurrDockPoint == 0 ? 1 : 0].DockMatrix);
+                            //Vector3D gyrAng = GetNavAngles(PointsDock[CurrDockPoint].ConnectorPoint, PointsDock[CurrDockPoint].DockMatrix);
+                            gyros.SetOverride(true, gyrAng * GyroMult, 1);
+                            thrusts.SetOverridePercent("U", 0);
+                            thrusts.SetOverridePercent("D", 0);
+                            thrusts.SetOverridePercent("R", 0);
+                            thrusts.SetOverridePercent("L", 0);
+                            thrusts.SetOverridePercent("B", 0);
+                            thrusts.SetOverrideAccel("F", 10);
+                        }
+                        else
+                        {
+                            if (m_up_gears && !landing_gears.IsLocked())
                             {
-                                thrusts.SetOverrideAccel("U", 1000);
+                                if (cockpit.CurrentHeight < 50f)
+                                {
+                                    thrusts.SetOverrideAccel("U", 1000);
+                                }
                             }
                         }
-
                     }
                     OutStatusMode(0, 0, 0);
                 }
@@ -1169,8 +1194,16 @@ namespace BUG_H2_NAV
                     case "pause": Pause(!paused); break;
                     case "stop": Stop(); break;
                     case "clear": Clear(); curent_programm = programm.none; mystorage.SaveToStorage(); break;
-                    case "save_base_forw": SetDockMatrix(connector_forw, false); break;
-                    case "save_base_back": SetDockMatrix(connector_back, true); break;
+                    case "save_base":
+                        if (connector_forw.Connected)
+                        {
+                            SetDockMatrix(connector_forw, false);
+                        }
+                        else if (connector_back.Connected)
+                        {
+                            SetDockMatrix(connector_back, true);
+                        }
+                        break;
                     case "save_height": SetFlyHeight(); break;
                     case "save_home": SetHomeDock(); break;
                     case "save_loading": SetLoadingDock(); break;
@@ -1180,21 +1213,23 @@ namespace BUG_H2_NAV
                     case "to_base": curent_mode = mode.to_base; mystorage.SaveToStorage(); break;
                     case "dock": curent_mode = mode.dock; mystorage.SaveToStorage(); break;
                     case "un_dock": curent_mode = mode.un_dock; mystorage.SaveToStorage(); break;
-                    case "point+": if (!connector_forw.Connected) { CurrDockPoint++; if (CurrDockPoint > 1) CurrDockPoint = 0; } break;
-                    case "point-": if (!connector_forw.Connected) { CurrDockPoint--; if (CurrDockPoint < 0) CurrDockPoint = 1; } break;
-                    case "reverse_point": if (!connector_forw.Connected) { CurrDockPoint = (CurrDockPoint == 0 ? 1 : 0); } break;
+                    case "point+": if (!connector_forw.Connected && !connector_back.Connected) { CurrDockPoint++; if (CurrDockPoint > 1) CurrDockPoint = 0; } break;
+                    case "point-": if (!connector_forw.Connected && !connector_back.Connected) { CurrDockPoint--; if (CurrDockPoint < 0) CurrDockPoint = 1; } break;
+                    case "reverse_point": if (!connector_forw.Connected && !connector_back.Connected) { CurrDockPoint = (CurrDockPoint == 0 ? 1 : 0); } break;
                     default:
                         break;
                 }
                 if (updateSource == UpdateType.Update10)
                 {
                     cockpit.Logic(argument, updateSource);
-                    if (!connector_forw.Connected && !landing_gears.IsLocked())
+                    if (!connector_forw.Connected && !connector_back.Connected && !landing_gears.IsLocked())
                     {
-                        if (gravity && cockpit.CurrentHeight > 10.0f)
+                        if ((gravity && cockpit.CurrentHeight > 10.0f) || (!gravity && (connector_forw.Connectable || connector_back.Connectable)))
                         {
+                            //hydrogen_tanks.Stockpile(false);
                             bats.Auto();
                             thrusts.On();
+
                         }
                     }
                     else
@@ -1204,6 +1239,10 @@ namespace BUG_H2_NAV
                         if (connector_forw.Connected)
                         {
                             index = GetCurrConnectorDock(connector_forw);
+                        }
+                        else if (connector_back.Connected)
+                        {
+                            index = GetCurrConnectorDock(connector_back);
                         }
                         if (index == -1) { index = Array.FindIndex(PointsDock, element => element.EntityId == 0); }
                         if (index >= 0)
