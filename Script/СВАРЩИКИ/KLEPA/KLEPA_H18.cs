@@ -931,9 +931,7 @@ namespace KLEPA_H18
             {
                 CurrentVolume = 0;
                 CurrentMass = 0;
-
                 cargos.Clear();
-
                 foreach (IMyTerminalBlock cargo in list_cargos)
                 {
                     if (cargo != null)
@@ -1089,7 +1087,6 @@ namespace KLEPA_H18
                                 }
                             }
                         }
-
                     }
                     else if ((list[a] > 0 && local_amouts > list[a]) ||
                         (list[a] == 0 && local_amouts > list[a]))

@@ -1970,11 +1970,6 @@ namespace Octopus2
                     return !Locked;
                 }
             }
-
         }
-
-
-
-
     }
 }

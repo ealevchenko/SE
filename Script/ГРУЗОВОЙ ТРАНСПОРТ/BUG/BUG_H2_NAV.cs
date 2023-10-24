@@ -34,6 +34,8 @@ namespace BUG_H2_NAV
         string NameObj = "[BUG_H2_01]";
         static string tag_batterys_duty = "[batterys_duty]";
         static string tag_lightings_warning = "[warning]";
+        static string tag_tanks_cargo = "[tanks_cargo]";
+        static string tag_tanks_nav = "[tanks_nav]";
         static float GyroMult = 1f;
         static int CriticalMass = 600000;
         static float BaseDistance = 300f;
@@ -43,6 +45,7 @@ namespace BUG_H2_NAV
         static float AlignAccelMult = 0.5f;
         static float ReturnOnCharge = 0.2f;
         static float ReturnOffCharge = 0.9f;
+        static float ReturnOnHydrogen = 0.2f;
         const char igreen = '\uE001';
         const char iblue = '\uE002';
         const char ired = '\uE003';
@@ -64,7 +67,7 @@ namespace BUG_H2_NAV
         static Thrusts thrusts;
         static Cockpit cockpit;
         static LandingGear landing_gears;
-        static HydrogenTanks hydrogen_tanks;
+        static HydrogenTanks hydrogen_tanks_cargo, hydrogen_tanks_nav;
         static Navigation navigation;
         static Program _scr;
         public class PText
@@ -136,7 +139,8 @@ namespace BUG_H2_NAV
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj);
             landing_gears = new LandingGear(NameObj);
-            hydrogen_tanks = new HydrogenTanks(NameObj);
+            hydrogen_tanks_cargo = new HydrogenTanks(NameObj, tag_tanks_cargo);
+            hydrogen_tanks_nav = new HydrogenTanks(NameObj, tag_tanks_nav);
             lightings = new Lightings(NameObj, tag_lightings_warning);
             lightings.Off();
             navigation = new Navigation();
@@ -170,9 +174,10 @@ namespace BUG_H2_NAV
 
                 StringBuilder values_cockpit0 = new StringBuilder();
                 values_cockpit0.Append(bats.TextInfo());
-                values_cockpit0.Append(hydrogen_tanks.TextInfo());
-                values_cockpit0.Append(connector_forw.TextInfo());
-                values_cockpit0.Append(connector_back.TextInfo());
+                values_cockpit0.Append(hydrogen_tanks_cargo.TextInfo("H2-CARGO  "));
+                values_cockpit0.Append(hydrogen_tanks_nav.TextInfo("H2-THRUSTS"));
+                values_cockpit0.Append(connector_forw.TextInfo("К-Forw"));
+                values_cockpit0.Append(connector_back.TextInfo("К-Back"));
                 values_cockpit0.Append(landing_gears.TextInfo());
                 values_cockpit0.Append(navigation.TextCritical());
                 cockpit.OutText(values_cockpit0, 2);
@@ -221,10 +226,16 @@ namespace BUG_H2_NAV
             public bool Unconnected { get { return base.obj.Status == MyShipConnectorStatus.Unconnected ? true : false; } }
             public bool Connectable { get { return base.obj.Status == MyShipConnectorStatus.Connectable ? true : false; } }
             public Connector(string name) : base(name) { if (base.obj != null) { } }
-            public string TextInfo()
+            public string TextInfo(string name)
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("КОННЕКТОР: " + (Connected ? igreen.ToString() : (Connectable ? iyellow.ToString() : ired.ToString())) + "\n");
+                values.Append((name != null ? name : "КОННЕКТОР") + " : " + (Connected ? igreen.ToString() : (Connectable ? iyellow.ToString() : ired.ToString())));
+                return values.ToString();
+            }
+            public string TextStatus()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append(Connected ? igreen.ToString() : (Connectable ? iyellow.ToString() : ired.ToString()));
                 return values.ToString();
             }
             public long? getEntityIdRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn.EntityId; } return null; }
@@ -484,10 +495,10 @@ namespace BUG_H2_NAV
             public double Capacity { get { return base.list_obj.Sum(t => t.Capacity); } }
             public void AutoRefillBottles(bool on) { foreach (IMyGasTank obj in base.list_obj) { obj.AutoRefillBottles = on; } }
             public void Stockpile(bool on) { foreach (IMyGasTank obj in base.list_obj) { obj.Stockpile = on; } }
-            public string TextInfo()
+            public string TextInfo(string name)
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("БАКИ : [" + base.list_obj.Count() + "] [А-" + CountAutoRefillBottles + " З-" + CountStockpile + "]" + PText.GetCurrentOfMax((float)(Capacity * AverageFilledRatio) / 1000000, (float)Capacity / 1000000, "МЛ") + "\n");
+                values.Append((name != null ? name : "БАКИ") + " : [" + base.list_obj.Count() + "] [А-" + CountAutoRefillBottles + " З-" + CountStockpile + "]" + PText.GetCurrentOfMax((float)(Capacity * AverageFilledRatio) / 1000000, (float)Capacity / 1000000, "МЛ") + "\n");
                 values.Append("|- ЗАП:  " + PText.GetScalePersent(AverageFilledRatio, 20) + "\n");
                 return values.ToString();
             }
@@ -804,7 +815,7 @@ namespace BUG_H2_NAV
                 ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
                 XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
                 if (PhysicalMass > CriticalMass) { CriticalMassReached = true; } else { CriticalMassReached = false; }
-                EmergencyReturn = bats.CurrentPersent() <= ReturnOnCharge || PhysicalMass >= CriticalMass;
+                EmergencyReturn = bats.CurrentPersent() <= ReturnOnCharge || PhysicalMass >= CriticalMass || hydrogen_tanks_cargo.AverageFilledRatio < ReturnOnHydrogen;
             }
             public void Pause(bool enable)
             {
@@ -1068,14 +1079,14 @@ namespace BUG_H2_NAV
                 bool Complete = false;
                 bats.Charger();
                 thrusts.Off();
-                hydrogen_tanks.Stockpile(PointsDock[CurrDockPoint].Loading);
+                hydrogen_tanks_cargo.Stockpile(PointsDock[CurrDockPoint].Loading);
                 if (go_home && PointsDock[CurrDockPoint].Home)
                 {
                     Stop();
                 }
                 else
                 {
-                    if ((PointsDock[CurrDockPoint].Loading && hydrogen_tanks.AverageFilledRatio == 1.0f) || (!PointsDock[CurrDockPoint].Loading && hydrogen_tanks.AverageFilledRatio == 0.0f))
+                    if ((PointsDock[CurrDockPoint].Loading && hydrogen_tanks_cargo.AverageFilledRatio == 1.0f) || (!PointsDock[CurrDockPoint].Loading && hydrogen_tanks_cargo.AverageFilledRatio == 0.0f))
                     {
                         if (bats.CurrentPersent() >= ReturnOffCharge)
                         {
@@ -1109,7 +1120,7 @@ namespace BUG_H2_NAV
                 values.Append("------------------------------------------\n");
                 values.Append("UpVelocityVector   : " + Math.Round(UpVelocityVector.Length(), 2) + "\n");
                 values.Append("MaxUSpeed   : " + Math.Round(MaxUSpeed, 2) + "\n");
-                //values.Append(thrusts.TextInfo());
+                values.Append(thrusts.TextInfo());
                 //lcd_debug.OutText(values);
             }
             public string TextCritical()
@@ -1121,8 +1132,7 @@ namespace BUG_H2_NAV
                 values.Append("АВАРИЙНЫЙ ВОЗВРАТ   : " + (EmergencyReturn ? ired.ToString() : igreen.ToString()) + "\n");
                 values.Append("|-ФИЗ./КРИТ.(МАССА) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? ired.ToString() : igreen.ToString()) + "\n");
                 values.Append("|-БАТАРЕЯ %         : " + PText.GetPersent(bats.CurrentPersent()) + " " + (bats.CurrentPersent() <= ReturnOnCharge ? ired.ToString() : igreen.ToString()) + "\n");
-                values.Append("--------------------------------------\n");
-                values.Append("БАКИ H2 %           : " + PText.GetPersent(hydrogen_tanks.AverageFilledRatio) + " " + (hydrogen_tanks.AverageFilledRatio < 1.0f ? ired.ToString() : igreen.ToString()) + "\n");
+                values.Append("|-ТОПЛИВО H2 %      : " + PText.GetPersent(hydrogen_tanks_cargo.AverageFilledRatio) + " " + (hydrogen_tanks_cargo.AverageFilledRatio < ReturnOnHydrogen ? ired.ToString() : igreen.ToString()) + "\n");
                 values.Append("--------------------------------------\n");
                 values.Append("ERROR: " + Message + "\n");
                 return values.ToString();
@@ -1226,10 +1236,9 @@ namespace BUG_H2_NAV
                     {
                         if ((gravity && cockpit.CurrentHeight > 10.0f) || (!gravity && (connector_forw.Connectable || connector_back.Connectable)))
                         {
-                            //hydrogen_tanks.Stockpile(false);
+                            hydrogen_tanks_nav.Stockpile(false);
                             bats.Auto();
                             thrusts.On();
-
                         }
                     }
                     else
@@ -1249,6 +1258,7 @@ namespace BUG_H2_NAV
                         {
                             CurrDockPoint = (int)index;
                         }
+                        hydrogen_tanks_nav.Stockpile(true);
                         reflectors_light.Off();
                         bats.Charger();
                         thrusts.Off();
