@@ -412,8 +412,8 @@ namespace BUG_H2_NAV
                         }
                         else
                         {
-                            OverrideValue -= (float)this.remote_control.obj.GetNaturalGravity().Length();
-                            //OverrideValue += (float)this.remote_control.obj.GetNaturalGravity().Length();
+                            //OverrideValue -= (float)this.remote_control.obj.GetNaturalGravity().Length();
+                            OverrideValue += (float)this.remote_control.obj.GetNaturalGravity().Length();
                         }
                         break;
                     case "L":
@@ -1226,6 +1226,7 @@ namespace BUG_H2_NAV
                     case "point+": if (!connector_forw.Connected && !connector_back.Connected) { CurrDockPoint++; if (CurrDockPoint > 1) CurrDockPoint = 0; } break;
                     case "point-": if (!connector_forw.Connected && !connector_back.Connected) { CurrDockPoint--; if (CurrDockPoint < 0) CurrDockPoint = 1; } break;
                     case "reverse_point": if (!connector_forw.Connected && !connector_back.Connected) { CurrDockPoint = (CurrDockPoint == 0 ? 1 : 0); } break;
+                    case "clear_point": { PointsDock[0] = new PointDock();PointsDock[1] = new PointDock(); break; break;};
                     default:
                         break;
                 }
@@ -1234,7 +1235,7 @@ namespace BUG_H2_NAV
                     cockpit.Logic(argument, updateSource);
                     if (!connector_forw.Connected && !connector_back.Connected && !landing_gears.IsLocked())
                     {
-                        if ((gravity && cockpit.CurrentHeight > 10.0f) || (!gravity && (connector_forw.Connectable || connector_back.Connectable)))
+                        if ((gravity && cockpit.CurrentHeight > 8.0f) || (!gravity && (connector_forw.Connectable || connector_back.Connectable)))
                         {
                             hydrogen_tanks_nav.Stockpile(false);
                             bats.Auto();

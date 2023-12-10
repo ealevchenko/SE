@@ -26,7 +26,7 @@ namespace MINER_I2_E1
     public sealed class Program : MyGridProgram
     {
         // m.v6
-        string NameObj = "[MINER_A2_WICE1]";//[MINER_A1_X] [MINER_I2_E1]
+        string NameObj = "[MINER_A2_1]";//[MINER_A1_X] [MINER_I2_E1]
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
         static string tag_ejector = "[ejector]"; // дежурная батарея
         static float GyroMult = 1f;
@@ -52,6 +52,7 @@ namespace MINER_I2_E1
         static LCD lcd_storage;
         static LCD lcd_debug;
         static LCD lcd_name;
+        static LCD lcd_work1, lcd_work2;
         static Batterys bats;
         static Connector connector;
         static ShipDrill drill;
@@ -312,6 +313,8 @@ namespace MINER_I2_E1
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
             lcd_name = new LCD(NameObj + "-LCD-Name");
+            lcd_work1 = new LCD(NameObj + "-LCD-Work 1");
+            lcd_work2 = new LCD(NameObj + "-LCD-Work 2");
             bats = new Batterys(NameObj);
             connector = new Connector(NameObj + "-Connector parking");
             drill = new ShipDrill(NameObj);
@@ -351,7 +354,7 @@ namespace MINER_I2_E1
             values_info.Append(navigation.TextInfo1());
             cockpit.OutText(values_info, 0);
             StringBuilder values_info1 = new StringBuilder();
-            values_info1.Append(navigation.TextInfo2());
+            values_info1.Append(navigation.TextCritical());
             cockpit.OutText(values_info1, 1);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
@@ -808,7 +811,7 @@ namespace MINER_I2_E1
                         }
                         else
                         {
-                            OverrideValue -= (float)this.remote_control.obj.GetNaturalGravity().Length();
+                            OverrideValue += (float)this.remote_control.obj.GetNaturalGravity().Length();
                         }
                         break;
                     case "L":
@@ -1350,7 +1353,8 @@ namespace MINER_I2_E1
                 ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
                 XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
                 cargos.Update();
-                if (PhysicalMass > CriticalMass) { CriticalMassReached = true; } else
+                if (PhysicalMass > CriticalMass) { CriticalMassReached = true; }
+                else
                 {
 
                     CriticalMassReached = false;
@@ -1396,6 +1400,7 @@ namespace MINER_I2_E1
             {
                 bool Complete = false;
                 float MaxUSpeed, MaxFSpeed;
+                thrusts.On();
                 Vector3D gyrAng = GetNavAngles(BaseDockPoint, DockMatrix);
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, DockMatrix);
                 Distance = (float)(BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
@@ -1438,6 +1443,7 @@ namespace MINER_I2_E1
             {
                 bool Complete = false;
                 float MaxUSpeed, MaxLSpeed, MaxFSpeed;
+                thrusts.On();
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, DockMatrix);
                 Vector3D gyrAng = GetNavAngles(ConnectorPoint, DockMatrix);
                 Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
@@ -1529,6 +1535,7 @@ namespace MINER_I2_E1
             {
                 bool Complete = false;
                 float MaxUSpeed, MaxFSpeed;
+                thrusts.On();
                 Vector3D gyrAng = GetNavAngles(new Vector3D(0, 0, 0), DrillMatrix);
                 Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix);
                 Distance = (float)(DrillPoint - new Vector3D(MyPosDrill.GetDim(0), 0, MyPosDrill.GetDim(2))).Length();
@@ -1569,6 +1576,7 @@ namespace MINER_I2_E1
                 bool Complete = false;
                 float MaxUSpeed, MaxLSpeed, MaxFSpeed;
                 float UpAccel = 0;
+                thrusts.On();
                 Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
                 Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrix);
                 gyros.SetOverride(true, gyrAng * GyroMult, 1);
@@ -1616,6 +1624,7 @@ namespace MINER_I2_E1
             }
             public bool Drill(out bool Emergency)
             {
+                thrusts.On();
                 ejector.ThrowOut(true);
                 bool Complete = false;
                 Emergency = false;
@@ -1795,25 +1804,25 @@ namespace MINER_I2_E1
             public void OutStatusMode(float MaxFSpeed, float MaxUSpeed, float MaxLSpeed, float UpAccel)
             {
                 StringBuilder values = new StringBuilder();
-                values.Append(" STATUS\n");
-                Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
+                //values.Append(" STATUS\n");
+                //Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
                 //Vector3D MyPosDrill = Vector3D.Transform(MyPos, DockMatrix) - DrillPoint;
                 //values.Append("My_Length   : " + Math.Round(MyPosDrill.Length(), 2) + "\n");
                 //values.Append("YMaxA (U-D) : " + Math.Round(YMaxA, 2).ToString() + "MaxUSpeed: " + Math.Round(MaxUSpeed, 2).ToString() + "\n");
-                values.Append("MyPosDrill[0]   : " + Math.Round(MyPosDrill.GetDim(0), 2) + "\n");
-                values.Append("MyPosDrill[1]   : " + Math.Round(MyPosDrill.GetDim(1), 2) + "\n");
-                //values.Append("UpAccel   : " + Math.Round(UpAccel, 2) + "\n");
+                //values.Append("MyPosDrill[0]   : " + Math.Round(MyPosDrill.GetDim(0), 2) + "\n");
+                //values.Append("MyPosDrill[1]   : " + Math.Round(MyPosDrill.GetDim(1), 2) + "\n");
+                ////values.Append("UpAccel   : " + Math.Round(UpAccel, 2) + "\n");
 
-                values.Append("MyPosDrill[2]   : " + Math.Round(MyPosDrill.GetDim(2), 2) + "\n");
-                values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
-                values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
-                values.Append("DeltaHeight: " + Math.Round(FlyHeight - (MyPos - PlanetCenter).Length()).ToString() + "\n");
-                values.Append("Distance: " + Math.Round(Distance).ToString() + "\n");
-                values.Append("------------------------------------------\n");
-                values.Append("ZMaxA (F-B) : " + Math.Round(ZMaxA, 2).ToString() + "MaxFSpeed: " + Math.Round(MaxFSpeed, 2).ToString() + "\n");
-                values.Append("YMaxA (U-D) : " + Math.Round(YMaxA, 2).ToString() + "MaxUSpeed: " + Math.Round(MaxUSpeed, 2).ToString() + "\n");
-                values.Append("XMaxA (L-R) : " + Math.Round(XMaxA, 2).ToString() + "MaxLSpeed: " + Math.Round(MaxLSpeed, 2).ToString() + "\n");
-                values.Append(thrusts.TextInfo());
+                //values.Append("MyPosDrill[2]   : " + Math.Round(MyPosDrill.GetDim(2), 2) + "\n");
+                //values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
+                //values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
+                //values.Append("DeltaHeight: " + Math.Round(FlyHeight - (MyPos - PlanetCenter).Length()).ToString() + "\n");
+                //values.Append("Distance: " + Math.Round(Distance).ToString() + "\n");
+                //values.Append("------------------------------------------\n");
+                //values.Append("ZMaxA (F-B) : " + Math.Round(ZMaxA, 2).ToString() + "MaxFSpeed: " + Math.Round(MaxFSpeed, 2).ToString() + "\n");
+                //values.Append("YMaxA (U-D) : " + Math.Round(YMaxA, 2).ToString() + "MaxUSpeed: " + Math.Round(MaxUSpeed, 2).ToString() + "\n");
+                //values.Append("XMaxA (L-R) : " + Math.Round(XMaxA, 2).ToString() + "MaxLSpeed: " + Math.Round(MaxLSpeed, 2).ToString() + "\n");
+                //values.Append(thrusts.TextInfo());
                 lcd_debug.OutText(values);
             }
             public double GetVal(string Key, string str)
@@ -1915,12 +1924,16 @@ namespace MINER_I2_E1
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("СКОРОСТЬ    : " + Math.Round(remote_control.obj.GetShipSpeed(), 2) + "\n");
-                values.Append("ВЫСОТА    : " + Math.Round(cockpit.CurrentHeight, 2) + "\n");
-                values.Append("ГОРИЗОНТ    : " + (horizont ? green.ToString() : red.ToString()) + ",  Vector : " + (TackVector != null ? green.ToString() : red.ToString()) + "\n");
+                values.Append("ВЫСОТА      : " + Math.Round(cockpit.CurrentHeight, 2) + "\n");
+                values.Append("--------------------------------------\n");
+                //values.Append("ГОРИЗОНТ    : " + (horizont ? green.ToString() : red.ToString()) + ",  Vector : " + (TackVector != null ? green.ToString() : red.ToString()) + "\n");
+                values.Append("ГОРИЗОНТ : " + (horizont ? green.ToString() : red.ToString()) + ", ");
+                values.Append("ПАУЗА : " + (paused ? green.ToString() : red.ToString()) + ", ");
+                values.Append("ДОМОЙ : " + (go_home ? green.ToString() : red.ToString()) + "\n");
+                values.Append("--------------------------------------\n");
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
-                values.Append("ПАУЗА : " + (paused ? green.ToString() : red.ToString()) + "\n");
-                values.Append("ДОМОЙ : " + (go_home ? green.ToString() : red.ToString()) + "\n");
+
                 return values.ToString();
             }
             public string TextInfo2()
@@ -1936,9 +1949,19 @@ namespace MINER_I2_E1
                 values.Append("Поднять           : " + (PullUpNeeded ? green.ToString() : yellow.ToString()) + "\n");
                 return values.ToString();
             }
-            public string TextTEST()
+            public string TextCritical()
             {
                 StringBuilder values = new StringBuilder();
+                //values.Append("ВЫСОТА (Цен.план.): " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(PointsDock[CurrDockPoint].FlyHeight).ToString() + "\n");
+                //values.Append("ДИСТАНЦИЯ         : " + Math.Round(Distance).ToString() + "\n");
+                values.Append("ГЛУБИНА ШАХТЫ       : " + DrillDepth + ", кол. шахт : " + MaxShafts + "\n");
+                values.Append("--------------------------------------\n");
+                values.Append("АВАРИЙНЫЙ ВОЗВРАТ   : " + (EmergencyReturn ? red.ToString() : green.ToString()) + "\n");
+                values.Append("|-ФИЗ./КРИТ.(МАССА) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? red.ToString() : green.ToString()) + "\n");
+                values.Append("|-БАТАРЕЯ %         : " + PText.GetPersent(bats.CurrentPersent()) + " " + (bats.CurrentPersent() <= ReturnOnCharge ? red.ToString() : green.ToString()) + "\n");
+                values.Append("--------------------------------------\n");
+                values.Append("ПРОГРАММА : " + name_programm[(int)curent_programm] + "\n");
+                values.Append("ЭТАП      : " + name_mode[(int)curent_mode] + "\n");
                 return values.ToString();
             }
             public void Logic(string argument, UpdateType updateSource)
@@ -2076,6 +2099,7 @@ namespace MINER_I2_E1
                     UpdateCalc();
                     if (curent_programm == programm.none)
                     {
+                        lcd_work1.Off(); lcd_work2.Off(); lcd_debug.Off();
                         if (horizont)
                         {
                             Horizon();
@@ -2144,6 +2168,9 @@ namespace MINER_I2_E1
                                 curent_mode = mode.none;
                             }
                         }
+                    }
+                    else {
+                        lcd_work1.On(); lcd_work2.On(); lcd_debug.On();
                     }
                     if (curent_programm == programm.fly_connect_base && !paused)
                     {
