@@ -43,17 +43,18 @@ namespace MINER_I2_E1
         static float DrillFrameLength = 7f;
         static int CriticalMass = 150000;       // Критическая масса
         static int StoneDumpOn = 250000;
+        const char igreen = '\uE001';
+        const char iblue = '\uE002';
+        const char ired = '\uE003';
+        const char iyellow = '\uE004';
+        const char idarkGrey = '\uE00F';
 
-        const char green = '\uE001';
-        const char blue = '\uE002';
-        const char red = '\uE003';
-        const char yellow = '\uE004';
-        const char darkGrey = '\uE00F';
         static LCD lcd_storage;
         static LCD lcd_debug;
         static LCD lcd_name;
         static LCD lcd_work1, lcd_work2;
         static Batterys bats;
+        static Batterys bats_duty;
         static Connector connector;
         static ShipDrill drill;
         static ReflectorsLight reflectors_light;
@@ -316,6 +317,7 @@ namespace MINER_I2_E1
             lcd_work1 = new LCD(NameObj + "-LCD-Work 1");
             lcd_work2 = new LCD(NameObj + "-LCD-Work 2");
             bats = new Batterys(NameObj);
+            bats_duty = new Batterys(NameObj, tag_batterys_duty);
             connector = new Connector(NameObj + "-Connector parking");
             drill = new ShipDrill(NameObj);
             drill.Off();
@@ -337,6 +339,7 @@ namespace MINER_I2_E1
         {
             StringBuilder values_info = new StringBuilder();
             bats.Logic(argument, updateSource);
+            bats_duty.Logic(argument, updateSource);
             navigation.Logic(argument, updateSource);
             switch (argument)
             {
@@ -348,8 +351,9 @@ namespace MINER_I2_E1
                 lcd_name.OutText(NameObj, false);
 
             }
-            values_info.Append(bats.TextInfo());
-            values_info.Append(connector.TextInfo());
+            values_info.Append(bats.TextInfo(null));
+            values_info.Append(connector.TextInfo(null));
+            values_info.Append(bats_duty.TextInfo("БАТ(Д-Р)"));
             values_info.Append(drill.TextInfo());
             values_info.Append(navigation.TextInfo1());
             cockpit.OutText(values_info, 0);
@@ -393,99 +397,22 @@ namespace MINER_I2_E1
         public class Batterys : BaseListTerminalBlock<IMyBatteryBlock>
         {
             public int count_work_batterys { get { return list_obj.Where(n => !((IMyTerminalBlock)n).CustomName.Contains(tag_batterys_duty)).Count(); } }
-            public bool charger = false;
-            public Batterys(string name_obj) : base(name_obj)
-            {
-                Init();
-            }
-            public Batterys(string name_obj, string tag) : base(name_obj, tag)
-            {
-                Init();
-            }
-            public void Init()
-            {
-                base.On();
-                charger = IsCharger();
-            }
-            public float MaxPower()
-            {
-                return base.list_obj.Select(b => b.MaxStoredPower).Sum();
-            }
-            public float CurrentPower()
-            {
-                return base.list_obj.Select(b => b.CurrentStoredPower).Sum();
-            }
-            public float CurrentPersent()
-            {
-                return base.list_obj.Select(b => b.CurrentStoredPower).Sum() / base.list_obj.Select(b => b.MaxStoredPower).Sum();
-            }
-            public int CountCharger()
-            {
-                List<IMyBatteryBlock> res = base.list_obj.Where(b => ((IMyBatteryBlock)b).ChargeMode == ChargeMode.Recharge).ToList();
-                return res.Count();
-            }
-            public int CountAuto()
-            {
-                List<IMyBatteryBlock> res = base.list_obj.Where(b => ((IMyBatteryBlock)b).ChargeMode == ChargeMode.Auto).ToList();
-                return res.Count();
-            }
-            public bool IsCharger()
-            {
-                int count_charger = CountCharger();
-                return count_work_batterys > 0 && count_charger > 0 && count_work_batterys == count_charger ? true : false;
-            }
-            public bool IsAuto()
-            {
-                int count_auto = CountAuto();
-                return Count > 0 && count_auto > 0 && Count == count_auto ? true : false;
-            }
-            public void Charger()
-            {
-                foreach (IMyBatteryBlock obj in base.list_obj)
-                {
-                    // проверка батарея дежурного режима
-                    if (!obj.CustomName.Contains(tag_batterys_duty))
-                    {
-                        obj.ChargeMode = ChargeMode.Recharge;
-                    }
-                }
-                charger = IsCharger();
-            }
-            public void Auto()
-            {
-                foreach (IMyBatteryBlock obj in base.list_obj)
-                {
-                    obj.ChargeMode = ChargeMode.Auto;
-                }
-                charger = IsCharger();
-            }
-            public void Logic(string argument, UpdateType updateSource)
-            {
-                switch (argument)
-                {
-                    case "bat_charger":
-                        Charger();
-                        break;
-                    case "bat_auto":
-                        Auto();
-                        break;
-                    case "bat_toggle":
-                        if (charger) { Auto(); } else { Charger(); }
-                        break;
-                    default:
-                        break;
-                }
-
-                if (updateSource == UpdateType.Update10)
-                {
-
-                }
-
-            }
-            public string TextInfo()
+            public Batterys(string name_obj) : base(name_obj) { base.On(); }
+            public Batterys(string name_obj, string tag) : base(name_obj, tag) { base.On(); }
+            public float MaxPower() { return base.list_obj.Select(b => b.MaxStoredPower).Sum(); }
+            public float CurrentPower() { return base.list_obj.Select(b => b.CurrentStoredPower).Sum(); }
+            public float CurrentPersent() { return base.list_obj.Select(b => b.CurrentStoredPower).Sum() / base.list_obj.Select(b => b.MaxStoredPower).Sum(); }
+            public int CountCharger() { return base.list_obj.Select(b => b.ChargeMode == ChargeMode.Recharge).Count(); }
+            public int CountAuto() { return base.list_obj.Select(b => b.ChargeMode == ChargeMode.Auto).Count(); }
+            public bool IsCharger() { int count_charger = CountCharger(); return count_work_batterys > 0 && count_charger > 0 && count_work_batterys == count_charger ? true : false; }
+            public bool IsAuto() { int count_auto = CountAuto(); return Count > 0 && count_auto > 0 && Count == count_auto ? true : false; }
+            public void Charger() { foreach (IMyBatteryBlock obj in base.list_obj) { if (!obj.CustomName.Contains(tag_batterys_duty)) { obj.ChargeMode = ChargeMode.Recharge; } } }
+            public void Auto() { foreach (IMyBatteryBlock obj in base.list_obj) { obj.ChargeMode = ChargeMode.Auto; } }
+            public void Logic(string argument, UpdateType updateSource) { switch (argument) { default: break; } if (updateSource == UpdateType.Update10) { } }
+            public string TextInfo(string name)
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("БАТАРЕЯ: [" + Count + "] [А-" + CountAuto() + " З-" + CountCharger() + "]" + PText.GetCurrentOfMax(CurrentPower(), MaxPower(), "MW") + "\n");
+                values.Append((name != null ? name : "БАТАРЕЯ") + ": [" + Count + "] [А-" + CountAuto() + " З-" + CountCharger() + "]" + PText.GetCurrentOfMax(CurrentPower(), MaxPower(), "MW") + "\n");
                 values.Append("|- ЗАР:  " + PText.GetScalePersent(CurrentPower() / MaxPower(), 20) + "\n");
                 return values.ToString();
             }
@@ -525,10 +452,10 @@ namespace MINER_I2_E1
                         }
                 }
             }
-            public string TextInfo()
+            public string TextInfo(string name)
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("КОННЕКТОР: " + (Connected ? green.ToString() : (Connectable ? yellow.ToString() : red.ToString())) + "\n");
+                values.Append((name != null ? name : "КОННЕКТОР") + " : " + (Connected ? igreen.ToString() : (Connectable ? iyellow.ToString() : ired.ToString())));
                 return values.ToString();
             }
             public void Connect()
@@ -565,7 +492,7 @@ namespace MINER_I2_E1
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("БУРЫ: " + (base.Enabled() ? green.ToString() : red.ToString()) + "\n");
+                values.Append("БУРЫ: " + (base.Enabled() ? igreen.ToString() : ired.ToString()) + "\n");
                 return values.ToString();
             }
         }
@@ -1315,7 +1242,16 @@ namespace MINER_I2_E1
                     {
                         ejector.ThrowOut(false);
                         cargos.UnLoad();
-                        bats.Charger();
+                        if (bats_duty.CurrentPersent() >= ReturnOffCharge) // 0.9
+                        {
+                            bats_duty.Auto();
+                            bats.Charger();
+                        }
+                        else if (bats_duty.CurrentPersent() < ReturnOnCharge) // 0.2
+                        {
+                            bats_duty.Charger();
+                            bats.Auto();
+                        }
                         thrusts.Off();
                         thrusts.ClearThrustOverridePersent();
                         if (go_home || ShaftN >= MaxShafts)
@@ -1327,6 +1263,7 @@ namespace MINER_I2_E1
                             if (bats.CurrentPersent() >= ReturnOffCharge && cargos.CurrentMass == 0f)
                             {
                                 bats.Auto();
+                                bats_duty.Off();
                                 thrusts.On();
                                 ejector.ThrowOut(true);
                                 curent_mode = mode.un_dock;
@@ -1927,9 +1864,9 @@ namespace MINER_I2_E1
                 values.Append("ВЫСОТА      : " + Math.Round(cockpit.CurrentHeight, 2) + "\n");
                 values.Append("--------------------------------------\n");
                 //values.Append("ГОРИЗОНТ    : " + (horizont ? green.ToString() : red.ToString()) + ",  Vector : " + (TackVector != null ? green.ToString() : red.ToString()) + "\n");
-                values.Append("ГОРИЗОНТ : " + (horizont ? green.ToString() : red.ToString()) + ", ");
-                values.Append("ПАУЗА : " + (paused ? green.ToString() : red.ToString()) + ", ");
-                values.Append("ДОМОЙ : " + (go_home ? green.ToString() : red.ToString()) + "\n");
+                values.Append("ГОРИЗОНТ : " + (horizont ? igreen.ToString() : ired.ToString()) + ", ");
+                values.Append("ПАУЗА : " + (paused ? igreen.ToString() : ired.ToString()) + ", ");
+                values.Append("ДОМОЙ : " + (go_home ? igreen.ToString() : ired.ToString()) + "\n");
                 values.Append("--------------------------------------\n");
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
@@ -1943,10 +1880,10 @@ namespace MINER_I2_E1
                 values.Append("Height            : " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(FlyHeight).ToString() + "\n");
                 values.Append("Distance          : " + Math.Round(Distance).ToString() + "\n");
                 values.Append("Глубина шахты     : " + DrillDepth + ", кол. шахт : " + MaxShafts + "\n");
-                values.Append("Phys./Crit.(Mass) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? red.ToString() : green.ToString()) + "\n");
+                values.Append("Phys./Crit.(Mass) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? ired.ToString() : igreen.ToString()) + "\n");
                 values.Append("Volume/Mass       : " + cargos.CurrentVolume + " / " + cargos.CurrentMass + "\n");
-                values.Append("Батарея %         : " + PText.GetPersent(bats.CurrentPersent()) + " " + (bats.CurrentPersent() <= ReturnOnCharge ? red.ToString() : green.ToString()) + "\n");
-                values.Append("Поднять           : " + (PullUpNeeded ? green.ToString() : yellow.ToString()) + "\n");
+                values.Append("Батарея %         : " + PText.GetPersent(bats.CurrentPersent()) + " " + (bats.CurrentPersent() <= ReturnOnCharge ? ired.ToString() : igreen.ToString()) + "\n");
+                values.Append("Поднять           : " + (PullUpNeeded ? igreen.ToString() : iyellow.ToString()) + "\n");
                 return values.ToString();
             }
             public string TextCritical()
@@ -1956,9 +1893,10 @@ namespace MINER_I2_E1
                 //values.Append("ДИСТАНЦИЯ         : " + Math.Round(Distance).ToString() + "\n");
                 values.Append("ГЛУБИНА ШАХТЫ       : " + DrillDepth + ", кол. шахт : " + MaxShafts + "\n");
                 values.Append("--------------------------------------\n");
-                values.Append("АВАРИЙНЫЙ ВОЗВРАТ   : " + (EmergencyReturn ? red.ToString() : green.ToString()) + "\n");
-                values.Append("|-ФИЗ./КРИТ.(МАССА) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? red.ToString() : green.ToString()) + "\n");
-                values.Append("|-БАТАРЕЯ %         : " + PText.GetPersent(bats.CurrentPersent()) + " " + (bats.CurrentPersent() <= ReturnOnCharge ? red.ToString() : green.ToString()) + "\n");
+                values.Append("АВАРИЙНЫЙ ВОЗВРАТ   : " + (EmergencyReturn ? ired.ToString() : igreen.ToString()) + "\n");
+                values.Append("|-ФИЗ./КРИТ.(МАССА) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? ired.ToString() : igreen.ToString()) + "\n");
+                values.Append("|-БАТАРЕЯ %         : " + PText.GetPersent(bats.CurrentPersent()) + " " + (bats.CurrentPersent() <= ReturnOnCharge ? ired.ToString() : igreen.ToString()) + "\n");
+                values.Append("|-БАТАРЕЯ (Д-Р) %   : " + PText.GetPersent(bats_duty.CurrentPersent()) + " " + (bats_duty.CurrentPersent() <= ReturnOnCharge ? ired.ToString() : igreen.ToString()) + "\n");
                 values.Append("--------------------------------------\n");
                 values.Append("ПРОГРАММА : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП      : " + name_mode[(int)curent_mode] + "\n");
@@ -2084,6 +2022,7 @@ namespace MINER_I2_E1
                         if (cockpit.CurrentHeight > 5.0f)
                         {
                             bats.Auto();
+                            bats_duty.Off();
                             thrusts.On();
                         }
                     }
@@ -2092,7 +2031,20 @@ namespace MINER_I2_E1
                         // Припаркован
                         drill.Off();
                         reflectors_light.Off();
-                        bats.Charger();
+                        //--
+                        if (bats_duty.CurrentPersent() >= ReturnOffCharge) // 0.9
+                        {
+                            bats_duty.Auto();
+                            bats.Charger();
+                        }
+                        else if (bats_duty.CurrentPersent() < ReturnOnCharge) // 0.2
+                        {
+                            bats_duty.Charger();
+                            bats.Auto();
+                        }
+                        //--
+                        //bats_duty.On();
+                        //bats.Charger();
                         thrusts.Off();
                     }
                     // Обновим состояние навигации
@@ -2169,7 +2121,8 @@ namespace MINER_I2_E1
                             }
                         }
                     }
-                    else {
+                    else
+                    {
                         lcd_work1.On(); lcd_work2.On(); lcd_debug.On();
                     }
                     if (curent_programm == programm.fly_connect_base && !paused)
