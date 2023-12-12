@@ -19,13 +19,13 @@ using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
 using VRageMath;
 /// <summary>
-/// v6.0  Модифицирован под Down и Up ускорители (малая гравитация) + Ионый
+/// v7.0  Модифицирован под Down и Up ускорители (применим на малой гравитации, можно на ионниках)
 /// </summary>
 namespace MINER_I2_E1
 {
     public sealed class Program : MyGridProgram
     {
-        // m.v6
+        // m.v7
         string NameObj = "[MINER_A2_1]";//[MINER_A1_X] [MINER_I2_E1]
         static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
         static string tag_ejector = "[ejector]"; // дежурная батарея
@@ -49,6 +49,7 @@ namespace MINER_I2_E1
         const char iyellow = '\uE004';
         const char idarkGrey = '\uE00F';
 
+        static MyStorage mystorage;
         static LCD lcd_storage;
         static LCD lcd_debug;
         static LCD lcd_name;
@@ -68,244 +69,54 @@ namespace MINER_I2_E1
         static Program _scr;
         public class PText
         {
-            static public string GetPersent(double perse)
-            {
-                return " - " + Math.Round((perse * 100), 1) + "%";
-            }
-            static public string GetScalePersent(double perse, int scale)
-            {
-                string prog = "[";
-                for (int i = 0; i < Math.Round((perse * scale), 0); i++)
-                {
-                    prog += "|";
-                }
-                for (int i = 0; i < scale - Math.Round((perse * scale), 0); i++)
-                {
-                    prog += "'";
-                }
-                prog += "]" + GetPersent(perse);
-                return prog;
-            }
-            static public string GetCurrentOfMax(float cur, float max, string units)
-            {
-                return "[ " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]";
-            }
-            static public string GetThrust(float value)
-            {
-                return Math.Round(value / 1000000, 1) + "МН";
-            }
-            static public string GetGPS(string name, Vector3D target)
-            {
-                return "GPS:" + name + ":" + target.GetDim(0) + ":" + target.GetDim(1) + ":" + target.GetDim(2) + ":\n";
-            }
+            static public string GetPersent(double perse) { return " - " + Math.Round((perse * 100), 1) + "%"; }
+            static public string GetScalePersent(double perse, int scale) { string prog = "["; for (int i = 0; i < Math.Round((perse * scale), 0); i++) { prog += "|"; } for (int i = 0; i < scale - Math.Round((perse * scale), 0); i++) { prog += "'"; } prog += "]" + GetPersent(perse); return prog; }
+            static public string GetCurrentOfMax(float cur, float max, string units) { return "[ " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]"; }
+            static public string GetThrust(float value) { return Math.Round(value / 1000000, 1) + "МН"; }
+            static public string GetGPS(string name, Vector3D target) { return "GPS:" + name + ":" + target.GetDim(0) + ":" + target.GetDim(1) + ":" + target.GetDim(2) + ":\n"; }
+            static public string GetGPSMatrixD(string name, MatrixD target) { return "MatrixD:" + name + "\n" + "M11:" + target.M11 + "M12:" + target.M12 + "M13:" + target.M13 + "M14:" + target.M14 + ":\n" + "M21:" + target.M21 + "M22:" + target.M22 + "M23:" + target.M23 + "M24:" + target.M24 + ":\n" + "M31:" + target.M31 + "M32:" + target.M32 + "M33:" + target.M33 + "M34:" + target.M34 + ":\n" + "M41:" + target.M41 + "M42:" + target.M42 + "M43:" + target.M43 + "M44:" + target.M44 + ":\n"; }
         }
         public class BaseListTerminalBlock<T> where T : class
         {
             public List<T> list_obj = new List<T>();
             public int Count { get { return list_obj.Count(); } }
-            public BaseListTerminalBlock(string name_obj)
-            {
-                _scr.GridTerminalSystem.GetBlocksOfType<T>(list_obj, r => ((IMyTerminalBlock)r).CustomName.Contains(name_obj));
-                _scr.Echo("Найдено" + typeof(T).Name + "[" + name_obj + "]: " + list_obj.Count());
-            }
-            public BaseListTerminalBlock(string name_obj, string tag)
-            {
-                _scr.GridTerminalSystem.GetBlocksOfType<T>(list_obj, r => ((IMyTerminalBlock)r).CustomName.Contains(name_obj));
-                if (!String.IsNullOrWhiteSpace(tag))
-                {
-                    list_obj = list_obj.Where(n => ((IMyTerminalBlock)n).CustomName.Contains(tag)).ToList();
-                }
-                _scr.Echo("Найдено" + typeof(T).Name + "[" + name_obj + "],[" + tag + "]: " + list_obj.Count());
-            }
-            private void Off(List<T> list)
-            {
-                foreach (IMyTerminalBlock obj in list)
-                {
-                    obj.ApplyAction("OnOff_Off");
-                }
-            }
-            public void Off()
-            {
-                Off(list_obj);
-            }
-            private void OffOfTag(List<T> list, string tag)
-            {
-                foreach (IMyTerminalBlock obj in list)
-                {
-                    if (obj.CustomName.Contains(tag))
-                    {
-                        obj.ApplyAction("OnOff_Off");
-                    }
-                }
-            }
-            public void OffOfTag(string tag)
-            {
-                OffOfTag(list_obj, tag);
-            }
-            private void On(List<T> list)
-            {
-                foreach (IMyTerminalBlock obj in list)
-                {
-                    obj.ApplyAction("OnOff_On");
-                }
-            }
-            public void On()
-            {
-                On(list_obj);
-            }
+            public BaseListTerminalBlock(string name_obj) { _scr.GridTerminalSystem.GetBlocksOfType<T>(list_obj, r => ((IMyTerminalBlock)r).CustomName.Contains(name_obj)); _scr.Echo("Найдено" + typeof(T).Name + "[" + name_obj + "]: " + list_obj.Count()); }
+            public BaseListTerminalBlock(string name_obj, string tag) { _scr.GridTerminalSystem.GetBlocksOfType<T>(list_obj, r => ((IMyTerminalBlock)r).CustomName.Contains(name_obj)); if (!String.IsNullOrWhiteSpace(tag)) { list_obj = list_obj.Where(n => ((IMyTerminalBlock)n).CustomName.Contains(tag)).ToList(); } _scr.Echo("Найдено" + typeof(T).Name + "[" + name_obj + "],[" + tag + "]: " + list_obj.Count()); }
+            private void Off(List<T> list) { foreach (IMyTerminalBlock obj in list) { obj.ApplyAction("OnOff_Off"); } }
+            public void Off() { Off(list_obj); }
+            private void OffOfTag(List<T> list, string tag) { foreach (IMyTerminalBlock obj in list) { if (obj.CustomName.Contains(tag)) { obj.ApplyAction("OnOff_Off"); } } }
+            public void OffOfTag(string tag) { OffOfTag(list_obj, tag); }
+            private void On(List<T> list) { foreach (IMyTerminalBlock obj in list) { obj.ApplyAction("OnOff_On"); } }
+            public void On() { On(list_obj); }
             private void OnOfTag(List<T> list, string tag)
-            {
-                foreach (IMyTerminalBlock obj in list)
-                {
-                    if (obj.CustomName.Contains(tag))
-                    {
-                        obj.ApplyAction("OnOff_On");
-                    }
-                }
-            }
-            public void OnOfTag(string tag)
-            {
-                OnOfTag(list_obj, tag);
-            }
-            public bool Enabled(string tag)
-            {
-                foreach (IMyTerminalBlock obj in list_obj)
-                {
-                    if (obj.CustomName.Contains(tag) && !((IMyFunctionalBlock)obj).Enabled)
-                    {
-                        return false;
-                    }
-                }
-                return true;
-            }
-            public bool Enabled()
-            {
-                foreach (IMyTerminalBlock obj in list_obj)
-                {
-                    if (!((IMyFunctionalBlock)obj).Enabled)
-                    {
-                        return false;
-                    }
-                }
-                return true;
-            }
+            { foreach (IMyTerminalBlock obj in list) { if (obj.CustomName.Contains(tag)) { obj.ApplyAction("OnOff_On"); } } }
+            public void OnOfTag(string tag) { OnOfTag(list_obj, tag); }
+            public bool Enabled(string tag) { foreach (IMyTerminalBlock obj in list_obj) { if (obj.CustomName.Contains(tag) && !((IMyFunctionalBlock)obj).Enabled) { return false; } } return true; }
+            public bool Enabled() { foreach (IMyTerminalBlock obj in list_obj) { if (!((IMyFunctionalBlock)obj).Enabled) { return false; } } return true; }
         }
         public class BaseTerminalBlock<T> where T : class
         {
             public T obj;
             public string CustomName { get { return ((IMyTerminalBlock)this.obj).CustomName; } set { ((IMyTerminalBlock)this.obj).CustomName = value; } }
-            public BaseTerminalBlock(string name)
-            {
-                obj = _scr.GridTerminalSystem.GetBlockWithName(name) as T;
-                _scr.Echo("block:[" + name + "]: " + ((obj != null) ? ("Ок") : ("not Block")));
-            }
-            public BaseTerminalBlock(T myobj)
-            {
-                obj = myobj;
-                _scr.Echo("block:[" + obj.ToString() + "]: " + ((obj != null) ? ("Ок") : ("not Block")));
-            }
-            public Vector3D GetPosition()
-            {
-                return ((IMyEntity)obj).GetPosition();
-            }
-            public void Off()
-            {
-                if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_Off");
-            }
-            public void On()
-            {
-                if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_On");
-            }
+            public BaseTerminalBlock(string name) { obj = _scr.GridTerminalSystem.GetBlockWithName(name) as T; _scr.Echo("block:[" + name + "]: " + ((obj != null) ? ("Ок") : ("not Block"))); }
+            public BaseTerminalBlock(T myobj) { obj = myobj; _scr.Echo("block:[" + obj.ToString() + "]: " + ((obj != null) ? ("Ок") : ("not Block"))); }
+            public Vector3D GetPosition() { return ((IMyEntity)obj).GetPosition(); }
+            public void Off() { if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_Off"); }
+            public void On() { if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_On"); }
         }
         public class BaseController
         {
             public IMyShipController obj;
             private double current_height = 0;
             public double CurrentHeight { get { return this.current_height; } }
-            public Matrix GetCockpitMatrix()
-            {
-                Matrix CockpitMatrix = new MatrixD();
-                this.obj.Orientation.GetMatrix(out CockpitMatrix);
-                return CockpitMatrix;
-            }
-            public BaseController(string name)
-            {
-                obj = _scr.GridTerminalSystem.GetBlockWithName(name) as IMyShipController;
-                _scr.Echo("base_controller:[" + name + "]: " + ((obj != null) ? ("Ок") : ("not Block")));
-            }
-            public void Dampeners(bool on)
-            {
-                this.obj.DampenersOverride = on;
-            }
-            public void OutText(StringBuilder values, int num_lcd)
-            {
-                if (this.obj is IMyTextSurfaceProvider)
-                {
-                    IMyTextSurfaceProvider ipp = this.obj as IMyTextSurfaceProvider;
-                    if (num_lcd > ipp.SurfaceCount) return;
-                    IMyTextSurface ts = ipp.GetSurface(num_lcd);
-                    if (ts != null)
-                    {
-                        ts.WriteText(values, false);
-                    }
-                }
-            }
-            public void OutText(string text, bool append, int num_lcd)
-            {
-                if (this.obj is IMyTextSurfaceProvider)
-                {
-                    IMyTextSurfaceProvider ipp = this.obj as IMyTextSurfaceProvider;
-                    if (num_lcd > ipp.SurfaceCount) return;
-                    IMyTextSurface ts = ipp.GetSurface(num_lcd);
-                    if (ts != null)
-                    {
-                        ts.WriteText(text, append);
-                    }
-                }
-            }
-            public StringBuilder GetText(int num_lcd)
-            {
-                StringBuilder values = new StringBuilder();
-                if (this.obj is IMyTextSurfaceProvider)
-                {
-                    IMyTextSurfaceProvider ipp = this.obj as IMyTextSurfaceProvider;
-                    if (num_lcd > ipp.SurfaceCount) return null;
-                    IMyTextSurface ts = ipp.GetSurface(num_lcd);
-                    if (ts != null)
-                    {
-                        ts.ReadText(values);
-                    }
-                }
-                return values;
-            }
-            public double GetCurrentHeight()
-            {
-                double cur_h = 0;
-                this.obj.TryGetPlanetElevation(MyPlanetElevation.Surface, out cur_h);
-                return cur_h;
-            }
-            public void Logic(string argument, UpdateType updateSource)
-            {
-                switch (argument)
-                {
-                    default:
-                        break;
-                }
-                if (updateSource == UpdateType.Update10)
-                {
-                    // Получить высоту над поверхностью
-                    current_height = GetCurrentHeight();
-                }
-            }
-            public string TextInfo()
-            {
-                StringBuilder values = new StringBuilder();
-                values.Append("Гравитация: " + this.obj.GetNaturalGravity().Length() + "\n");
-                values.Append("PhysicalMass: " + this.obj.CalculateShipMass().PhysicalMass + "\n");
-                values.Append("Скорость: " + this.obj.GetShipSpeed() + "\n");
-                values.Append("Высота: " + current_height + "\n");
-                return values.ToString();
-            }
+            public Matrix GetCockpitMatrix() { Matrix CockpitMatrix = new MatrixD(); this.obj.Orientation.GetMatrix(out CockpitMatrix); return CockpitMatrix; }
+            public BaseController(string name) { obj = _scr.GridTerminalSystem.GetBlockWithName(name) as IMyShipController; _scr.Echo("base_controller:[" + name + "]: " + ((obj != null) ? ("Ок") : ("not Block"))); }
+            public void Dampeners(bool on) { this.obj.DampenersOverride = on; }
+            public void OutText(StringBuilder values, int num_lcd) { if (this.obj is IMyTextSurfaceProvider) { IMyTextSurfaceProvider ipp = this.obj as IMyTextSurfaceProvider; if (num_lcd > ipp.SurfaceCount) return; IMyTextSurface ts = ipp.GetSurface(num_lcd); if (ts != null) { ts.WriteText(values, false); } } }
+            public void OutText(string text, bool append, int num_lcd) { if (this.obj is IMyTextSurfaceProvider) { IMyTextSurfaceProvider ipp = this.obj as IMyTextSurfaceProvider; if (num_lcd > ipp.SurfaceCount) return; IMyTextSurface ts = ipp.GetSurface(num_lcd); if (ts != null) { ts.WriteText(text, append); } } }
+            public StringBuilder GetText(int num_lcd) { StringBuilder values = new StringBuilder(); if (this.obj is IMyTextSurfaceProvider) { IMyTextSurfaceProvider ipp = this.obj as IMyTextSurfaceProvider; if (num_lcd > ipp.SurfaceCount) return null; IMyTextSurface ts = ipp.GetSurface(num_lcd); if (ts != null) { ts.ReadText(values); } } return values; }
+            public double GetCurrentHeight() { double cur_h = 0; this.obj.TryGetPlanetElevation(MyPlanetElevation.Surface, out cur_h); return cur_h; }
+            public void Logic(string argument, UpdateType updateSource) { switch (argument) { default: break; } if (updateSource == UpdateType.Update10) { current_height = GetCurrentHeight(); } }
         }
         public Program()
         {
@@ -330,6 +141,9 @@ namespace MINER_I2_E1
             cargos = new Cargos(NameObj);
             ejector = new Ejector(NameObj, tag_ejector); ejector.ThrowOut(false);
             navigation = new Navigation();
+            mystorage = new MyStorage();
+            mystorage.LoadFromStorage();
+            navigation.FindPlanetCenter();
         }
         public void Save()
         {
@@ -920,7 +734,7 @@ namespace MINER_I2_E1
                 start_drill = 3,        // начать бурение
             };
             public static string[] name_programm = { "", "ПОЛЕТ НА БАЗУ", "ПОЛЕТ К ШАХТЕ", "СТАРТ ДОБЫЧИ" };
-            programm curent_programm = programm.none;
+            public programm curent_programm = programm.none;
             public enum mode : int
             {
                 none = 0,
@@ -935,7 +749,7 @@ namespace MINER_I2_E1
                 pull_out = 9,
             };
             public static string[] name_mode = { "", "БАЗА", "РАСТЫКОВКА", "К БАЗЕ", "СТЫКОВКА", "К ШАХТЕ", "НА ТОЧКУ БУРЕНИЯ", "БУРИМ", "ОСТАНОВИТЬ БУР", "ВЫТАЩИТЬ БУР" };
-            mode curent_mode = mode.none;
+            public mode curent_mode = mode.none;
             //------------------------------
             public Vector3D MyPos { get; private set; }
             public Vector3D MyPrevPos { get; private set; }
@@ -954,14 +768,14 @@ namespace MINER_I2_E1
             public float Distance { get; private set; }
 
             public Vector3D PlanetCenter = new Vector3D(0.50, 0.50, 0.50);
-            private Vector3D BaseDockPoint = new Vector3D(0, 0, -200);
-            private Vector3D ConnectorPoint = new Vector3D(0, 0, 3);
-            private Vector3D DrillPoint = new Vector3D(0, 0, 0);
-            public MatrixD DockMatrix { get; private set; }
-            public MatrixD DrillMatrix { get; private set; }
+            public Vector3D BaseDockPoint = new Vector3D(0, 0, -200);
+            public Vector3D ConnectorPoint = new Vector3D(0, 0, 3);
+            public Vector3D DrillPoint = new Vector3D(0, 0, 0);
+            public MatrixD DockMatrix { get; set; }
+            public MatrixD DrillMatrix { get; set; }
 
             private Vector3D point_start_drill = new Vector3D(0, 0, 0);
-            public int ShaftN { get; private set; }
+            public int ShaftN { get; set; }
             public bool PullUpNeeded { get; private set; } // Требуется подтянуть
             public class ConnectorBase
             {
@@ -971,7 +785,7 @@ namespace MINER_I2_E1
                 public bool? position = false;
                 public bool? load = false;
             }
-            ConnectorBase connector_base1 = new ConnectorBase()
+            public ConnectorBase connector_base1 = new ConnectorBase()
             {
                 //id = 79876025562437155,
                 //point = new Vector3D(53567.3705051079, -26769.2952025845, 11925.7372278272),
@@ -989,8 +803,7 @@ namespace MINER_I2_E1
             public Navigation()
             {
                 thrusts.InitThrusts(remote_control); // Привяжем трастеры к контроллеру
-                LoadFromStorage();
-                FindPlanetCenter();
+                //FindPlanetCenter();
             }
             //-------------------------------------
             public MatrixD GetNormTransMatrixFromMyPos()
@@ -1015,7 +828,7 @@ namespace MINER_I2_E1
                     connector_base1.point = remote_control.obj.GetPosition();
                     connector_base1.vector = WMCocpit.Forward;
                     connector_base1.position = Math.Abs(vc) < 0.01f ? false : true;
-                    SaveToStorage();
+                    mystorage.SaveToStorage();
                 }
             }
             public void SetDrillMatrixDepo()
@@ -1028,11 +841,11 @@ namespace MINER_I2_E1
             {
                 FlyHeight = (MyPos - PlanetCenter).Length();
                 BaseDockPoint = new Vector3D(0, 0, -200);
-                SaveToStorage();
+                mystorage.SaveToStorage();
             }
             public void FindPlanetCenter()
             {
-                if (cockpit.obj.TryGetPlanetPosition(out PlanetCenter)) { SaveToStorage(); }
+                if (cockpit.obj.TryGetPlanetPosition(out PlanetCenter)) { mystorage.SaveToStorage(); }
             }
             //---------------------------------------------
             public Vector3D GetNavAngles(Vector3D Target, MatrixD InvMatrix, double sfiftX = 0, double shiftZ = 0)
@@ -1111,18 +924,18 @@ namespace MINER_I2_E1
                 if (curent_mode == mode.none)
                 {
                     curent_mode = mode.to_base;
-                    SaveToStorage();
+                    mystorage.SaveToStorage();
                 }
                 if (curent_mode == mode.to_base && ToBase())
                 {
                     curent_mode = mode.dock;
-                    SaveToStorage();
+                    mystorage.SaveToStorage();
                 }
                 if (curent_mode == mode.dock && Dock())
                 {
                     Clear();
                     curent_programm = programm.none;
-                    SaveToStorage();
+                    mystorage.SaveToStorage();
                 }
             }
             public void FlyDrill()
@@ -1132,24 +945,24 @@ namespace MINER_I2_E1
                     if (connector.Connected)
                     {
                         curent_mode = mode.un_dock;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                     }
                     else
                     {
                         curent_mode = mode.to_drill;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                     }
                 }
                 if (curent_mode == mode.un_dock && UnDock())
                 {
                     curent_mode = mode.to_drill;
-                    SaveToStorage();
+                    mystorage.SaveToStorage();
                 }
                 if (curent_mode == mode.to_drill && ToDrillPoint())
                 {
                     Clear();
                     curent_programm = programm.none;
-                    SaveToStorage();
+                    mystorage.SaveToStorage();
                 }
             }
             public void StartDrill()
@@ -1160,12 +973,12 @@ namespace MINER_I2_E1
                     if (connector.Connected)
                     {
                         curent_mode = mode.un_dock;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                     }
                     else
                     {
                         curent_mode = mode.to_drill;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                     }
                 }
                 else
@@ -1175,12 +988,12 @@ namespace MINER_I2_E1
                         if (curent_mode == mode.to_drill || curent_mode == mode.drill_align)
                         {
                             curent_mode = mode.to_base;
-                            SaveToStorage();
+                            mystorage.SaveToStorage();
                         }
                         if (curent_mode == mode.drill)
                         {
                             curent_mode = mode.pull_out;
-                            SaveToStorage();
+                            mystorage.SaveToStorage();
                         }
                     }
                     else
@@ -1188,12 +1001,12 @@ namespace MINER_I2_E1
                         if (curent_mode == mode.to_drill && ToDrillPoint())
                         {
                             curent_mode = mode.drill_align;
-                            SaveToStorage();
+                            mystorage.SaveToStorage();
                         }
                         if (curent_mode == mode.drill_align && DrillAlign())
                         {
                             curent_mode = mode.drill;
-                            SaveToStorage();
+                            mystorage.SaveToStorage();
                         }
                         if (curent_mode == mode.drill && Drill(out EmergencyReturn))
                         {
@@ -1201,18 +1014,18 @@ namespace MINER_I2_E1
                                 curent_mode = mode.pull_up;
                             else
                                 curent_mode = mode.pull_out;
-                            SaveToStorage();
+                            mystorage.SaveToStorage();
                         }
                     }
                     if (curent_mode == mode.un_dock && UnDock())
                     {
                         curent_mode = mode.to_drill;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                     }
                     if (curent_mode == mode.pull_up && PullUp())
                     {
                         curent_mode = mode.drill;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                     }
                     if (curent_mode == mode.pull_out && PullOut())
                     {
@@ -1226,17 +1039,17 @@ namespace MINER_I2_E1
                             else
                                 curent_mode = mode.drill_align;
                         }
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                     }
                     if (curent_mode == mode.to_base && ToBase())
                     {
                         curent_mode = mode.dock;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                     }
                     if (curent_mode == mode.dock && Dock())
                     {
                         curent_mode = mode.base_operation;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                     }
                     if (curent_mode == mode.base_operation)
                     {
@@ -1267,7 +1080,7 @@ namespace MINER_I2_E1
                                 thrusts.On();
                                 ejector.ThrowOut(true);
                                 curent_mode = mode.un_dock;
-                                SaveToStorage();
+                                mystorage.SaveToStorage();
                             }
                         }
                     }
@@ -1312,14 +1125,14 @@ namespace MINER_I2_E1
                     paused = true;
                 }
                 else { paused = false; }
-                SaveToStorage();
+                mystorage.SaveToStorage();
             }
             public void Clear()
             {
                 thrusts.ClearThrustOverridePersent();
                 gyros.SetOverride(false, 1);
                 curent_mode = mode.none;
-                SaveToStorage();
+                mystorage.SaveToStorage();
             }
             public void Stop()
             {
@@ -1331,7 +1144,7 @@ namespace MINER_I2_E1
                 paused = false;
                 drill.Off();
                 reflectors_light.Off();
-                SaveToStorage();
+                mystorage.SaveToStorage();
             }
             public bool ToBase()
             {
@@ -1703,7 +1516,7 @@ namespace MINER_I2_E1
                 DrillPoint = GetSpiralXY(ShaftN, DrillFrameWidth, DrillFrameLength);
                 return ShaftN;
             }
-            private Vector3D GetSpiralXY(int p, float W, float L, int n = 20)
+            public Vector3D GetSpiralXY(int p, float W, float L, int n = 20)
             {
                 int positionX = 0, positionY = 0, direction = 0, stepsCount = 1, stepPosition = 0, stepChange = 0;
                 int X = 0;
@@ -1761,101 +1574,6 @@ namespace MINER_I2_E1
                 //values.Append("XMaxA (L-R) : " + Math.Round(XMaxA, 2).ToString() + "MaxLSpeed: " + Math.Round(MaxLSpeed, 2).ToString() + "\n");
                 //values.Append(thrusts.TextInfo());
                 lcd_debug.OutText(values);
-            }
-            public double GetVal(string Key, string str)
-            {
-                string val = "0";
-                string pattern = @"(" + Key + "):([^:^;]+);";
-                System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(str.Replace("\n", ""), pattern);
-                if (match.Success)
-                {
-                    val = match.Groups[2].Value;
-                }
-                return Convert.ToDouble(val);
-            }
-            public int GetValInt(string Key, string str)
-            {
-                string val = "0";
-                string pattern = @"(" + Key + "):([^:^;]+);";
-                System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(str.Replace("\n", ""), pattern);
-                if (match.Success)
-                {
-                    val = match.Groups[2].Value;
-                }
-                return Convert.ToInt32(val);
-            }
-            public long GetValInt64(string Key, string str)
-            {
-                string val = "0";
-                string pattern = @"(" + Key + "):([^:^;]+);";
-                System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(str.Replace("\n", ""), pattern);
-                if (match.Success)
-                {
-                    val = match.Groups[2].Value;
-                }
-                return Convert.ToInt64(val);
-            }
-            public bool GetValBool(string Key, string str)
-            {
-                string val = "False";
-                string pattern = @"(" + Key + "):([^:^;]+);";
-                System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(str.Replace("\n", ""), pattern);
-                if (match.Success)
-                {
-                    val = match.Groups[2].Value;
-                }
-                return Convert.ToBoolean(val);
-            }
-            public void LoadFromStorage()
-            {
-                StringBuilder str = lcd_storage.GetText();
-                curent_programm = (programm)GetValInt("curent_programm", str.ToString());
-                curent_mode = (mode)GetValInt("curent_mode", str.ToString());
-                paused = GetValBool("pause", str.ToString());
-                go_home = GetValBool("go_home", str.ToString());
-                FlyHeight = GetVal("FlyHeight", str.ToString());
-                ShaftN = GetValInt("ShaftN", str.ToString());
-                EmergencyReturn = GetValBool("EmergencyReturn", str.ToString());
-                DrillDepth = (float)GetVal("DrillDepth", str.ToString());
-                MaxShafts = GetValInt("MaxShafts", str.ToString());
-                connector_base1.id = GetValInt64("CB1_id", str.ToString());
-                connector_base1.point = new Vector3D(GetVal("CB1_X", str.ToString()), GetVal("CB1_Y", str.ToString()), GetVal("CB1_Z", str.ToString()));
-                connector_base1.vector = new Vector3D(GetVal("CBV1_X", str.ToString()), GetVal("CBV1_Y", str.ToString()), GetVal("CBV1_Z", str.ToString()));
-                connector_base1.load = GetValBool("CB1_load", str.ToString());
-                connector_base1.position = GetValBool("CB1_position", str.ToString());
-                DockMatrix = new MatrixD(GetVal("MC11", str.ToString()), GetVal("MC12", str.ToString()), GetVal("MC13", str.ToString()), GetVal("MC14", str.ToString()),
-                GetVal("MC21", str.ToString()), GetVal("MC22", str.ToString()), GetVal("MC23", str.ToString()), GetVal("MC24", str.ToString()),
-                GetVal("MC31", str.ToString()), GetVal("MC32", str.ToString()), GetVal("MC33", str.ToString()), GetVal("MC34", str.ToString()),
-                GetVal("MC41", str.ToString()), GetVal("MC42", str.ToString()), GetVal("MC43", str.ToString()), GetVal("MC44", str.ToString()));
-                DrillMatrix = new MatrixD(GetVal("MD11", str.ToString()), GetVal("MD12", str.ToString()), GetVal("MD13", str.ToString()), GetVal("MD14", str.ToString()),
-                GetVal("MD21", str.ToString()), GetVal("MD22", str.ToString()), GetVal("MD23", str.ToString()), GetVal("MD24", str.ToString()),
-                GetVal("MD31", str.ToString()), GetVal("MD32", str.ToString()), GetVal("MD33", str.ToString()), GetVal("MD34", str.ToString()),
-                GetVal("MD41", str.ToString()), GetVal("MD42", str.ToString()), GetVal("MD43", str.ToString()), GetVal("MD44", str.ToString()));
-                PlanetCenter = new Vector3D(GetVal("PX", str.ToString()), GetVal("PY", str.ToString()), GetVal("PZ", str.ToString()));
-                BaseDockPoint = new Vector3D(0, 0, -200);
-                DrillPoint = GetSpiralXY(ShaftN, DrillFrameWidth, DrillFrameLength);
-            }
-            public void SaveToStorage()
-            {
-                StringBuilder values = new StringBuilder();
-                values.Append("curent_programm: " + ((int)curent_programm).ToString() + ";\n");
-                values.Append("curent_mode: " + ((int)curent_mode).ToString() + ";\n");
-                values.Append("pause: " + paused.ToString() + ";\n");
-                values.Append("go_home: " + go_home.ToString() + ";\n");
-                values.Append("FlyHeight: " + Math.Round(FlyHeight, 0) + ";\n");
-                values.Append("ShaftN: " + ShaftN.ToString() + ";\n");
-                values.Append("EmergencyReturn: " + EmergencyReturn.ToString() + ";\n");
-                values.Append("DrillDepth: " + Math.Round(DrillDepth, 0) + ";\n");
-                values.Append("MaxShafts: " + MaxShafts.ToString() + ";\n");
-                values.Append("CB1_id: " + connector_base1.id.ToString() + ";\n");
-                values.Append(connector_base1.point.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "CB1_X").Replace("Y", "CB1_Y").Replace("Z", "CB1_Z") + ";\n");
-                values.Append(connector_base1.vector.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "CBV1_X").Replace("Y", "CBV1_Y").Replace("Z", "CBV1_Z") + ";\n");
-                values.Append("CB1_load: " + connector_base1.load.ToString() + ";\n");
-                values.Append("CB1_position: " + connector_base1.position.ToString() + ";\n");
-                values.Append(DockMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "MC"));
-                values.Append(DrillMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "MD"));
-                values.Append(PlanetCenter.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PX").Replace("Y", "PY").Replace("Z", "PZ") + ";\n");
-                lcd_storage.OutText(values);
             }
             public string TextInfo1()
             {
@@ -1915,22 +1633,22 @@ namespace MINER_I2_E1
                     case "depth+":
                         DrillDepth++;
                         if (DrillDepth > 150) DrillDepth = 150;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                         break;
                     case "depth-":
                         DrillDepth--;
                         if (DrillDepth < 5) DrillDepth = 5;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                         break;
                     case "ms+":
                         MaxShafts++;
                         if (MaxShafts > 50) MaxShafts = 50;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                         break;
                     case "ms-":
                         MaxShafts--;
                         if (MaxShafts < 4) MaxShafts = 4;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                         break;
                     case "horizont":
                         if (curent_programm == programm.none)
@@ -1946,10 +1664,10 @@ namespace MINER_I2_E1
                         }
                         break;
                     case "load":
-                        LoadFromStorage();
+                        mystorage.LoadFromStorage();
                         break;
                     case "save":
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                         break;
                     case "pause":
                         Pause(!paused);
@@ -1972,15 +1690,15 @@ namespace MINER_I2_E1
                         break;
                     case "fly_base":
                         curent_programm = programm.fly_connect_base;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                         break;
                     case "fly_drill":
                         curent_programm = programm.fly_drill;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                         break;
                     case "start_drill":
                         curent_programm = programm.start_drill;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                         break;
                     case "go_home":
                         {
@@ -1989,27 +1707,27 @@ namespace MINER_I2_E1
                         }
                     case "to_base":
                         curent_mode = mode.to_base;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                         break;
                     case "dock":
                         curent_mode = mode.dock;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                         break;
                     case "un_dock":
                         curent_mode = mode.un_dock;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                         break;
                     case "to_drill":
                         curent_mode = mode.to_drill;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                         break;
                     case "drill_align":
                         curent_mode = mode.drill_align;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                         break;
                     case "drill":
                         curent_mode = mode.drill;
-                        SaveToStorage();
+                        mystorage.SaveToStorage();
                         break;
                     default:
                         break;
@@ -2140,7 +1858,66 @@ namespace MINER_I2_E1
                 }
             }
         }
+        public class MyStorage
+        {
+            public void LoadFromStorage()
+            {
+                StringBuilder str = lcd_storage.GetText();
+                navigation.curent_programm = (Navigation.programm)GetValInt("curent_programm", str.ToString());
+                navigation.curent_mode = (Navigation.mode)GetValInt("curent_mode", str.ToString());
+                navigation.paused = GetValBool("pause", str.ToString());
+                navigation.go_home = GetValBool("go_home", str.ToString());
+                navigation.FlyHeight = GetValDouble("FlyHeight", str.ToString());
+                navigation.ShaftN = GetValInt("ShaftN", str.ToString());
+                navigation.EmergencyReturn = GetValBool("EmergencyReturn", str.ToString());
+                DrillDepth = (float)GetValDouble("DrillDepth", str.ToString());
+                MaxShafts = GetValInt("MaxShafts", str.ToString());
+                navigation.connector_base1.id = GetValInt64("CB1_id", str.ToString());
+                navigation.connector_base1.point = new Vector3D(GetValDouble("CB1_X", str.ToString()), GetValDouble("CB1_Y", str.ToString()), GetValDouble("CB1_Z", str.ToString()));
+                navigation.connector_base1.vector = new Vector3D(GetValDouble("CBV1_X", str.ToString()), GetValDouble("CBV1_Y", str.ToString()), GetValDouble("CBV1_Z", str.ToString()));
+                navigation.connector_base1.load = GetValBool("CB1_load", str.ToString());
+                navigation.connector_base1.position = GetValBool("CB1_position", str.ToString());
+                navigation.DockMatrix = new MatrixD(GetValDouble("MC11", str.ToString()), GetValDouble("MC12", str.ToString()), GetValDouble("MC13", str.ToString()), GetValDouble("MC14", str.ToString()),
+                GetValDouble("MC21", str.ToString()), GetValDouble("MC22", str.ToString()), GetValDouble("MC23", str.ToString()), GetValDouble("MC24", str.ToString()),
+                GetValDouble("MC31", str.ToString()), GetValDouble("MC32", str.ToString()), GetValDouble("MC33", str.ToString()), GetValDouble("MC34", str.ToString()),
+                GetValDouble("MC41", str.ToString()), GetValDouble("MC42", str.ToString()), GetValDouble("MC43", str.ToString()), GetValDouble("MC44", str.ToString()));
+                navigation.DrillMatrix = new MatrixD(GetValDouble("MD11", str.ToString()), GetValDouble("MD12", str.ToString()), GetValDouble("MD13", str.ToString()), GetValDouble("MD14", str.ToString()),
+                GetValDouble("MD21", str.ToString()), GetValDouble("MD22", str.ToString()), GetValDouble("MD23", str.ToString()), GetValDouble("MD24", str.ToString()),
+                GetValDouble("MD31", str.ToString()), GetValDouble("MD32", str.ToString()), GetValDouble("MD33", str.ToString()), GetValDouble("MD34", str.ToString()),
+                GetValDouble("MD41", str.ToString()), GetValDouble("MD42", str.ToString()), GetValDouble("MD43", str.ToString()), GetValDouble("MD44", str.ToString()));
+                navigation.PlanetCenter = new Vector3D(GetValDouble("PX", str.ToString()), GetValDouble("PY", str.ToString()), GetValDouble("PZ", str.ToString()));
+                navigation.BaseDockPoint = new Vector3D(0, 0, -200);
+                navigation.DrillPoint = navigation.GetSpiralXY(navigation.ShaftN, DrillFrameWidth, DrillFrameLength);
+            }
+            public void SaveToStorage()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("curent_programm: " + ((int)navigation.curent_programm).ToString() + ";\n");
+                values.Append("curent_mode: " + ((int)navigation.curent_mode).ToString() + ";\n");
+                values.Append("pause: " + navigation.paused.ToString() + ";\n");
+                values.Append("go_home: " + navigation.go_home.ToString() + ";\n");
+                values.Append("FlyHeight: " + Math.Round(navigation.FlyHeight, 0) + ";\n");
+                values.Append("ShaftN: " + navigation.ShaftN.ToString() + ";\n");
+                values.Append("EmergencyReturn: " + navigation.EmergencyReturn.ToString() + ";\n");
+                values.Append("DrillDepth: " + Math.Round(DrillDepth, 0) + ";\n");
+                values.Append("MaxShafts: " + MaxShafts.ToString() + ";\n");
+                values.Append("CB1_id: " + navigation.connector_base1.id.ToString() + ";\n");
+                values.Append(navigation.connector_base1.point.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "CB1_X").Replace("Y", "CB1_Y").Replace("Z", "CB1_Z") + ";\n");
+                values.Append(navigation.connector_base1.vector.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "CBV1_X").Replace("Y", "CBV1_Y").Replace("Z", "CBV1_Z") + ";\n");
+                values.Append("CB1_load: " + navigation.connector_base1.load.ToString() + ";\n");
+                values.Append("CB1_position: " + navigation.connector_base1.position.ToString() + ";\n");
+                values.Append(navigation.DockMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "MC"));
+                values.Append(navigation.DrillMatrix.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "MD"));
+                values.Append(navigation.PlanetCenter.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "PX").Replace("Y", "PY").Replace("Z", "PZ") + ";\n");
+                lcd_storage.OutText(values);
+            }
+            public MyStorage() { }
+            private string GetVal(string Key, string str, string val) { string pattern = @"(" + Key + "):([^:^;]+);"; System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(str.Replace("\n", ""), pattern); if (match.Success) { val = match.Groups[2].Value; } return val; }
+            public string GetValString(string Key, string str) { return GetVal(Key, str, ""); }
+            public double GetValDouble(string Key, string str) { return Convert.ToDouble(GetVal(Key, str, "0")); }
+            public int GetValInt(string Key, string str) { return Convert.ToInt32(GetVal(Key, str, "0")); }
+            public long GetValInt64(string Key, string str) { return Convert.ToInt64(GetVal(Key, str, "0")); }
+            public bool GetValBool(string Key, string str) { return Convert.ToBoolean(GetVal(Key, str, "False")); }
+        }
     }
 }
-
-
