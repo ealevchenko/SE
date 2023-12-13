@@ -1747,6 +1747,7 @@ namespace MINER_I2_E1
                     else
                     {
                         // Припаркован
+                        bats_duty.On();
                         drill.Off();
                         reflectors_light.Off();
                         //--
