@@ -3,7 +3,6 @@ using Sandbox.Game.GameSystems;
 using Sandbox.Game.WorldEnvironment.Modules;
 using Sandbox.ModAPI.Ingame;
 using Sandbox.ModAPI.Interfaces;
-using SpaceEngineers.Game.ModAPI.Ingame;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -26,9 +25,9 @@ namespace MINER_I2_E1
     public sealed class Program : MyGridProgram
     {
         // m.v7
-        string NameObj = "[MINER_A2_1]";//[MINER_A1_X] [MINER_I2_E1]
-        static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
-        static string tag_ejector = "[ejector]"; // дежурная батарея
+        string NameObj = "[MINER_A2_1]";
+        static string tag_batterys_duty = "[batterys_duty]";
+        static string tag_ejector = "[ejector]";
         static float GyroMult = 1f;
         static float AlignAccelMult = 0.3f;
         static float DrillGyroMult = 2f;
@@ -50,6 +49,7 @@ namespace MINER_I2_E1
         const char idarkGrey = '\uE00F';
 
         static MyStorage mystorage;
+        static RadioAntenna rad_antena;
         static LCD lcd_storage;
         static LCD lcd_debug;
         static LCD lcd_name;
@@ -121,7 +121,22 @@ namespace MINER_I2_E1
         public Program()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
+
+            string tag1 = "channel 1";
+            var comm = IGC.UnicastListener;
+            //comm.SetMessageCallback("channel 1");
+            //comm.SetMessageCallback( "Test" );
+            //void DisableMessageCallback(); // no idea yet
+
+            Runtime.UpdateFrequency = UpdateFrequency.Update100;
+
+            IMyBroadcastListener listen = IGC.RegisterBroadcastListener(tag1);
+            //IGC.RegisterBroadcastListener("DOGS");
+
+
+
             _scr = this;
+            rad_antena = new RadioAntenna(NameObj + "-Антена");
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
             lcd_name = new LCD(NameObj + "-LCD-Name");
@@ -145,10 +160,7 @@ namespace MINER_I2_E1
             mystorage.LoadFromStorage();
             navigation.FindPlanetCenter();
         }
-        public void Save()
-        {
-
-        }
+        public void Save() { }
         public void Main(string argument, UpdateType updateSource)
         {
             StringBuilder values_info = new StringBuilder();
@@ -177,36 +189,10 @@ namespace MINER_I2_E1
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
-            public LCD(string name) : base(name)
-            {
-                if (base.obj != null)
-                {
-                    base.obj.SetValue("Content", (Int64)1);
-                }
-            }
-            public void OutText(StringBuilder values)
-            {
-                if (base.obj != null)
-                {
-                    base.obj.WriteText(values, false);
-                }
-            }
-            public void OutText(string text, bool append)
-            {
-                if (base.obj != null)
-                {
-                    base.obj.WriteText(text, append);
-                }
-            }
-            public StringBuilder GetText()
-            {
-                StringBuilder values = new StringBuilder();
-                if (base.obj != null)
-                {
-                    base.obj.ReadText(values);
-                }
-                return values;
-            }
+            public LCD(string name) : base(name) { if (base.obj != null) { base.obj.SetValue("Content", (Int64)1); } }
+            public void OutText(StringBuilder values) { if (base.obj != null) { base.obj.WriteText(values, false); } }
+            public void OutText(string text, bool append) { if (base.obj != null) { base.obj.WriteText(text, append); } }
+            public StringBuilder GetText() { StringBuilder values = new StringBuilder(); if (base.obj != null) { base.obj.ReadText(values); } return values; }
         }
         public class Batterys : BaseListTerminalBlock<IMyBatteryBlock>
         {
@@ -237,169 +223,40 @@ namespace MINER_I2_E1
             public bool Connected { get { return base.obj.Status == MyShipConnectorStatus.Connected ? true : false; } }
             public bool Unconnected { get { return base.obj.Status == MyShipConnectorStatus.Unconnected ? true : false; } }
             public bool Connectable { get { return base.obj.Status == MyShipConnectorStatus.Connectable ? true : false; } }
-            public Connector(string name) : base(name)
-            {
-                if (base.obj != null)
-                {
-
-                }
-            }
-            public string GetInfoStatus()
-            {
-                switch (base.obj.Status)
-                {
-                    case MyShipConnectorStatus.Connected:
-                        {
-                            return "ПОДКЛЮЧЕН";
-                        }
-                    case MyShipConnectorStatus.Connectable:
-                        {
-                            return "ГОТОВ";
-                        }
-                    case MyShipConnectorStatus.Unconnected:
-                        {
-                            return "НЕПОДКЛЮЧЕН";
-                        }
-                    default:
-                        {
-                            return "";
-                        }
-                }
-            }
-            public string TextInfo(string name)
-            {
-                StringBuilder values = new StringBuilder();
-                values.Append((name != null ? name : "КОННЕКТОР") + " : " + (Connected ? igreen.ToString() : (Connectable ? iyellow.ToString() : ired.ToString())));
-                return values.ToString();
-            }
-            public void Connect()
-            {
-                obj.Connect();
-            }
-            public void Disconnect()
-            {
-                obj.Disconnect();
-            }
-            public long? getRemoteConnector()
-            {
-                List<IMyShipConnector> list_conn = new List<IMyShipConnector>();
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn);
-                //return list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).Count().ToString();
-                foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList())
-                {
-                    //_scr.Echo("remote_control: " + conn.DisplayNameText);
-                    //if (conn.DisplayNameText.Trim() != conn.DisplayNameText.Trim() && (conn.GetPosition() - this.GetPosition()).Length() < 2) return conn.DisplayNameText;
-                    if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 2) return conn.EntityId;
-                }
-                return null;
-            }
+            public Connector(string name) : base(name) { if (base.obj != null) { } }
+            public string TextStatus() { StringBuilder values = new StringBuilder(); values.Append(Connected ? igreen.ToString() : (Connectable ? iyellow.ToString() : ired.ToString())); return values.ToString(); }
+            public string TextInfo(string name) { StringBuilder values = new StringBuilder(); values.Append((name != null ? name : "КОННЕКТОР") + " : " + TextStatus()); return values.ToString(); }
+            public void Connect() { obj.Connect(); }
+            public void Disconnect() { obj.Disconnect(); }
+            public long? getEntityIdRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn.EntityId; } return null; }
+            public IMyShipConnector getRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn; } return null; }
         }
         public class ShipDrill : BaseListTerminalBlock<IMyShipDrill>
         {
-            public ShipDrill(string name_obj) : base(name_obj)
-            {
-            }
-            public ShipDrill(string name_obj, string tag) : base(name_obj, tag)
-            {
-
-            }
-            public string TextInfo()
-            {
-                StringBuilder values = new StringBuilder();
-                values.Append("БУРЫ: " + (base.Enabled() ? igreen.ToString() : ired.ToString()) + "\n");
-                return values.ToString();
-            }
+            public ShipDrill(string name_obj) : base(name_obj) { }
+            public ShipDrill(string name_obj, string tag) : base(name_obj, tag) { }
+            public string TextInfo() { StringBuilder values = new StringBuilder(); values.Append("БУРЫ: " + (base.Enabled() ? igreen.ToString() : ired.ToString()) + "\n"); return values.ToString(); }
         }
         public class ReflectorsLight : BaseListTerminalBlock<IMyReflectorLight>
         {
-            public ReflectorsLight(string name_obj) : base(name_obj)
-            {
-            }
-            public ReflectorsLight(string name_obj, string tag) : base(name_obj, tag)
-            {
-
-            }
+            public ReflectorsLight(string name_obj) : base(name_obj) { }
+            public ReflectorsLight(string name_obj, string tag) : base(name_obj, tag) { }
         }
-        public class Cockpit : BaseController
-        {
-            public Cockpit(string name) : base(name)
-            {
-
-            }
-
-
-        }
-        public class RemoteControl : BaseController
-        {
-            public RemoteControl(string name) : base(name)
-            {
-
-            }
-        }
+        public class Cockpit : BaseController { public Cockpit(string name) : base(name) { } }
+        public class RemoteControl : BaseController { public RemoteControl(string name) : base(name) { } }
         public class Gyros : BaseListTerminalBlock<IMyGyro>
         {
-            public Gyros(string name_obj) : base(name_obj)
-            {
-            }
-            public Gyros(string name_obj, string tag) : base(name_obj, tag)
-            {
-
-            }
-
-            public float getPitch()
-            {
-                return base.list_obj.Select(g => g.Pitch).Average();
-            }
-            public float getRoll()
-            {
-                return base.list_obj.Select(g => g.Roll).Average();
-            }
-            public float getYaw()
-            {
-                return base.list_obj.Select(g => g.Yaw).Average();
-            }
-            public void SetOverride(bool OverrideOnOff, Vector3 settings, float Power = 1)
-            {
-                foreach (IMyGyro gyro in base.list_obj)
-                {
-                    if ((!gyro.GyroOverride) && OverrideOnOff)
-                        gyro.ApplyAction("Override");
-                    gyro.GyroPower = Power;
-                    gyro.Yaw = settings.GetDim(0);
-                    gyro.Pitch = settings.GetDim(1);
-                    gyro.Roll = settings.GetDim(2);
-                }
-            }
-            public void SetOverride(bool OverrideOnOff = true, float OverrideValue = 0, float Power = 1)
-            {
-                foreach (IMyGyro gyro in base.list_obj)
-                {
-                    if (((!gyro.GyroOverride) && OverrideOnOff) || ((gyro.GyroOverride) && !OverrideOnOff))
-                        gyro.ApplyAction("Override");
-                    gyro.GyroPower = Power;
-                    gyro.Yaw = OverrideValue;
-                    gyro.Pitch = OverrideValue;
-                    gyro.Roll = OverrideValue;
-                }
-            }
-            public string TextDebug()
-            {
-                StringBuilder values = new StringBuilder();
-                values.Append("Yaw :" + this.getYaw() + "\n");
-                values.Append("Pitch :" + this.getPitch() + "\n");
-                values.Append("Roll :" + this.getRoll() + "\n");
-                return values.ToString();
-            }
+            public Gyros(string name_obj) : base(name_obj) { }
+            public Gyros(string name_obj, string tag) : base(name_obj, tag) { }
+            public void SetOverride(bool OverrideOnOff, Vector3 settings, float Power = 1) { foreach (IMyGyro gyro in base.list_obj) { if ((!gyro.GyroOverride) && OverrideOnOff) gyro.ApplyAction("Override"); gyro.GyroPower = Power; gyro.Yaw = settings.GetDim(0); gyro.Pitch = settings.GetDim(1); gyro.Roll = settings.GetDim(2); } }
+            public void SetOverride(bool OverrideOnOff = true, float OverrideValue = 0, float Power = 1) { foreach (IMyGyro gyro in base.list_obj) { if (((!gyro.GyroOverride) && OverrideOnOff) || ((gyro.GyroOverride) && !OverrideOnOff)) gyro.ApplyAction("Override"); gyro.GyroPower = Power; gyro.Yaw = OverrideValue; gyro.Pitch = OverrideValue; gyro.Roll = OverrideValue; } }
+            public string TextDebug() { StringBuilder values = new StringBuilder(); values.Append("Yaw :" + base.list_obj.Select(g => g.Yaw).Average() + "\n"); values.Append("Pitch :" + base.list_obj.Select(g => g.Pitch).Average() + "\n"); values.Append("Roll :" + base.list_obj.Select(g => g.Roll).Average() + "\n"); return values.ToString(); }
         }
-        /// <summary>
-        /// v06.07.2023
-        /// </summary>
         public class Thrusts : BaseListTerminalBlock<IMyThrust>
         {
-            private RemoteControl remote_control;
+            private BaseController remote_control;
             public float Value;
             public string axis;
-
             //------------------------------------------------
             public List<IMyThrust> UpThrusters = new List<IMyThrust>();
             public List<IMyThrust> DownThrusters = new List<IMyThrust>();
@@ -413,18 +270,12 @@ namespace MINER_I2_E1
             public double RightThrMax { get { return RightThrusters.Sum(t => t.MaxEffectiveThrust); } }
             public double ForwardThrMax { get { return ForwardThrusters.Sum(t => t.MaxEffectiveThrust); } }
             public double BackwardThrMax { get { return BackwardThrusters.Sum(t => t.MaxEffectiveThrust); } }
-            public Thrusts(string name_obj) : base(name_obj)
-            {
-            }
-            public Thrusts(string name_obj, string tag) : base(name_obj, tag)
-            {
-
-            }
-            public void InitThrusts(RemoteControl remote_control)
+            public Thrusts(string name_obj) : base(name_obj) { }
+            public Thrusts(string name_obj, string tag) : base(name_obj, tag) { }
+            public void InitThrusts(BaseController remote_control)
             {
                 this.remote_control = remote_control;
                 MatrixD OrientationCocpit = this.remote_control.GetCockpitMatrix();
-                // Список трастеров
                 UpThrusters.Clear();
                 DownThrusters.Clear();
                 LeftThrusters.Clear();
@@ -437,32 +288,14 @@ namespace MINER_I2_E1
                 {
                     thrust.Orientation.GetMatrix(out ThrusterMatrix);
                     //Y
-                    if (ThrusterMatrix.Forward == OrientationCocpit.Up)
-                    {
-                        UpThrusters.Add(thrust);
-                    }
-                    else if (ThrusterMatrix.Forward == OrientationCocpit.Down)
-                    {
-                        DownThrusters.Add(thrust);
-                    }
+                    if (ThrusterMatrix.Forward == OrientationCocpit.Up) { UpThrusters.Add(thrust); }
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Down) { DownThrusters.Add(thrust); }
                     //X
-                    else if (ThrusterMatrix.Forward == OrientationCocpit.Left)
-                    {
-                        LeftThrusters.Add(thrust);
-                    }
-                    else if (ThrusterMatrix.Forward == OrientationCocpit.Right)
-                    {
-                        RightThrusters.Add(thrust);
-                    }
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Left) { LeftThrusters.Add(thrust); }
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Right) { RightThrusters.Add(thrust); }
                     //Z
-                    else if (ThrusterMatrix.Forward == OrientationCocpit.Forward)
-                    {
-                        ForwardThrusters.Add(thrust);
-                    }
-                    else if (ThrusterMatrix.Forward == OrientationCocpit.Backward)
-                    {
-                        BackwardThrusters.Add(thrust);
-                    }
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Forward) { ForwardThrusters.Add(thrust); }
+                    else if (ThrusterMatrix.Forward == OrientationCocpit.Backward) { BackwardThrusters.Add(thrust); }
                 }
             }
             public void ClearThrustOverridePersent()
@@ -474,39 +307,15 @@ namespace MINER_I2_E1
                 SetOverridePercent(ForwardThrusters, 0f);
                 SetOverridePercent(BackwardThrusters, 0f);
             }
-            public void SetOverridePercent(List<IMyThrust> Thrusts, float persent)
-            {
-                foreach (IMyThrust tr in Thrusts)
-                {
-                    tr.ThrustOverridePercentage = persent;
-                }
-            }
+            public void SetOverridePercent(List<IMyThrust> Thrusts, float persent) { foreach (IMyThrust tr in Thrusts) { tr.ThrustOverridePercentage = persent; } }
             public void SetOverridePercent(string axis, float persentValue)
             {
-                if (axis == "U")
-                {
-                    SetOverridePercent(DownThrusters, persentValue);
-                }
-                else if (axis == "D")
-                {
-                    SetOverridePercent(UpThrusters, persentValue);
-                }
-                else if (axis == "L")
-                {
-                    SetOverridePercent(RightThrusters, persentValue);
-                }
-                else if (axis == "R")
-                {
-                    SetOverridePercent(LeftThrusters, persentValue);
-                }
-                else if (axis == "F")
-                {
-                    SetOverridePercent(BackwardThrusters, persentValue);
-                }
-                else if (axis == "B")
-                {
-                    SetOverridePercent(ForwardThrusters, persentValue);
-                }
+                if (axis == "U") { SetOverridePercent(DownThrusters, persentValue); }
+                else if (axis == "D") { SetOverridePercent(UpThrusters, persentValue); }
+                else if (axis == "L") { SetOverridePercent(RightThrusters, persentValue); }
+                else if (axis == "R") { SetOverridePercent(LeftThrusters, persentValue); }
+                else if (axis == "F") { SetOverridePercent(BackwardThrusters, persentValue); }
+                else if (axis == "B") { SetOverridePercent(ForwardThrusters, persentValue); }
             }
             public void SetOverrideN(string axis, float OverrideValue)
             {
@@ -519,14 +328,7 @@ namespace MINER_I2_E1
                 else if (axis == "B") { MaxThrust = ForwardThrMax; SetOverridePercent("F", 0f); }
                 else if (axis == "R") { MaxThrust = LeftThrMax; SetOverridePercent("L", 0f); }
                 else if (axis == "L") { MaxThrust = RightThrMax; SetOverridePercent("R", 0f); }
-                if (OverrideValue == 0)
-                {
-                    Value = 0;
-                }
-                else
-                {
-                    Value = (float)Math.Max(OverrideValue / MaxThrust, 0.1f);
-                }
+                if (OverrideValue == 0) { Value = 0; } else { Value = (float)Math.Max(OverrideValue / MaxThrust, 0.1f); }
                 SetOverridePercent(axis, Value);
             }
             public void SetOverrideAccel(string axis, float OverrideValue)
@@ -534,54 +336,22 @@ namespace MINER_I2_E1
                 switch (axis)
                 {
                     case "U":
-                        if (OverrideValue < 0)
-                        {
-                            axis = "D";
-                            OverrideValue = -OverrideValue;
-                        }
-                        else
-                        {
-                            OverrideValue += (float)this.remote_control.obj.GetNaturalGravity().Length();
-                        }
+                        if (OverrideValue < 0) { axis = "D"; OverrideValue = -OverrideValue; } else { OverrideValue += (float)this.remote_control.obj.GetNaturalGravity().Length(); }
                         break;
                     case "D":
-                        if (OverrideValue < 0)
-                        {
-                            axis = "U";
-                            OverrideValue = -OverrideValue;
-                        }
-                        else
-                        {
-                            OverrideValue += (float)this.remote_control.obj.GetNaturalGravity().Length();
-                        }
+                        if (OverrideValue < 0) { axis = "U"; OverrideValue = -OverrideValue; } else { OverrideValue += (float)this.remote_control.obj.GetNaturalGravity().Length(); }
                         break;
                     case "L":
-                        if (OverrideValue < 0)
-                        {
-                            axis = "R";
-                            OverrideValue = -OverrideValue;
-                        }
+                        if (OverrideValue < 0) { axis = "R"; OverrideValue = -OverrideValue; }
                         break;
                     case "R":
-                        if (OverrideValue < 0)
-                        {
-                            axis = "L";
-                            OverrideValue = -OverrideValue;
-                        }
+                        if (OverrideValue < 0) { axis = "L"; OverrideValue = -OverrideValue; }
                         break;
                     case "F":
-                        if (OverrideValue < 0)
-                        {
-                            axis = "B";
-                            OverrideValue = -OverrideValue;
-                        }
+                        if (OverrideValue < 0) { axis = "B"; OverrideValue = -OverrideValue; }
                         break;
                     case "B":
-                        if (OverrideValue < 0)
-                        {
-                            axis = "F";
-                            OverrideValue = -OverrideValue;
-                        }
+                        if (OverrideValue < 0) { axis = "F"; OverrideValue = -OverrideValue; }
                         break;
                 }
                 SetOverrideN(axis, OverrideValue * this.remote_control.obj.CalculateShipMass().PhysicalMass);
@@ -590,6 +360,7 @@ namespace MINER_I2_E1
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("PhysicalMass : " + Math.Round(this.remote_control.obj.CalculateShipMass().PhysicalMass) + "\n");
+                values.Append("TotalMass    : " + Math.Round(this.remote_control.obj.CalculateShipMass().TotalMass) + "\n");
                 values.Append("Grav         : " + Math.Round(this.remote_control.obj.GetNaturalGravity().Length()) + "\n");
                 values.Append("axis         : " + axis + " , Value : " + Value + "\n");
                 values.Append("------------------------------------------\n");
@@ -714,13 +485,7 @@ namespace MINER_I2_E1
         {
             public Ejector(string name_obj) : base(name_obj) { }
             public Ejector(string name_obj, string tag) : base(name_obj, tag) { }
-            public void ThrowOut(bool enable)
-            {
-                foreach (IMyShipConnector enj in base.list_obj)
-                {
-                    enj.ThrowOut = enable;
-                }
-            }
+            public void ThrowOut(bool enable) { foreach (IMyShipConnector enj in base.list_obj) { enj.ThrowOut = enable; } }
         }
         public class Navigation
         {
@@ -822,7 +587,7 @@ namespace MINER_I2_E1
                 if (connector.Connected)
                 {
                     DockMatrix = GetNormTransMatrixFromMyPos();
-                    connector_base1.id = connector.getRemoteConnector();
+                    connector_base1.id = connector.getEntityIdRemoteConnector();
                     Vector3D GravNorm = Vector3D.Normalize(GravVector);
                     double vc = GravNorm.Dot(WMCocpit.Forward);
                     connector_base1.point = remote_control.obj.GetPosition();
@@ -1919,6 +1684,28 @@ namespace MINER_I2_E1
             public int GetValInt(string Key, string str) { return Convert.ToInt32(GetVal(Key, str, "0")); }
             public long GetValInt64(string Key, string str) { return Convert.ToInt64(GetVal(Key, str, "0")); }
             public bool GetValBool(string Key, string str) { return Convert.ToBoolean(GetVal(Key, str, "False")); }
+        }
+        public class RadioAntenna : BaseTerminalBlock<IMyRadioAntenna>
+        {
+            public RadioAntenna(string name) : base(name) { if (base.obj != null) { } }
+            public string TextInfo(string name)
+            {
+                StringBuilder values = new StringBuilder();
+                //values.Append((name != null ? name : "КОННЕКТОР") + " : " + (Connected ? igreen.ToString() : (Connectable ? iyellow.ToString() : ired.ToString())));
+                return values.ToString();
+            }
+            public void Logic(string argument, UpdateType updateSource) 
+            { 
+                switch (argument) { default: break; } 
+                if (updateSource == UpdateType.Update10) { }
+                if (updateSource == UpdateType.IGC) { 
+                
+                }
+                string tag1 = "channel 1";
+                string messageOut = "Hello";
+
+                //IGC.SendBroadcastMessage(tag1, messageOut, TransmissionDistance.TransmissionDistanceMax);
+            }
         }
     }
 }
