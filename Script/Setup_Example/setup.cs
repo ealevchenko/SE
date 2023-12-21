@@ -556,7 +556,7 @@ namespace SETUP
 
         //info:NASTYA1-info [door-info] [factory]
         //replace:[KLEPA_H18-01]-|[KLEPA_H18_01]-
-        //add:[BUG_H2_01]-
+        //add:[KLEPA-H18-01]-
         //[OS-E1]
         void Main(string argument, UpdateType updateSource)
         {
