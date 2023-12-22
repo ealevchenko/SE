@@ -1343,7 +1343,7 @@ namespace MINER_I2_E1
             public string TextInfo1()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("СКОРОСТЬ    : " + Math.Round(remote_control.obj.GetShipSpeed(), 2) + "\n");
+                values.Append("СКОРОСТЬ    : " + Math.Round(cockpit.obj.GetShipSpeed(), 2) + "\n");
                 values.Append("ВЫСОТА      : " + Math.Round(cockpit.CurrentHeight, 2) + "\n");
                 values.Append("--------------------------------------\n");
                 //values.Append("ГОРИЗОНТ    : " + (horizont ? green.ToString() : red.ToString()) + ",  Vector : " + (TackVector != null ? green.ToString() : red.ToString()) + "\n");
@@ -1353,7 +1353,6 @@ namespace MINER_I2_E1
                 values.Append("--------------------------------------\n");
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
-
                 return values.ToString();
             }
             public string TextInfo2()
