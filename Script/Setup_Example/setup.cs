@@ -557,6 +557,8 @@ namespace SETUP
         //info:NASTYA1-info [door-info] [factory]
         //replace:[KLEPA_H18-01]-|[KLEPA_H18_01]-
         //add:[KLEPA-H18-01]-
+        //add:[PB-ER-1]-
+        //replace:[MINER_A2_1]-|[MINER_A2_2]-
         //[OS-E1]
         void Main(string argument, UpdateType updateSource)
         {
@@ -594,7 +596,9 @@ namespace SETUP
                                 if (names != null && names.Count() > 1)
                                 {
                                     List<IMyTerminalBlock> blocks = new List<IMyTerminalBlock>();
+                                    List<IMyBlockGroup> blocks_gr = new List<IMyBlockGroup>();
                                     GridTerminalSystem.GetBlocksOfType<IMyTerminalBlock>(blocks);
+                                    GridTerminalSystem.GetBlockGroups(blocks_gr);
                                     values_info.Append("Команда ЗАМЕНИТЬ, найдено блоков:" + blocks.Count() + "\n");
                                     foreach (IMyTerminalBlock bl in blocks)
                                     {
@@ -604,6 +608,26 @@ namespace SETUP
                                             values_info.Append("Имя блока:" + bl.CustomName + "\n");
                                         }
                                     }
+                                    foreach (IMyBlockGroup blg in blocks_gr)
+                                    {
+                                        if (blg.Name.Contains(names[0]))
+                                        {
+                                            //blg. = blg.Name.Replace(names[0], names[1]);
+                                            //values_info.Append("Имя блока:" + bl.CustomName + "\n");
+                                        }
+                                    }
+                                    //                                    List<IMyBlockGroup> groupList = GridTerminalSystem.BlockGroups;
+                                    //                                    IMyBlockGroup group;
+                                    //                                    for (int i = 0; i < groupList.Count; i++)
+                                    //{
+                                    //                                        if (groupList[i].Name == "Group's exact name here")
+                                    //                                        {
+                                    //                                            group = groupList[i];
+                                    //                                            break;
+                                    //                                        }
+                                    //                                    }
+
+
                                     break;
                                 }
                                 else

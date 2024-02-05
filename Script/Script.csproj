@@ -96,6 +96,7 @@
     <Compile Include="БАЗЫ\SPB\SPB_EUROPE_DORS.cs" />
     <Compile Include="БАЗЫ\SPB\SPB_MARS_DORS.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\MOLE_A1.cs" />
+    <Compile Include="БУРОВИКИ\MINER\MINER_A2_1.cs" />
     <Compile Include="БУРОВИКИ\MINER\MINER_I2_E1.cs" />
     <Compile Include="БУРОВИКИ\MINER\MINER_A2_E1.cs" />
     <Compile Include="БУРОВИКИ\test\MINER_A1_NAV.cs" />

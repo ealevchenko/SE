@@ -63,7 +63,6 @@ namespace KLEPA_A14
         static Thrusts thrusts;
         static Cockpit cockpit;
         static LandingGears landing_gears;
-        static HydrogenTanks hydrogen_tanks;
         static CargoComponents cargo_components;
         static Navigation navigation;
         static Program _scr;
@@ -308,7 +307,6 @@ namespace KLEPA_A14
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj);
             landing_gears = new LandingGears(NameObj);
-            hydrogen_tanks = new HydrogenTanks(NameObj);
             cargo_components = new CargoComponents(NameObj);
             lightings = new Lightings(NameObj, tag_lightings_warning);
             lightings.Off();
@@ -809,8 +807,8 @@ namespace KLEPA_A14
             public int[] Amounts = new int[20];
 
             public int[] AmountsAll = new int[20] { 4000, 2000, 2000, 4000, 10000, 2000, 500, 2000, 2000, 2000, 2000, 500, 500, 500, 10, 500, 500, 2000, 2000, 2000 };
-            public int[] AmountsBase = new int[20] { 5000, 500, 500, 5000, 10000, 2000, 200, 2000, 500, 0, 2000, 0, 0, 0, 0, 0, 0, 0, 1000, 0 };
-            public int[] AmountsBaseOs = new int[20] { 22000, 1200, 4000, 11000, 40000, 11000, 1600, 3000, 500, 2000, 3700, 300, 100, 10, 10, 400, 300, 2000, 500, 600 };
+            public int[] AmountsBase = new int[20] { 5000, 1000, 10000, 5000, 5000, 5000, 200, 5000, 200, 2000, 4000, 300, 300, 300, 12, 500, 0, 1000, 500, 1000 };
+            public int[] AmountsBaseOs = new int[20] { 20000, 1200, 4000, 20000, 40000, 10000, 1000, 5000, 1000, 3000, 3700, 300, 100, 10, 10, 400, 300, 0, 1000, 1000 };
             public List<LocationCargos> local_cargos = new List<LocationCargos>();
             public List<LocationCargos> base_cargos = new List<LocationCargos>();
 
@@ -1135,25 +1133,6 @@ namespace KLEPA_A14
                 return values.ToString();
             }
         }
-        public class HydrogenTanks : BaseListTerminalBlock<IMyGasTank>
-        {
-            public HydrogenTanks(string name_obj) : base(name_obj) { AutoRefillBottles(true); }
-            public HydrogenTanks(string name_obj, string tag) : base(name_obj, tag) { AutoRefillBottles(true); }
-            public float MaxCapacity() { return base.list_obj.Select(b => b.Capacity).Sum(); }
-            public double AverageFilledRatio { get { return base.list_obj.Average(t => t.FilledRatio); } }
-            public double CountAutoRefillBottles { get { return base.list_obj.Count(t => t.AutoRefillBottles); } }
-            public double CountStockpile { get { return base.list_obj.Count(t => t.Stockpile); } }
-            public double Capacity { get { return base.list_obj.Sum(t => t.Capacity); } }
-            public void AutoRefillBottles(bool on) { foreach (IMyGasTank obj in base.list_obj) { obj.AutoRefillBottles = on; } }
-            public void Stockpile(bool on) { foreach (IMyGasTank obj in base.list_obj) { obj.Stockpile = on; } }
-            public string TextInfo()
-            {
-                StringBuilder values = new StringBuilder();
-                values.Append("БАКИ : [" + base.list_obj.Count() + "] [А-" + CountAutoRefillBottles + " З-" + CountStockpile + "]" + PText.GetCurrentOfMax((float)(Capacity * AverageFilledRatio) / 1000000, (float)Capacity / 1000000, "МЛ") + "\n");
-                values.Append("|- ЗАП:  " + PText.GetScalePersent(AverageFilledRatio, 20) + "\n");
-                return values.ToString();
-            }
-        }
         public class Navigation
         {
             public bool gravity = false;
@@ -1403,7 +1382,7 @@ namespace KLEPA_A14
                 ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
                 XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
                 if (PhysicalMass > CriticalMass) { CriticalMassReached = true; } else { CriticalMassReached = false; }
-                EmergencyReturn = bats.CurrentPersent() <= ReturnOnCharge || PhysicalMass >= CriticalMass || hydrogen_tanks.AverageFilledRatio < ReturnHydrogen;
+                EmergencyReturn = bats.CurrentPersent() <= ReturnOnCharge || PhysicalMass >= CriticalMass;
             }
             public void Pause(bool enable)
             {
@@ -1742,15 +1721,13 @@ namespace KLEPA_A14
                 if (updateSource == UpdateType.Update10)
                 {
                     cockpit.Logic(argument, updateSource);
-                    landing_gears.AutoLock(cockpit.CurrentHeight < 2.2f);
+                    landing_gears.AutoLock(cockpit.CurrentHeight < 2.0f);
                     if (!connector_back.Connected && !landing_gears.IsLocked())
                     {
                         if (gravity || (!gravity && connector_back.Connectable))
                         {
-                            hydrogen_tanks.Stockpile(false);
                             bats.Auto();
                             thrusts.On();
-
                         }
                     }
                     else
@@ -1760,7 +1737,6 @@ namespace KLEPA_A14
                         reflectors_light.Off();
                         bats.Charger();
                         thrusts.Off();
-                        hydrogen_tanks.Stockpile(true);
                     }
                     // Обновим состояние навигации
                     UpdateCalc();
