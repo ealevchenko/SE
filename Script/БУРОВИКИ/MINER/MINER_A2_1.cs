@@ -25,7 +25,7 @@ namespace MINER_A2_1
     public sealed class Program : MyGridProgram
     {
         string NameObj = "[MINER_A2_1]";//[MINER_A1_X] [MINER_I2_E1]
-        static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
+        //static string tag_batterys_duty = "[batterys_duty]"; // дежурная батарея
         static string tag_ejector = "[ejector]"; // дежурная батарея
         static float GyroMult = 1f;
         static float AlignAccelMult = 0.3f;
@@ -390,7 +390,7 @@ namespace MINER_A2_1
         }
         public class Batterys : BaseListTerminalBlock<IMyBatteryBlock>
         {
-            public int count_work_batterys { get { return list_obj.Where(n => !((IMyTerminalBlock)n).CustomName.Contains(tag_batterys_duty)).Count(); } }
+            //         public int count_work_batterys { get { return list_obj.Where(n => !((IMyTerminalBlock)n).CustomName.Contains(tag_batterys_duty)).Count(); } }
             public bool charger = false;
             public Batterys(string name_obj) : base(name_obj)
             {
@@ -430,7 +430,8 @@ namespace MINER_A2_1
             public bool IsCharger()
             {
                 int count_charger = CountCharger();
-                return count_work_batterys > 0 && count_charger > 0 && count_work_batterys == count_charger ? true : false;
+                return count_charger > 0;
+                //return count_work_batterys > 0 && count_charger > 0 && count_work_batterys == count_charger ? true : false;
             }
             public bool IsAuto()
             {
@@ -442,10 +443,11 @@ namespace MINER_A2_1
                 foreach (IMyBatteryBlock obj in base.list_obj)
                 {
                     // проверка батарея дежурного режима
-                    if (!obj.CustomName.Contains(tag_batterys_duty))
-                    {
-                        obj.ChargeMode = ChargeMode.Recharge;
-                    }
+                    //if (!obj.CustomName.Contains(tag_batterys_duty))
+                    //{
+                    //    obj.ChargeMode = ChargeMode.Recharge;
+                    //}
+                    obj.ChargeMode = ChargeMode.Recharge;
                 }
                 charger = IsCharger();
             }
@@ -2090,7 +2092,8 @@ namespace MINER_A2_1
                         // Припаркован
                         drill.Off();
                         reflectors_light.Off();
-                        bats.Charger();
+                        // Если сидим в кокпите батарея не заряжается
+                        if (cockpit.obj.IsUnderControl) { bats.Auto(); } else { bats.Charger(); }
                         thrusts.Off();
                     }
                     // Обновим состояние навигации
