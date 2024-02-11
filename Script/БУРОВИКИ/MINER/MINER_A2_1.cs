@@ -39,7 +39,7 @@ namespace MINER_A2_1
         static int MaxShafts = 20;              // макс кол дыр
         static float DrillFrameWidth = 8f;     // размеры буровика
         static float DrillFrameLength = 7f;
-        static int CriticalMass = 150000;       // Критическая масса
+        static int CriticalMass = 180000;       // Критическая масса
         static int StoneDumpOn = 250000;
 
         const char green = '\uE001';
@@ -2092,8 +2092,11 @@ namespace MINER_A2_1
                         // Припаркован
                         drill.Off();
                         reflectors_light.Off();
-                        // Если сидим в кокпите батарея не заряжается
-                        if (cockpit.obj.IsUnderControl) { bats.Auto(); } else { bats.Charger(); }
+                        if (curent_mode == mode.base_operation || curent_mode == mode.none)
+                        {
+                            // Если сидим в кокпите батарея не заряжается
+                            if (cockpit.obj.IsUnderControl) { bats.Auto(); } else { bats.Charger(); }
+                        }
                         thrusts.Off();
                     }
                     // Обновим состояние навигации
