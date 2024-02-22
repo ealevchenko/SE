@@ -3,9 +3,11 @@ using Sandbox.Game.GameSystems;
 using Sandbox.Game.WorldEnvironment.Modules;
 using Sandbox.ModAPI.Ingame;
 using Sandbox.ModAPI.Interfaces;
+using SpaceEngineers.Game.ModAPI.Ingame;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.Eventing.Reader;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -24,7 +26,9 @@ namespace TUNNEL_MINER
 {
     public sealed class Program : MyGridProgram
     {
-        string NameObj = "[TUNNEL_MINER_01]";
+        string NameObj = "[TUNNEL-MINER-01]";
+        static float SpeedOpen = 0.1f;
+        static float SpeedClose = 0.1f;
 
         const char green = '\uE001';
         const char blue = '\uE002';
@@ -36,7 +40,11 @@ namespace TUNNEL_MINER
         static LCD lcd_work1, lcd_work2;
         static Batterys bats;
         static Connector connector_forw, connector_back;
+        static ShipMergeBlock mergeblock_forw, mergeblock_back;
         static ShipDrill drill;
+        static ShipWelders welders;
+        static ShipGrinder grinder;
+        static PistonsBase pistones;
         static ReflectorsLight reflectors_light;
         static Cockpit cockpit;
         static Cargos cargos;
@@ -66,14 +74,7 @@ namespace TUNNEL_MINER
             {
                 return "[ " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]";
             }
-            static public string GetThrust(float value)
-            {
-                return Math.Round(value / 1000000, 1) + "МН";
-            }
-            static public string GetGPS(string name, Vector3D target)
-            {
-                return "GPS:" + name + ":" + target.GetDim(0) + ":" + target.GetDim(1) + ":" + target.GetDim(2) + ":\n";
-            }
+            static public string GetCurrentOfMinMax(float min, float cur, float max, string units) { return "[ " + Math.Round(min, 1) + units + " / " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]"; }
         }
         public class BaseListTerminalBlock<T> where T : class
         {
@@ -294,8 +295,15 @@ namespace TUNNEL_MINER
             bats = new Batterys(NameObj);
             connector_forw = new Connector(NameObj + "-Коннектор forw");
             connector_back = new Connector(NameObj + "-Коннектор back");
+            mergeblock_forw = new ShipMergeBlock(NameObj + "-Соединитель forw");
+            mergeblock_back = new ShipMergeBlock(NameObj + "-Соединитель back");
             drill = new ShipDrill(NameObj);
             drill.Off();
+            welders = new ShipWelders(NameObj);
+            welders.Off();
+            grinder = new ShipGrinder(NameObj);
+            grinder.Off();
+            pistones = new PistonsBase(NameObj, null);
             reflectors_light = new ReflectorsLight(NameObj);
             reflectors_light.Off();
             cockpit = new Cockpit(NameObj + "-Cocpit [LCD]");
@@ -318,10 +326,16 @@ namespace TUNNEL_MINER
             }
             values_info.Append(bats.TextInfo());
             values_info.Append(connector_forw.TextInfo());
+            values_info.Append(mergeblock_forw.TextInfo());
             values_info.Append(connector_back.TextInfo());
+            values_info.Append(mergeblock_back.TextInfo());
             values_info.Append(drill.TextInfo());
+            values_info.Append(welders.TextInfo());
+            values_info.Append(grinder.TextInfo());
+            values_info.Append(pistones.TextInfo("Порш."));
             values_info.Append(upr.TextInfo1());
-            cockpit.OutText(values_info, 0);
+            lcd_debug.OutText(values_info);
+            //cockpit.OutText(values_info, 0);
             StringBuilder values_info1 = new StringBuilder();
             values_info1.Append(upr.TextCritical());
             cockpit.OutText(values_info1, 1);
@@ -510,18 +524,51 @@ namespace TUNNEL_MINER
             {
                 obj.Disconnect();
             }
-            public long? getRemoteConnector()
+        }
+        public class ShipMergeBlock : BaseTerminalBlock<IMyShipMergeBlock>
+        {
+            public MergeState State { get { return base.obj.State; } }
+            public bool Unset { get { return base.obj.State == MergeState.Unset ? true : false; } }
+            public bool None { get { return base.obj.State == MergeState.None ? true : false; } }
+            public bool Locked { get { return base.obj.State == MergeState.Locked ? true : false; } }
+            public bool Constrained { get { return base.obj.State == MergeState.Constrained ? true : false; } }
+            public bool Working { get { return base.obj.State == MergeState.Working ? true : false; } }
+
+
+            public ShipMergeBlock(string name) : base(name)
             {
-                List<IMyShipConnector> list_conn = new List<IMyShipConnector>();
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn);
-                //return list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).Count().ToString();
-                foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList())
+                if (base.obj != null)
                 {
-                    //_scr.Echo("remote_control: " + conn.DisplayNameText);
-                    //if (conn.DisplayNameText.Trim() != conn.DisplayNameText.Trim() && (conn.GetPosition() - this.GetPosition()).Length() < 2) return conn.DisplayNameText;
-                    if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 2) return conn.EntityId;
                 }
-                return null;
+            }
+            public string GetInfoStatus()
+            {
+                switch (base.obj.State)
+                {
+                    case MergeState.Unset:
+                        {
+                            return "НЕ УСТАНОВЛЕНО";
+                        }
+                    case MergeState.Working:
+                        {
+                            return "РАБОТАЕТ";
+                        }
+                    case MergeState.Constrained:
+                        {
+                            return "ДЕРЖИТ";
+                        }
+                    case MergeState.Locked:
+                        {
+                            return "ЗАБЛОКИРОВАННО";
+                        }
+                    default: return "-";
+                }
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("СОЕДИНИТЕЛЬ: " + GetInfoStatus() + "\n");
+                return values.ToString();
             }
         }
         public class ShipDrill : BaseListTerminalBlock<IMyShipDrill>
@@ -538,6 +585,104 @@ namespace TUNNEL_MINER
                 StringBuilder values = new StringBuilder();
                 values.Append("БУРЫ: " + (base.Enabled() ? green.ToString() : red.ToString()) + "\n");
                 return values.ToString();
+            }
+        }
+        public class ShipWelders : BaseListTerminalBlock<IMyShipWelder>
+        {
+            public ShipWelders(string name_obj) : base(name_obj)
+            {
+
+            }
+            public ShipWelders(string name_obj, string tag) : base(name_obj, tag)
+            {
+
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("СВАРЩИКИ: " + (base.Enabled() ? green.ToString() : red.ToString()) + "\n");
+                return values.ToString();
+            }
+        }
+        public class ShipGrinder : BaseListTerminalBlock<IMyShipGrinder>
+        {
+            public ShipGrinder(string name_obj) : base(name_obj)
+            {
+
+            }
+            public ShipGrinder(string name_obj, string tag) : base(name_obj, tag)
+            {
+
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("РЕЗАКИ: " + (base.Enabled() ? green.ToString() : red.ToString()) + "\n");
+                return values.ToString();
+            }
+        }
+        public class PistonsBase : BaseListTerminalBlock<IMyPistonBase>
+        {
+            public float speed_piston { get; set; } = 0.5f;
+            public float multiply_speed { get; set; } = 1f;
+            public float? new_position { get; set; } = null;
+            public float Position { get { return this.list_obj.Sum(s => s.CurrentPosition); } }
+            public float MinLimit { get { return this.list_obj.Sum(s => s.MinLimit); } }
+            public float MaxLimit { get { return this.list_obj.Sum(s => s.MaxLimit); } }
+            public float Velocity { get { return this.list_obj.Average(s => s.Velocity); } }
+            public PistonsBase(string name_obj, string tag) : base(name_obj) { if (!String.IsNullOrWhiteSpace(tag)) { list_obj = list_obj.Where(n => n.CustomName.Contains(tag)).ToList(); } _scr.Echo("Найдено PistonBase:[" + tag + "]: " + list_obj.Count()); }
+            public void SetVelocity(float speed) { foreach (IMyPistonBase p in base.list_obj) { p.Velocity = speed; } }
+            public void Open(float speed) { foreach (IMyPistonBase p in base.list_obj) { p.Velocity = speed; p.Extend(); } }
+            public void Close(float speed) { foreach (IMyPistonBase p in base.list_obj) { p.Velocity = speed; p.Retract(); } }
+            public void Open() { Open(this.speed_piston); }
+            public void Close() { Close(this.speed_piston); }
+            public void SetPosition()
+            {
+                float speed = 0f;
+                if (new_position != null)
+                {
+                    double curennt_position = this.Position;
+                    if (curennt_position > new_position)
+                    {
+                        speed = -(float)(Math.Abs(curennt_position - (float)new_position) * multiply_speed);
+                        SetVelocity(speed);
+                    }
+                    else if (curennt_position < new_position)
+                    {
+                        speed = (float)(Math.Abs((float)new_position - curennt_position) * multiply_speed);
+                        SetVelocity(speed);
+                    }
+                    else
+                    {
+                        SetVelocity(speed);
+                        new_position = null;
+                    }
+                }
+
+
+            }
+            public string TextInfo(string name)
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append(name + ": [" + Count + "] " + PText.GetCurrentOfMinMax(MinLimit, Position, MaxLimit, "m") + "\n");
+                values.Append("|- Поз:  " + PText.GetScalePersent((Position - MinLimit) / (MaxLimit - MinLimit), 20) + "\n");
+                return values.ToString();
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+
+                    default:
+                        break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+                    if (new_position != null)
+                    {
+                        SetPosition();
+                    }
+                }
             }
         }
         public class ReflectorsLight : BaseListTerminalBlock<IMyReflectorLight>
@@ -832,19 +977,87 @@ namespace TUNNEL_MINER
                 curent_programm = programm.none;
                 paused = false;
                 drill.Off();
+                mergeblock_forw.On();
+                connector_forw.Connect();
+                grinder.Off();
+                pistones.Close(0);
                 reflectors_light.Off();
                 SaveToStorage();
             }
             public bool DrillForward()
             {
                 bool Complete = false;
+                if (pistones.Position <= 18.0f)
+                {
+                    pistones.Open(SpeedOpen);
+                    if (connector_forw.Connected)
+                    {
+                        connector_forw.Disconnect();
+                        mergeblock_forw.Off();
+                    }
+                    if (pistones.Position > 5.0f && connector_forw.Unconnected)
+                    {
+                        mergeblock_forw.On();
+                        welders.On();
+                    }
+                }
+                else
+                {
+                    if (connector_forw.Connectable)
+                    {
+                        connector_forw.Connect();
+                    }
+                    if (mergeblock_forw.Locked)
+                    {
+                        welders.Off();
+                    }
+                    if (connector_forw.Connected && mergeblock_forw.Locked)
+                    {
+                        Complete = true;
+                    }
 
+                }
+                return Complete;
+            }
+            public bool NewPoint()
+            {
+                bool Complete = false;
+                if (pistones.Position >= 3.0f)
+                {
+                    pistones.Close(pistones.Position > 12.0f ? SpeedClose : SpeedClose * 5);
+
+                    if (connector_back.Connected)
+                    {
+                        connector_back.Disconnect();
+                        mergeblock_back.Off();
+                        grinder.On();
+                    }
+                    if (pistones.Position < 15.0f && connector_back.Unconnected)
+                    {
+                        mergeblock_back.On();
+                    }
+                }
+                else
+                {
+                    if (connector_back.Connectable)
+                    {
+                        connector_back.Connect();
+                    }
+                    if (mergeblock_back.Locked)
+                    {
+                        grinder.Off();
+                    }
+                    if (connector_back.Connected && mergeblock_back.Locked)
+                    {
+                        Complete = true;
+                    }
+                }
                 return Complete;
             }
             //-------------------------------------------------
             public void OutStatusMode(float MaxFSpeed, float MaxUSpeed, float MaxLSpeed, float UpAccel)
             {
-                StringBuilder values = new StringBuilder();
+                //StringBuilder values = new StringBuilder();
                 //values.Append(" STATUS\n");
                 //Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
                 //Vector3D MyPosDrill = Vector3D.Transform(MyPos, DockMatrix) - DrillPoint;
@@ -864,7 +1077,7 @@ namespace TUNNEL_MINER
                 //values.Append("YMaxA (U-D) : " + Math.Round(YMaxA, 2).ToString() + "MaxUSpeed: " + Math.Round(MaxUSpeed, 2).ToString() + "\n");
                 //values.Append("XMaxA (L-R) : " + Math.Round(XMaxA, 2).ToString() + "MaxLSpeed: " + Math.Round(MaxLSpeed, 2).ToString() + "\n");
                 //values.Append(thrusts.TextInfo());
-                lcd_debug.OutText(values);
+                //lcd_debug.OutText(values);
             }
             public double GetVal(string Key, string str)
             {
@@ -997,6 +1210,10 @@ namespace TUNNEL_MINER
                         curent_mode = mode.drill_forward;
                         SaveToStorage();
                         break;
+                    case "new_point":
+                        curent_mode = mode.new_point;
+                        SaveToStorage();
+                        break;
                     default:
                         break;
                 }
@@ -1005,9 +1222,18 @@ namespace TUNNEL_MINER
                     cockpit.Logic(argument, updateSource);
                     // Обновим состояние навигации
                     UpdateCalc();
+
+                    if (curent_programm != programm.none || curent_mode != mode.none)
+                    {
+                        lcd_work1.On(); lcd_work2.On();
+                    }
+                    else
+                    {
+                        lcd_work1.Off(); lcd_work2.Off();
+                    }
+
                     if (curent_programm == programm.none)
                     {
-                        lcd_work1.Off(); lcd_work2.Off(); lcd_debug.Off();
                         if (drill.Enabled())
                         {
                             reflectors_light.On();
@@ -1019,10 +1245,13 @@ namespace TUNNEL_MINER
                                 curent_mode = mode.none;
                             }
                         }
-                    }
-                    else
-                    {
-                        lcd_work1.On(); lcd_work2.On(); lcd_debug.On();
+                        if (curent_mode == mode.new_point && !paused)
+                        {
+                            if (NewPoint() && curent_programm == programm.none)
+                            {
+                                curent_mode = mode.none;
+                            }
+                        }
                     }
                     if (curent_programm == programm.start_drill && !paused)
                     {
