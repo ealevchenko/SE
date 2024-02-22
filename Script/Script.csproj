@@ -96,7 +96,7 @@
     <Compile Include="БАЗЫ\SPB\SPB_EUROPE_DORS.cs" />
     <Compile Include="БАЗЫ\SPB\SPB_MARS_DORS.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\MOLE_A1.cs" />
-    <Compile Include="БУРОВИКИ\MINER\MINER_A2_1.cs" />
+    <Compile Include="БУРОВИКИ\TUNNEL_MINER\TUNNEL_MINER.cs" />
     <Compile Include="БУРОВИКИ\MINER\MINER_I2_E1.cs" />
     <Compile Include="БУРОВИКИ\MINER\MINER_A2_E1.cs" />
     <Compile Include="БУРОВИКИ\test\MINER_A1_NAV.cs" />
@@ -118,6 +118,7 @@
     <Compile Include="БУРОВИКИ\test\KROTIK_A1M.cs" />
     <Compile Include="БУРОВИКИ\test\KROTIK_A1K21.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\KROTIK_H1.cs" />
+    <Compile Include="БУРОВИКИ\MINER\MINER_A2_1.cs" />
     <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\BUG\BUG_H2_NAV.cs" />
     <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\BUG\BUG_A1_H2_NAV.cs" />
     <Compile Include="КОРАБЛИ\APOLN1.cs" />
