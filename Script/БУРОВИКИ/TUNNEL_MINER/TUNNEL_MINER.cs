@@ -19,6 +19,7 @@ using System.Timers;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
 using VRageMath;
+using static VRage.Game.MyObjectBuilder_CurveDefinition;
 /// <summary>
 /// v1.0  Тунельный шахтер (Добыча льда в озере тунельной шахтой)
 /// </summary>
@@ -26,9 +27,11 @@ namespace TUNNEL_MINER
 {
     public sealed class Program : MyGridProgram
     {
-        string NameObj = "[TUNNEL-MINER-01]";
+        string NameObj = "[PB-ER-1]-[TM-01]";
+        string tag_lighting_warning = "[lighting-warning]";
         static float SpeedOpen = 0.1f;
         static float SpeedClose = 0.1f;
+        static float TackDistance = 30.0f;
 
         const char green = '\uE001';
         const char blue = '\uE002';
@@ -37,7 +40,8 @@ namespace TUNNEL_MINER
         const char darkGrey = '\uE00F';
         static LCD lcd_storage;
         static LCD lcd_debug;
-        static LCD lcd_work1, lcd_work2;
+        static LCD lcd_work1;
+        static LCD lcd_status;
         static Batterys bats;
         static Connector connector_forw, connector_back;
         static ShipMergeBlock mergeblock_forw, mergeblock_back;
@@ -45,6 +49,7 @@ namespace TUNNEL_MINER
         static ShipWelders welders;
         static ShipGrinder grinder;
         static PistonsBase pistones;
+        static Lightings light_warning;
         static ReflectorsLight reflectors_light;
         static Cockpit cockpit;
         static Cargos cargos;
@@ -291,7 +296,7 @@ namespace TUNNEL_MINER
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
             lcd_work1 = new LCD(NameObj + "-LCD-Work 1");
-            lcd_work2 = new LCD(NameObj + "-LCD-Work 2");
+            lcd_status = new LCD(NameObj + "-LCD-status");
             bats = new Batterys(NameObj);
             connector_forw = new Connector(NameObj + "-Коннектор forw");
             connector_back = new Connector(NameObj + "-Коннектор back");
@@ -304,6 +309,8 @@ namespace TUNNEL_MINER
             grinder = new ShipGrinder(NameObj);
             grinder.Off();
             pistones = new PistonsBase(NameObj, null);
+            light_warning = new Lightings(NameObj, tag_lighting_warning); // Внимание работает
+            light_warning.Off();
             reflectors_light = new ReflectorsLight(NameObj);
             reflectors_light.Off();
             cockpit = new Cockpit(NameObj + "-Cocpit [LCD]");
@@ -325,20 +332,21 @@ namespace TUNNEL_MINER
                     break;
             }
             values_info.Append(bats.TextInfo());
-            values_info.Append(connector_forw.TextInfo());
-            values_info.Append(mergeblock_forw.TextInfo());
-            values_info.Append(connector_back.TextInfo());
-            values_info.Append(mergeblock_back.TextInfo());
+            values_info.Append(connector_forw.TextInfo("КОН-FORW"));
+            values_info.Append(mergeblock_forw.TextInfo("СОЕД-FORW"));
+            values_info.Append(connector_back.TextInfo("КОН-BACK"));
+            values_info.Append(mergeblock_back.TextInfo("СОЕД-BACK"));
             values_info.Append(drill.TextInfo());
             values_info.Append(welders.TextInfo());
             values_info.Append(grinder.TextInfo());
             values_info.Append(pistones.TextInfo("Порш."));
-            values_info.Append(upr.TextInfo1());
+            values_info.Append(upr.TextStatus());
             lcd_debug.OutText(values_info);
+            lcd_status.OutText(values_info);
             //cockpit.OutText(values_info, 0);
-            StringBuilder values_info1 = new StringBuilder();
-            values_info1.Append(upr.TextCritical());
-            cockpit.OutText(values_info1, 1);
+            //StringBuilder values_info1 = new StringBuilder();
+            //values_info1.Append(upr.TextCritical());
+            //cockpit.OutText(values_info1, 1);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
@@ -510,10 +518,10 @@ namespace TUNNEL_MINER
                         }
                 }
             }
-            public string TextInfo()
+            public string TextInfo(string name)
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("КОННЕКТОР: " + (Connected ? green.ToString() : (Connectable ? yellow.ToString() : red.ToString())) + "\n");
+                values.Append(name + ": " + (Connected ? green.ToString() : (Connectable ? yellow.ToString() : red.ToString())) + "\n");
                 return values.ToString();
             }
             public void Connect()
@@ -564,10 +572,10 @@ namespace TUNNEL_MINER
                     default: return "-";
                 }
             }
-            public string TextInfo()
+            public string TextInfo(string name)
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("СОЕДИНИТЕЛЬ: " + GetInfoStatus() + "\n");
+                values.Append(name + ": " + GetInfoStatus() + "\n");
                 return values.ToString();
             }
         }
@@ -683,6 +691,17 @@ namespace TUNNEL_MINER
                         SetPosition();
                     }
                 }
+            }
+        }
+        public class Lightings : BaseListTerminalBlock<IMyInteriorLight>
+        {
+            public Lightings(string name_obj, string tag) : base(name_obj)
+            {
+                if (!String.IsNullOrWhiteSpace(tag))
+                {
+                    list_obj = list_obj.Where(n => n.CustomName.Contains(tag)).ToList();
+                }
+                _scr.Echo("Найдено Lighting:[" + tag + "]: " + list_obj.Count());
             }
         }
         public class ReflectorsLight : BaseListTerminalBlock<IMyReflectorLight>
@@ -831,123 +850,55 @@ namespace TUNNEL_MINER
             public static string[] name_mode = { "", "ВПЕРЕД", "НАЗАД", "НОВАЯ ТОЧКА" };
             mode curent_mode = mode.none;
             //------------------------------
+            public Vector3D MyStartPos { get; private set; }
+            public Vector3D MyPos { get; private set; }
+            public float CalcDistance { get; private set; } = 0f;
+
             public bool paused = false;
+            public bool stop_dreel = false;
             public Upr()
             {
-                //LoadFromStorage();
+                LoadFromStorage();
             }
             //----------------------------------------------
             //-----------------------------------------------
             public void StartDrill()
             {
-                //if (curent_mode == mode.none)
-                //{
-                //    go_home = false;
-                //    if (connector.Connected)
-                //    {
-                //        curent_mode = mode.un_dock;
-                //        SaveToStorage();
-                //    }
-                //    else
-                //    {
-                //        curent_mode = mode.to_drill;
-                //        SaveToStorage();
-                //    }
-                //}
-                //else
-                //{
-                //    if (go_home)
-                //    {
-                //        if (curent_mode == mode.to_drill || curent_mode == mode.drill_align)
-                //        {
-                //            curent_mode = mode.to_base;
-                //            SaveToStorage();
-                //        }
-                //        if (curent_mode == mode.drill)
-                //        {
-                //            curent_mode = mode.pull_out;
-                //            SaveToStorage();
-                //        }
-                //    }
-                //    else
-                //    {
-                //        if (curent_mode == mode.to_drill && ToDrillPoint())
-                //        {
-                //            curent_mode = mode.drill_align;
-                //            SaveToStorage();
-                //        }
-                //        if (curent_mode == mode.drill_align && DrillAlign())
-                //        {
-                //            curent_mode = mode.drill;
-                //            SaveToStorage();
-                //        }
-                //        if (curent_mode == mode.drill && Drill(out EmergencyReturn))
-                //        {
-                //            if (PullUpNeeded)
-                //                curent_mode = mode.pull_up;
-                //            else
-                //                curent_mode = mode.pull_out;
-                //            SaveToStorage();
-                //        }
-                //    }
-                //    if (curent_mode == mode.un_dock && UnDock())
-                //    {
-                //        curent_mode = mode.to_drill;
-                //        SaveToStorage();
-                //    }
-                //    if (curent_mode == mode.pull_up && PullUp())
-                //    {
-                //        curent_mode = mode.drill;
-                //        SaveToStorage();
-                //    }
-                //    if (curent_mode == mode.pull_out && PullOut())
-                //    {
-                //        if (EmergencyReturn || go_home) // || GoHome
-                //            curent_mode = mode.to_base;
-                //        else
-                //        {
-                //            SetNewShaft();
-                //            if (ShaftN >= MaxShafts)
-                //                curent_mode = mode.to_base;
-                //            else
-                //                curent_mode = mode.drill_align;
-                //        }
-                //        SaveToStorage();
-                //    }
-                //    if (curent_mode == mode.to_base && ToBase())
-                //    {
-                //        curent_mode = mode.dock;
-                //        SaveToStorage();
-                //    }
-                //    if (curent_mode == mode.dock && Dock())
-                //    {
-                //        curent_mode = mode.base_operation;
-                //        SaveToStorage();
-                //    }
-                //    if (curent_mode == mode.base_operation)
-                //    {
-                //        ejector.ThrowOut(false);
-                //        cargos.UnLoad();
-                //        bats.Charger();
-                //        thrusts.Off();
-                //        thrusts.ClearThrustOverridePersent();
-                //        if (go_home || ShaftN >= MaxShafts)
-                //        {
-                //            Stop();
-                //        }
-                //        else
-                //        {
-                //            if (bats.CurrentPersent() >= ReturnOffCharge && cargos.CurrentMass == 0f)
-                //            {
-                //                bats.Auto();
-                //                thrusts.On();
-                //                ejector.ThrowOut(true);
-                //                curent_mode = mode.un_dock;
-                //                SaveToStorage();
-                //            }
-                //        }
-                //    }
-                //}
+                if (curent_mode == mode.none)
+                {
+                    stop_dreel = false;
+                    drill.On();
+                    MyStartPos = cockpit.obj.GetPosition();
+                    if (pistones.Position > 18.0f && connector_forw.Connected && mergeblock_forw.Locked)
+                    {
+                        curent_mode = mode.new_point; // Подтянуть
+                        SaveToStorage();
+                    }
+                    if (pistones.Position < 3.0f && connector_back.Connected && mergeblock_back.Locked)
+                    {
+                        curent_mode = mode.drill_forward; // Выдвинуть
+                        SaveToStorage();
+                    }
+                }
+                else
+                {
+                    MyPos = cockpit.obj.GetPosition();
+                    CalcDistance = (float)(MyStartPos - MyPos).Length();
+                    if (CalcDistance >= TackDistance)
+                    {
+                        stop_dreel = true;
+                    }
+                    if (curent_mode == mode.new_point && NewPoint())
+                    {
+                        if (!stop_dreel) { curent_mode = mode.drill_forward; } else { Stop(); }
+                        SaveToStorage();
+                    }
+                    if (curent_mode == mode.drill_forward && DrillForward())
+                    {
+                        if (!stop_dreel) { curent_mode = mode.new_point; } else { Stop(); }
+                        SaveToStorage();
+                    }
+                }
             }
             //-----------------------------------------------
             public void UpdateCalc()
@@ -961,26 +912,39 @@ namespace TUNNEL_MINER
 
                     drill.Off();
                     reflectors_light.Off();
+
                     paused = true;
                 }
-                else { paused = false; }
+                else
+                {
+                    paused = false;
+                    if (curent_mode != mode.none)
+                    {
+                        drill.On();
+                        reflectors_light.On();
+                    }
+                }
                 SaveToStorage();
             }
-            public void Clear()
-            {
-                curent_mode = mode.none;
-                SaveToStorage();
-            }
+            //public void Clear()
+            //{
+            //    curent_mode = mode.none;
+            //    SaveToStorage();
+            //}
             public void Stop()
             {
                 curent_mode = mode.none;
                 curent_programm = programm.none;
                 paused = false;
-                drill.Off();
+                stop_dreel = false;
                 mergeblock_forw.On();
                 connector_forw.Connect();
-                grinder.Off();
+                mergeblock_back.On();
+                connector_back.Connect();
                 pistones.Close(0);
+                drill.Off();
+                grinder.Off();
+                welders.Off();
                 reflectors_light.Off();
                 SaveToStorage();
             }
@@ -989,7 +953,7 @@ namespace TUNNEL_MINER
                 bool Complete = false;
                 if (pistones.Position <= 18.0f)
                 {
-                    pistones.Open(SpeedOpen);
+                    pistones.Open(!paused ? SpeedOpen : 0);
                     if (connector_forw.Connected)
                     {
                         connector_forw.Disconnect();
@@ -1129,6 +1093,8 @@ namespace TUNNEL_MINER
                 curent_programm = (programm)GetValInt("curent_programm", str.ToString());
                 curent_mode = (mode)GetValInt("curent_mode", str.ToString());
                 paused = GetValBool("pause", str.ToString());
+                stop_dreel = GetValBool("stop_dreel", str.ToString());
+                MyStartPos = new Vector3D(GetVal("SPX", str.ToString()), GetVal("SPY", str.ToString()), GetVal("SPZ", str.ToString()));
             }
             public void SaveToStorage()
             {
@@ -1136,50 +1102,21 @@ namespace TUNNEL_MINER
                 values.Append("curent_programm: " + ((int)curent_programm).ToString() + ";\n");
                 values.Append("curent_mode: " + ((int)curent_mode).ToString() + ";\n");
                 values.Append("pause: " + paused.ToString() + ";\n");
+                values.Append("stop_dreel: " + stop_dreel.ToString() + ";\n");
+                values.Append(MyStartPos.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "SPX").Replace("Y", "SPY").Replace("Z", "SPZ") + ";\n");
                 lcd_storage.OutText(values);
             }
-            public string TextInfo1()
+            public string TextStatus()
             {
                 StringBuilder values = new StringBuilder();
-                //values.Append("СКОРОСТЬ    : " + Math.Round(remote_control.obj.GetShipSpeed(), 2) + "\n");
-                //values.Append("ВЫСОТА      : " + Math.Round(cockpit.CurrentHeight, 2) + "\n");
-                values.Append("--------------------------------------\n");
-                //values.Append("ГОРИЗОНТ    : " + (horizont ? green.ToString() : red.ToString()) + ",  Vector : " + (TackVector != null ? green.ToString() : red.ToString()) + "\n");
-                //values.Append("ГОРИЗОНТ : " + (horizont ? green.ToString() : red.ToString()) + ", ");
-                values.Append("ПАУЗА : " + (paused ? green.ToString() : red.ToString()) + ", ");
-                //values.Append("ДОМОЙ : " + (go_home ? green.ToString() : red.ToString()) + "\n");
-                values.Append("--------------------------------------\n");
-                values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
-                values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
-
-                return values.ToString();
-            }
-            public string TextInfo2()
-            {
-                StringBuilder values = new StringBuilder();
-                //values.Append(thrusts.TextInfo());
-                //values.Append("Height            : " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(FlyHeight).ToString() + "\n");
-                //values.Append("Distance          : " + Math.Round(Distance).ToString() + "\n");
-                //values.Append("Глубина шахты     : " + DrillDepth + ", кол. шахт : " + MaxShafts + "\n");
-                //values.Append("Phys./Crit.(Mass) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? red.ToString() : green.ToString()) + "\n");
-                //values.Append("Volume/Mass       : " + cargos.CurrentVolume + " / " + cargos.CurrentMass + "\n");
-                //values.Append("Батарея %         : " + PText.GetPersent(bats.CurrentPersent()) + " " + (bats.CurrentPersent() <= ReturnOnCharge ? red.ToString() : green.ToString()) + "\n");
-                //values.Append("Поднять           : " + (PullUpNeeded ? green.ToString() : yellow.ToString()) + "\n");
-                return values.ToString();
-            }
-            public string TextCritical()
-            {
-                StringBuilder values = new StringBuilder();
-                ////values.Append("ВЫСОТА (Цен.план.): " + Math.Round((MyPos - PlanetCenter).Length()).ToString() + " / " + Math.Round(PointsDock[CurrDockPoint].FlyHeight).ToString() + "\n");
-                ////values.Append("ДИСТАНЦИЯ         : " + Math.Round(Distance).ToString() + "\n");
-                //values.Append("ГЛУБИНА ШАХТЫ       : " + DrillDepth + ", кол. шахт : " + MaxShafts + "\n");
-                //values.Append("--------------------------------------\n");
-                //values.Append("АВАРИЙНЫЙ ВОЗВРАТ   : " + (EmergencyReturn ? red.ToString() : green.ToString()) + "\n");
-                //values.Append("|-ФИЗ./КРИТ.(МАССА) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? red.ToString() : green.ToString()) + "\n");
-                //values.Append("|-БАТАРЕЯ %         : " + PText.GetPersent(bats.CurrentPersent()) + " " + (bats.CurrentPersent() <= ReturnOnCharge ? red.ToString() : green.ToString()) + "\n");
                 values.Append("--------------------------------------\n");
                 values.Append("ПРОГРАММА : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП      : " + name_mode[(int)curent_mode] + "\n");
+                values.Append("ПАУЗА     : " + (paused ? green.ToString() : red.ToString()) + ", ");
+                values.Append("СТОП      : " + (stop_dreel ? green.ToString() : red.ToString()) + "\n");
+                values.Append("--------------------------------------\n");
+                values.Append("ЗАД/ДИСТ  : " + Math.Round(TackDistance).ToString() + " / " + Math.Round(CalcDistance).ToString() + "\n");
+                values.Append("--------------------------------------\n");
                 return values.ToString();
             }
             public void Logic(string argument, UpdateType updateSource)
@@ -1195,17 +1132,29 @@ namespace TUNNEL_MINER
                     case "pause":
                         Pause(!paused);
                         break;
+                    case "pause_on":
+                        paused = true;
+                        Pause(paused);
+                        break;
+                    case "pause_off":
+                        paused = false;
+                        Pause(paused);
+                        break;
                     case "stop":
-                        Stop();
+                        if (curent_programm == programm.start_drill)
+                        {
+                            stop_dreel = true;
+                        }
                         break;
-                    case "clear":
-                        Clear();
-                        curent_programm = programm.none;
-                        break;
+                    //case "clear":
+                    //    Clear();
+                    //    curent_programm = programm.none;
+                    //    break;
                     case "start_drill":
                         curent_programm = programm.start_drill;
                         SaveToStorage();
                         break;
+
                     case "drill_forward":
                         curent_mode = mode.drill_forward;
                         SaveToStorage();
@@ -1221,15 +1170,15 @@ namespace TUNNEL_MINER
                 {
                     cockpit.Logic(argument, updateSource);
                     // Обновим состояние навигации
-                    UpdateCalc();
+                    //UpdateCalc();
 
                     if (curent_programm != programm.none || curent_mode != mode.none)
                     {
-                        lcd_work1.On(); lcd_work2.On();
+                        lcd_work1.On(); light_warning.On();
                     }
                     else
                     {
-                        lcd_work1.Off(); lcd_work2.Off();
+                        lcd_work1.Off(); light_warning.Off();
                     }
 
                     if (curent_programm == programm.none)
@@ -1238,14 +1187,14 @@ namespace TUNNEL_MINER
                         {
                             reflectors_light.On();
                         }
-                        if (curent_mode == mode.drill_forward && !paused)
+                        if (curent_mode == mode.drill_forward)
                         {
                             if (DrillForward() && curent_programm == programm.none)
                             {
                                 curent_mode = mode.none;
                             }
                         }
-                        if (curent_mode == mode.new_point && !paused)
+                        if (curent_mode == mode.new_point)
                         {
                             if (NewPoint() && curent_programm == programm.none)
                             {
@@ -1253,7 +1202,7 @@ namespace TUNNEL_MINER
                             }
                         }
                     }
-                    if (curent_programm == programm.start_drill && !paused)
+                    if (curent_programm == programm.start_drill)
                     {
                         StartDrill();
                     }

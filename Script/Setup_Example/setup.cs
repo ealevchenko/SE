@@ -558,7 +558,7 @@ namespace SETUP
         //replace:[KLEPA_H18-01]-|[KLEPA_H18_01]-
         //add:[KLEPA-H18-01]-
         //add:[PB-ER-1]-
-        //replace:[MINER_A2_1]-|[MINER_A2_2]-
+        //replace:[TUNNEL-MINER-01]-|[PB-ER-1]-[TM-01]-
         //[OS-E1]
         void Main(string argument, UpdateType updateSource)
         {
