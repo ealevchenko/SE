@@ -870,7 +870,7 @@ namespace TUNNEL_MINER_V1
             public Upr()
             {
                 LoadFromStorage();
-                LoadFromStorageJSON();
+                //LoadFromStorageJSON();
             }
             //----------------------------------------------
             //-----------------------------------------------
@@ -1105,18 +1105,18 @@ namespace TUNNEL_MINER_V1
                 stop_dreel = GetValBool("stop_dreel", str.ToString());
                 MyStartPos = new Vector3D(GetVal("SPX", str.ToString()), GetVal("SPY", str.ToString()), GetVal("SPZ", str.ToString()));
             }
-            public void LoadFromStorageJSON()
-            {
-                StringBuilder str = lcd_storage1.GetText();
-                myStorage = JsonConvert.DeserializeObject<Storage>(str.ToString());
-            }
-            public void SaveToStorageJSON()
-            {
-                StringBuilder values = new StringBuilder();
-                string str = JsonConvert.SerializeObject(myStorage);
-                values.Append(str);
-                lcd_storage1.OutText(values);
-            }
+            //public void LoadFromStorageJSON()
+            //{
+            //    StringBuilder str = lcd_storage1.GetText();
+            //    myStorage = JsonConvert.DeserializeObject<Storage>(str.ToString());
+            //}
+            //public void SaveToStorageJSON()
+            //{
+            //    StringBuilder values = new StringBuilder();
+            //    string str = JsonConvert.SerializeObject(myStorage);
+            //    values.Append(str);
+            //    lcd_storage1.OutText(values);
+            //}
             public void SaveToStorage()
             {
                 StringBuilder values = new StringBuilder();
