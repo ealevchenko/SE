@@ -22,7 +22,8 @@ using VRage.Noise.Combiners;
 using VRageMath;
 using static VRage.Game.MyObjectBuilder_CurveDefinition;
 /// <summary>
-/// v1.1  Тунельный шахтер (Добыча льда в озере тунельной шахтой)
+/// v1.1  Тунельный шахтер (Добыча льда в озере тунельной шахтой) 
+/// ! Версия без переднего соединителя
 /// </summary>
 namespace TUNNEL_MINER_V1
 {
@@ -836,14 +837,6 @@ namespace TUNNEL_MINER_V1
         }
         public class Upr
         {
-            public class Storage
-            {
-                public bool paused { get; set; } = false;
-                public bool stop_dreel { get; set; } = false;
-                public Vector3D MyStartPos { get; set; }
-            }
-
-            Storage myStorage = new Storage();
             public enum programm : int
             {
                 none = 0,
@@ -1105,18 +1098,6 @@ namespace TUNNEL_MINER_V1
                 stop_dreel = GetValBool("stop_dreel", str.ToString());
                 MyStartPos = new Vector3D(GetVal("SPX", str.ToString()), GetVal("SPY", str.ToString()), GetVal("SPZ", str.ToString()));
             }
-            //public void LoadFromStorageJSON()
-            //{
-            //    StringBuilder str = lcd_storage1.GetText();
-            //    myStorage = JsonConvert.DeserializeObject<Storage>(str.ToString());
-            //}
-            //public void SaveToStorageJSON()
-            //{
-            //    StringBuilder values = new StringBuilder();
-            //    string str = JsonConvert.SerializeObject(myStorage);
-            //    values.Append(str);
-            //    lcd_storage1.OutText(values);
-            //}
             public void SaveToStorage()
             {
                 StringBuilder values = new StringBuilder();
