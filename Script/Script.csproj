@@ -96,6 +96,7 @@
     <Compile Include="БАЗЫ\OSS\OSS_BM_DORS.cs" />
     <Compile Include="OCTOPUS\Octopus1.cs" />
     <Compile Include="БАЗЫ\OS_X\OS_EX_UPR.cs" />
+    <Compile Include="БАЗЫ\PB_2024\PB_ER_UPR.cs" />
     <Compile Include="БАЗЫ\SPB\SPB_EUROPE_DORS.cs" />
     <Compile Include="БАЗЫ\SPB\SPB_MARS_DORS.cs" />
     <Compile Include="БУРОВИКИ\KROTIK\MOLE_A1.cs" />
