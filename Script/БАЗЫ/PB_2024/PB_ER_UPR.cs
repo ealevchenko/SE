@@ -3,6 +3,7 @@ using Sandbox.Game.EntityComponents;
 using Sandbox.Game.GameSystems;
 using Sandbox.ModAPI.Ingame;
 using Sandbox.ModAPI.Interfaces;
+using Sandbox.ModAPI.Weapons;
 using SpaceEngineers.Game.ModAPI.Ingame;
 using System;
 using System.Collections.Generic;
@@ -59,19 +60,19 @@ namespace PB_ER_UPR
 
         static LCD lcd_storage;
         static LCD lcd_debug;
-        static LCD lcd_nav1;
-        static LCD lcd_st1, lcd_st2, lcd_st3, lcd_st4;
-        static LCD lcd_cntr1, lcd_cntr2;
-        static LCD lcd_con_forw, lcd_con_back, lcd_con_info;
-        static LCD lcd_base1, lcd_base2;
+        //static LCD lcd_nav1;
+        //static LCD lcd_st1, lcd_st2, lcd_st3, lcd_st4;
+        //static LCD lcd_cntr1, lcd_cntr2;
+        //static LCD lcd_con_forw, lcd_con_back, lcd_con_info;
+        //static LCD lcd_base1, lcd_base2;
         static Batterys bats;
         static GasGenerators gas_gen1, gas_gen2, gas_gen3, gas_gen4;
 
-        static Connector connector_forw, connector_back, connector_l1, connector_l2, connector_r1, connector_r2, connector_pl1, connector_pl2, connector_work;
-        static ReflectorsLight reflectors_light;
-        static Lightings room_light;
+        //static Connector connector_forw, connector_back, connector_l1, connector_l2, connector_r1, connector_r2, connector_pl1, connector_pl2, connector_work;
+        //static ReflectorsLight reflectors_light;
+        //static Lightings room_light;
         static MyStorage storage;
-        static SolarPanels solar_panels_left, solar_panels_right;
+        //static SolarPanels solar_panels_left, solar_panels_right;
         static ControlPower control_power;
         //int clock = 0;
 
@@ -210,37 +211,37 @@ namespace PB_ER_UPR
             _scr = this;
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
-            lcd_nav1 = new LCD(NameObj + "-LCD Nav1");
-            lcd_st1 = new LCD(NameObj + "-LCD ST1");
-            lcd_st2 = new LCD(NameObj + "-LCD ST2");
-            lcd_st3 = new LCD(NameObj + "-LCD ST3");
-            lcd_st4 = new LCD(NameObj + "-LCD ST4");
-            lcd_cntr1 = new LCD(NameObj + "-LCD CNTR1");
-            lcd_cntr2 = new LCD(NameObj + "-LCD CNTR2 [LCD]");
-            lcd_con_forw = new LCD(NameObj + "-LCD CNTR [forw] [LCD]");
-            lcd_con_back = new LCD(NameObj + "-LCD CNTR [back] [LCD]");
-            lcd_con_info = new LCD(NameObj + "-LCD [connectors-info]");
-            lcd_base1 = new LCD(NameObj + "-LCD BASE1 [LCD]");
-            lcd_base2 = new LCD(NameObj + "-LCD BASE2 [LCD]");
-            bats = new Batterys(NameObj, "base");
-            gas_gen1 = new GasGenerators(NameObj + "-Генератор 1");
-            gas_gen2 = new GasGenerators(NameObj + "-Генератор 1");
-            gas_gen3 = new GasGenerators(NameObj + "-Генератор 1");
-            gas_gen4 = new GasGenerators(NameObj + "-Генератор 1");
-            connector_forw = new Connector(NameObj + "-Коннектор forw");
-            connector_back = new Connector(NameObj + "-Коннектор back");
-            connector_l1 = new Connector(NameObj + "-Коннектор left-1");
-            connector_l2 = new Connector(NameObj + "-Коннектор left-2");
-            connector_r1 = new Connector(NameObj + "-Коннектор right-1");
-            connector_r2 = new Connector(NameObj + "-Коннектор right-2");
-            connector_pl1 = new Connector(NameObj + "-Коннектор pl-1");
-            connector_pl2 = new Connector(NameObj + "-Коннектор pl-2");
-            connector_work = new Connector(NameObj + "-Коннектор work");
-            room_light.Off();
-            reflectors_light = new ReflectorsLight(NameObj);
-            reflectors_light.Off();
-            solar_panels_left = new SolarPanels(NameObj, "[left]");
-            solar_panels_right = new SolarPanels(NameObj, "[right]");
+            //lcd_nav1 = new LCD(NameObj + "-LCD Nav1");
+            //lcd_st1 = new LCD(NameObj + "-LCD ST1");
+            //lcd_st2 = new LCD(NameObj + "-LCD ST2");
+            //lcd_st3 = new LCD(NameObj + "-LCD ST3");
+            //lcd_st4 = new LCD(NameObj + "-LCD ST4");
+            //lcd_cntr1 = new LCD(NameObj + "-LCD CNTR1");
+            //lcd_cntr2 = new LCD(NameObj + "-LCD CNTR2 [LCD]");
+            //lcd_con_forw = new LCD(NameObj + "-LCD CNTR [forw] [LCD]");
+            //lcd_con_back = new LCD(NameObj + "-LCD CNTR [back] [LCD]");
+            //lcd_con_info = new LCD(NameObj + "-LCD [connectors-info]");
+            //lcd_base1 = new LCD(NameObj + "-LCD BASE1 [LCD]");
+            //lcd_base2 = new LCD(NameObj + "-LCD BASE2 [LCD]");
+            bats = new Batterys(NameObj, "[base]");
+            gas_gen1 = new GasGenerators(NameObj + "-Генератор [АВР-1]");
+            gas_gen2 = new GasGenerators(NameObj + "-Генератор [АВР-2]");
+            gas_gen3 = new GasGenerators(NameObj + "-Генератор [АВР-3]");
+            gas_gen4 = new GasGenerators(NameObj + "-Генератор [АВР-4]");
+            //connector_forw = new Connector(NameObj + "-Коннектор forw");
+            //connector_back = new Connector(NameObj + "-Коннектор back");
+            //connector_l1 = new Connector(NameObj + "-Коннектор left-1");
+            //connector_l2 = new Connector(NameObj + "-Коннектор left-2");
+            //connector_r1 = new Connector(NameObj + "-Коннектор right-1");
+            //connector_r2 = new Connector(NameObj + "-Коннектор right-2");
+            //connector_pl1 = new Connector(NameObj + "-Коннектор pl-1");
+            //connector_pl2 = new Connector(NameObj + "-Коннектор pl-2");
+            //connector_work = new Connector(NameObj + "-Коннектор work");
+            //room_light.Off();
+            //reflectors_light = new ReflectorsLight(NameObj);
+            //reflectors_light.Off();
+            //solar_panels_left = new SolarPanels(NameObj, "[left]");
+            //solar_panels_right = new SolarPanels(NameObj, "[right]");
             storage = new MyStorage();
             storage.LoadFromStorage();
             control_power = new ControlPower();
@@ -254,17 +255,17 @@ namespace PB_ER_UPR
         {
             switch (argument) { default: break; }
             count_room[(int)room.space] = 0;// В космосе людей не считаем
-            room_light.Logic(argument, updateSource);// Логика отработки включения и выключения освещения
+            //room_light.Logic(argument, updateSource);// Логика отработки включения и выключения освещения
             control_power.Logic(argument, updateSource);// Логика системы контроля питания
             if (updateSource == UpdateType.Update100)
             {
 
             }
             StringBuilder values_st4 = new StringBuilder();
-            lcd_st4.OutText(values_st4);
+            //lcd_st4.OutText(values_st4);
             StringBuilder values_nav1 = new StringBuilder();
 
-            lcd_nav1.OutText(values_nav1);
+            //lcd_nav1.OutText(values_nav1);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
@@ -478,7 +479,7 @@ namespace PB_ER_UPR
                 obj.Disconnect();
             }
         }
-        public class GasGenerators : BaseListTerminalBlock<IMyGasGenerator>
+        public class GasGenerators : BaseListTerminalBlock<IMyPowerProducer>
         {
             public InpResurs res_inp { get; private set; }
             public GasGenerators(string name_obj) : base(name_obj)
@@ -537,7 +538,7 @@ namespace PB_ER_UPR
 
             public ControlPower()
             {
-                storage.LoadFromStorage();
+                //storage.LoadFromStorage();
                 //LoadFromStorageJSON();
             }
             //-------------------------------------------------
