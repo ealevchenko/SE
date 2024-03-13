@@ -833,8 +833,8 @@ namespace BULL_H
             public float Distance { get; private set; }
 
             public Vector3D PlanetCenter = new Vector3D(0.50, 0.50, 0.50);
-            public Vector3D BaseDockPoint = new Vector3D(0, 0, 200);
-            public Vector3D ConnectorPoint = new Vector3D(0, 0, -25);
+            public Vector3D BaseDockPoint = new Vector3D(0, 200, 0);
+            public Vector3D ConnectorPoint = new Vector3D(0, -20, 0);
             public Vector3D WorkPoint = new Vector3D(0, 0, 0);
             public MatrixD DockMatrix { get; set; }
 
@@ -1205,19 +1205,22 @@ namespace BULL_H
                 if (!connector_base.Connected)
                 {
                     Vector3D MyPosCon = Vector3D.Transform(MyPos, DockMatrix);
-                    //Vector3D gyrAng = GetNavAngles(ConnectorPoint, DockMatrix);
-                    Vector3D gyrAng = GetNavAngles(MyPosCon * 2 - ConnectorPoint, DockMatrix);
-                    Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
+                    Vector3D gyrAng = GetNavAngles(ConnectorPoint, DockMatrix);
+                    //Vector3D gyrAng = GetNavAngles(MyPosCon * 2 - ConnectorPoint, DockMatrix);
+                    //Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
+                    Vector3D b = Vector3D.Transform(PlanetCenter, DockMatrix);
+                    Distance = (float)(Vector3D.ProjectOnVector(ref MyPosCon, ref b).Length() + ConnectorPoint.Length());
+                    //Distance = (float)(MyPosCon - (Vector3D.Transform(PlanetCenter, DockMatrix) + ConnectorPoint)).Length();
                     gyros.SetOverride(true, gyrAng * GyroMult, 1);
-                    thrusts.SetOverridePercent("U", 0);
+                    thrusts.SetOverrideAccel("U", 10);
                     thrusts.SetOverridePercent("D", 0);
                     thrusts.SetOverridePercent("R", 0);
                     thrusts.SetOverridePercent("L", 0);
-                    thrusts.SetOverrideAccel("F", 10);
+                    thrusts.SetOverridePercent("F", 0);
                     thrusts.SetOverridePercent("B", 0);
                     if (Distance > 50)
                     {
-                        thrusts.SetOverrideAccel("F", 0);
+                        thrusts.SetOverrideAccel("U", 0);
                         Complete = true;
                     }
                 }
@@ -1317,8 +1320,13 @@ namespace BULL_H
             public void OutStatusMode(float MaxFSpeed, float MaxUSpeed, float MaxLSpeed)
             {
                 StringBuilder values = new StringBuilder();
-                values.Append(" STATUS\n");
+                //values.Append(" STATUS\n");
                 //Vector3D MyPosPoint = Vector3D.Transform(MyPos, WorkMatrix) - WorkPoint;
+                //Vector3D PocConnector = connector_base.GetPosition()-cockpit.obj.GetPosition();
+                //values.Append("PocConnector   : " + Math.Round(PocConnector.Length(), 2) + "\n");
+                //values.Append("PocConnector[0]   : " + Math.Round(PocConnector.GetDim(0), 2) + "\n");
+                //values.Append("PocConnector[1]   : " + Math.Round(PocConnector.GetDim(1), 2) + "\n");
+                //values.Append("PocConnector[2]   : " + Math.Round(PocConnector.GetDim(2), 2) + "\n");
                 Vector3D MyPosPoint = Vector3D.Transform(MyPos, DockMatrix);
                 values.Append("My_Length   : " + Math.Round(MyPosPoint.Length(), 2) + "\n");
                 values.Append("MyPosDrill[0]   : " + Math.Round(MyPosPoint.GetDim(0), 2) + "\n");
@@ -1332,8 +1340,8 @@ namespace BULL_H
                 values.Append("ZMaxA (F-B) : " + Math.Round(ZMaxA, 2).ToString() + "MaxFSpeed: " + Math.Round(MaxFSpeed, 2).ToString() + "\n");
                 values.Append("YMaxA (U-D) : " + Math.Round(YMaxA, 2).ToString() + "MaxUSpeed: " + Math.Round(MaxUSpeed, 2).ToString() + "\n");
                 values.Append("XMaxA (L-R) : " + Math.Round(XMaxA, 2).ToString() + "MaxLSpeed: " + Math.Round(MaxLSpeed, 2).ToString() + "\n");
-                //values.Append(thrusts.TextInfo());
-                //lcd_debug.OutText(values);
+                values.Append(thrusts.TextInfo());
+                lcd_debug.OutText(values);
             }
             public string TextInfo1()
             {
@@ -1410,6 +1418,7 @@ namespace BULL_H
                     }
                     // Обновим состояние навигации
                     UpdateCalc();
+                    //OutStatusMode(0, 0, 0);
                     if (EmergencyReturn) lightings.On(); else lightings.Off();
                     if (curent_programm == programm.none)
                     {
