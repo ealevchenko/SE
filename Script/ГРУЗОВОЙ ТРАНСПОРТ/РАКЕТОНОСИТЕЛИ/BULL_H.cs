@@ -51,8 +51,8 @@ namespace BULL_H
         static LCD lcd_storage;
         static LCD lcd_info;
         static LCD lcd_debug;
-        static LCD lcd_debug1;
-        static LCD lcd_debug2;
+        //static LCD lcd_debug1;
+        //static LCD lcd_debug2;
         static Batterys bats;
         static Connector connector_base;
         static Connector connector_cargo;
@@ -291,8 +291,8 @@ namespace BULL_H
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_info = new LCD(NameObj + "-LCD-INFO");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
-            lcd_debug1 = new LCD(NameObj + "-LCD-DEBUG-1");
-            lcd_debug2 = new LCD(NameObj + "-LCD-DEBUG-2");
+            //lcd_debug1 = new LCD(NameObj + "-LCD-DEBUG-1");
+            //lcd_debug2 = new LCD(NameObj + "-LCD-DEBUG-2");
             cockpit = new Cockpit(NameObj + "-Cocpit [LCD] Locked");
             bats = new Batterys(NameObj);
             connector_base = new Connector(NameObj + "-Коннектор парковка");
@@ -333,21 +333,21 @@ namespace BULL_H
                 values_info.Append(connector_base.TextInfo("К:Base") + "\n");
                 values_info.Append(connector_cargo.TextInfo("К:Cargo") + "\n");
                 values_info.Append(mergeblock_cargo1.TextInfo("СОЕД-ГРУЗ-1"));
-                values_info.Append(mergeblock_cargo1.TextInfo("СОЕД-ГРУЗ-2"));
-                cockpit.OutText(values_info, 0);
+                values_info.Append(mergeblock_cargo2.TextInfo("СОЕД-ГРУЗ-2"));
+                cockpit.OutText(values_info, 1);
                 StringBuilder values_info1 = new StringBuilder();
                 values_info1.Append(navigation.TextCritical());
-                cockpit.OutText(values_info1, 1);
-                StringBuilder values_info2 = new StringBuilder();
-                values_info2.Append(thrusts.TextInfo());
-                lcd_debug2.OutText(values_info2);
+                cockpit.OutText(values_info1, 0);
+                //StringBuilder values_info2 = new StringBuilder();
+                //values_info2.Append(thrusts.TextInfo());
+                //lcd_debug2.OutText(values_info2);
                 StringBuilder values_lcd_info = new StringBuilder();
                 values_lcd_info.Append(bats.TextInfo());
                 values_lcd_info.Append(hydrogen_tanks_nav.TextInfo("H2-НОСИТЕЛЯ"));
                 values_lcd_info.Append(connector_base.TextInfo("К:Base") + "\n");
                 values_lcd_info.Append(connector_cargo.TextInfo("К:Cargo") + "\n");
                 values_lcd_info.Append(mergeblock_cargo1.TextInfo("СОЕД-ГРУЗ-1"));
-                values_lcd_info.Append(mergeblock_cargo1.TextInfo("СОЕД-ГРУЗ-2"));
+                values_lcd_info.Append(mergeblock_cargo2.TextInfo("СОЕД-ГРУЗ-2"));
                 values_lcd_info.Append(navigation.TextInfo1());
                 lcd_info.OutText(values_lcd_info);
                 if (clock_main >= 10)
@@ -833,6 +833,7 @@ namespace BULL_H
         }
         public class Navigation
         {
+            static int clock = 0;
             public bool gravity = false;
             public bool horizont { get; set; } = false;  // держим горизонтальное направление
             public Vector3D? TackVector { get; set; } = null;
@@ -1252,7 +1253,7 @@ namespace BULL_H
                     }
 
                 }
-                //OutStatusMode(MaxFSpeed, 0, 0);
+                OutStatusMode(MaxFSpeed, 0, MaxLSpeed);
                 return Complete;
             }
             public bool Dock()
@@ -1308,12 +1309,13 @@ namespace BULL_H
                         Complete = true;
                     }
                 }
-                //OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed);
+                OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed);
                 return Complete;
             }
             public bool UnDock()
             {
                 bool Complete = false;
+                hydrogen_tanks_nav.Stockpile(false);
                 connector_base.obj.Disconnect();
                 if (!connector_base.Connected)
                 {
@@ -1330,7 +1332,7 @@ namespace BULL_H
                         Complete = true;
                     }
                 }
-                //OutStatusMode(0, 0, 0);
+                OutStatusMode(0, 0, 0);
                 return Complete;
             }
             public bool ToOrbit()
@@ -1361,12 +1363,33 @@ namespace BULL_H
                         Complete = true;
                     }
                 }
-                //OutStatusMode(0, 0, 0);
+                OutStatusMode(0, 0, 0);
                 return Complete;
             }
             public bool UnDockCargo()
             {
                 bool Complete = false;
+                connector_base.obj.Disconnect();
+                mergeblock_cargo1.Off();
+                mergeblock_cargo2.Off();
+                if (!connector_base.Connected && !mergeblock_cargo1.Locked && !mergeblock_cargo2.Locked ) {
+                    thrusts.On();
+                    thrusts.SetOverridePercent("D", 1.0f);
+                    clock++;
+                    if (connector_base.Unconnected && clock>12)
+                    {
+
+                        // Тормозим
+                        thrusts.ClearThrustOverridePersent();
+                        if (cockpit.obj.GetShipSpeed() < 0.1f)
+                        {
+                            thrusts.Off();
+                            clock = 0;
+                            gyros.SetOverride(false, 1);
+                            Complete = true;
+                        }
+                    }
+                }
                 return Complete;
             }
             //-------------------------------------------------
@@ -1474,6 +1497,7 @@ namespace BULL_H
                     }
                     else
                     {
+                        hydrogen_tanks_nav.Stockpile(true);
                         // Припаркован
                         if (curent_mode == mode.base_operation || curent_mode == mode.none)
                         {
