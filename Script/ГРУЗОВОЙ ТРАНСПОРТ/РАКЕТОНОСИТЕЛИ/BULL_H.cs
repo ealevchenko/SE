@@ -1040,90 +1040,77 @@ namespace BULL_H
                 gyros.SetOverride(true, gyrAng * GyroMult, 1);
             }
             //-----------------------------------------------
-            public void FlyBase()
+            public bool FlyBase()
             {
-                //if (curent_mode == mode.none)
-                //{
-                //    curent_mode = mode.to_base;
-                //    mystorage.SaveToStorage();
-                //}
-                //if (curent_mode == mode.to_base && ToBase())
-                //{
-                //    curent_mode = mode.dock;
-                //    mystorage.SaveToStorage();
-                //}
-                //if (curent_mode == mode.dock && Dock())
-                //{
-                //    Clear();
-                //    curent_programm = programm.none;
-                //    mystorage.SaveToStorage();
-                //}
+                bool Complete = false;
+                if (!gravity && curent_mode == mode.none)
+                {
+                    if (!connector_cargo.Unconnected)
+                    {
+                        curent_mode = mode.un_dock_cargo;
+                    }
+                    else
+                    {
+                        curent_mode = mode.to_base;
+                    }
+                    mystorage.SaveToStorage();
+                }
+                if (curent_mode == mode.un_dock_cargo && UnDockCargo())
+                {
+                    curent_mode = mode.to_base;
+                    mystorage.SaveToStorage();
+                }
+                if (curent_mode == mode.to_base && ToBase())
+                {
+                    curent_mode = mode.dock;
+                    mystorage.SaveToStorage();
+                }
+                if (curent_mode == mode.dock && Dock())
+                {
+                    Complete = true;
+                }
+                return Complete;
             }
-            public void FlyOrbit()
+            public bool FlyOrbit()
             {
-                //if (curent_mode == mode.none)
-                //{
-                //    if (connector_base.Connected)
-                //    {
-                //        curent_mode = mode.un_dock;
-                //        mystorage.SaveToStorage();
-                //    }
-                //    else
-                //    {
-                //        curent_mode = mode.to_orbit;
-                //        mystorage.SaveToStorage();
-                //    }
-                //}
-                //if (curent_mode == mode.un_dock && UnDock())
-                //{
-                //    curent_mode = mode.to_orbit;
-                //    mystorage.SaveToStorage();
-                //}
-                //if (curent_mode == mode.to_orbit && ToOrbit())
-                //{
-
-                //    curent_mode = mode.un_dock_cargo;
-                //    mystorage.SaveToStorage();
-                //}
-                //if (curent_mode == mode.un_dock_cargo && UnDockCargo())
-                //{
-                //    Clear();
-                //    curent_programm = programm.none;
-                //    mystorage.SaveToStorage();
-                //}
+                bool Complete = false;
+                if (curent_mode == mode.none && connector_base.Connected &&
+                    mergeblock_cargo1.Locked && mergeblock_cargo2.Locked)
+                {
+                    curent_mode = mode.un_dock;
+                    mystorage.SaveToStorage();
+                }
+                if (curent_mode == mode.un_dock && UnDock())
+                {
+                    curent_mode = mode.to_orbit;
+                    mystorage.SaveToStorage();
+                }
+                if (curent_mode == mode.to_orbit && ToOrbit())
+                {
+                    Complete = true;
+                }
+                return Complete;
             }
-            public void FlyAuto()
+            public bool FlyAuto()
             {
-                //if (curent_mode == mode.none)
-                //{
-                //    if (connector_base.Connected)
-                //    {
-                //        curent_mode = mode.un_dock;
-                //        mystorage.SaveToStorage();
-                //    }
-                //    else
-                //    {
-                //        curent_mode = mode.to_orbit;
-                //        mystorage.SaveToStorage();
-                //    }
-                //}
-                //if (curent_mode == mode.un_dock && UnDock())
-                //{
-                //    curent_mode = mode.to_orbit;
-                //    mystorage.SaveToStorage();
-                //}
-                //if (curent_mode == mode.to_orbit && ToOrbit())
-                //{
+                bool Complete = false;
+                if (curent_mode == mode.none)
+                {
+                    FlyOrbit();
+                    if (curent_mode == mode.none) { Complete = true; }
+                }
+                if (curent_mode == mode.to_orbit && FlyOrbit())
+                {
+                    curent_mode = mode.none;
+                    FlyBase();
+                    if (curent_mode == mode.none) { Complete = true; }
+                }
+                if (curent_mode == mode.dock && FlyBase())
+                {
+                    Complete = true;
+                }
+                return Complete;
 
-                //    curent_mode = mode.un_dock_cargo;
-                //    mystorage.SaveToStorage();
-                //}
-                //if (curent_mode == mode.un_dock_cargo && UnDockCargo())
-                //{
-                //    Clear();
-                //    curent_programm = programm.none;
-                //    mystorage.SaveToStorage();
-                //}
             }
             //-----------------------------------------------
             public void UpdateCalc()
@@ -1369,14 +1356,15 @@ namespace BULL_H
             public bool UnDockCargo()
             {
                 bool Complete = false;
-                connector_base.obj.Disconnect();
+                connector_cargo.obj.Disconnect();
                 mergeblock_cargo1.Off();
                 mergeblock_cargo2.Off();
-                if (!connector_base.Connected && !mergeblock_cargo1.Locked && !mergeblock_cargo2.Locked ) {
+                if (!connector_cargo.Connected && !mergeblock_cargo1.Locked && !mergeblock_cargo2.Locked)
+                {
                     thrusts.On();
                     thrusts.SetOverridePercent("D", 1.0f);
                     clock++;
-                    if (connector_base.Unconnected && clock>12)
+                    if (connector_cargo.Unconnected && clock > 12)
                     {
 
                         // Тормозим
@@ -1549,17 +1537,18 @@ namespace BULL_H
                             }
                         }
                     }
-                    if (curent_programm == programm.fly_base && !paused)
+                    if (curent_programm == programm.fly_base && !paused && FlyBase())
                     {
-                        FlyBase();
+                        curent_mode = mode.none; curent_programm = programm.none; mystorage.SaveToStorage();
                     }
-                    if (curent_programm == programm.fly_orbit && !paused)
+                    if (curent_programm == programm.fly_orbit && !paused && FlyOrbit())
                     {
-                        FlyOrbit();
+                        curent_mode = mode.none; curent_programm = programm.none; mystorage.SaveToStorage();
+
                     }
-                    if (curent_programm == programm.fly_auto && !paused)
+                    if (curent_programm == programm.fly_auto && !paused && FlyAuto())
                     {
-                        FlyAuto();
+                        curent_mode = mode.none; curent_programm = programm.none; mystorage.SaveToStorage();
                     }
                 }
             }
@@ -1601,7 +1590,6 @@ namespace BULL_H
     }
 }
 
-// Добавить сброс груза
 // Критические уставки
-// Выбор информации на экран
 // режим автомат....
+// двери и откл двигат под дверью
