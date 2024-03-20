@@ -46,6 +46,7 @@ namespace BULL_H
         const char idarkGrey = '\uE00F';
 
         static int clock_main = 0;
+        static bool mem_thr = false;
         static MyStorage mystorage;
         static LCD lcd_storage;
         static LCD lcd_info;
@@ -305,7 +306,7 @@ namespace BULL_H
             mergeblock_cargo2.On();
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj);
-            thrust_ext_dor = _scr.GridTerminalSystem.GetBlockWithName(NameObj + "-HydThrust [door]") as IMyThrust;
+            thrust_ext_dor = _scr.GridTerminalSystem.GetBlockWithName(NameObj + "-H_Thrust [door]") as IMyThrust;
             lightings_warning = new Lightings(NameObj, "[warning]");
             lightings_warning.Off();
             lightings_cabins = new Lightings(NameObj, "[cabins]");
@@ -336,7 +337,12 @@ namespace BULL_H
             if (updateSource == UpdateType.Update10)
             {
                 gateway.Logic();
-                if (gateway.ActiveSNExternal) { thrust_ext_dor.ApplyAction("OnOff_Off"); } else { thrust_ext_dor.ApplyAction("OnOff_On"); }
+                if (gateway.ActiveSNExternal) {
+                    mem_thr = thrust_ext_dor.IsWorking;
+                    thrust_ext_dor.ApplyAction("OnOff_Off"); 
+                } else { 
+                    if (mem_thr) thrust_ext_dor.ApplyAction("OnOff_On"); 
+                }
                 if (gateway.count_internal > 0) { lightings_cabins.On(); } else { lightings_cabins.Off(); }
                 values_info.Append(bats.TextInfo());
                 values_info.Append(hydrogen_tanks_nav.TextInfo("H2-НОСИТЕЛЯ"));
