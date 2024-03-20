@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Runtime.Remoting.Messaging;
 using System.Security.Claims;
 using System.Text;
@@ -16,18 +17,16 @@ using System.Threading.Tasks;
 using VRage;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
-using VRage.Scripting;
 using VRageMath;
-using static Sandbox.Game.SessionComponents.MySessionComponentWarningSystem;
 
 namespace BULL_H
 {
     /// <summary>
-    /// Ракетоноситель вывода на орбиту объектов, с возвратом на планету
+    /// Ракетоноситель вывода на орбиту объектов, с возвратом на планету (v4.0)
     /// </summary>
     public sealed class Program : MyGridProgram
     {
-        // v3
+        // v4
         string NameObj = "[BULL-H-01]";
         static float BaseDistance = 200f;
         static float Vh_con_cocpit = 20f;       // Растояние от коннектора стыковки к корпиту
@@ -59,9 +58,12 @@ namespace BULL_H
         static ShipMergeBlock mergeblock_cargo1, mergeblock_cargo2; // 
         static Gyros gyros;
         static Thrusts thrusts;
-        static Lightings lightings;
+        static IMyThrust thrust_ext_dor;
+        static Lightings lightings_warning;
+        static Lightings lightings_cabins;
         static Cockpit cockpit;
         static HydrogenTanks hydrogen_tanks_nav;
+        static Gateway gateway;
         static Navigation navigation;
         static Program _scr;
 
@@ -303,9 +305,13 @@ namespace BULL_H
             mergeblock_cargo2.On();
             gyros = new Gyros(NameObj);
             thrusts = new Thrusts(NameObj);
-            lightings = new Lightings(NameObj, "[warning]");
-            lightings.Off();
+            thrust_ext_dor = _scr.GridTerminalSystem.GetBlockWithName(NameObj + "-HydThrust [door]") as IMyThrust;
+            lightings_warning = new Lightings(NameObj, "[warning]");
+            lightings_warning.Off();
+            lightings_cabins = new Lightings(NameObj, "[cabins]");
+            lightings_cabins.Off();
             hydrogen_tanks_nav = new HydrogenTanks(NameObj);
+            gateway = new Gateway(NameObj);
             navigation = new Navigation();
             mystorage = new MyStorage();
             mystorage.LoadFromStorage();
@@ -320,6 +326,7 @@ namespace BULL_H
         {
             StringBuilder values_info = new StringBuilder();
             bats.Logic(argument, updateSource);
+
             navigation.Logic(argument, updateSource);
             switch (argument)
             {
@@ -328,6 +335,9 @@ namespace BULL_H
             }
             if (updateSource == UpdateType.Update10)
             {
+                gateway.Logic();
+                if (gateway.ActiveSNExternal) { thrust_ext_dor.ApplyAction("OnOff_Off"); } else { thrust_ext_dor.ApplyAction("OnOff_On"); }
+                if (gateway.count_internal > 0) { lightings_cabins.On(); } else { lightings_cabins.Off(); }
                 values_info.Append(bats.TextInfo());
                 values_info.Append(hydrogen_tanks_nav.TextInfo("H2-НОСИТЕЛЯ"));
                 values_info.Append(connector_base.TextInfo("К:Base") + "\n");
@@ -831,6 +841,86 @@ namespace BULL_H
                 return values.ToString();
             }
         }
+        public class Gateway
+        {
+            private List<IMyDoor> doors = new List<IMyDoor>();
+            private List<IMySensorBlock> sensors = new List<IMySensorBlock>();
+            public int count_external = 0;
+            public int count_internal = 0;
+            IMySensorBlock sn_external;
+            IMySensorBlock sn_internal;
+            IMyDoor door_external;
+            IMyDoor door_internal;
+            bool sn1_active = false;    // датчик входа
+            bool sn2_active = false;   // датчик выхода
+            public bool ActiveSNExternal { get { return sn_external.IsActive; } }
+            public Gateway(string name_obj)
+            {
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name_obj));
+                _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name_obj));
+                sn_external = sensors.Where(r => r.CustomName.Contains("[external]")).FirstOrDefault();
+                sn_internal = sensors.Where(r => r.CustomName.Contains("[internal]")).FirstOrDefault();
+                door_external = doors.Where(r => r.CustomName.Contains("[external]")).FirstOrDefault();
+                door_internal = doors.Where(r => r.CustomName.Contains("[internal]")).FirstOrDefault();
+                this.door_external.ApplyAction("OnOff_On");
+                this.door_internal.ApplyAction("OnOff_On");
+                this.door_external.CloseDoor();
+                this.door_internal.CloseDoor();
+            }
+            public void Logic()
+            {
+                if (!sn_external.IsActive && door_external.Status == DoorStatus.Open)
+                {
+                    // Игрок не найден возле внутр двери
+                    door_external.CloseDoor();
+                }
+                if (sn_external.IsActive && door_external.Status == DoorStatus.Closed && door_internal.Status == DoorStatus.Closed)
+                {
+                    // Игрокнайден возле внутр дверь закрыта и внешняя закрыта
+                    door_external.OpenDoor();
+                }
+                if (!sn_internal.IsActive && door_internal.Status == DoorStatus.Open)
+                {
+                    // Игрок не найден возле внутр двери
+                    door_internal.CloseDoor();
+                }
+                if (sn_internal.IsActive && door_internal.Status == DoorStatus.Closed && door_external.Status == DoorStatus.Closed)
+                {
+                    // Игрокнайден возле внутр дверь закрыта и внешняя закрыта
+                    door_internal.OpenDoor();
+                }
+                // Логика направдения движения
+                if (sn1_active && !sn2_active && sn_internal.IsActive)
+                {
+                    // Выход
+                    sn2_active = true;
+                    count_external--;
+                    count_internal++;
+                }
+                if (sn2_active && !sn1_active && sn_external.IsActive)
+                {
+                    // Вход
+                    sn1_active = true;
+                    count_external++;
+                    count_internal--;
+                }
+                if (sn2_active && sn1_active && !sn_internal.IsActive && !sn_external.IsActive)
+                {
+                    // Вход
+                    sn1_active = false;
+                    sn2_active = false;
+                }
+
+                if (!sn1_active && !sn2_active)
+                {
+                    // Выход
+                    sn1_active = sn_external.IsActive;
+                    sn2_active = sn_internal.IsActive;
+                }
+                if (count_external < 0) count_external = 0;
+                if (count_internal < 0) count_internal = 0;
+            }
+        }
         public class Navigation
         {
             static int clock = 0;
@@ -886,6 +976,9 @@ namespace BULL_H
             public MatrixD DockMatrix { get; set; }
             Vector3D glp { get; set; }
             public bool CriticalMassReached { get; private set; }// Признак критической массы
+            public bool CriticalBatteryCharge { get; private set; }// Признак критического заряда
+            public bool CriticalHydrogenSupply { get; private set; }// Признак критического запаса водорода
+
             public bool EmergencySetpoint = false;
             public bool paused = false;
             public Navigation()
@@ -1137,6 +1230,9 @@ namespace BULL_H
                 DownBrDistance = (UpVelocityVector.Length() * t) + ((-a) * Math.Pow(t, 2)) / 2; //S = V[0] * t + ( a * t^2 ) / 2
                 // Критические уставки
                 CriticalMassReached = (PhysicalMass > CriticalMass);
+                CriticalBatteryCharge = connector_base.Connected ? bats.CurrentPersent() < 1.0f : bats.CurrentPersent() <= CriticalOnCharge;
+                CriticalHydrogenSupply = connector_base.Connected ? hydrogen_tanks_nav.AverageFilledRatio < 1.0f : hydrogen_tanks_nav.AverageFilledRatio <= CriticalOnH2;
+                EmergencySetpoint = CriticalMassReached || CriticalBatteryCharge || CriticalHydrogenSupply;
             }
             public Vector3D GetLocalPosCon(Vector3D ConnectorPoint, MatrixD DockMatrix)
             {
@@ -1423,8 +1519,8 @@ namespace BULL_H
                 values.Append("--------------------------------------\n");
                 values.Append("АВАРИЙНЫЕ УСТАВКИ   : " + (EmergencySetpoint ? ired.ToString() : igreen.ToString()) + "\n");
                 values.Append("|-ФИЗ./КРИТ.(МАССА) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? ired.ToString() : igreen.ToString()) + "\n");
-                values.Append("|-БАТАРЕЯ %         : " + PText.GetPersent(bats.CurrentPersent()) + " " + (bats.CurrentPersent() <= CriticalOnCharge ? ired.ToString() : igreen.ToString()) + "\n");
-                values.Append("|-ТОПЛИВО H2 %      : " + (hydrogen_tanks_nav.AverageFilledRatio < CriticalOnH2 ? ired.ToString() : igreen.ToString()) + "\n");
+                values.Append("|-БАТАРЕЯ %         : " + PText.GetPersent(bats.CurrentPersent()) + " " + (CriticalBatteryCharge ? ired.ToString() : igreen.ToString()) + "\n");
+                values.Append("|-ТОПЛИВО H2 %      : " + PText.GetPersent(hydrogen_tanks_nav.AverageFilledRatio) + " " + (CriticalHydrogenSupply ? ired.ToString() : igreen.ToString()) + "\n");
                 values.Append("--------------------------------------\n");
                 values.Append("ПРОГРАММА : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП      : " + name_mode[(int)curent_mode] + "\n");
@@ -1496,7 +1592,7 @@ namespace BULL_H
                     }
                     // Обновим состояние навигации
                     UpdateCalc();
-                    if (EmergencySetpoint) lightings.On(); else lightings.Off();
+                    if (EmergencySetpoint) lightings_warning.On(); else lightings_warning.Off();
                     if (curent_programm == programm.none)
                     {
                         if (horizont) { Horizon(); } else { gyros.SetOverride(false, 1); }
@@ -1589,6 +1685,3 @@ namespace BULL_H
         }
     }
 }
-
-// Критические уставки
-// двери и откл двигат под дверью
