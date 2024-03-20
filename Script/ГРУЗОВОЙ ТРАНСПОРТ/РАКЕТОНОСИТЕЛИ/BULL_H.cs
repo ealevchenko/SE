@@ -33,7 +33,7 @@ namespace BULL_H
         static float Vh_con_cocpit = 20f;       // Растояние от коннектора стыковки к корпиту
 
         static float GyroMult = 1f;
-        static int CriticalMass = 100000;       // Критическая масса
+        static int CriticalMass = 3400000;       // Критическая масса
         static float MaxSpeedUD = 250.0f;       // мах скорость подъема и посадки 
         static float MinBrDistance = 1000f;     // минимальное растояние от земли, начинаем тормозить
         static float AlignAccelMult = 0.6f;
@@ -1099,13 +1099,13 @@ namespace BULL_H
                     FlyOrbit();
                     if (curent_mode == mode.none) { Complete = true; }
                 }
-                if (curent_mode == mode.to_orbit && FlyOrbit())
+                if ((curent_mode == mode.un_dock || curent_mode == mode.to_orbit) && FlyOrbit())
                 {
                     curent_mode = mode.none;
                     FlyBase();
                     if (curent_mode == mode.none) { Complete = true; }
                 }
-                if (curent_mode == mode.dock && FlyBase())
+                if ((curent_mode == mode.un_dock_cargo || curent_mode == mode.to_base || curent_mode == mode.dock) && FlyBase())
                 {
                     Complete = true;
                 }
@@ -1325,10 +1325,10 @@ namespace BULL_H
             public bool ToOrbit()
             {
                 bool Complete = false;
+                Vector3D MyPosCon = GetLocalPosCon(ConnectorPoint, DockMatrix);
                 if (gravity)
                 {
                     thrusts.On();
-                    Vector3D MyPosCon = GetLocalPosCon(ConnectorPoint, DockMatrix);
                     thrusts.SetOverridePercent("R", 0);
                     thrusts.SetOverridePercent("L", 0);
                     thrusts.SetOverridePercent("F", 0);
@@ -1364,7 +1364,7 @@ namespace BULL_H
                     thrusts.On();
                     thrusts.SetOverridePercent("D", 1.0f);
                     clock++;
-                    if (connector_cargo.Unconnected && clock > 12)
+                    if (connector_cargo.Unconnected && clock > 6)
                     {
 
                         // Тормозим
@@ -1591,5 +1591,4 @@ namespace BULL_H
 }
 
 // Критические уставки
-// режим автомат....
 // двери и откл двигат под дверью
