@@ -126,6 +126,7 @@
     <Compile Include="БУРОВИКИ\MINER\MINER_A2_1.cs" />
     <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\BUG\BUG_H2_NAV.cs" />
     <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\BUG\BUG_A1_H2_NAV.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\TRUCK\TRUCK_H1.cs" />
     <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\РАКЕТОНОСИТЕЛИ\BULL_H.cs" />
     <Compile Include="КОРАБЛИ\APOLN1.cs" />
     <Compile Include="Setup_Example\Primary_bur.cs" />
