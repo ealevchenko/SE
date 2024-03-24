@@ -18,7 +18,7 @@ namespace SETUP
         static IMyTextPanel test_lcd, info_lcd;
         static Program _scr;
 
-        ShipWelder sw;
+        //ShipWelder sw;
 
         static void DisplayBlockInfo(ref StringBuilder values, IMyTerminalBlock unit)
         {
@@ -550,11 +550,11 @@ namespace SETUP
             Echo("test_lcd: " + ((test_lcd != null) ? ("Ок") : ("not found")));
             info_lcd = GridTerminalSystem.GetBlockWithName("my_info_lcd") as IMyTextPanel;
             Echo("info_lcd: " + ((info_lcd != null) ? ("Ок") : ("not found")));
-            sw = new ShipWelder();
+            //sw = new ShipWelder();
             //info_lcd.WriteText("", false);
         }
 
-        //info:NASTYA1-info [door-info] [factory]
+        //info:[BT]-Антенна
         //replace:[KLEPA_H18-01]-|[KLEPA_H18_01]-
         //add:[KLEPA-H18-01]-
         //add:[PB-ER-1]-
@@ -655,13 +655,13 @@ namespace SETUP
                         case "welder_rename":
                             {
                                 values_info.Append("Зашел!" + "\n");
-                                sw.Rename("БАЗА-МЗ1-СБС-", "БАЗА-МЗ1-");
+                                //sw.Rename("БАЗА-МЗ1-СБС-", "БАЗА-МЗ1-");
                                 break;
                             }
                         case "welder_add":
                             {
                                 values_info.Append("Зашел!" + "\n");
-                                sw.Add("[OSS]-[WS-LG]-");
+                                //sw.Add("[OSS]-[WS-LG]-");
                                 break;
                             }
                         default:
@@ -680,58 +680,58 @@ namespace SETUP
 
 
         }
-        public class ShipWelder
-        {
-            public List<IMyShipWelder> list_obj = new List<IMyShipWelder>();
+        //public class ShipWelder
+        //{
+        //    public List<IMyShipWelder> list_obj = new List<IMyShipWelder>();
 
-            public ShipWelder()
-            {
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyShipWelder>(list_obj);
-                _scr.Echo("IMyShipWelder:[" + list_obj + "]" + ((list_obj != null && list_obj.Count() > 0) ? ("Ок") : ("not found")));
+        //    public ShipWelder()
+        //    {
+        //        _scr.GridTerminalSystem.GetBlocksOfType<IMyShipWelder>(list_obj);
+        //        _scr.Echo("IMyShipWelder:[" + list_obj + "]" + ((list_obj != null && list_obj.Count() > 0) ? ("Ок") : ("not found")));
 
-            }
+        //    }
 
-            public void Rename(string name_obj, string name_ignore)
-            {
-                //StringBuilder values_info = new StringBuilder();
-                //values_info.Append("НАЧАЛО!\n");
-                //info_lcd.WriteText(values_info, false);
-                foreach (IMyShipWelder sw in list_obj)
-                {
-                    //values_info.Append("Найден:" + sw.CustomName);
-                    if (!sw.CustomName.Contains(name_ignore))
-                    {
-                        if (!sw.CustomName.Contains(name_obj))
-                        {
-                            sw.CustomName = name_obj + sw.CustomName;
-                            //values_info.Append("-Переименнован" + sw.CustomName + "\n");
-                        }
-                        else
-                        {
-                            //values_info.Append("-Пропущен (УЖЕ)\n");
-                        }
-                    }
-                    else
-                    {
-                        //values_info.Append("-Пропущен (ИГНОР)\n");
-                    }
-                    //info_lcd.WriteText(values_info, true);
+        //    public void Rename(string name_obj, string name_ignore)
+        //    {
+        //        //StringBuilder values_info = new StringBuilder();
+        //        //values_info.Append("НАЧАЛО!\n");
+        //        //info_lcd.WriteText(values_info, false);
+        //        foreach (IMyShipWelder sw in list_obj)
+        //        {
+        //            //values_info.Append("Найден:" + sw.CustomName);
+        //            if (!sw.CustomName.Contains(name_ignore))
+        //            {
+        //                if (!sw.CustomName.Contains(name_obj))
+        //                {
+        //                    sw.CustomName = name_obj + sw.CustomName;
+        //                    //values_info.Append("-Переименнован" + sw.CustomName + "\n");
+        //                }
+        //                else
+        //                {
+        //                    //values_info.Append("-Пропущен (УЖЕ)\n");
+        //                }
+        //            }
+        //            else
+        //            {
+        //                //values_info.Append("-Пропущен (ИГНОР)\n");
+        //            }
+        //            //info_lcd.WriteText(values_info, true);
 
-                }
-            }
-            public void Add(string name_obj)
-            {
-                //StringBuilder values_info = new StringBuilder();
-                //values_info.Append("НАЧАЛО!\n");
-                //info_lcd.WriteText(values_info, false);
-                foreach (IMyShipWelder sw in list_obj)
-                {
-                    //values_info.Append("Найден:" + sw.CustomName);
-                    sw.CustomName = name_obj + sw.CustomName;
-                    //info_lcd.WriteText(values_info, true);
+        //        }
+        //    }
+        //    public void Add(string name_obj)
+        //    {
+        //        //StringBuilder values_info = new StringBuilder();
+        //        //values_info.Append("НАЧАЛО!\n");
+        //        //info_lcd.WriteText(values_info, false);
+        //        foreach (IMyShipWelder sw in list_obj)
+        //        {
+        //            //values_info.Append("Найден:" + sw.CustomName);
+        //            sw.CustomName = name_obj + sw.CustomName;
+        //            //info_lcd.WriteText(values_info, true);
 
-                }
-            }
-        }
+        //        }
+        //    }
+        //}
     }
 }

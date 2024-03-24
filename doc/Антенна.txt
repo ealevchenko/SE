@@ -1,0 +1,77 @@
+info:[BT]-Антенна
+info
+[BT]-Антенна
+MyRadioAntenna {1695EA1590BD76B} [BT]-Антенна
+101716513669240683
+TyepID=MyObjectBuilder_RadioAntenna
+SubtyepID=LargeBlockRadioAntenna
+Mass=3401.6
+IsBeingHacked =False
+IsWorking =True
+IsFunctional =True
+DisassembleRatio =1
+DisplayNameText =[BT]-Антенна
+
+Actions:
+OnOff:Переключить блок Вкл/Выкл(Вкл)
+OnOff_On:Переключить блок Вкл(Вкл)
+OnOff_Off:Переключить блок Выкл(Вкл)
+IncreaseFontSize:Увеличить Размер шрифта()
+DecreaseFontSize:Уменьшить Размер шрифта()
+IncreaseTextPaddingSlider:Увеличить Отступ текста()
+DecreaseTextPaddingSlider:Уменьшить Отступ текста()
+IncreaseChangeIntervalSlider:Увеличить Интервал переключения()
+DecreaseChangeIntervalSlider:Уменьшить Интервал переключения()
+PreserveAspectRatio:Сохранять соотношение сторон Вкл/Выкл()
+IncreaseRadius:Увеличить Радиус вещания(5000 m)
+DecreaseRadius:Уменьшить Радиус вещания(5000 m)
+EnableBroadCast:Включить вещание Вкл/Выкл(Вкл)
+ShowShipName:Название корабля Вкл/Выкл(Выкл)
+
+Properties:
+OnOff:Boolean (True)
+Content:Int64 (0) Valid Range: 0->3
+ScriptForegroundColor:Color
+ScriptBackgroundColor:Color
+Font:Int64 (0) Valid Range: 151057691->1147350002
+FontSize:Single (1) Valid Range: 0.1->10
+FontColor:Color
+alignment:Int64 (0) Valid Range: 0->2
+TextPaddingSlider:Single (0) Valid Range: 0->50
+BackgroundColor:Color
+ChangeIntervalSlider:Single (0) Valid Range: 0->30
+PreserveAspectRatio:Boolean (False)
+ShowInTerminal:Boolean (True)
+ShowInToolbarConfig:Boolean (True)
+CustomName:StringBuilder ([BT]-Антенна)
+HudText:StringBuilder ()
+Radius:Single (5000) Valid Range: 1->50000
+EnableBroadCast:Boolean (True)
+ShowShipName:Boolean (False)
+
+DetailedInfo:
+Тип: Антенна
+Потребление: 20.00 kW
+----------
+
+CustomInfo=––•( BuildInfo )–––
+Max Power Usage: 200 kW
+––•–––
+CustomName=[BT]-Антенна
+CustomData=
+CustomNameWithFaction=FSTC.[BT]-Антенна
+ShowOnHUD=False
+
+IMyFunctionalBlock
+ Enabled=True
+
+IMyTextSurfaceProvider
+ SurfaceCount=0
+
+No Inventory
+
+Accepted resources:
+ Electricity (Electricity)
+ Current=0.02 Max=0.002 PoweredBy=True
+Provided resources:
+ No Resources
