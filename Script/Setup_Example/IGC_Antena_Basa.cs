@@ -347,14 +347,19 @@ namespace IGC_Antena_Basa
             public MatrixD GetNormTransMatrixFromMyPos(Connector my_conn)
             {
                 MatrixD mRot;
-                //StringBuilder values = new StringBuilder();
-                //values.Append(PText.GetGPS("glp", my_conn.obj.GetPosition()) + "\n");
-                //lcd_dm.OutText(values);
+                StringBuilder values = new StringBuilder();
+                
+                
                 Vector3D V3Dcenter = my_conn.obj.GetPosition();
                 Vector3D V3Dup = my_conn.obj.WorldMatrix.Up;
                 if (gravity) V3Dup = -Vector3D.Normalize(GravVector);
-                Vector3D V3Dleft = Vector3D.Normalize(Vector3D.Reject(my_conn.obj.WorldMatrix.Left, V3Dup));
+                Vector3D V3Dleft = Vector3D.Normalize(Vector3D.Reject(my_conn.obj.WorldMatrix.Right, V3Dup));
                 Vector3D V3Dfow = Vector3D.Normalize(Vector3D.Cross(V3Dleft, V3Dup));
+                values.Append(PText.GetGPS("V3Dcenter", V3Dcenter));
+                values.Append(PText.GetGPS("V3Dup", V3Dup));
+                values.Append(PText.GetGPS("V3Dleft", V3Dleft));
+                values.Append(PText.GetGPS("V3Dfow", V3Dfow));
+                lcd_dm.OutText(values);
                 mRot = new MatrixD(V3Dleft.GetDim(0), V3Dleft.GetDim(1), V3Dleft.GetDim(2), 0, V3Dup.GetDim(0), V3Dup.GetDim(1), V3Dup.GetDim(2), 0, V3Dfow.GetDim(0), V3Dfow.GetDim(1), V3Dfow.GetDim(2), 0, 0, 0, 0, 1);
                 mRot = MatrixD.Invert(mRot);
                 return new MatrixD(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -V3Dcenter.GetDim(0), -V3Dcenter.GetDim(1), -V3Dcenter.GetDim(2), 1) * mRot;
@@ -400,8 +405,8 @@ namespace IGC_Antena_Basa
 
                         if (Convert.ToString(message.Data) == "conn_h1")
                         {
-                            //MatrixD conn_matr = GetNormTransMatrixFromMyPos(connector_h1);
-                            MatrixD conn_matr = GetNormTransMatrixFromPoint(connector_h1.GetPosition());
+                            MatrixD conn_matr = GetNormTransMatrixFromMyPos(connector_h1);
+                            //MatrixD conn_matr = GetNormTransMatrixFromPoint(connector_h1.GetPosition());
                             StringBuilder values = new StringBuilder();
                             values.Append(conn_matr.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "DM"));
                             //lcd_dm.OutText(values);
@@ -409,8 +414,8 @@ namespace IGC_Antena_Basa
                         }
                         if (Convert.ToString(message.Data) == "conn_h2")
                         {
-                            //MatrixD conn_matr = GetNormTransMatrixFromMyPos(connector_h2);
-                            MatrixD conn_matr = GetNormTransMatrixFromPoint(connector_h2.GetPosition());
+                            MatrixD conn_matr = GetNormTransMatrixFromMyPos(connector_h2);
+                            //MatrixD conn_matr = GetNormTransMatrixFromPoint(connector_h2.GetPosition());
                             StringBuilder values = new StringBuilder();
                             values.Append(conn_matr.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "DM"));
                             //lcd_dm.OutText(values);
@@ -418,8 +423,8 @@ namespace IGC_Antena_Basa
                         }
                         if (Convert.ToString(message.Data) == "conn_v1")
                         {
-                            //MatrixD conn_matr = GetNormTransMatrixFromMyPos(connector_v1);
-                            MatrixD conn_matr = GetNormTransMatrixFromPoint(connector_v1.GetPosition());
+                            MatrixD conn_matr = GetNormTransMatrixFromMyPos(connector_v1);
+                            //MatrixD conn_matr = GetNormTransMatrixFromPoint(connector_v1.GetPosition());
                             StringBuilder values = new StringBuilder();
                             values.Append(conn_matr.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "DM"));
                             //lcd_dm.OutText(values);

@@ -20,12 +20,19 @@ namespace IGC_Antena_Ship
     {
         string NameObj = "[SHIP-T]";
 
+        const char igreen = '\uE001';
+        const char iblue = '\uE002';
+        const char ired = '\uE003';
+        const char iyellow = '\uE004';
+        const char idarkGrey = '\uE00F';
+
         static IMyTextPanel mesage_lcd;
         static IMyBroadcastListener edik;
         string tag = "chanel";
         static LCD lcd_dm;
         static LCD lcd_dm1;
         static MyIGCMessage message;
+        static Connector connector_forw;
         static Cockpit cockpit;
         static Navigation nav;
         static MyStorage mystorage;
@@ -262,6 +269,7 @@ namespace IGC_Antena_Ship
             edik = IGC.RegisterBroadcastListener(tag);
             message = new MyIGCMessage();
             cockpit = new Cockpit(NameObj + "-Cocpit [LCD] Locked");
+            connector_forw = new Connector(NameObj + "-Коннектор [forw]");
             nav = new Navigation();
             mystorage = new MyStorage();
         }
@@ -281,6 +289,10 @@ namespace IGC_Antena_Ship
             {
                 IGC.SendBroadcastMessage<string>(tag, argument);//отправляю сообщение по нужному тегу
             }
+            if (argument == "conn_cp")
+            {
+                IGC.SendBroadcastMessage<string>(tag, argument);//отправляю сообщение по нужному тегу
+            }
             if (edik.HasPendingMessage)
             {
                 message = edik.AcceptMessage();
@@ -292,7 +304,43 @@ namespace IGC_Antena_Ship
                     if (args.Count() > 1 && !String.IsNullOrWhiteSpace(args[1]))
                     {
                         switch (args[0])
-                        {
+                        {                            
+                            case "conn_cp":
+                                {
+                                    nav.DockMatrix = new MatrixD(mystorage.GetValDouble("DM11", args[1].ToString()), mystorage.GetValDouble("DM12", args[1].ToString()), mystorage.GetValDouble("DM13", args[1].ToString()), mystorage.GetValDouble("DM14", args[1].ToString()),
+                                    mystorage.GetValDouble("DM21", args[1].ToString()), mystorage.GetValDouble("DM22", args[1].ToString()), mystorage.GetValDouble("DM23", args[1].ToString()), mystorage.GetValDouble("DM24", args[1].ToString()),
+                                    mystorage.GetValDouble("DM31", args[1].ToString()), mystorage.GetValDouble("DM32", args[1].ToString()), mystorage.GetValDouble("DM33", args[1].ToString()), mystorage.GetValDouble("DM34", args[1].ToString()),
+                                    mystorage.GetValDouble("DM41", args[1].ToString()), mystorage.GetValDouble("DM42", args[1].ToString()), mystorage.GetValDouble("DM43", args[1].ToString()), mystorage.GetValDouble("DM44", args[1].ToString()));
+                                    StringBuilder values = new StringBuilder();
+                                    Vector3D V3Dcenter = cockpit.obj.GetPosition();
+                                    Vector3D V3Dfow = cockpit.obj.WorldMatrix.Forward + V3Dcenter;
+                                    Vector3D V3Dup = cockpit.obj.WorldMatrix.Up + V3Dcenter;
+                                    Vector3D V3Dleft = cockpit.obj.WorldMatrix.Left + V3Dcenter;
+
+                                    // переводим в локальные
+                                    V3Dcenter = Vector3D.Transform(V3Dcenter, nav.DockMatrix);
+                                    V3Dfow = (Vector3D.Transform(V3Dfow, nav.DockMatrix)) - V3Dcenter;
+                                    V3Dup = (Vector3D.Transform(V3Dup, nav.DockMatrix)) - V3Dcenter;
+                                    V3Dleft = (Vector3D.Transform(V3Dleft, nav.DockMatrix)) - V3Dcenter;
+
+                                    //values.Append(PText.GetGPS("V3Dcenter-gl", V3Dcenter) + "\n");
+                                    //V3Dcenter = Vector3D.Transform(V3Dcenter, DockMatrix); // локальная
+                                    //values.Append(PText.GetGPS("V3Dcenter-loc", V3Dcenter) + "\n");
+                                    // 
+                                    Vector3D point_conn_cp = Vector3D.Transform((new Vector3D(0, 0, 0) - V3Dcenter), cockpit.obj.WorldMatrix);
+                                    Vector3D point_conn_cp_0 = Vector3D.Transform((new Vector3D(0, 0, 0)), cockpit.obj.WorldMatrix);
+                                    Vector3D point_conn_cp_x = Vector3D.Transform((new Vector3D(10, 0, 0)), cockpit.obj.WorldMatrix);
+                                    Vector3D point_conn_cp_y = Vector3D.Transform((new Vector3D(0, 10, 0)), cockpit.obj.WorldMatrix);
+                                    Vector3D point_conn_cp_z = Vector3D.Transform((new Vector3D(0, 0, 10)), cockpit.obj.WorldMatrix);
+                                    //
+                                    values.Append(PText.GetGPS("p_conn_h1", point_conn_cp));
+                                    values.Append(PText.GetGPS("p_conn_h1_0", point_conn_cp_0));
+                                    values.Append(PText.GetGPS("p_conn_h1_x", point_conn_cp_x));
+                                    values.Append(PText.GetGPS("p_conn_h1_y", point_conn_cp_y));
+                                    values.Append(PText.GetGPS("p_conn_h1_z", point_conn_cp_z));
+                                    lcd_dm.OutText(values);
+                                    break;
+                                };
                             case "conn_h1":
                                 {
                                     nav.DockMatrix = new MatrixD(mystorage.GetValDouble("DM11", args[1].ToString()), mystorage.GetValDouble("DM12", args[1].ToString()), mystorage.GetValDouble("DM13", args[1].ToString()), mystorage.GetValDouble("DM14", args[1].ToString()),
@@ -313,19 +361,19 @@ namespace IGC_Antena_Ship
 
                                     //values.Append(PText.GetGPS("V3Dcenter-gl", V3Dcenter) + "\n");
                                     //V3Dcenter = Vector3D.Transform(V3Dcenter, DockMatrix); // локальная
-                                    values.Append(PText.GetGPS("V3Dcenter-loc", V3Dcenter) + "\n");
+                                    //values.Append(PText.GetGPS("V3Dcenter-loc", V3Dcenter) + "\n");
                                     // 
                                     Vector3D point_conn_h1 = Vector3D.Transform((new Vector3D(0, 0, 0) - V3Dcenter), cockpit.obj.WorldMatrix);
                                     Vector3D point_conn_h1_0 = Vector3D.Transform((new Vector3D(0, 0, 0)), cockpit.obj.WorldMatrix);
-                                    Vector3D point_conn_h1_x = Vector3D.Transform((new Vector3D(1, 0, 0)), cockpit.obj.WorldMatrix);
-                                    Vector3D point_conn_h1_y = Vector3D.Transform((new Vector3D(0, 1, 0)), cockpit.obj.WorldMatrix);
-                                    Vector3D point_conn_h1_z = Vector3D.Transform((new Vector3D(0, 0, 1)), cockpit.obj.WorldMatrix);
+                                    Vector3D point_conn_h1_x = Vector3D.Transform((new Vector3D(10, 0, 0)), cockpit.obj.WorldMatrix);
+                                    Vector3D point_conn_h1_y = Vector3D.Transform((new Vector3D(0, 10, 0)), cockpit.obj.WorldMatrix);
+                                    Vector3D point_conn_h1_z = Vector3D.Transform((new Vector3D(0, 0, 10)), cockpit.obj.WorldMatrix);
                                     //
                                     values.Append(PText.GetGPS("p_conn_h1", point_conn_h1));
-                                    values.Append(PText.GetGPS("p_conn_h1_0", point_conn_h1));
-                                    values.Append(PText.GetGPS("p_conn_h1_x", point_conn_h1));
-                                    values.Append(PText.GetGPS("p_conn_h1_y", point_conn_h1));
-                                    values.Append(PText.GetGPS("p_conn_h1_z", point_conn_h1));
+                                    values.Append(PText.GetGPS("p_conn_h1_0", point_conn_h1_0));
+                                    values.Append(PText.GetGPS("p_conn_h1_x", point_conn_h1_x));
+                                    values.Append(PText.GetGPS("p_conn_h1_y", point_conn_h1_y));
+                                    values.Append(PText.GetGPS("p_conn_h1_z", point_conn_h1_z));
                                     lcd_dm.OutText(values);
                                     break;
                                 };
@@ -408,7 +456,20 @@ namespace IGC_Antena_Ship
             }
         }
         public class Cockpit : BaseController { public Cockpit(string name) : base(name) { } }
-
+        public class Connector : BaseTerminalBlock<IMyShipConnector>
+        {
+            public MyShipConnectorStatus Status { get { return base.obj.Status; } }
+            public bool Connected { get { return base.obj.Status == MyShipConnectorStatus.Connected ? true : false; } }
+            public bool Unconnected { get { return base.obj.Status == MyShipConnectorStatus.Unconnected ? true : false; } }
+            public bool Connectable { get { return base.obj.Status == MyShipConnectorStatus.Connectable ? true : false; } }
+            public Connector(string name) : base(name) { if (base.obj != null) { } }
+            public string TextStatus() { StringBuilder values = new StringBuilder(); values.Append(Connected ? igreen.ToString() : (Connectable ? iyellow.ToString() : ired.ToString())); return values.ToString(); }
+            public string TextInfo(string name) { StringBuilder values = new StringBuilder(); values.Append((name != null ? name : "КОННЕКТОР") + " : " + TextStatus()); return values.ToString(); }
+            public void Connect() { obj.Connect(); }
+            public void Disconnect() { obj.Disconnect(); }
+            public long? getEntityIdRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn.EntityId; } return null; }
+            public IMyShipConnector getRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn; } return null; }
+        }
         public class Navigation {
 
             public bool gravity = false;
@@ -432,7 +493,26 @@ namespace IGC_Antena_Ship
             {
 
             }
+            public MatrixD GetNormTransMatrixFromMyPos()
+            {
+                MatrixD mRot;
+                Vector3D V3Dcenter = MyPos;
+                Vector3D V3Dup = WMCocpit.Up;
+                if (gravity) V3Dup = -Vector3D.Normalize(GravVector);
+                Vector3D V3Dleft = Vector3D.Normalize(Vector3D.Reject(WMCocpit.Left, V3Dup));
+                Vector3D V3Dfow = Vector3D.Normalize(Vector3D.Cross(V3Dleft, V3Dup));
+                mRot = new MatrixD(V3Dleft.GetDim(0), V3Dleft.GetDim(1), V3Dleft.GetDim(2), 0, V3Dup.GetDim(0), V3Dup.GetDim(1), V3Dup.GetDim(2), 0, V3Dfow.GetDim(0), V3Dfow.GetDim(1), V3Dfow.GetDim(2), 0, 0, 0, 0, 1);
+                mRot = MatrixD.Invert(mRot);
+                return new MatrixD(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -V3Dcenter.GetDim(0), -V3Dcenter.GetDim(1), -V3Dcenter.GetDim(2), 1) * mRot;
+            }
+            public void SetDockMatrix()
+            {
 
+                {
+                    DockMatrix = GetNormTransMatrixFromMyPos();
+                    //mystorage.SaveToStorage();
+                }
+            }
             public void UpdateCalc()
             {
                 MyPrevPos = MyPos;
@@ -452,11 +532,17 @@ namespace IGC_Antena_Ship
                 //XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
                 StringBuilder values = new StringBuilder();
                 Vector3D MyPosPoint = Vector3D.Transform(MyPos, DockMatrix);
-                values.Append("My_Length   : " + Math.Round(MyPosPoint.Length(), 2) + "\n");
+                values.Append("MyPos_Length   : " + Math.Round(MyPosPoint.Length(), 2) + "\n");
                 values.Append("MyPos[0]   : " + Math.Round(MyPosPoint.GetDim(0), 2) + "\n");
                 values.Append("MyPos[1]   : " + Math.Round(MyPosPoint.GetDim(1), 2) + "\n");
                 values.Append("MyPos[2]   : " + Math.Round(MyPosPoint.GetDim(2), 2) + "\n");
-                lcd_dm1.OutText(values);
+                Vector3D MyPosConn = Vector3D.Transform(connector_forw.GetPosition(), DockMatrix);
+                values.Append("Conn_Length   : " + Math.Round(MyPosConn.Length(), 2) + "\n");
+                values.Append("ConnPos[0]   : " + Math.Round(MyPosConn.GetDim(0), 2) + "\n");
+                values.Append("ConnPos[1]   : " + Math.Round(MyPosConn.GetDim(1), 2) + "\n");
+                values.Append("ConnPos[2]   : " + Math.Round(MyPosConn.GetDim(2), 2) + "\n");
+                //lcd_dm1.OutText(values);
+                cockpit.OutText(values, 1);
             }
 
             public void Logic(string argument, UpdateType updateSource)
@@ -465,6 +551,7 @@ namespace IGC_Antena_Ship
                 {
                     case "load": mystorage.LoadFromStorage(); break;
                     case "save": mystorage.SaveToStorage(); break;
+                    case "save_base": SetDockMatrix(); break;
                     default: break;
                 }
                 if (updateSource == UpdateType.Update10)
