@@ -1,4 +1,5 @@
-﻿using Sandbox.Game.EntityComponents;
+﻿using Newtonsoft.Json.Linq;
+using Sandbox.Game.EntityComponents;
 using Sandbox.Game.GameSystems;
 using Sandbox.ModAPI.Ingame;
 using Sandbox.ModAPI.Interfaces;
@@ -10,6 +11,7 @@ using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
+using VRage.Noise.Combiners;
 using VRageMath;
 
 namespace IGC_Antena_Ship
@@ -22,8 +24,10 @@ namespace IGC_Antena_Ship
         static IMyBroadcastListener edik;
         string tag = "chanel";
         static LCD lcd_dm;
+        static LCD lcd_dm1;
         static MyIGCMessage message;
         static Cockpit cockpit;
+        static Navigation nav;
         static MyStorage mystorage;
         static Program _scr;
 
@@ -254,14 +258,17 @@ namespace IGC_Antena_Ship
             mesage_lcd = GridTerminalSystem.GetBlockWithName("mesage_lcd") as IMyTextPanel;
             Echo("test_lcd: " + ((mesage_lcd != null) ? ("Ок") : ("not found")));
             lcd_dm = new LCD(NameObj + "-debug message");
+            lcd_dm1 = new LCD(NameObj + "-debug message1");
             edik = IGC.RegisterBroadcastListener(tag);
             message = new MyIGCMessage();
             cockpit = new Cockpit(NameObj + "-Cocpit [LCD] Locked");
+            nav = new Navigation();
             mystorage = new MyStorage();
         }
 
         void Main(string argument, UpdateType updateSource)
         {
+            nav.Logic(argument, updateSource);
             if (argument == "conn_h1")
             {
                 IGC.SendBroadcastMessage<string>(tag, argument);//отправляю сообщение по нужному тегу
@@ -288,31 +295,49 @@ namespace IGC_Antena_Ship
                         {
                             case "conn_h1":
                                 {
-                                    MatrixD DockMatrix = new MatrixD(mystorage.GetValDouble("DM11", args[1].ToString()), mystorage.GetValDouble("DM12", args[1].ToString()), mystorage.GetValDouble("DM13", args[1].ToString()), mystorage.GetValDouble("DM14", args[1].ToString()),
+                                    nav.DockMatrix = new MatrixD(mystorage.GetValDouble("DM11", args[1].ToString()), mystorage.GetValDouble("DM12", args[1].ToString()), mystorage.GetValDouble("DM13", args[1].ToString()), mystorage.GetValDouble("DM14", args[1].ToString()),
                                     mystorage.GetValDouble("DM21", args[1].ToString()), mystorage.GetValDouble("DM22", args[1].ToString()), mystorage.GetValDouble("DM23", args[1].ToString()), mystorage.GetValDouble("DM24", args[1].ToString()),
                                     mystorage.GetValDouble("DM31", args[1].ToString()), mystorage.GetValDouble("DM32", args[1].ToString()), mystorage.GetValDouble("DM33", args[1].ToString()), mystorage.GetValDouble("DM34", args[1].ToString()),
                                     mystorage.GetValDouble("DM41", args[1].ToString()), mystorage.GetValDouble("DM42", args[1].ToString()), mystorage.GetValDouble("DM43", args[1].ToString()), mystorage.GetValDouble("DM44", args[1].ToString()));
                                     StringBuilder values = new StringBuilder();
-                                    Vector3D V3Dcenter = cockpit.obj.GetPosition();  // Глобальная
-                                    values.Append(PText.GetGPS("V3Dcenter-gl", V3Dcenter) + "\n");
-                                    V3Dcenter = Vector3D.Transform(V3Dcenter, DockMatrix); // локальная
+                                    Vector3D V3Dcenter = cockpit.obj.GetPosition();
+                                    Vector3D V3Dfow = cockpit.obj.WorldMatrix.Forward + V3Dcenter;
+                                    Vector3D V3Dup = cockpit.obj.WorldMatrix.Up + V3Dcenter;
+                                    Vector3D V3Dleft = cockpit.obj.WorldMatrix.Left + V3Dcenter;
+
+                                    // переводим в локальные
+                                    V3Dcenter = Vector3D.Transform(V3Dcenter, nav.DockMatrix);
+                                    V3Dfow = (Vector3D.Transform(V3Dfow, nav.DockMatrix)) - V3Dcenter;
+                                    V3Dup = (Vector3D.Transform(V3Dup, nav.DockMatrix)) - V3Dcenter;
+                                    V3Dleft = (Vector3D.Transform(V3Dleft, nav.DockMatrix)) - V3Dcenter;
+
+                                    //values.Append(PText.GetGPS("V3Dcenter-gl", V3Dcenter) + "\n");
+                                    //V3Dcenter = Vector3D.Transform(V3Dcenter, DockMatrix); // локальная
                                     values.Append(PText.GetGPS("V3Dcenter-loc", V3Dcenter) + "\n");
                                     // 
                                     Vector3D point_conn_h1 = Vector3D.Transform((new Vector3D(0, 0, 0) - V3Dcenter), cockpit.obj.WorldMatrix);
-
-                                    values.Append(PText.GetGPS("p_conn_h1", point_conn_h1) + "\n");
+                                    Vector3D point_conn_h1_0 = Vector3D.Transform((new Vector3D(0, 0, 0)), cockpit.obj.WorldMatrix);
+                                    Vector3D point_conn_h1_x = Vector3D.Transform((new Vector3D(1, 0, 0)), cockpit.obj.WorldMatrix);
+                                    Vector3D point_conn_h1_y = Vector3D.Transform((new Vector3D(0, 1, 0)), cockpit.obj.WorldMatrix);
+                                    Vector3D point_conn_h1_z = Vector3D.Transform((new Vector3D(0, 0, 1)), cockpit.obj.WorldMatrix);
+                                    //
+                                    values.Append(PText.GetGPS("p_conn_h1", point_conn_h1));
+                                    values.Append(PText.GetGPS("p_conn_h1_0", point_conn_h1));
+                                    values.Append(PText.GetGPS("p_conn_h1_x", point_conn_h1));
+                                    values.Append(PText.GetGPS("p_conn_h1_y", point_conn_h1));
+                                    values.Append(PText.GetGPS("p_conn_h1_z", point_conn_h1));
                                     lcd_dm.OutText(values);
                                     break;
                                 };
                             case "conn_h2":
                                 {
-                                    MatrixD DockMatrix = new MatrixD(mystorage.GetValDouble("DM11", args[1].ToString()), mystorage.GetValDouble("DM12", args[1].ToString()), mystorage.GetValDouble("DM13", args[1].ToString()), mystorage.GetValDouble("DM14", args[1].ToString()),
+                                    nav.DockMatrix = new MatrixD(mystorage.GetValDouble("DM11", args[1].ToString()), mystorage.GetValDouble("DM12", args[1].ToString()), mystorage.GetValDouble("DM13", args[1].ToString()), mystorage.GetValDouble("DM14", args[1].ToString()),
                                     mystorage.GetValDouble("DM21", args[1].ToString()), mystorage.GetValDouble("DM22", args[1].ToString()), mystorage.GetValDouble("DM23", args[1].ToString()), mystorage.GetValDouble("DM24", args[1].ToString()),
                                     mystorage.GetValDouble("DM31", args[1].ToString()), mystorage.GetValDouble("DM32", args[1].ToString()), mystorage.GetValDouble("DM33", args[1].ToString()), mystorage.GetValDouble("DM34", args[1].ToString()),
                                     mystorage.GetValDouble("DM41", args[1].ToString()), mystorage.GetValDouble("DM42", args[1].ToString()), mystorage.GetValDouble("DM43", args[1].ToString()), mystorage.GetValDouble("DM44", args[1].ToString()));
 
                                     Vector3D V3Dcenter = cockpit.obj.GetPosition();  // Глобальная
-                                    V3Dcenter = Vector3D.Transform(V3Dcenter, DockMatrix); // локальная
+                                    V3Dcenter = Vector3D.Transform(V3Dcenter, nav.DockMatrix); // локальная
                                     // 
                                     Vector3D point_conn_h2 = Vector3D.Transform((new Vector3D(0, 0, 0) - V3Dcenter), cockpit.obj.WorldMatrix);
                                     StringBuilder values = new StringBuilder();
@@ -322,13 +347,13 @@ namespace IGC_Antena_Ship
                                 };
                             case "conn_v1":
                                 {
-                                    MatrixD DockMatrix = new MatrixD(mystorage.GetValDouble("DM11", args[1].ToString()), mystorage.GetValDouble("DM12", args[1].ToString()), mystorage.GetValDouble("DM13", args[1].ToString()), mystorage.GetValDouble("DM14", args[1].ToString()),
+                                    nav.DockMatrix = new MatrixD(mystorage.GetValDouble("DM11", args[1].ToString()), mystorage.GetValDouble("DM12", args[1].ToString()), mystorage.GetValDouble("DM13", args[1].ToString()), mystorage.GetValDouble("DM14", args[1].ToString()),
                                     mystorage.GetValDouble("DM21", args[1].ToString()), mystorage.GetValDouble("DM22", args[1].ToString()), mystorage.GetValDouble("DM23", args[1].ToString()), mystorage.GetValDouble("DM24", args[1].ToString()),
                                     mystorage.GetValDouble("DM31", args[1].ToString()), mystorage.GetValDouble("DM32", args[1].ToString()), mystorage.GetValDouble("DM33", args[1].ToString()), mystorage.GetValDouble("DM34", args[1].ToString()),
                                     mystorage.GetValDouble("DM41", args[1].ToString()), mystorage.GetValDouble("DM42", args[1].ToString()), mystorage.GetValDouble("DM43", args[1].ToString()), mystorage.GetValDouble("DM44", args[1].ToString()));
 
                                     Vector3D V3Dcenter = cockpit.obj.GetPosition();  // Глобальная
-                                    V3Dcenter = Vector3D.Transform(V3Dcenter, DockMatrix); // локальная
+                                    V3Dcenter = Vector3D.Transform(V3Dcenter, nav.DockMatrix); // локальная
                                     // 
                                     Vector3D point_conn_v1 = Vector3D.Transform((new Vector3D(0, 0, 0) - V3Dcenter), cockpit.obj.WorldMatrix);
                                     StringBuilder values = new StringBuilder();
@@ -383,6 +408,72 @@ namespace IGC_Antena_Ship
             }
         }
         public class Cockpit : BaseController { public Cockpit(string name) : base(name) { } }
+
+        public class Navigation {
+
+            public bool gravity = false;
+            public Vector3D MyPos { get; private set; }
+            public Vector3D MyPrevPos { get; private set; }
+            public Vector3D VelocityVector { get; private set; }
+            public Vector3D UpVelocityVector { get; private set; }
+            public Vector3D ForwVelocityVector { get; private set; }
+            public Vector3D LeftVelocityVector { get; private set; }
+            public Vector3D GravVector { get; private set; }
+            public float PhysicalMass { get; private set; } // Физическая масса
+            public float TotalMass { get; private set; } // Физическая масса
+            public MatrixD WMCocpit { get; private set; } //
+            public MatrixD OrientationCocpit { get; private set; } //
+            public float XMaxA { get; private set; }
+            public float YMaxA { get; private set; }
+            public float ZMaxA { get; private set; }
+
+            public MatrixD DockMatrix { get; set; }
+            public Navigation()
+            {
+
+            }
+
+            public void UpdateCalc()
+            {
+                MyPrevPos = MyPos;
+                MyPos = cockpit.obj.GetPosition();
+                GravVector = cockpit.obj.GetNaturalGravity();
+                gravity = GravVector.LengthSquared() > 0.2f;
+                PhysicalMass = cockpit.obj.CalculateShipMass().PhysicalMass;
+                TotalMass = cockpit.obj.CalculateShipMass().TotalMass;
+                WMCocpit = cockpit.obj.WorldMatrix;
+                VelocityVector = (MyPos - MyPrevPos) * 6;
+                UpVelocityVector = WMCocpit.Up * Vector3D.Dot(VelocityVector, WMCocpit.Up);
+                ForwVelocityVector = WMCocpit.Forward * Vector3D.Dot(VelocityVector, WMCocpit.Forward);
+                LeftVelocityVector = WMCocpit.Left * Vector3D.Dot(VelocityVector, WMCocpit.Left);
+                OrientationCocpit = cockpit.GetCockpitMatrix();
+                //YMaxA = Math.Abs((float)Math.Min(thrusts.UpThrMax / PhysicalMass - GravVector.Length(), thrusts.DownThrMax / PhysicalMass + GravVector.Length()));
+                //ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
+                //XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
+                StringBuilder values = new StringBuilder();
+                Vector3D MyPosPoint = Vector3D.Transform(MyPos, DockMatrix);
+                values.Append("My_Length   : " + Math.Round(MyPosPoint.Length(), 2) + "\n");
+                values.Append("MyPos[0]   : " + Math.Round(MyPosPoint.GetDim(0), 2) + "\n");
+                values.Append("MyPos[1]   : " + Math.Round(MyPosPoint.GetDim(1), 2) + "\n");
+                values.Append("MyPos[2]   : " + Math.Round(MyPosPoint.GetDim(2), 2) + "\n");
+                lcd_dm1.OutText(values);
+            }
+
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    case "load": mystorage.LoadFromStorage(); break;
+                    case "save": mystorage.SaveToStorage(); break;
+                    default: break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+                    cockpit.Logic(argument, updateSource);
+                    UpdateCalc();
+                }
+            }
+        }
         public class MyStorage
         {
             public MyStorage() { }
