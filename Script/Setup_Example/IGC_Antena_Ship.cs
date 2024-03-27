@@ -29,6 +29,7 @@ namespace IGC_Antena_Ship
         static IMyTextPanel mesage_lcd;
         static IMyBroadcastListener edik;
         static IMyUnicastListener privat_chanel;
+        static IMyProgrammableBlock pb;
         string tag = "chanel";
         static LCD lcd_dm;
         static LCD lcd_dm1;
@@ -269,7 +270,7 @@ namespace IGC_Antena_Ship
             lcd_dm1 = new LCD(NameObj + "-debug message1");
             edik = IGC.RegisterBroadcastListener(tag);
             privat_chanel = IGC.UnicastListener;
-
+            pb = GridTerminalSystem.GetBlockWithName("[SHIP-T]-ПБ Antena") as IMyProgrammableBlock;
 
             message = new MyIGCMessage();
             cockpit = new Cockpit(NameObj + "-Cocpit [LCD] Locked");
@@ -281,6 +282,10 @@ namespace IGC_Antena_Ship
         void Main(string argument, UpdateType updateSource)
         {
             nav.Logic(argument, updateSource);
+            if (argument == "test_privat")
+            {
+                IGC.SendBroadcastMessage<string>(tag, argument);//отправляю сообщение по нужному тегу
+            }            
             if (argument == "conn_h1")
             {
                 IGC.SendBroadcastMessage<string>(tag, argument);//отправляю сообщение по нужному тегу
@@ -549,6 +554,7 @@ namespace IGC_Antena_Ship
                 //ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
                 //XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
                 StringBuilder values = new StringBuilder();
+                values.Append("pb : " + pb.EntityId + "\n");
                 Vector3D MyPosPoint = Vector3D.Transform(MyPos, DockMatrix);
                 values.Append("MyPos_Length   : " + Math.Round(MyPosPoint.Length(), 2) + "\n");
                 values.Append("MyPos[0]   : " + Math.Round(MyPosPoint.GetDim(0), 2) + "\n");
@@ -615,3 +621,7 @@ namespace IGC_Antena_Ship
         }
     }
 }
+
+
+//121268418639130970
+//121268418639130970

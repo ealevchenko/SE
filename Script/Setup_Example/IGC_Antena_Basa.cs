@@ -430,19 +430,24 @@ namespace IGC_Antena_Basa
                     {
                         message = edik.AcceptMessage();
                         mesage_lcd.WriteText("Unicast");
-                        mesage_lcd.WriteText(Convert.ToString(message.Data), true);
-                        mesage_lcd.WriteText(Convert.ToString(message.Tag), true);
-                        mesage_lcd.WriteText(Convert.ToString(message.Source), true);
+                        mesage_lcd.WriteText(Convert.ToString(message.Data) + "\n", true);
+                        mesage_lcd.WriteText(Convert.ToString(message.Tag) + "\n", true);
+                        mesage_lcd.WriteText(Convert.ToString(message.Source) + "\n", true);
+
                     }
 
                     if (edik.HasPendingMessage)
                     {
                         message = edik.AcceptMessage();
                         mesage_lcd.WriteText("Broadcast");
-                        mesage_lcd.WriteText(Convert.ToString(message.Data), true);
-                        mesage_lcd.WriteText(Convert.ToString(message.Tag), true);
-                        mesage_lcd.WriteText(Convert.ToString(message.Source), true);
+                        mesage_lcd.WriteText(Convert.ToString(message.Data) + "\n", true);
+                        mesage_lcd.WriteText(Convert.ToString(message.Tag) + "\n", true);
+                        mesage_lcd.WriteText(Convert.ToString(message.Source) + "\n", true);
 
+                        if (Convert.ToString(message.Data) == "test_privat")
+                        {
+                            _scr.IGC.SendUnicastMessage<string>(message.Source, "responce", "test_privat=" + message.Source);
+                        }
                         if (Convert.ToString(message.Data) == "conn_h1")
                         {
                             MatrixD conn_matr = GetNormTransMatrixFromMyPos(connector_h1);
