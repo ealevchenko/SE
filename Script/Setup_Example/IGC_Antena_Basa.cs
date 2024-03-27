@@ -27,7 +27,13 @@ namespace IGC_Antena_Basa
         const char idarkGrey = '\uE00F';
 
         static IMyTextPanel mesage_lcd;
+
+        IMyRadioAntenna antenna;
+        IMyProgrammableBlock pb;
+
+
         static IMyBroadcastListener edik;
+        static IMyUnicastListener edik1;
         static string tag = "chanel";
         static MyIGCMessage message;
         static LCD lcd_dm;
@@ -266,7 +272,14 @@ namespace IGC_Antena_Basa
             Echo("test_lcd: " + ((mesage_lcd != null) ? ("Ок") : ("not found")));
 
             lcd_dm = new LCD(NameObj + "-debug message");
+
+            antenna = GridTerminalSystem.GetBlockWithName("Antenna") as IMyRadioAntenna;
+            pb = GridTerminalSystem.GetBlockWithName("Programmable block") as IMyProgrammableBlock;
+
+            //antenna.AttachedProgrammableBlock = pb.EntityId;
+
             edik = IGC.RegisterBroadcastListener(tag);
+            edik1 = IGC.UnicastListener;
             message = new MyIGCMessage();
             connector_h1 = new Connector(NameObj + "-Коннектор h1");
             connector_h2 = new Connector(NameObj + "-Коннектор h2");
@@ -328,9 +341,7 @@ namespace IGC_Antena_Basa
             public long? getEntityIdRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn.EntityId; } return null; }
             public IMyShipConnector getRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn; } return null; }
         }
-
         public class Cockpit : BaseController { public Cockpit(string name) : base(name) { } }
-
         public class Upr
         {
             public Vector3D GravVector { get; private set; }
@@ -348,8 +359,8 @@ namespace IGC_Antena_Basa
             {
                 MatrixD mRot;
                 StringBuilder values = new StringBuilder();
-                
-                
+
+
                 Vector3D V3Dcenter = my_conn.obj.GetPosition();
                 Vector3D V3Dup = my_conn.obj.WorldMatrix.Up;
                 if (gravity) V3Dup = -Vector3D.Normalize(GravVector);
@@ -389,19 +400,48 @@ namespace IGC_Antena_Basa
             public void Logic(string argument, UpdateType updateSource)
             {
                 UpdateCall();
+
+
+                // To unicast a message to our friend, we need an address for his Programmable Block.
+                // We'll pretend here that he has copied it and sent it to us via Steam chat.
+                long friendAddress = 3672132753819237;
+
+                //// Here, we'll use the tag to convey information about what we're sending to our friend.
+                //string tagUni = "Int";
+
+                //// We're sending a number instead of a string.
+                //int number = 1337;
+
+                //// We access the unicast method through IGC and input our address, tag and data.
+                //_scr.IGC.SendUnicastMessage(friendAddress, tagUni, number);
+                //_scr.IGC.SendUnicastMessage(friendAddress, "Int", "hhhhhhhh");
+
                 switch (argument)
                 {
                     //case "load": mystorage.LoadFromStorage(); break;
                     //case "save": mystorage.SaveToStorage(); break;
                     case "test": _scr.IGC.SendBroadcastMessage<string>(tag, argument); break;
+                    case "test_uc": _scr.IGC.SendUnicastMessage<string>(friendAddress, "Test", argument); break;
                     default: break;
                 }
                 if (updateSource == UpdateType.Update10)
                 {
+                    if (edik1.HasPendingMessage)
+                    {
+                        message = edik.AcceptMessage();
+                        mesage_lcd.WriteText("Unicast");
+                        mesage_lcd.WriteText(Convert.ToString(message.Data), true);
+                        mesage_lcd.WriteText(Convert.ToString(message.Tag), true);
+                        mesage_lcd.WriteText(Convert.ToString(message.Source), true);
+                    }
+
                     if (edik.HasPendingMessage)
                     {
                         message = edik.AcceptMessage();
-                        mesage_lcd.WriteText(Convert.ToString(message.Data));
+                        mesage_lcd.WriteText("Broadcast");
+                        mesage_lcd.WriteText(Convert.ToString(message.Data), true);
+                        mesage_lcd.WriteText(Convert.ToString(message.Tag), true);
+                        mesage_lcd.WriteText(Convert.ToString(message.Source), true);
 
                         if (Convert.ToString(message.Data) == "conn_h1")
                         {
@@ -432,6 +472,14 @@ namespace IGC_Antena_Basa
                         }
                     }
                 }
+            }
+        }
+
+        public class Ports
+        {
+            public Ports()
+            {
+
             }
         }
     }

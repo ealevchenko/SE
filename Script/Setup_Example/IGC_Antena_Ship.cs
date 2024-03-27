@@ -28,6 +28,7 @@ namespace IGC_Antena_Ship
 
         static IMyTextPanel mesage_lcd;
         static IMyBroadcastListener edik;
+        static IMyUnicastListener privat_chanel;
         string tag = "chanel";
         static LCD lcd_dm;
         static LCD lcd_dm1;
@@ -267,6 +268,9 @@ namespace IGC_Antena_Ship
             lcd_dm = new LCD(NameObj + "-debug message");
             lcd_dm1 = new LCD(NameObj + "-debug message1");
             edik = IGC.RegisterBroadcastListener(tag);
+            privat_chanel = IGC.UnicastListener;
+
+
             message = new MyIGCMessage();
             cockpit = new Cockpit(NameObj + "-Cocpit [LCD] Locked");
             connector_forw = new Connector(NameObj + "-Коннектор [forw]");
@@ -293,11 +297,25 @@ namespace IGC_Antena_Ship
             {
                 IGC.SendBroadcastMessage<string>(tag, argument);//отправляю сообщение по нужному тегу
             }
+
+            if (privat_chanel.HasPendingMessage)
+            {
+                message = privat_chanel.AcceptMessage();
+                mesage_lcd.WriteText("Unicast");
+                mesage_lcd.WriteText(Convert.ToString(message.Data), true);
+                mesage_lcd.WriteText(Convert.ToString(message.Tag), true);
+                mesage_lcd.WriteText(Convert.ToString(message.Source), true);
+            }
+
             if (edik.HasPendingMessage)
             {
                 message = edik.AcceptMessage();
+                mesage_lcd.WriteText("Broadcast");
                 string mes_out = Convert.ToString(message.Data);
-                mesage_lcd.WriteText(mes_out);
+                //mesage_lcd.WriteText(mes_out);
+                mesage_lcd.WriteText(Convert.ToString(message.Data), true);
+                mesage_lcd.WriteText(Convert.ToString(message.Tag), true);
+                mesage_lcd.WriteText(Convert.ToString(message.Source), true);
                 if (!String.IsNullOrWhiteSpace(mes_out))
                 {
                     string[] args = mes_out.Split('=');
