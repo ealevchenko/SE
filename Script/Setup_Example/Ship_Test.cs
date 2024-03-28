@@ -18,12 +18,11 @@ using static Basa_Test.Program.MessHandler;
 using static VRage.MyMiniDump;
 
 // Скрипт тестирования классов обмен сообщений и порты стыковки
-// На программном блоке в имя нужно добавить тег "[antena]"
-namespace Basa_Test
+namespace Ship_Test
 {
     public sealed class Program : MyGridProgram
     {
-        string NameObj = "[BT]";
+        string NameObj = "[SHIP-T]]";
         static string tag_antena = "[antena]";
 
         const char igreen = '\uE001';
@@ -273,7 +272,6 @@ namespace Basa_Test
         void Main(string argument, UpdateType updateSource)
         {
             mess_handler.Logic(argument, updateSource); // обработаем сообщенияя
-            //upr.Logic(argument, updateSource);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
@@ -297,45 +295,23 @@ namespace Basa_Test
             public IMyShipConnector getRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn; } return null; }
         }
         public class Cockpit : BaseController { public Cockpit(string name) : base(name) { } }
-        public class Ports
-        {
-            public Ports()
-            {
-
-            }
-        }
         public class MessHandler
         {
-            public string name_base { get; set; }
-            public enum type_ship : int
-            {
-                none = 0,
-                v_miner = 1,    // верт. буровик
-                h_miner = 2,    // гор. буровик
-                welder = 3,     // сварщик
-                cutter = 4,     // резак
-                truck = 5,      // грузовик
-                rocket = 6,     // ракето-носитель
-                scout = 7,      // разветчик
-                corvette = 8,   // корвет
-                drone = 9,      // дрон
-            };
-            public static string[] name_programm = { "?", "В-Буровик", "Г-Буровик", "Сварщик", "Резак", "Грузовик", "Ракетоноситель", "Разведчик", "Корвет", "Дрон" };
-
+            public string name_ship { get; set; }
             public class option
             {
                 public string value { get; set; }
                 public string text { get; set; }
             }
-            public class ships
+            public class base_point
             {
                 public string name { get; set; }
                 public long addr { get; set; }
-                public type_ship type { get; set; }
-                public string thruster { get; set; }
+                public Vector3D point { get; set; }
+                public Vector3D pl_sentr { get; set; }
             }
 
-            public List<ships> list_ships = new List<ships>();
+            public List<base_point> list_points = new List<base_point>();
 
             public IMyRadioAntenna antenna;
             public IMyProgrammableBlock pb;
@@ -345,7 +321,7 @@ namespace Basa_Test
 
             public MessHandler(string name)
             {
-                name_base = name;
+                name_ship = name;
                 base_lstr = _scr.IGC.UnicastListener;
                 List<IMyRadioAntenna> list_anten = new List<IMyRadioAntenna>();
                 List<IMyProgrammableBlock> list_pb = new List<IMyProgrammableBlock>();
@@ -432,7 +408,7 @@ namespace Basa_Test
                                         bool res = Registration(GetOption(args[1]), addr);
                                         StringBuilder response = new StringBuilder();
                                         response.Append("basa_point=");
-                                        response.Append("name:" + name_base + ";");
+                                        response.Append("name:" + name_ship + ";");
                                         response.Append(pb.GetPosition().ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "BPX").Replace("Y", "BPY").Replace("Z", "BP") + ";\n");
                                         _scr.IGC.SendUnicastMessage<string>(addr, "tag", response.ToString());
                                         break;
