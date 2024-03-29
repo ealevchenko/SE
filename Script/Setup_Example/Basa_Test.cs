@@ -14,17 +14,22 @@ using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Scripting;
 using VRageMath;
-using static Basa_Test.Program.MessHandler;
-using static VRage.MyMiniDump;
+using static VRage.Game.MyObjectBuilder_CurveDefinition;
 
-// Скрипт тестирования классов обмен сообщений и порты стыковки
-// На программном блоке в имя нужно добавить тег "[antena]"
+/* Скрипт тестирования на базе классов обмен сообщений и определения портов посадки
+        tag_antena = "[antena]" - на базе пометить программный блок
+
+        tag_port= "[port]"; - на базе пометить коннекторы парковки ....
+        type_base = 1;      - указать тип бахы
+ */
 namespace Basa_Test
 {
     public sealed class Program : MyGridProgram
     {
         string NameObj = "[BT]";
         static string tag_antena = "[antena]";
+        static string tag_port = "[port]";
+        static int type_base = 1; // планетарная
 
         const char igreen = '\uE001';
         const char iblue = '\uE002';
@@ -32,7 +37,7 @@ namespace Basa_Test
         const char iyellow = '\uE004';
         const char idarkGrey = '\uE00F';
 
-        static MyStorage mystorage;
+        static MyStorage strg;
         static LCD lcd_storage;
         static LCD lcd_info, lcd_debug;
         static LCD lcd_lstr;
@@ -267,8 +272,8 @@ namespace Basa_Test
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
             lcd_lstr = new LCD(NameObj + "-LCD-Listener");
             mess_handler = new MessHandler(NameObj);
-
-
+            strg = new MyStorage();
+            strg.LoadFromStorage();
         }
         void Main(string argument, UpdateType updateSource)
         {
@@ -320,13 +325,7 @@ namespace Basa_Test
                 corvette = 8,   // корвет
                 drone = 9,      // дрон
             };
-            public static string[] name_programm = { "?", "В-Буровик", "Г-Буровик", "Сварщик", "Резак", "Грузовик", "Ракетоноситель", "Разведчик", "Корвет", "Дрон" };
-
-            public class option
-            {
-                public string value { get; set; }
-                public string text { get; set; }
-            }
+            public static string[] name_type_ship = { "?", "В-Буровик", "Г-Буровик", "Сварщик", "Резак", "Грузовик", "Ракетоноситель", "Разведчик", "Корвет", "Дрон" };
             public class ships
             {
                 public string name { get; set; }
@@ -342,7 +341,6 @@ namespace Basa_Test
             public IMyUnicastListener base_lstr; // Одноадресный прослушиватель базы
             public MyIGCMessage message;
             public long pb_address { get; set; }
-
             public MessHandler(string name)
             {
                 name_base = name;
@@ -355,52 +353,30 @@ namespace Basa_Test
                 pb = list_pb.Where(n => ((IMyTerminalBlock)n).CustomName.Contains(tag_antena)).FirstOrDefault();
                 _scr.Echo("MessHandler : IMyProgrammableBlock " + tag_antena + " - " + ((pb != null) ? ("Найден") : ("Ошибка")));
                 pb_address = pb != null ? pb.EntityId : 0;
-                mystorage.SaveToStorage();
+                strg.SaveToStorage();
             }
-            public List<option> GetOption(string data)
+            public bool Registration(String str, long addr)
             {
-                List<option> list = new List<option>();
-                if (!String.IsNullOrWhiteSpace(data))
+                string name = strg.GetValString("name", str);
+                type_ship type = (type_ship)strg.GetValInt("type", str);
+                string thruster = strg.GetValString("thruster", str);
+                ships sh = list_ships.Where(s => s.addr == addr).FirstOrDefault();
+                if (sh == null)
                 {
-                    string[] args = data.Split(';');
-                    foreach (string arg in args)
+                    sh = new ships()
                     {
-                        string[] opts = arg.Split(':');
-                        if (opts.Count() > 0)
-                        {
-                            option new_opt = new option()
-                            {
-                                value = opts[0],
-                                text = opts.Count() > 1 ? opts[1] : null,
-                            };
-                            list.Add(new_opt);
-                        }
-                    }
-                }
-                return list;
-            }
-            public bool Registration(List<option> list, long addr)
-            {
-                option name = list.Where(o => o.value == "name").FirstOrDefault();
-                option type = list.Where(o => o.value == "type").FirstOrDefault();
-                option thruster = list.Where(o => o.value == "thruster").FirstOrDefault();
-                if (name != null && name.text != null && addr > 0 && type != null && type.text != null && thruster != null)
-                {
-                    ships new_ships = new ships()
-                    {
-                        name = name.text,
+                        name = name,
+                        type = type,
                         addr = addr,
-                        type = (type_ship)Convert.ToInt16(type.text),
-                        thruster = thruster.text,
+                        thruster = thruster,
                     };
-                    ships sh = list_ships.Where(s => s.addr == addr).FirstOrDefault();
-                    if (sh != null)
-                    { sh.name = new_ships.name; sh.type = new_ships.type; sh.thruster = new_ships.thruster; }
-                    else { list_ships.Add(new_ships); }
-                    mystorage.SaveToStorage();
-                    return true;
+                    list_ships.Add(sh);
                 }
-                return false;
+                else
+                {
+                    sh.name = name; sh.type = type; sh.thruster = thruster;
+                }
+                return true;
             }
             public void Logic(string argument, UpdateType updateSource)
             {
@@ -427,19 +403,18 @@ namespace Basa_Test
                         {
                             switch (args[0])
                             {
-                                case "save_ship":
+                                case "add_ship":
                                     {
-                                        bool res = Registration(GetOption(args[1]), addr);
-                                        StringBuilder response = new StringBuilder();
-                                        response.Append("basa_point=");
-                                        response.Append("name:" + name_base + ";");
-                                        response.Append(pb.GetPosition().ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "BPX").Replace("Y", "BPY").Replace("Z", "BP") + ";\n");
-                                        _scr.IGC.SendUnicastMessage<string>(addr, "tag", response.ToString());
+                                        bool res = Registration(args[1], addr);
+                                        if (res)
+                                        {
+                                            string response = String.Format("basa_point=name:{0};type:{1};{2}", name_base, type_base, pb.GetPosition().ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "BPX").Replace("Y", "BPY").Replace("Z", "BP") + ";");
+                                            _scr.IGC.SendUnicastMessage<string>(addr, name_base, response);
+                                        }
                                         break;
                                     }
                             }
                         }
-
                     }
                 }
             }

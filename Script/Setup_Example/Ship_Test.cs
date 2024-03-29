@@ -12,18 +12,25 @@ using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
+using VRage.Network;
 using VRage.Scripting;
 using VRageMath;
-using static Basa_Test.Program.MessHandler;
-using static VRage.MyMiniDump;
 
-// Скрипт тестирования классов обмен сообщений и порты стыковки
+/* Скрипт тестирования на корабле классов обмен сообщений и навигационного блока
+        tag_antena = "[antena]" - на базе пометить программный блок
+        tag_nav = "[nav]";    - на корабле пометить кокпит ....
+        type_ship = 1; - указать тип коробля
+        type_thruster = "H";  - указать тип ьрастеров
+ */
 namespace Ship_Test
 {
     public sealed class Program : MyGridProgram
     {
-        string NameObj = "[SHIP-T]]";
+        string NameObj = "[SHIP-T]";
         static string tag_antena = "[antena]";
+        static string tag_nav = "[nav]";
+        static int type_ship = 1; // бур
+        static string type_thruster = "H";
 
         const char igreen = '\uE001';
         const char iblue = '\uE002';
@@ -31,11 +38,15 @@ namespace Ship_Test
         const char iyellow = '\uE004';
         const char idarkGrey = '\uE00F';
 
-        static MyStorage mystorage;
         static LCD lcd_storage;
         static LCD lcd_info, lcd_debug;
         static LCD lcd_lstr;
+        static MyStorage strg;
         static MessHandler mess_handler;
+        static Connector connector_forw;
+        static Connector connector_back;
+        static Connector connector_down;
+        static Navigation nav;
         static Program _scr;
 
         public class PText
@@ -167,7 +178,7 @@ namespace Ship_Test
                 if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_On");
             }
         }
-        public class BaseController
+        public class BaseShipController
         {
             public IMyShipController obj;
             private double current_height = 0;
@@ -178,10 +189,22 @@ namespace Ship_Test
                 this.obj.Orientation.GetMatrix(out CockpitMatrix);
                 return CockpitMatrix;
             }
-            public BaseController(string name)
+            public BaseShipController(string name)
             {
                 obj = _scr.GridTerminalSystem.GetBlockWithName(name) as IMyShipController;
                 _scr.Echo("base_controller:[" + name + "]: " + ((obj != null) ? ("Ок") : ("not Block")));
+            }
+
+            public BaseShipController(string name_obj, string tag)
+            {
+                List<IMyShipController> list_obj = new List<IMyShipController>();
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyShipController>(list_obj, r => ((IMyTerminalBlock)r).CustomName.Contains(name_obj));
+                _scr.Echo("Найдено base_ship_controller : " + list_obj.Count());
+                if (!String.IsNullOrWhiteSpace(tag))
+                {
+                    obj = list_obj.Where(n => ((IMyTerminalBlock)n).CustomName.Contains(tag)).FirstOrDefault();
+                }
+                _scr.Echo("Выбран base_ship_controller: " + ((obj != null) ? ("Ок") : ("not Block")));
             }
             public void Dampeners(bool on)
             {
@@ -259,19 +282,24 @@ namespace Ship_Test
         }
         public Program()
         {
-            Runtime.UpdateFrequency = UpdateFrequency.Update100;
+            Runtime.UpdateFrequency = UpdateFrequency.Update10;
             _scr = this;
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_info = new LCD(NameObj + "-LCD-INFO");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
             lcd_lstr = new LCD(NameObj + "-LCD-Listener");
             mess_handler = new MessHandler(NameObj);
-
-
+            connector_forw = new Connector(NameObj + "-Коннектор [forw]");
+            connector_back = new Connector(NameObj + "-Коннектор [back]");
+            connector_down = new Connector(NameObj + "-Коннектор [down]");
+            nav = new Navigation(NameObj);
+            strg = new MyStorage();
+            strg.LoadFromStorage();
         }
         void Main(string argument, UpdateType updateSource)
         {
             mess_handler.Logic(argument, updateSource); // обработаем сообщенияя
+            nav.Logic(argument, updateSource);// обработаем навигацию
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
@@ -294,27 +322,32 @@ namespace Ship_Test
             public long? getEntityIdRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn.EntityId; } return null; }
             public IMyShipConnector getRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn; } return null; }
         }
-        public class Cockpit : BaseController { public Cockpit(string name) : base(name) { } }
         public class MessHandler
         {
             public string name_ship { get; set; }
-            public class option
+            public enum type_base : int
             {
-                public string value { get; set; }
-                public string text { get; set; }
-            }
+                none = 0,
+                planet = 1,   // планета
+                space = 2,    // космос
+                metior = 3,   // метиорит
+                relocat = 4,  // перемещаемая
+            };
+            public static string[] name_type_base = { "?", "ПЛАНЕТАРНАЯ", "ОРБИТАЛЬНАЯ", "МЕТЕОРНАЯ", "ТРАНСПОРТ" };
+
             public class base_point
             {
                 public string name { get; set; }
                 public long addr { get; set; }
+                public type_base type { get; set; }
                 public Vector3D point { get; set; }
-                public Vector3D pl_sentr { get; set; }
+                public Vector3D centr { get; set; }
             }
 
-            public List<base_point> list_points = new List<base_point>();
+            public List<base_point> base_points = new List<base_point>();
 
             public IMyRadioAntenna antenna;
-            public IMyProgrammableBlock pb;
+            //public IMyProgrammableBlock pb;
             public IMyUnicastListener base_lstr; // Одноадресный прослушиватель базы
             public MyIGCMessage message;
             public long pb_address { get; set; }
@@ -324,59 +357,46 @@ namespace Ship_Test
                 name_ship = name;
                 base_lstr = _scr.IGC.UnicastListener;
                 List<IMyRadioAntenna> list_anten = new List<IMyRadioAntenna>();
-                List<IMyProgrammableBlock> list_pb = new List<IMyProgrammableBlock>();
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyRadioAntenna>(list_anten, r => r.CustomName.Contains(name));
                 _scr.Echo("MessHandler : Найдено IMyRadioAntenna - " + list_anten.Count());
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyProgrammableBlock>(list_pb, r => r.CustomName.Contains(name));
-                pb = list_pb.Where(n => ((IMyTerminalBlock)n).CustomName.Contains(tag_antena)).FirstOrDefault();
-                _scr.Echo("MessHandler : IMyProgrammableBlock " + tag_antena + " - " + ((pb != null) ? ("Найден") : ("Ошибка")));
-                pb_address = pb != null ? pb.EntityId : 0;
-                mystorage.SaveToStorage();
+                strg.SaveToStorage();
             }
-            public List<option> GetOption(string data)
+            public void SendAddBase()
             {
-                List<option> list = new List<option>();
-                if (!String.IsNullOrWhiteSpace(data))
+                List<IMyProgrammableBlock> list_pb = new List<IMyProgrammableBlock>();
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyProgrammableBlock>(list_pb, r => r.CustomName.Contains(tag_antena));
+                IMyProgrammableBlock pb = list_pb.Where(n => ((IMyTerminalBlock)n).CustomName.Contains(tag_antena)).FirstOrDefault();
+                if (pb != null)
                 {
-                    string[] args = data.Split(';');
-                    foreach (string arg in args)
-                    {
-                        string[] opts = arg.Split(':');
-                        if (opts.Count() > 0)
-                        {
-                            option new_opt = new option()
-                            {
-                                value = opts[0],
-                                text = opts.Count() > 1 ? opts[1] : null,
-                            };
-                            list.Add(new_opt);
-                        }
-                    }
+                    string command = String.Format("add_ship=name:{0};type:{1};thruster:{3}", name_ship, type_ship, type_thruster);
+                    _scr.IGC.SendUnicastMessage<string>(pb.EntityId, name_ship, command);
                 }
-                return list;
             }
-            public bool Registration(List<option> list, long addr)
+            public bool RegistrationBase(String str, long addr)
             {
-                option name = list.Where(o => o.value == "name").FirstOrDefault();
-                option type = list.Where(o => o.value == "type").FirstOrDefault();
-                option thruster = list.Where(o => o.value == "thruster").FirstOrDefault();
-                if (name != null && name.text != null && addr > 0 && type != null && type.text != null && thruster != null)
+                string name = strg.GetValString("name", str);
+                type_base type = (type_base)strg.GetValInt("type", str);
+                Vector3D bp = new Vector3D(strg.GetValDouble("BPX", str.ToString()), strg.GetValDouble("BPY", str.ToString()), strg.GetValDouble("BPZ", str.ToString()));
+                Vector3D pc = nav.GetPlanetCenter();
+                base_point point = base_points.Where(s => s.addr == addr).FirstOrDefault();
+                if (point == null)
                 {
-                    ships new_ships = new ships()
+                    point = new base_point()
                     {
-                        name = name.text,
+                        name = name,
+                        type = type,
                         addr = addr,
-                        type = (type_ship)Convert.ToInt16(type.text),
-                        thruster = thruster.text,
+                        centr = pc,
+                        point = bp,
                     };
-                    ships sh = list_ships.Where(s => s.addr == addr).FirstOrDefault();
-                    if (sh != null)
-                    { sh.name = new_ships.name; sh.type = new_ships.type; sh.thruster = new_ships.thruster; }
-                    else { list_ships.Add(new_ships); }
-                    mystorage.SaveToStorage();
-                    return true;
+                    base_points.Add(point);
                 }
-                return false;
+                else
+                {
+                    point.name = name; point.type = type; point.centr = pc; point.point = bp;
+                }
+                strg.SaveToStorage();
+                return true;
             }
             public void Logic(string argument, UpdateType updateSource)
             {
@@ -385,15 +405,13 @@ namespace Ship_Test
                     case "test": _scr.IGC.SendUnicastMessage<string>(pb_address, "tag", argument); break;
                     default: break;
                 }
-                if (updateSource == UpdateType.Update100)
+                if (updateSource == UpdateType.Update10)
                 {
                     if (base_lstr.HasPendingMessage)
                     {
                         message = base_lstr.AcceptMessage();
                         StringBuilder values = new StringBuilder();
-                        string mess_inp = Convert.ToString(message.Data);
-                        string mess_tag = Convert.ToString(message.Tag);
-                        string mess_source = Convert.ToString(message.Source);
+                        string mess_inp = Convert.ToString(message.Data); string mess_tag = Convert.ToString(message.Tag); string mess_source = Convert.ToString(message.Source);
                         long addr = !String.IsNullOrWhiteSpace(mess_source) ? Convert.ToInt64(mess_tag) : 0;
                         values.Append("Data   : " + mess_inp + "\n");
                         values.Append("Tag    : " + mess_tag + "\n");
@@ -403,14 +421,9 @@ namespace Ship_Test
                         {
                             switch (args[0])
                             {
-                                case "save_ship":
+                                case "basa_point":
                                     {
-                                        bool res = Registration(GetOption(args[1]), addr);
-                                        StringBuilder response = new StringBuilder();
-                                        response.Append("basa_point=");
-                                        response.Append("name:" + name_ship + ";");
-                                        response.Append(pb.GetPosition().ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "BPX").Replace("Y", "BPY").Replace("Z", "BP") + ";\n");
-                                        _scr.IGC.SendUnicastMessage<string>(addr, "tag", response.ToString());
+                                        bool res = RegistrationBase(args[1], addr);
                                         break;
                                     }
                             }
@@ -420,39 +433,68 @@ namespace Ship_Test
                 }
             }
         }
+        public class Navigation
+        {
+            public string name_ship { get; set; }
+            public BaseShipController cockpit { get; set; }
+            public bool Connected { get { return connector_forw.Connected || connector_back.Connected || connector_down.Connected; } }
+            public Navigation(string name)
+            {
+                name_ship = name;
+                cockpit = new BaseShipController(name, tag_nav);
+            }
+            public Vector3D GetPlanetCenter()
+            {
+                Vector3D pc = new Vector3D();
+                return cockpit.obj.TryGetPlanetPosition(out pc) ? pc : Vector3D.Zero;
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    case "add_basa": if (Connected) { mess_handler.SendAddBase(); }; break;
+                    default: break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+
+                }
+            }
+        }
         public class MyStorage
         {
             public MyStorage() { }
             public void LoadFromStorage()
             {
                 StringBuilder str = lcd_storage.GetText();
-                int count = GetValInt("count_ships", str.ToString());
-                mess_handler.list_ships.Clear();
+                int count = GetValInt("count_base", str.ToString());
+                mess_handler.base_points.Clear();
                 for (int i = 0; i < count; i++)
                 {
-                    MessHandler.ships ships = new MessHandler.ships()
+                    MessHandler.base_point bs = new MessHandler.base_point()
                     {
-                        name = GetValString("ship[" + i + "].name", str.ToString()),
-                        addr = GetValInt64("ship[" + i + "].addr", str.ToString()),
-                        type = (MessHandler.type_ship)GetValInt("ship[" + i + "].type", str.ToString()),
-                        thruster = GetValString("ship[" + i + "].thruster", str.ToString()),
+                        name = GetValString("base[" + i + "].name", str.ToString()),
+                        addr = GetValInt64("base[" + i + "].addr", str.ToString()),
+                        type = (MessHandler.type_base)GetValInt("base[" + i + "].type", str.ToString()),
+                        point = new Vector3D(GetValDouble("base[" + i + "].PX", str.ToString()), GetValDouble("base[" + i + "].PY", str.ToString()), GetValDouble("base[" + i + "].PZ", str.ToString())),
+                        centr = new Vector3D(GetValDouble("base[" + i + "].PX", str.ToString()), GetValDouble("base[" + i + "].PY", str.ToString()), GetValDouble("base[" + i + "].PZ", str.ToString())),
                     };
                 }
             }
             public void SaveToStorage()
             {
                 StringBuilder values = new StringBuilder();
-
                 int i = 0;
-                foreach (MessHandler.ships shp in mess_handler.list_ships)
+                foreach (MessHandler.base_point bs in mess_handler.base_points)
                 {
-                    values.Append("ship[" + i + "].name: " + shp.name + ";\n");
-                    values.Append("ship[" + i + "].addr: " + shp.addr.ToString() + ";\n");
-                    values.Append("ship[" + i + "].type: " + ((int)shp.type).ToString() + ";\n");
-                    values.Append("ship[" + i + "].thruster: " + shp.thruster + ";\n");
+                    values.Append("base[" + i + "].name: " + bs.name + ";\n");
+                    values.Append("base[" + i + "].addr: " + bs.addr.ToString() + ";\n");
+                    values.Append("base[" + i + "].type: " + ((int)bs.type).ToString() + ";\n");
+                    values.Append(bs.point.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "base[" + i + "].PX").Replace("Y", "base[" + i + "].PY").Replace("Z", "base[" + i + "].PZ") + ";\n");
+                    values.Append(bs.centr.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "base[" + i + "].CX").Replace("Y", "base[" + i + "].CY").Replace("Z", "base[" + i + "].CZ") + ";\n");
                     i++;
                 }
-                values.Append("count_ships: " + mess_handler.list_ships.Count().ToString() + ";\n");
+                values.Append("count_base: " + mess_handler.base_points.Count().ToString() + ";\n");
                 lcd_storage.OutText(values);
             }
             private string GetVal(string Key, string str, string val) { string pattern = @"(" + Key + "):([^:^;]+);"; System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(str.Replace("\n", ""), pattern); if (match.Success) { val = match.Groups[2].Value; } return val; }
