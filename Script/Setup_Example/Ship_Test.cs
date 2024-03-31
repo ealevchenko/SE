@@ -348,18 +348,18 @@ namespace Ship_Test
 
             public IMyRadioAntenna antenna;
             //public IMyProgrammableBlock pb;
-            public IMyUnicastListener base_lstr; // Одноадресный прослушиватель базы
+            public IMyUnicastListener ship_lstr; // Одноадресный прослушиватель базы
             public MyIGCMessage message;
             public long pb_address { get; set; }
 
             public MessHandler(string name)
             {
                 name_ship = name;
-                base_lstr = _scr.IGC.UnicastListener;
+                ship_lstr = _scr.IGC.UnicastListener;
                 List<IMyRadioAntenna> list_anten = new List<IMyRadioAntenna>();
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyRadioAntenna>(list_anten, r => r.CustomName.Contains(name));
                 _scr.Echo("MessHandler : Найдено IMyRadioAntenna - " + list_anten.Count());
-                strg.SaveToStorage();
+                //strg.SaveToStorage();
             }
             public void SendAddBase()
             {
@@ -368,16 +368,21 @@ namespace Ship_Test
                 IMyProgrammableBlock pb = list_pb.Where(n => ((IMyTerminalBlock)n).CustomName.Contains(tag_antena)).FirstOrDefault();
                 if (pb != null)
                 {
-                    string command = String.Format("add_ship=name:{0};type:{1};thruster:{3}", name_ship, type_ship, type_thruster);
+                    string command = String.Format("add_ship=name:{0};type:{1};thruster:{2}", name_ship, type_ship, type_thruster);
                     _scr.IGC.SendUnicastMessage<string>(pb.EntityId, name_ship, command);
                 }
             }
             public bool RegistrationBase(String str, long addr)
             {
+                //lcd_lstr.OutText("(args[1]:" + str, true);
                 string name = strg.GetValString("name", str);
                 type_base type = (type_base)strg.GetValInt("type", str);
                 Vector3D bp = new Vector3D(strg.GetValDouble("BPX", str.ToString()), strg.GetValDouble("BPY", str.ToString()), strg.GetValDouble("BPZ", str.ToString()));
                 Vector3D pc = nav.GetPlanetCenter();
+                //lcd_lstr.OutText("name:" + name, true);
+                //lcd_lstr.OutText("type:" + type, true);
+                //lcd_lstr.OutText("bp:" + bp.ToString(), true);
+                //lcd_lstr.OutText("bp:" + pc.ToString(), true);
                 base_point point = base_points.Where(s => s.addr == addr).FirstOrDefault();
                 if (point == null)
                 {
@@ -395,6 +400,7 @@ namespace Ship_Test
                 {
                     point.name = name; point.type = type; point.centr = pc; point.point = bp;
                 }
+                //lcd_lstr.OutText("count:" + base_points.Count(), true);
                 strg.SaveToStorage();
                 return true;
             }
@@ -407,21 +413,23 @@ namespace Ship_Test
                 }
                 if (updateSource == UpdateType.Update10)
                 {
-                    if (base_lstr.HasPendingMessage)
+                    if (ship_lstr.HasPendingMessage)
                     {
-                        message = base_lstr.AcceptMessage();
+                        message = ship_lstr.AcceptMessage();
                         StringBuilder values = new StringBuilder();
                         string mess_inp = Convert.ToString(message.Data); string mess_tag = Convert.ToString(message.Tag); string mess_source = Convert.ToString(message.Source);
-                        long addr = !String.IsNullOrWhiteSpace(mess_source) ? Convert.ToInt64(mess_tag) : 0;
+                        long addr = !String.IsNullOrWhiteSpace(mess_source) ? Convert.ToInt64(mess_source) : 0;
                         values.Append("Data   : " + mess_inp + "\n");
                         values.Append("Tag    : " + mess_tag + "\n");
                         values.Append("Source : " + mess_source + "\n");
+                        lcd_lstr.OutText(values);
                         string[] args = mess_inp.Split('=');
+                        //lcd_lstr.OutText("(args[0]:" + args[0], true);
                         if (args.Count() > 0)
                         {
                             switch (args[0])
                             {
-                                case "basa_point":
+                                case "base_point":
                                     {
                                         bool res = RegistrationBase(args[1], addr);
                                         break;

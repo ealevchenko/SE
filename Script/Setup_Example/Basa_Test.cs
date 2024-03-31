@@ -353,7 +353,7 @@ namespace Basa_Test
                 pb = list_pb.Where(n => ((IMyTerminalBlock)n).CustomName.Contains(tag_antena)).FirstOrDefault();
                 _scr.Echo("MessHandler : IMyProgrammableBlock " + tag_antena + " - " + ((pb != null) ? ("Найден") : ("Ошибка")));
                 pb_address = pb != null ? pb.EntityId : 0;
-                strg.SaveToStorage();
+                //strg.SaveToStorage();
             }
             public bool Registration(String str, long addr)
             {
@@ -376,6 +376,7 @@ namespace Basa_Test
                 {
                     sh.name = name; sh.type = type; sh.thruster = thruster;
                 }
+                strg.SaveToStorage();
                 return true;
             }
             public void Logic(string argument, UpdateType updateSource)
@@ -394,10 +395,11 @@ namespace Basa_Test
                         string mess_inp = Convert.ToString(message.Data);
                         string mess_tag = Convert.ToString(message.Tag);
                         string mess_source = Convert.ToString(message.Source);
-                        long addr = !String.IsNullOrWhiteSpace(mess_source) ? Convert.ToInt64(mess_tag) : 0;
+                        long addr = !String.IsNullOrWhiteSpace(mess_source) ? Convert.ToInt64(mess_source) : 0;
                         values.Append("Data   : " + mess_inp + "\n");
                         values.Append("Tag    : " + mess_tag + "\n");
                         values.Append("Source : " + mess_source + "\n");
+                        lcd_lstr.OutText(values);
                         string[] args = mess_inp.Split('=');
                         if (args.Count() > 0)
                         {
@@ -408,7 +410,9 @@ namespace Basa_Test
                                         bool res = Registration(args[1], addr);
                                         if (res)
                                         {
-                                            string response = String.Format("basa_point=name:{0};type:{1};{2}", name_base, type_base, pb.GetPosition().ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "BPX").Replace("Y", "BPY").Replace("Z", "BP") + ";");
+                                            string response = String.Format("base_point=name:{0};type:{1};{2}", name_base, type_base, pb.GetPosition().ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "BPX").Replace("Y", "BPY").Replace("Z", "BPZ") + ";");
+                                            //lcd_lstr.OutText(response,true);
+                                            //lcd_lstr.OutText(addr.ToString(), true);
                                             _scr.IGC.SendUnicastMessage<string>(addr, name_base, response);
                                         }
                                         break;
