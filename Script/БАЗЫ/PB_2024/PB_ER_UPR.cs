@@ -32,7 +32,7 @@ namespace PB_ER_UPR
     {
         // v1.
         static string NameObj = "[PB-ER-1]";
-
+        static float SP_PW_PRS_0 = 90.0f;
         static float SP_PW_PRS_1 = 40.0f;
         static float SP_PW_PRS_2 = 30.0f;
         static float SP_PW_PRS_3 = 20.0f;
@@ -242,9 +242,9 @@ namespace PB_ER_UPR
             //reflectors_light.Off();
             //solar_panels_left = new SolarPanels(NameObj, "[left]");
             //solar_panels_right = new SolarPanels(NameObj, "[right]");
+            control_power = new ControlPower();
             storage = new MyStorage();
             storage.LoadFromStorage();
-            control_power = new ControlPower();
         }
         public void Save()
         {
@@ -261,11 +261,10 @@ namespace PB_ER_UPR
             {
 
             }
-            StringBuilder values_st4 = new StringBuilder();
-            //lcd_st4.OutText(values_st4);
-            StringBuilder values_nav1 = new StringBuilder();
-
-            //lcd_nav1.OutText(values_nav1);
+            StringBuilder values = new StringBuilder();
+            values.Append(bats.TextInfo());
+            values.Append(control_power.TextStatus());
+            lcd_debug.OutText(values);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
@@ -547,8 +546,9 @@ namespace PB_ER_UPR
             public string TextStatus()
             {
                 StringBuilder values = new StringBuilder();
-                //values.Append("--------------------------------------\n");
-                //values.Append("ПРОГРАММА : " + name_programm[(int)curent_programm] + "\n");
+                values.Append("--------------------------------------\n");
+                values.Append("Текущий заряд: " + Math.Round(curr_power_per, 2).ToString() + "\n");
+
                 //values.Append("ЭТАП      : " + name_mode[(int)curent_mode] + "\n");
                 //values.Append("ПАУЗА     : " + (paused ? green.ToString() : red.ToString()) + ", ");
                 //values.Append("СТОП      : " + (stop_dreel ? green.ToString() : red.ToString()) + "\n");
@@ -572,7 +572,7 @@ namespace PB_ER_UPR
                 }
                 if (updateSource == UpdateType.Update100)
                 {
-                    curr_power_per = bats.CurrentPower() / bats.MaxPower();
+                    curr_power_per = (bats.CurrentPower() / bats.MaxPower() * 100.0f);
                     if (curr_power_per < SP_PW_PRS_1)
                     {
                         gas_gen1.On();
@@ -589,7 +589,19 @@ namespace PB_ER_UPR
                     {
                         gas_gen4.On();
                     }
-
+                    if (curr_power_per > SP_PW_PRS_0)
+                    {
+                        gas_gen4.Off();
+                        gas_gen3.Off();
+                        gas_gen2.Off();
+                    }
+                    if (curr_power_per == 100.0f)
+                    {
+                        gas_gen4.Off();
+                        gas_gen3.Off();
+                        gas_gen2.Off();
+                        gas_gen1.Off();
+                    }
                 }
             }
         }
