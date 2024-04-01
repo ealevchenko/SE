@@ -518,7 +518,6 @@ namespace Ship_Test
                 UpdateCalc();
                 switch (argument)
                 {
-                    case "add_basa": if (Connected) { mess_handler.SendAddBase(); }; break;
                     case "upd_base": if (Connected) { mess_handler.SendUpdBase(); }; break;
                     default: break;
                 }
