@@ -405,18 +405,16 @@ namespace Basa_Test
                         {
                             switch (args[0])
                             {
-                                case "add_ship":
+                                case "upd_ship":
                                     {
                                         bool res = Registration(args[1], addr);
                                         if (res)
                                         {
-                                            string response = String.Format("base_point=name:{0};type:{1};{2}", name_base, type_base, pb.GetPosition().ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "BPX").Replace("Y", "BPY").Replace("Z", "BPZ") + ";");
-                                            //lcd_lstr.OutText(response,true);
-                                            //lcd_lstr.OutText(addr.ToString(), true);
+                                            string response = String.Format("upd_base=name:{0};type:{1};", name_base, type_base);
                                             _scr.IGC.SendUnicastMessage<string>(addr, name_base, response);
                                         }
                                         break;
-                                    }
+                                    };
                             }
                         }
                     }
@@ -464,6 +462,16 @@ namespace Basa_Test
             public int GetValInt(string Key, string str) { return Convert.ToInt32(GetVal(Key, str, "0")); }
             public long GetValInt64(string Key, string str) { return Convert.ToInt64(GetVal(Key, str, "0")); }
             public bool GetValBool(string Key, string str) { return Convert.ToBoolean(GetVal(Key, str, "False")); }
+            public MatrixD GetValMatrixD(string Key, string str)
+            {
+                return new MatrixD(GetValDouble(Key + "11", str.ToString()), GetValDouble(Key + "12", str.ToString()), GetValDouble(Key + "13", str.ToString()), GetValDouble(Key + "14", str.ToString()),
+                GetValDouble(Key + "21", str.ToString()), GetValDouble(Key + "22", str.ToString()), GetValDouble(Key + "23", str.ToString()), GetValDouble(Key + "24", str.ToString()),
+                GetValDouble(Key + "31", str.ToString()), GetValDouble(Key + "32", str.ToString()), GetValDouble(Key + "33", str.ToString()), GetValDouble(Key + "34", str.ToString()),
+                GetValDouble(Key + "41", str.ToString()), GetValDouble(Key + "42", str.ToString()), GetValDouble(Key + "43", str.ToString()), GetValDouble(Key + "44", str.ToString()));
+            }
+            public Vector3D GetValVector3D(string Key, string str) { return new Vector3D(GetValDouble(Key + "X", str.ToString()), GetValDouble(Key + "Y", str.ToString()), GetValDouble(Key + "Z", str.ToString())); }
+            public string SetValVector3D(string Key, Vector3D val) { return val.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", Key + "X").Replace("Y", Key + "Y").Replace("Z", Key + "Z"); }
+            public string SetValMatrixD(string Key, MatrixD val) { return val.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", Key + "M"); }
         }
     }
 }

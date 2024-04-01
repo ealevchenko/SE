@@ -13,6 +13,7 @@ using System.Text;
 using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Network;
+using VRage.Noise.Combiners;
 using VRage.Scripting;
 using VRageMath;
 
@@ -334,18 +335,15 @@ namespace Ship_Test
                 relocat = 4,  // перемещаемая
             };
             public static string[] name_type_base = { "?", "ПЛАНЕТАРНАЯ", "ОРБИТАЛЬНАЯ", "МЕТЕОРНАЯ", "ТРАНСПОРТ" };
-
             public class base_point
             {
                 public string name { get; set; }
                 public long addr { get; set; }
                 public type_base type { get; set; }
-                public Vector3D point { get; set; }
+                public MatrixD dm { get; set; }
                 public Vector3D centr { get; set; }
             }
-
             public List<base_point> base_points = new List<base_point>();
-
             public IMyRadioAntenna antenna;
             //public IMyProgrammableBlock pb;
             public IMyUnicastListener ship_lstr; // Одноадресный прослушиватель базы
@@ -372,12 +370,24 @@ namespace Ship_Test
                     _scr.IGC.SendUnicastMessage<string>(pb.EntityId, name_ship, command);
                 }
             }
+            public void SendUpdBase()
+            {
+                List<IMyProgrammableBlock> list_pb = new List<IMyProgrammableBlock>();
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyProgrammableBlock>(list_pb, r => r.CustomName.Contains(tag_antena));
+                IMyProgrammableBlock pb = list_pb.Where(n => ((IMyTerminalBlock)n).CustomName.Contains(tag_antena)).FirstOrDefault();
+                if (pb != null)
+                {
+                    string command = String.Format("upd_ship=name:{0};type:{1};thruster:{2}", name_ship, type_ship, type_thruster);
+                    _scr.IGC.SendUnicastMessage<string>(pb.EntityId, name_ship, command);
+                }
+            }
             public bool RegistrationBase(String str, long addr)
             {
                 //lcd_lstr.OutText("(args[1]:" + str, true);
                 string name = strg.GetValString("name", str);
                 type_base type = (type_base)strg.GetValInt("type", str);
-                Vector3D bp = new Vector3D(strg.GetValDouble("BPX", str.ToString()), strg.GetValDouble("BPY", str.ToString()), strg.GetValDouble("BPZ", str.ToString()));
+                //Vector3D bp = new Vector3D(strg.GetValDouble("BPX", str.ToString()), strg.GetValDouble("BPY", str.ToString()), strg.GetValDouble("BPZ", str.ToString()));
+                MatrixD dm = nav.GetNormTransMatrixFromMyPos();
                 Vector3D pc = nav.GetPlanetCenter();
                 //lcd_lstr.OutText("name:" + name, true);
                 //lcd_lstr.OutText("type:" + type, true);
@@ -392,13 +402,13 @@ namespace Ship_Test
                         type = type,
                         addr = addr,
                         centr = pc,
-                        point = bp,
+                        dm = dm,
                     };
                     base_points.Add(point);
                 }
                 else
                 {
-                    point.name = name; point.type = type; point.centr = pc; point.point = bp;
+                    point.name = name; point.type = type; point.centr = pc; point.dm = dm;
                 }
                 //lcd_lstr.OutText("count:" + base_points.Count(), true);
                 strg.SaveToStorage();
@@ -429,14 +439,13 @@ namespace Ship_Test
                         {
                             switch (args[0])
                             {
-                                case "base_point":
+                                case "upd_base":
                                     {
                                         bool res = RegistrationBase(args[1], addr);
                                         break;
                                     }
                             }
                         }
-
                     }
                 }
             }
@@ -444,6 +453,14 @@ namespace Ship_Test
         public class Navigation
         {
             public string name_ship { get; set; }
+
+            public Vector3D MyPos { get; private set; }
+            public Vector3D MyPrevPos { get; private set; }
+            public Vector3D GravVector { get; private set; }
+            public bool gravity { get; private set; } = false;
+            public float PhysicalMass { get; private set; } // Физическая масса
+            public float TotalMass { get; private set; } // Физическая масса
+            public MatrixD WMCocpit { get; private set; } //
             public BaseShipController cockpit { get; set; }
             public bool Connected { get { return connector_forw.Connected || connector_back.Connected || connector_down.Connected; } }
             public Navigation(string name)
@@ -451,16 +468,58 @@ namespace Ship_Test
                 name_ship = name;
                 cockpit = new BaseShipController(name, tag_nav);
             }
+            public MatrixD GetNormTransMatrixFromMyPos()
+            {
+                MatrixD mRot;
+                Vector3D V3Dcenter = MyPos;
+                Vector3D V3Dup = WMCocpit.Up;
+                if (gravity) V3Dup = -Vector3D.Normalize(GravVector);
+                Vector3D V3Dleft = Vector3D.Normalize(Vector3D.Reject(WMCocpit.Left, V3Dup));
+                Vector3D V3Dfow = Vector3D.Normalize(Vector3D.Cross(V3Dleft, V3Dup));
+                mRot = new MatrixD(V3Dleft.GetDim(0), V3Dleft.GetDim(1), V3Dleft.GetDim(2), 0, V3Dup.GetDim(0), V3Dup.GetDim(1), V3Dup.GetDim(2), 0, V3Dfow.GetDim(0), V3Dfow.GetDim(1), V3Dfow.GetDim(2), 0, 0, 0, 0, 1);
+                mRot = MatrixD.Invert(mRot);
+                return new MatrixD(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -V3Dcenter.GetDim(0), -V3Dcenter.GetDim(1), -V3Dcenter.GetDim(2), 1) * mRot;
+            }
             public Vector3D GetPlanetCenter()
             {
                 Vector3D pc = new Vector3D();
                 return cockpit.obj.TryGetPlanetPosition(out pc) ? pc : Vector3D.Zero;
             }
+            public void UpdateCalc()
+            {
+                MyPrevPos = MyPos;
+                MyPos = cockpit.obj.GetPosition();
+                GravVector = cockpit.obj.GetNaturalGravity();
+                gravity = GravVector.LengthSquared() > 0.2f;
+                PhysicalMass = cockpit.obj.CalculateShipMass().PhysicalMass;
+                TotalMass = cockpit.obj.CalculateShipMass().TotalMass;
+                WMCocpit = cockpit.obj.WorldMatrix;
+                //UpThrust = (float)(GravVector * PhysicalMass).Dot(WMCocpit.Up);
+                //VelocityVector = (MyPos - MyPrevPos) * 6;
+                //UpVelocityVector = WMCocpit.Up * Vector3D.Dot(VelocityVector, WMCocpit.Up);
+                //ForwVelocityVector = WMCocpit.Forward * Vector3D.Dot(VelocityVector, WMCocpit.Forward);
+                //LeftVelocityVector = WMCocpit.Left * Vector3D.Dot(VelocityVector, WMCocpit.Left);
+                //OrientationCocpit = cockpit.GetCockpitMatrix();
+                //YMaxA = Math.Abs((float)Math.Min(thrusts.UpThrMax / PhysicalMass - GravVector.Length(), thrusts.DownThrMax / PhysicalMass + GravVector.Length()));
+                //ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
+                //XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
+                //// расчтет пути торможения (посадка Down-внизу)
+                //double a = (thrusts.DownThrMax / 1000) * (1 / (PhysicalMass / 1000));
+                //double t = (0 - UpVelocityVector.Length()) / -a; //t = (V - V[0]) / a
+                //DownBrDistance = (UpVelocityVector.Length() * t) + ((-a) * Math.Pow(t, 2)) / 2; //S = V[0] * t + ( a * t^2 ) / 2
+                //// Критические уставки
+                //CriticalMassReached = (PhysicalMass > CriticalMass);
+                //CriticalBatteryCharge = connector_base.Connected ? bats.CurrentPersent() < 1.0f : bats.CurrentPersent() <= CriticalOnCharge;
+                //CriticalHydrogenSupply = connector_base.Connected ? hydrogen_tanks_nav.AverageFilledRatio < 1.0f : hydrogen_tanks_nav.AverageFilledRatio <= CriticalOnH2;
+                //EmergencySetpoint = CriticalMassReached || CriticalBatteryCharge || CriticalHydrogenSupply;
+            }
             public void Logic(string argument, UpdateType updateSource)
             {
+                UpdateCalc();
                 switch (argument)
                 {
                     case "add_basa": if (Connected) { mess_handler.SendAddBase(); }; break;
+                    case "upd_base": if (Connected) { mess_handler.SendUpdBase(); }; break;
                     default: break;
                 }
                 if (updateSource == UpdateType.Update10)
@@ -484,8 +543,10 @@ namespace Ship_Test
                         name = GetValString("base[" + i + "].name", str.ToString()),
                         addr = GetValInt64("base[" + i + "].addr", str.ToString()),
                         type = (MessHandler.type_base)GetValInt("base[" + i + "].type", str.ToString()),
-                        point = new Vector3D(GetValDouble("base[" + i + "].PX", str.ToString()), GetValDouble("base[" + i + "].PY", str.ToString()), GetValDouble("base[" + i + "].PZ", str.ToString())),
-                        centr = new Vector3D(GetValDouble("base[" + i + "].PX", str.ToString()), GetValDouble("base[" + i + "].PY", str.ToString()), GetValDouble("base[" + i + "].PZ", str.ToString())),
+                        dm = GetValMatrixD("base[" + i + "].dock", str.ToString()),
+                        centr = GetValVector3D("base[" + i + "].centr", str.ToString()),
+                        //point = new Vector3D(GetValDouble("base[" + i + "].PX", str.ToString()), GetValDouble("base[" + i + "].PY", str.ToString()), GetValDouble("base[" + i + "].PZ", str.ToString())),
+                        //centr = new Vector3D(GetValDouble("base[" + i + "].PX", str.ToString()), GetValDouble("base[" + i + "].PY", str.ToString()), GetValDouble("base[" + i + "].PZ", str.ToString())),
                     };
                 }
             }
@@ -498,8 +559,11 @@ namespace Ship_Test
                     values.Append("base[" + i + "].name: " + bs.name + ";\n");
                     values.Append("base[" + i + "].addr: " + bs.addr.ToString() + ";\n");
                     values.Append("base[" + i + "].type: " + ((int)bs.type).ToString() + ";\n");
-                    values.Append(bs.point.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "base[" + i + "].PX").Replace("Y", "base[" + i + "].PY").Replace("Z", "base[" + i + "].PZ") + ";\n");
-                    values.Append(bs.centr.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "base[" + i + "].CX").Replace("Y", "base[" + i + "].CY").Replace("Z", "base[" + i + "].CZ") + ";\n");
+                    values.Append(SetValMatrixD("base[" + i + "].dock", bs.dm) + ";\n");
+                    values.Append(SetValVector3D("base[" + i + "].centr", bs.centr) + ";\n");
+                    //values.Append(bs.dm.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", "base[" + i + "].DM"));
+                    //values.Append(bs.point.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "base[" + i + "].PX").Replace("Y", "base[" + i + "].PY").Replace("Z", "base[" + i + "].PZ") + ";\n");
+                    //values.Append(bs.centr.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", "base[" + i + "].CX").Replace("Y", "base[" + i + "].CY").Replace("Z", "base[" + i + "].CZ") + ";\n");
                     i++;
                 }
                 values.Append("count_base: " + mess_handler.base_points.Count().ToString() + ";\n");
@@ -511,6 +575,16 @@ namespace Ship_Test
             public int GetValInt(string Key, string str) { return Convert.ToInt32(GetVal(Key, str, "0")); }
             public long GetValInt64(string Key, string str) { return Convert.ToInt64(GetVal(Key, str, "0")); }
             public bool GetValBool(string Key, string str) { return Convert.ToBoolean(GetVal(Key, str, "False")); }
+            public MatrixD GetValMatrixD(string Key, string str)
+            {
+                return new MatrixD(GetValDouble(Key + "11", str.ToString()), GetValDouble(Key + "12", str.ToString()), GetValDouble(Key + "13", str.ToString()), GetValDouble(Key + "14", str.ToString()),
+                GetValDouble(Key + "21", str.ToString()), GetValDouble(Key + "22", str.ToString()), GetValDouble(Key + "23", str.ToString()), GetValDouble(Key + "24", str.ToString()),
+                GetValDouble(Key + "31", str.ToString()), GetValDouble(Key + "32", str.ToString()), GetValDouble(Key + "33", str.ToString()), GetValDouble(Key + "34", str.ToString()),
+                GetValDouble(Key + "41", str.ToString()), GetValDouble(Key + "42", str.ToString()), GetValDouble(Key + "43", str.ToString()), GetValDouble(Key + "44", str.ToString()));
+            }
+            public Vector3D GetValVector3D(string Key, string str) { return new Vector3D(GetValDouble(Key + "X", str.ToString()), GetValDouble(Key + "Y", str.ToString()), GetValDouble(Key + "Z", str.ToString())); }
+            public string SetValVector3D(string Key, Vector3D val) { return val.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", Key + "X").Replace("Y", Key + "Y").Replace("Z", Key + "Z"); }
+            public string SetValMatrixD(string Key, MatrixD val) { return val.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", Key + "M"); }
         }
     }
 }
