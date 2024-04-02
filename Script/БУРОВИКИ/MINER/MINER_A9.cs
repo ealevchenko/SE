@@ -815,7 +815,7 @@ namespace MINER_A9
                 Vector3D gyrAng = GetNavAngles(block, ConnectorPoint, DockMatrix);
                 // расчет дистанций
 
-                HDistance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
+                //HDistance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
                 HDistance = (float)(new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
 
                 Vector3D b = Vector3D.Transform(PlanetCenter, DockMatrix);
