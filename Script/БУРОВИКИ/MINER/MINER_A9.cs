@@ -137,6 +137,8 @@ namespace MINER_A9
             ejector = new Ejector(NameObj, tag_ejector); ejector.ThrowOut(false);
             nav = new Nav(NameObj);
             strg = new MyStorage();
+            strg.LoadFromStorage();
+
         }
         public void Save() { }
         public void Main(string argument, UpdateType updateSource)
@@ -291,6 +293,12 @@ namespace MINER_A9
                     obj = list_obj.Where(n => ((IMyTerminalBlock)n).CustomName.Contains(tag)).FirstOrDefault();
                 }
                 _scr.Echo("Выбран base_ship_controller: " + ((obj != null) ? ("Ок") : ("not Block")));
+            }
+
+            public Vector3D GetPlanetCenter()
+            {
+                Vector3D pc = new Vector3D();
+                return cockpit.obj.TryGetPlanetPosition(out pc) ? pc : Vector3D.Zero;
             }
             public void Dampeners(bool on)
             {
@@ -719,6 +727,21 @@ namespace MINER_A9
         public class Ejector : BaseListTerminalBlock<IMyShipConnector> { public Ejector(string name_obj) : base(name_obj) { } public Ejector(string name_obj, string tag) : base(name_obj, tag) { } public void ThrowOut(bool enable) { foreach (IMyShipConnector enj in base.list_obj) { enj.ThrowOut = enable; } } }
         public class Nav
         {
+            public enum mode : int
+            {
+                none = 0,
+                base_operation = 1,
+                un_dock = 2,
+                to_base = 3,
+                dock = 4,
+                to_drill = 5,
+                drill_align = 6,
+                drill = 7,
+                pull_up = 8,
+                pull_out = 9,
+            };
+            public static string[] name_mode = { "", "БАЗА", "РАСТЫКОВКА", "К БАЗЕ", "СТЫКОВКА", "К ШАХТЕ", "НА ТОЧКУ БУРЕНИЯ", "БУРИМ", "ОСТАНОВИТЬ БУР", "ВЫТАЩИТЬ БУР" };
+            public mode curent_mode = mode.none;
             public string name_ship { get; set; }
             public Vector3D MyPos { get; private set; }
             public Vector3D MyPrevPos { get; private set; }
@@ -738,8 +761,13 @@ namespace MINER_A9
             public float HDistance { get; private set; } // Дистанция по горизонтали (плоскость X,Z)
             public float VDistance { get; private set; } // Дистанция по вертикали (плоскость Y)
             //-------------------
-            public Vector3D PlanetCenter = new Vector3D(0.50, 0.50, 0.50);
-            private Vector3D ConnectorPoint = new Vector3D(0, 0, 0);
+            public Vector3D PlanetCenter { get; set; } = new Vector3D(0.50, 0.50, 0.50);
+            private Vector3D ConnectorPoint { get; set; } = new Vector3D(0, 0, 0);
+            public MatrixD DockMatrix { get; set; }
+
+            public bool paused { get; set; } = false;
+
+            public IMyTerminalBlock BlockNav { get; set; }
 
             public Nav(string name)
             {
@@ -757,6 +785,17 @@ namespace MINER_A9
                 mRot = new MatrixD(V3Dleft.GetDim(0), V3Dleft.GetDim(1), V3Dleft.GetDim(2), 0, V3Dup.GetDim(0), V3Dup.GetDim(1), V3Dup.GetDim(2), 0, V3Dfow.GetDim(0), V3Dfow.GetDim(1), V3Dfow.GetDim(2), 0, 0, 0, 0, 1);
                 mRot = MatrixD.Invert(mRot);
                 return new MatrixD(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -V3Dcenter.GetDim(0), -V3Dcenter.GetDim(1), -V3Dcenter.GetDim(2), 1) * mRot;
+            }
+
+            public void SetDockMatrix(IMyTerminalBlock block)
+            {
+                if (connector.Connected)
+                {
+                    BlockNav = block;
+                    DockMatrix = GetNormTransMatrixFromMyPos(BlockNav);
+                    PlanetCenter = cockpit.GetPlanetCenter();
+                    strg.SaveToStorage();
+                }
             }
             public Vector3D GetNavAngles(IMyTerminalBlock block, Vector3D Target, MatrixD InvMatrix, double sfiftX = 0, double shiftZ = 0)
             {
@@ -794,17 +833,20 @@ namespace MINER_A9
             }
             public void UpdateCalc()
             {
-                MyPrevPos = MyPos;
-                MyPos = cockpit.obj.GetPosition();
                 GravVector = cockpit.obj.GetNaturalGravity();
                 gravity = GravVector.LengthSquared() > 0.2f;
                 PhysicalMass = cockpit.obj.CalculateShipMass().PhysicalMass;
-                WMCocpit = cockpit.obj.WorldMatrix;
-                VelocityVector = (MyPos - MyPrevPos) * 6;
-                UpVelocityVector = WMCocpit.Up * Vector3D.Dot(VelocityVector, WMCocpit.Up);
-                ForwVelocityVector = WMCocpit.Forward * Vector3D.Dot(VelocityVector, WMCocpit.Forward);
-                LeftVelocityVector = WMCocpit.Left * Vector3D.Dot(VelocityVector, WMCocpit.Left);
-                OrientationCocpit = cockpit.GetCockpitMatrix();
+                if (BlockNav != null)
+                {
+                    MyPrevPos = MyPos;
+                    MyPos = BlockNav.GetPosition();
+                    WMCocpit = BlockNav.WorldMatrix;
+                    VelocityVector = (MyPos - MyPrevPos) * 6;
+                    UpVelocityVector = WMCocpit.Up * Vector3D.Dot(VelocityVector, WMCocpit.Up);
+                    ForwVelocityVector = WMCocpit.Forward * Vector3D.Dot(VelocityVector, WMCocpit.Forward);
+                    LeftVelocityVector = WMCocpit.Left * Vector3D.Dot(VelocityVector, WMCocpit.Left);
+                    //OrientationCocpit = BlockNav.GetCockpitMatrix();
+                }
                 YMaxA = Math.Abs((float)Math.Min(thrusts.UpThrMax / PhysicalMass - GravVector.Length(), thrusts.DownThrMax / PhysicalMass + GravVector.Length()));
                 ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
                 XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
@@ -817,51 +859,92 @@ namespace MINER_A9
 
                 //HDistance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
                 HDistance = (float)(new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
-
-                Vector3D b = Vector3D.Transform(PlanetCenter, DockMatrix);
-                VDistance = (float)(Vector3D.ProjectOnVector(ref MyPosCon, ref b).Length());
+                Vector3D lpc = Vector3D.Transform(PlanetCenter, DockMatrix);
+                VDistance = (float)(Vector3D.ProjectOnVector(ref MyPosCon, ref lpc).Length());
                 gyros.SetOverride(true, gyrAng * GyroMult, 1);
                 return MyPosCon;
+            }
+            public void Stop()
+            {
+                thrusts.ClearThrustOverridePersent();
+                gyros.SetOverride(false, 1);
+                curent_mode = mode.none;
+                //curent_programm = programm.none;
+                paused = false;
+                strg.SaveToStorage();
             }
             public bool UnDock()
             {
                 bool Complete = false;
                 //hydrogen_tanks_nav.Stockpile(false);
-                connector_base.obj.Disconnect();
-                if (!connector_base.Connected)
+                connector.obj.Disconnect();
+                if (!connector.Connected)
                 {
-                    Vector3D MyPosCon = GetLocalPosCon(ConnectorPoint, DockMatrix);
+                    Vector3D MyPosCon = GetLocalPosCon(BlockNav, ConnectorPoint, DockMatrix);
                     thrusts.SetOverridePercent("U", 1.0f);
                     thrusts.SetOverridePercent("D", 0);
                     thrusts.SetOverridePercent("R", 0);
                     thrusts.SetOverridePercent("L", 0);
                     thrusts.SetOverridePercent("F", 0);
                     thrusts.SetOverridePercent("B", 0);
-                    if (VDistance > BaseDistance)
+                    if (HDistance > 100)
                     {
                         thrusts.SetOverridePercent("U", 0);
                         Complete = true;
                     }
                 }
-                OutStatusMode(0, 0, 0);
+                //OutStatusMode(0, 0, 0);
                 return Complete;
             }
             public void Logic(string argument, UpdateType updateSource)
             {
                 switch (argument)
                 {
+                    case "save_dock": SetDockMatrix(connector.obj); break;
+                    case "stop": Stop(); break;
+                    case "un_dock":
+
+                        BlockNav = connector.obj;
+                        thrusts.InitThrusts(connector.obj);
+                        curent_mode = mode.un_dock;
+                        strg.SaveToStorage();
+                        break;
                     default:
                         break;
                 }
                 if (updateSource == UpdateType.Update10)
                 {
-
+                    if (curent_mode == mode.un_dock && !paused && UnDock())
+                    {
+                        curent_mode = mode.none;
+                    }
                 }
             }
         }
         public class MyStorage
         {
             public MyStorage() { }
+            public void LoadFromStorage()
+            {
+                StringBuilder str = lcd_storage.GetText();
+                //navigation.curent_programm = (Navigation.programm)GetValInt("curent_programm", str.ToString());
+                nav.curent_mode = (Nav.mode)GetValInt("curent_mode", str.ToString());
+                //navigation.paused = GetValBool("pause", str.ToString());
+                //navigation.EmergencySetpoint = GetValBool("EmergencySetpoint", str.ToString());
+                nav.DockMatrix = GetValMatrixD("DM", str.ToString());
+                nav.PlanetCenter = GetValVector3D("PC", str.ToString());
+            }
+            public void SaveToStorage()
+            {
+                StringBuilder values = new StringBuilder();
+                //values.Append("curent_programm: " + ((int)navigation.curent_programm).ToString() + ";\n");
+                values.Append("curent_mode: " + ((int)nav.curent_mode).ToString() + ";\n");
+                //values.Append("pause: " + navigation.paused.ToString() + ";\n");
+                //values.Append("EmergencySetpoint: " + navigation.EmergencySetpoint.ToString() + ";\n");
+                values.Append(SetValMatrixD("DM", nav.DockMatrix) + ";\n");
+                values.Append(SetValVector3D("PC", nav.PlanetCenter) + ";\n");
+                lcd_storage.OutText(values);
+            }
             private string GetVal(string Key, string str, string val) { string pattern = @"(" + Key + "):([^:^;]+);"; System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(str.Replace("\n", ""), pattern); if (match.Success) { val = match.Groups[2].Value; } return val; }
             public string GetValString(string Key, string str) { return GetVal(Key, str, ""); }
             public double GetValDouble(string Key, string str) { return Convert.ToDouble(GetVal(Key, str, "0")); }
