@@ -1,4 +1,5 @@
-﻿using Sandbox.Definitions;
+﻿using Newtonsoft.Json.Linq;
+using Sandbox.Definitions;
 using Sandbox.Game.GameSystems;
 using Sandbox.Game.WorldEnvironment.Modules;
 using Sandbox.ModAPI.Ingame;
@@ -26,7 +27,7 @@ namespace MINER_A9
 {
     public sealed class Program : MyGridProgram
     {
-        string NameObj = "[MINER_A9_1]";
+        string NameObj = "[MINER-A9-1]";
         static string tag_nav = "[nav]";
 
         static string tag_ejector = "[ejector]"; // дежурная батарея
@@ -160,8 +161,8 @@ namespace MINER_A9
             //values_info.Append(nav.TextInfo1());
             //cockpit.OutText(values_info, 0);
             StringBuilder values_info1 = new StringBuilder();
-            //values_info1.Append(nav.TextCritical());
-            //cockpit.OutText(values_info1, 1);
+            values_info1.Append(thrusts.TextInfo());
+            cockpit.OutText(values_info1, 2);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
@@ -437,7 +438,10 @@ namespace MINER_A9
             public Thrusts(string name_obj, string tag) : base(name_obj, tag) { }
             public void InitThrusts(IMyTerminalBlock block)
             {
-                MatrixD OrientationBlock = block.WorldMatrix.GetOrientation();
+                Matrix OrientationBlock = new MatrixD();
+                block.Orientation.GetMatrix(out OrientationBlock);
+                //MatrixD OrientationBlock = cockpit.GetCockpitMatrix();
+                //    block.WorldMatrix.GetOrientation();
                 // Список трастеров
                 UpThrusters.Clear();
                 DownThrusters.Clear();
@@ -762,7 +766,7 @@ namespace MINER_A9
             public float VDistance { get; private set; } // Дистанция по вертикали (плоскость Y)
             //-------------------
             public Vector3D PlanetCenter { get; set; } = new Vector3D(0.50, 0.50, 0.50);
-            private Vector3D ConnectorPoint { get; set; } = new Vector3D(0, 0, 0);
+            private Vector3D ConnectorPoint { get; set; } = new Vector3D(0, 0, 5);
             public MatrixD DockMatrix { get; set; }
 
             public bool paused { get; set; } = false;
@@ -792,6 +796,7 @@ namespace MINER_A9
                 if (connector.Connected)
                 {
                     BlockNav = block;
+                    thrusts.InitThrusts(block);
                     DockMatrix = GetNormTransMatrixFromMyPos(BlockNav);
                     PlanetCenter = cockpit.GetPlanetCenter();
                     strg.SaveToStorage();
@@ -850,17 +855,41 @@ namespace MINER_A9
                 YMaxA = Math.Abs((float)Math.Min(thrusts.UpThrMax / PhysicalMass - GravVector.Length(), thrusts.DownThrMax / PhysicalMass + GravVector.Length()));
                 ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
                 XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
+
+                StringBuilder values = new StringBuilder();
+                Vector3D MyPosPoint = Vector3D.Transform(MyPos, DockMatrix);
+                values.Append("My_Length   : " + Math.Round(MyPosPoint.Length(), 2) + "\n");
+                values.Append("MyPos_X_[0]   : " + Math.Round(MyPosPoint.GetDim(0), 2) + "\n");
+                values.Append("MyPos_Y_[1]   : " + Math.Round(MyPosPoint.GetDim(1), 2) + "\n");
+                values.Append("MyPos_Z_[2]   : " + Math.Round(MyPosPoint.GetDim(2), 2) + "\n");
+                values.Append("------------------------------------------\n");
+                float HDistance1 = (float)((Vector3D.Reject(MyPosPoint, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
+                float HDistance = (float)(new Vector3D(MyPosPoint.GetDim(0), 0, MyPosPoint.GetDim(2))).Length();
+                Vector3D lpc = Vector3D.Transform(PlanetCenter, DockMatrix);
+                float VDistance = (float)(Vector3D.ProjectOnVector(ref MyPosPoint, ref lpc).Length());
+                values.Append("HDistance_пл : " + Math.Round(HDistance1, 2) + "\n");
+                values.Append("Horz_dist    : " + Math.Round(HDistance, 2) + "\n");
+                values.Append("Vert_dist    : " + Math.Round(VDistance, 2) + "\n");
+                values.Append("------------------------------------------\n");
+                values.Append("СКОРОСТЬ     : " + Math.Round(cockpit.obj.GetShipSpeed(), 2) + "\n");
+                cockpit.OutText(values, 1);
             }
             public Vector3D GetLocalPosCon(IMyTerminalBlock block, Vector3D ConnectorPoint, MatrixD DockMatrix)
             {
                 Vector3D MyPosCon = Vector3D.Transform(block.GetPosition(), DockMatrix);
                 Vector3D gyrAng = GetNavAngles(block, ConnectorPoint, DockMatrix);
                 // расчет дистанций
-
-                //HDistance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
-                HDistance = (float)(new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
-                Vector3D lpc = Vector3D.Transform(PlanetCenter, DockMatrix);
-                VDistance = (float)(Vector3D.ProjectOnVector(ref MyPosCon, ref lpc).Length());
+                if (Vector3D.IsZero(PlanetCenter))
+                {
+                    HDistance = (float)(new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
+                    VDistance = (float)(new Vector3D(0, MyPosCon.GetDim(1), 0)).Length();
+                }
+                else
+                {
+                    HDistance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
+                    Vector3D lpc = Vector3D.Transform(PlanetCenter, DockMatrix);
+                    VDistance = (float)(Vector3D.ProjectOnVector(ref MyPosCon, ref lpc).Length());
+                }
                 gyros.SetOverride(true, gyrAng * GyroMult, 1);
                 return MyPosCon;
             }
@@ -881,15 +910,15 @@ namespace MINER_A9
                 if (!connector.Connected)
                 {
                     Vector3D MyPosCon = GetLocalPosCon(BlockNav, ConnectorPoint, DockMatrix);
-                    thrusts.SetOverridePercent("U", 1.0f);
+                    thrusts.SetOverridePercent("U", 0f);
                     thrusts.SetOverridePercent("D", 0);
                     thrusts.SetOverridePercent("R", 0);
                     thrusts.SetOverridePercent("L", 0);
                     thrusts.SetOverridePercent("F", 0);
-                    thrusts.SetOverridePercent("B", 0);
+                    thrusts.SetOverrideAccel("B", 3);
                     if (HDistance > 100)
                     {
-                        thrusts.SetOverridePercent("U", 0);
+                        thrusts.SetOverridePercent("B", 0);
                         Complete = true;
                     }
                 }
@@ -898,17 +927,21 @@ namespace MINER_A9
             }
             public void Logic(string argument, UpdateType updateSource)
             {
+                UpdateCalc();
                 switch (argument)
                 {
                     case "save_dock": SetDockMatrix(connector.obj); break;
                     case "stop": Stop(); break;
                     case "un_dock":
+                        {
+                            BlockNav = connector.obj;
+                            thrusts.InitThrusts(connector.obj);
+                            curent_mode = mode.un_dock;
+                            strg.SaveToStorage();
+                            break;
+                        }
 
-                        BlockNav = connector.obj;
-                        thrusts.InitThrusts(connector.obj);
-                        curent_mode = mode.un_dock;
-                        strg.SaveToStorage();
-                        break;
+
                     default:
                         break;
                 }
