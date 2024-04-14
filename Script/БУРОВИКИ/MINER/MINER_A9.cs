@@ -19,6 +19,7 @@ using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
 using VRage.Scripting;
 using VRageMath;
+using static VRageMath.Base6Directions;
 
 /// <summary>
 /// v8.0  Модифицирован под Down и Up ускорители (применим на малой гравитации, можно на ионниках)
@@ -36,7 +37,7 @@ namespace MINER_A9
         static float GyroMult = 1f;
         static float AlignAccelMult = 0.3f;
         static float DrillGyroMult = 2f;
-        static float TargetSize = 100;
+        //static float TargetSize = 100;
         static float ReturnOnCharge = 0.2f;     // Процент заряда
         static float ReturnOffCharge = 0.9f;    // Процент заряда
         static float DrillSpeedLimit = 0.5f;
@@ -393,18 +394,136 @@ namespace MINER_A9
             public float getPitch() { return base.list_obj.Select(g => g.Pitch).Average(); }
             public float getRoll() { return base.list_obj.Select(g => g.Roll).Average(); }
             public float getYaw() { return base.list_obj.Select(g => g.Yaw).Average(); }
-            public void SetOverride(bool OverrideOnOff, Vector3 settings, float Power = 1)
+            //public void SetOverride(bool OverrideOnOff, Vector3 settings, float Power = 1)
+            //{
+            //    foreach (IMyGyro gyro in base.list_obj)
+            //    {
+            //        if ((!gyro.GyroOverride) && OverrideOnOff)
+            //            gyro.ApplyAction("Override");
+            //        gyro.GyroPower = Power;
+            //        //gyro.Yaw = settings.GetDim(0);
+            //        //gyro.Pitch = settings.GetDim(1);
+            //        //gyro.Roll = settings.GetDim(2);
+            //        gyro.Yaw = (float)settings.Dot(gyro.WorldMatrix.Up);
+            //        gyro.Pitch = -(float)settings.Dot(gyro.WorldMatrix.Right);
+            //        gyro.Roll = (float)settings.Dot(gyro.WorldMatrix.Backward);
+            //    }
+            //}
+            //public void SetOverride(IMyTerminalBlock block, bool OverrideOnOff, Vector3 settings, float Power = 1)
+            //{
+            //    Matrix OrientationBlock = new MatrixD();
+            //    block.Orientation.GetMatrix(out OrientationBlock);
+            //    settings = Vector3D.Transform(settings, (MatrixD)OrientationBlock);
+            //    // Орентация гиро
+            //    Matrix GM = new MatrixD();
+            //    foreach (IMyGyro gyro in base.list_obj)
+            //    {
+            //        if ((!gyro.GyroOverride) && OverrideOnOff)
+            //            gyro.ApplyAction("Override");
+            //        gyro.GyroPower = Power;
+            //        //gyro.Yaw = settings.GetDim(0);
+            //        //gyro.Pitch = settings.GetDim(1);
+            //        //gyro.Roll = settings.GetDim(2);
+            //        gyro.Orientation.GetMatrix(out GM);
+            //        Vector3D locRot = Vector3D.Transform(settings, (MatrixD)GM);
+            //        //gyro.Yaw = (float)locRot.Dot(gyro.WorldMatrix.Up);
+            //        //gyro.Pitch = -(float)locRot.Dot(gyro.WorldMatrix.Right);
+            //        //gyro.Roll = (float)locRot.Dot(gyro.WorldMatrix.Backward);
+            //        gyro.Yaw = (float)locRot.X; //GetDim(0);
+            //        gyro.Pitch = -(float)locRot.Y; //GetDim(1);
+            //        gyro.Roll = (float)locRot.Z; //GetDim(2);
+            //    }
+            //}
+            public void SetOverride(IMyTerminalBlock block, bool OverrideOnOff, Vector3 settings, float Power = 1)
             {
-                foreach (IMyGyro gyro in base.list_obj)
-                {
+                foreach (IMyGyro gyro in base.list_obj) {
                     if ((!gyro.GyroOverride) && OverrideOnOff)
                         gyro.ApplyAction("Override");
                     gyro.GyroPower = Power;
-                    gyro.Yaw = settings.GetDim(0);
-                    gyro.Pitch = settings.GetDim(1);
-                    gyro.Roll = settings.GetDim(2);
+                    Vector3 bforw = block.WorldMatrix.Forward;
+                    Vector3 bright = block.WorldMatrix.Right;
+                    Vector3 bup = block.WorldMatrix.Up;
+                    Vector3 gforw = gyro.WorldMatrix.Forward;
+                    Vector3 gup = gyro.WorldMatrix.Up;
+                    Vector3 gleft = gyro.WorldMatrix.Left * -1;
+                    if (gforw == bforw) gyro.SetValueFloat("Roll", settings.Z);
+                    else if (gforw == (bforw * -1)) gyro.SetValueFloat("Roll", settings.Z * -1);
+                    else if (gup == (bforw * -1)) gyro.SetValueFloat("Yaw", settings.Z);
+                    else if (gup == bforw) gyro.SetValueFloat("Yaw", settings.Z * -1);
+                    else if (gleft == bforw) gyro.SetValueFloat("Pitch", settings.Z);
+                    else if (gleft == (bforw * -1)) gyro.SetValueFloat("Pitch", settings.Z * -1); 
+                    if (gleft == (bright * -1)) gyro.SetValueFloat("Pitch", settings.Y);
+                    else if (gleft == bright) gyro.SetValueFloat("Pitch", settings.Y * -1);
+                    else if (gup == bright) gyro.SetValueFloat("Yaw", settings.Y);
+                    else if (gup == (bright * -1)) gyro.SetValueFloat("Yaw", settings.Y * -1);
+                    else if (gforw == (bright * -1)) gyro.SetValueFloat("Roll", settings.Y);
+                    else if (gforw == bright) gyro.SetValueFloat("Roll", settings.Y * -1); 
+                    if (gup == (bup * -1)) gyro.SetValueFloat("Yaw", settings.X);
+                    else if (gup == bup) gyro.SetValueFloat("Yaw", settings.X * -1);
+                    else if (gleft == bup) gyro.SetValueFloat("Pitch", settings.X);
+                    else if (gleft == (bup * -1)) gyro.SetValueFloat("Pitch", settings.X * -1);
+                    else if (gforw == bup) gyro.SetValueFloat("Roll", settings.X);
+                    else if (gforw == (bup * -1)) gyro.SetValueFloat("Roll", settings.X * -1);
                 }
+
+                //foreach (IMyGyro gyro in base.list_obj) {
+                //    if ((!gyro.GyroOverride) && OverrideOnOff)
+                //        gyro.ApplyAction("Override");
+                //    gyro.GyroPower = Power;
+                //    Vector3 bforw = block.WorldMatrix.Forward;
+                //    Vector3 bright = block.WorldMatrix.Right;
+                //    Vector3 bup = block.WorldMatrix.Up;
+                //    Vector3 gforw = gyro.WorldMatrix.Forward;
+                //    Vector3 gup = gyro.WorldMatrix.Up;
+                //    Vector3 gleft = gyro.WorldMatrix.Left * -1;
+                //    if (gforw == bforw) gyro.SetValueFloat("Roll", settings.Z);
+                //    else if (gforw == (bforw * -1)) gyro.SetValueFloat("Roll", settings.Z * -1);
+                //    else if (gup == (bforw * -1)) gyro.SetValueFloat("Yaw", settings.Z);
+                //    else if (gup == bforw) gyro.SetValueFloat("Yaw", settings.Z * -1);
+                //    else if (gleft == bforw) gyro.SetValueFloat("Pitch", settings.Z);
+                //    else if (gleft == (bforw * -1)) gyro.SetValueFloat("Pitch", settings.Z * -1); 
+                //    if (gleft == (bright * -1)) gyro.SetValueFloat("Pitch", settings.Y);
+                //    else if (gleft == bright) gyro.SetValueFloat("Pitch", settings.Y * -1);
+                //    else if (gup == bright) gyro.SetValueFloat("Yaw", settings.Y);
+                //    else if (gup == (bright * -1)) gyro.SetValueFloat("Yaw", settings.Y * -1);
+                //    else if (gforw == (bright * -1)) gyro.SetValueFloat("Roll", settings.Y);
+                //    else if (gforw == bright) gyro.SetValueFloat("Roll", settings.Y * -1); 
+                //    if (gup == (bup * -1)) gyro.SetValueFloat("Yaw", settings.X);
+                //    else if (gup == bup) gyro.SetValueFloat("Yaw", settings.X * -1);
+                //    else if (gleft == bup) gyro.SetValueFloat("Pitch", settings.X);
+                //    else if (gleft == (bup * -1)) gyro.SetValueFloat("Pitch", settings.X * -1);
+                //    else if (gforw == bup) gyro.SetValueFloat("Roll", settings.X);
+                //    else if (gforw == (bup * -1)) gyro.SetValueFloat("Roll", settings.X * -1);
+                //}
             }
+
+
+
+
+
+            //Matrix OrientationBlock = new MatrixD();
+            //block.Orientation.GetMatrix(out OrientationBlock);
+            //settings = Vector3D.Transform(settings, (MatrixD)OrientationBlock);
+            //// Орентация гиро
+            //Matrix GM = new MatrixD();
+            //foreach (IMyGyro gyro in base.list_obj)
+            //{
+            //    if ((!gyro.GyroOverride) && OverrideOnOff)
+            //        gyro.ApplyAction("Override");
+            //    gyro.GyroPower = Power;
+            //    //gyro.Yaw = settings.GetDim(0);
+            //    //gyro.Pitch = settings.GetDim(1);
+            //    //gyro.Roll = settings.GetDim(2);
+            //    gyro.Orientation.GetMatrix(out GM);
+            //    Vector3D locRot = Vector3D.Transform(settings, (MatrixD)GM);
+            //    //gyro.Yaw = (float)locRot.Dot(gyro.WorldMatrix.Up);
+            //    //gyro.Pitch = -(float)locRot.Dot(gyro.WorldMatrix.Right);
+            //    //gyro.Roll = (float)locRot.Dot(gyro.WorldMatrix.Backward);
+            //    gyro.Yaw = (float)locRot.X; //GetDim(0);
+            //    gyro.Pitch = -(float)locRot.Y; //GetDim(1);
+            //    gyro.Roll = (float)locRot.Z; //GetDim(2);
+            //}
+        //}
             public void SetOverride(bool OverrideOnOff = true, float OverrideValue = 0, float Power = 1)
             {
                 foreach (IMyGyro gyro in base.list_obj)
@@ -768,7 +887,8 @@ namespace MINER_A9
             public bool gravity { get; private set; } = false;
             public float PhysicalMass { get; private set; } // Физическая масса
             public MatrixD WMCocpit { get; private set; } //
-            public MatrixD OrientationCocpit { get; private set; } //
+
+            public MatrixD OrientationCocpit;
             public float XMaxA { get; private set; }
             public float YMaxA { get; private set; }
             public float ZMaxA { get; private set; }
@@ -778,6 +898,8 @@ namespace MINER_A9
             //-------------------
             public Vector3D PlanetCenter { get; set; } = new Vector3D(0.50, 0.50, 0.50);
             private Vector3D ConnectorPoint { get; set; } = new Vector3D(0, 0, 5);
+            private Vector3D BaseDockPoint { get; set; } = new Vector3D(0, 0, -safe_base_distance);
+            public double FlyHeight { get; set; }
             public MatrixD DockMatrix { get; set; }
 
             public bool paused { get; set; } = false;
@@ -813,18 +935,58 @@ namespace MINER_A9
                     strg.SaveToStorage();
                 }
             }
+            public void SetFlyHeight()
+            {
+                FlyHeight = (MyPos - PlanetCenter).Length();
+                strg.SaveToStorage();
+            }
             public void InitBlock(IMyTerminalBlock block)
             {
                 BlockNav = block;
                 thrusts.InitThrusts(block);
             }
 
-            public Vector3D GetNavAngles(IMyTerminalBlock block, Vector3D Target, MatrixD InvMatrix, double sfiftX = 0, double shiftZ = 0)
+            //public Vector3D GetNavAngles(IMyTerminalBlock block, Vector3D Target, MatrixD InvMatrix, double sfiftX = 0, double shiftZ = 0)
+            //{
+            //    Vector3D V3Dcenter = block.GetPosition();
+            //    Vector3D V3Dfow = block.WorldMatrix.Forward + V3Dcenter;
+            //    Vector3D V3Dup = block.WorldMatrix.Up + V3Dcenter;
+            //    Vector3D V3Dleft = block.WorldMatrix.Left + V3Dcenter;
+            //    //Vector3D GravNorm = Vector3D.Normalize(GravVector) + V3Dcenter;
+            //    V3Dcenter = Vector3D.Transform(V3Dcenter, InvMatrix);
+            //    V3Dfow = (Vector3D.Transform(V3Dfow, InvMatrix)) - V3Dcenter;
+            //    V3Dup = (Vector3D.Transform(V3Dup, InvMatrix)) - V3Dcenter;
+            //    V3Dleft = (Vector3D.Transform(V3Dleft, InvMatrix)) - V3Dcenter;
+            //    Vector3D GravNorm = Vector3D.Normalize(new Vector3D(-0, -1, -0));
+            //    if (gravity)
+            //    {
+            //        GravNorm = Vector3D.Normalize(GravVector);
+            //        GravNorm = Vector3D.Normalize(Vector3D.Transform(GravNorm + block.GetPosition(), InvMatrix) - V3Dcenter - new Vector3D(sfiftX, 0, shiftZ));
+            //    }
+            //    //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
+            //    double gF = GravNorm.Dot(V3Dfow);
+            //    double gL = GravNorm.Dot(V3Dleft);
+            //    double gU = GravNorm.Dot(V3Dup);
+            //    //Получаем сигналы по тангажу и крены операцией atan2
+            //    double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
+            //    double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+            //    Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
+            //    //Рысканием прицеливаемся на точку Target.
+            //    double tF = TargetNorm.Dot(V3Dfow);
+            //    double tL = TargetNorm.Dot(V3Dleft);
+            //    double TargetYaw = -(float)Math.Atan2(tL, tF);
+            //    if (double.IsNaN(TargetYaw)) TargetYaw = 0;
+            //    if (double.IsNaN(TargetPitch)) TargetPitch = 0;
+            //    if (double.IsNaN(TargetRoll)) TargetRoll = 0;
+            //    return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
+            //}
+ 
+            public Vector3D GetNavAngles(Vector3D Target, MatrixD InvMatrix, double sfiftX = 0, double shiftZ = 0)
             {
-                Vector3D V3Dcenter = block.GetPosition();
-                Vector3D V3Dfow = block.WorldMatrix.Forward + V3Dcenter;
-                Vector3D V3Dup = block.WorldMatrix.Up + V3Dcenter;
-                Vector3D V3Dleft = block.WorldMatrix.Left + V3Dcenter;
+                Vector3D V3Dcenter = MyPos;
+                Vector3D V3Dfow = WMCocpit.Forward + V3Dcenter;
+                Vector3D V3Dup = WMCocpit.Up + V3Dcenter;
+                Vector3D V3Dleft = WMCocpit.Left + V3Dcenter;
                 //Vector3D GravNorm = Vector3D.Normalize(GravVector) + V3Dcenter;
                 V3Dcenter = Vector3D.Transform(V3Dcenter, InvMatrix);
                 V3Dfow = (Vector3D.Transform(V3Dfow, InvMatrix)) - V3Dcenter;
@@ -834,7 +996,7 @@ namespace MINER_A9
                 if (gravity)
                 {
                     GravNorm = Vector3D.Normalize(GravVector);
-                    GravNorm = Vector3D.Normalize(Vector3D.Transform(GravNorm + block.GetPosition(), InvMatrix) - V3Dcenter - new Vector3D(sfiftX, 0, shiftZ));
+                    GravNorm = Vector3D.Normalize(Vector3D.Transform(GravNorm + MyPos, InvMatrix) - V3Dcenter - new Vector3D(sfiftX, 0, shiftZ));
                 }
                 //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
                 double gF = GravNorm.Dot(V3Dfow);
@@ -843,6 +1005,7 @@ namespace MINER_A9
                 //Получаем сигналы по тангажу и крены операцией atan2
                 double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
                 double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+                //double TargetPitch = (float)Math.Atan2(gF, -gU); // тангаж
                 Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
                 //Рысканием прицеливаемся на точку Target.
                 double tF = TargetNorm.Dot(V3Dfow);
@@ -851,8 +1014,9 @@ namespace MINER_A9
                 if (double.IsNaN(TargetYaw)) TargetYaw = 0;
                 if (double.IsNaN(TargetPitch)) TargetPitch = 0;
                 if (double.IsNaN(TargetRoll)) TargetRoll = 0;
-                return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
-            }
+                return new Vector3D(-TargetYaw, TargetPitch, TargetRoll);
+            }           
+            
             public void UpdateCalc()
             {
                 GravVector = cockpit.obj.GetNaturalGravity();
@@ -867,7 +1031,7 @@ namespace MINER_A9
                     UpVelocityVector = WMCocpit.Up * Vector3D.Dot(VelocityVector, WMCocpit.Up);
                     ForwVelocityVector = WMCocpit.Forward * Vector3D.Dot(VelocityVector, WMCocpit.Forward);
                     LeftVelocityVector = WMCocpit.Left * Vector3D.Dot(VelocityVector, WMCocpit.Left);
-                    //OrientationCocpit = BlockNav.GetCockpitMatrix();
+                    //BlockNav.Orientation.GetMatrix(out OrientationCocpit);
                 }
                 YMaxA = Math.Abs((float)Math.Min(thrusts.UpThrMax / PhysicalMass - GravVector.Length(), thrusts.DownThrMax / PhysicalMass + GravVector.Length()));
                 ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
@@ -875,16 +1039,17 @@ namespace MINER_A9
 
                 StringBuilder values = new StringBuilder();
                 Vector3D MyPosPoint = Vector3D.Transform(MyPos, DockMatrix);
+                values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
                 values.Append("My_Length   : " + Math.Round(MyPosPoint.Length(), 2) + "\n");
                 values.Append("MyPos_X_[0]   : " + Math.Round(MyPosPoint.GetDim(0), 2) + "\n");
                 values.Append("MyPos_Y_[1]   : " + Math.Round(MyPosPoint.GetDim(1), 2) + "\n");
                 values.Append("MyPos_Z_[2]   : " + Math.Round(MyPosPoint.GetDim(2), 2) + "\n");
                 values.Append("ForwVelocityVector   : " + Math.Round(ForwVelocityVector.Length(), 2) + "\n");
                 values.Append("------------------------------------------\n");
-                float HDistance1 = (float)((Vector3D.Reject(MyPosPoint, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
-                float HDistance = (float)(new Vector3D(MyPosPoint.GetDim(0), 0, MyPosPoint.GetDim(2))).Length();
-                Vector3D lpc = Vector3D.Transform(PlanetCenter, DockMatrix);
-                float VDistance = (float)(Vector3D.ProjectOnVector(ref MyPosPoint, ref lpc).Length());
+                //float HDistance1 = (float)((Vector3D.Reject(MyPosPoint, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
+                //float HDistance = (float)(new Vector3D(MyPosPoint.GetDim(0), 0, MyPosPoint.GetDim(2))).Length();
+                //Vector3D lpc = Vector3D.Transform(PlanetCenter, DockMatrix);
+                //float VDistance = (float)(Vector3D.ProjectOnVector(ref MyPosPoint, ref lpc).Length());
                 //values.Append("HDistance_пл : " + Math.Round(HDistance1, 2) + "\n");
                 values.Append("Horz_dist    : " + Math.Round(HDistance, 2) + "\n");
                 values.Append("Vert_dist    : " + Math.Round(VDistance, 2) + "\n");
@@ -892,27 +1057,27 @@ namespace MINER_A9
                 values.Append("СКОРОСТЬ     : " + Math.Round(cockpit.obj.GetShipSpeed(), 2) + "\n");
                 cockpit.OutText(values, 1);
             }
-            public Vector3D GetLocalPosCon(IMyTerminalBlock block, Vector3D ConnectorPoint, MatrixD DockMatrix)
-            {
-                Vector3D MyPosCon = Vector3D.Transform(block.GetPosition(), DockMatrix);
-                Vector3D gyrAng = GetNavAngles(block, ConnectorPoint, DockMatrix);
-                // расчет дистанций
-                if (Vector3D.IsZero(PlanetCenter))
-                {
-                    HDistance = (float)(new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
-                    VDistance = (float)(new Vector3D(0, MyPosCon.GetDim(1), 0)).Length();
-                }
-                else
-                {
-                    //HDistance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
-                    //Vector3D lpc = Vector3D.Transform(PlanetCenter, DockMatrix); // На дальних расстояниях
-                    //VDistance = (float)(Vector3D.ProjectOnVector(ref MyPosCon, ref lpc).Length());
-                    HDistance = (float)(new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
-                    VDistance = (float)(new Vector3D(0, MyPosCon.GetDim(1), 0)).Length();
-                }
-                gyros.SetOverride(true, gyrAng * GyroMult, 1);
-                return MyPosCon;
-            }
+            //public Vector3D GetLocalPosCon(IMyTerminalBlock block, Vector3D ConnectorPoint, MatrixD DockMatrix)
+            //{
+            //    Vector3D MyPosCon = Vector3D.Transform(block.GetPosition(), DockMatrix);
+            //    Vector3D gyrAng = GetNavAngles(block, ConnectorPoint, DockMatrix);
+            //    // расчет дистанций
+            //    if (Vector3D.IsZero(PlanetCenter))
+            //    {
+            //        HDistance = (float)(new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
+            //        VDistance = (float)(new Vector3D(0, MyPosCon.GetDim(1), 0)).Length();
+            //    }
+            //    else
+            //    {
+            //        //HDistance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
+            //        //Vector3D lpc = Vector3D.Transform(PlanetCenter, DockMatrix); // На дальних расстояниях
+            //        //VDistance = (float)(Vector3D.ProjectOnVector(ref MyPosCon, ref lpc).Length());
+            //        HDistance = (float)(new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
+            //        VDistance = (float)(new Vector3D(0, MyPosCon.GetDim(1), 0)).Length();
+            //    }
+            //    gyros.SetOverride(true, gyrAng * GyroMult, 1);
+            //    return MyPosCon;
+            //}
             public void Stop()
             {
                 thrusts.ClearThrustOverridePersent();
@@ -929,7 +1094,11 @@ namespace MINER_A9
                 connector.obj.Disconnect();
                 if (!connector.Connected)
                 {
-                    Vector3D MyPosCon = GetLocalPosCon(BlockNav, ConnectorPoint, DockMatrix);
+                    //Vector3D MyPosCon = GetLocalPosCon(BlockNav, ConnectorPoint, DockMatrix);
+                    Vector3D MyPosCon = Vector3D.Transform(MyPos, DockMatrix);
+                    HDistance = (float)(new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
+                    Vector3D gyrAng = GetNavAngles(ConnectorPoint, DockMatrix);
+                    gyros.SetOverride(BlockNav, true, gyrAng * GyroMult, 1);
                     thrusts.SetOverridePercent("U", 0f);
                     thrusts.SetOverridePercent("D", 0);
                     thrusts.SetOverridePercent("R", 0);
@@ -952,116 +1121,128 @@ namespace MINER_A9
                 float MaxUSpeed, MaxLSpeed, MaxFSpeed;
                 thrusts.On();
 
-                Vector3D MyPosCon = GetLocalPosCon(BlockNav, ConnectorPoint, DockMatrix);
+                //Vector3D MyPosCon = GetLocalPosCon(BlockNav, ConnectorPoint, DockMatrix);
                 //Vector3D MyPosCon = Vector3D.Transform(MyPos, DockMatrix);
                 //Vector3D gyrAng = GetNavAngles(ConnectorPoint, DockMatrix);
                 //Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
+                Vector3D MyPosCon = Vector3D.Transform(MyPos, DockMatrix);
 
-                MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 2;
-                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 2;
-                MaxFSpeed = (float)Math.Sqrt(2 * HDistance * ZMaxA) / 2;
-                if (HDistance < 15)
-                    MaxFSpeed = MaxFSpeed / 5;
-                if (Math.Abs(MyPosCon.GetDim(1)) < 1)
-                    MaxUSpeed = 0.1f;
-                //gyros.SetOverride(true, gyrAng * GyroMult, 1);
-                if (LeftVelocityVector.Length() < MaxLSpeed)
-                    thrusts.SetOverrideAccel("R", (float)(MyPosCon.GetDim(0) * AlignAccelMult));
+                if (MyPosCon.GetDim(2) < 0 && Math.Abs(MyPosCon.GetDim(2)) < (safe_base_distance + 50) && Math.Abs(MyPosCon.GetDim(0)) < (safe_base_distance))
+                {
+                    HDistance = (float)(new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
+                    VDistance = (float)(new Vector3D(0, MyPosCon.GetDim(1), 0)).Length();
+                    Vector3D gyrAng = GetNavAngles(ConnectorPoint, DockMatrix);
+                    gyros.SetOverride(BlockNav, true, gyrAng * GyroMult, 1);
+                    MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 2;
+                    MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 2;
+                    MaxFSpeed = (float)Math.Sqrt(2 * HDistance * ZMaxA) / 2;
+                    if (HDistance < 15)
+                        MaxFSpeed = MaxFSpeed / 5;
+                    if (Math.Abs(MyPosCon.GetDim(1)) < 1)
+                        MaxUSpeed = 0.1f;
+                    if (LeftVelocityVector.Length() < MaxLSpeed)
+                        thrusts.SetOverrideAccel("R", (float)(MyPosCon.GetDim(0) * AlignAccelMult));
+                    else
+                    {
+                        thrusts.SetOverridePercent("R", 0);
+                        thrusts.SetOverridePercent("L", 0);
+                    }
+                    float UpAccel = -(float)(MyPosCon.GetDim(1) * AlignAccelMult);
+                    float minUpAccel = 0.3f;
+                    if ((UpAccel < 0) && (UpAccel > -minUpAccel))
+                        UpAccel = -minUpAccel;
+                    if ((UpAccel > 0) && (UpAccel < minUpAccel))
+                        UpAccel = minUpAccel;
+                    if (UpVelocityVector.Length() < MaxUSpeed)
+                    {
+                        thrusts.SetOverrideAccel("U", UpAccel);
+                    }
+                    else
+                    {
+                        thrusts.SetOverridePercent("U", 0);
+                        thrusts.SetOverridePercent("D", 0);
+                    }
+                    //if (((HDistance > safe_base_distance) || ((Math.Abs(MyPosCon.GetDim(0)) < (HDistance / 10 + 0.2f)) && (Math.Abs(MyPosCon.GetDim(1)) < (HDistance / 10 + 0.2f)))) && (ForwVelocityVector.Length() < MaxFSpeed))
+                    if ((HDistance >= safe_base_distance) ||
+                        ((Math.Abs(MyPosCon.GetDim(2)) < safe_base_distance) && (ForwVelocityVector.Length() < MaxFSpeed) &&
+                        (Math.Abs(MyPosCon.GetDim(0)) < 0.8f) && (Math.Abs(MyPosCon.GetDim(1)) < 0.8f)))
+
+                    {
+                        thrusts.SetOverrideAccel("F", (float)(HDistance * AlignAccelMult));
+                        thrusts.SetOverridePercent("B", 0);
+                    }
+                    else
+                    {
+                        thrusts.SetOverridePercent("F", 0);
+                        thrusts.SetOverridePercent("B", 0);
+                    }
+                    if (HDistance < 6)
+                    {
+                        if (connector.Status == MyShipConnectorStatus.Connectable)
+                        {
+                            connector.Connect();
+                        }
+                        if (connector.Status == MyShipConnectorStatus.Connected)
+                        {
+                            thrusts.ClearThrustOverridePersent();
+                            gyros.SetOverride(false, 1);
+                            Complete = true;
+                        }
+                    }
+                    OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel);
+                }
                 else
                 {
-                    thrusts.SetOverridePercent("R", 0);
-                    thrusts.SetOverridePercent("L", 0);
+                    thrusts.ClearThrustOverridePersent();
+                    gyros.SetOverride(false, 1);
+                    Complete = true;
                 }
-                float UpAccel = -(float)(MyPosCon.GetDim(1) * AlignAccelMult);
-                float minUpAccel = 0.3f;
-                if ((UpAccel < 0) && (UpAccel > -minUpAccel))
-                    UpAccel = -minUpAccel;
-                if ((UpAccel > 0) && (UpAccel < minUpAccel))
-                    UpAccel = minUpAccel;
+                return Complete;
+            }
+            public bool ToBase()
+            {
+                bool Complete = false;
+                float MaxUSpeed, MaxFSpeed;
+                thrusts.On();
+                Vector3D MyPosCon = Vector3D.Transform(MyPos, DockMatrix);
+                Vector3D gyrAng = GetNavAngles(BaseDockPoint, DockMatrix);
+
+                HDistance = (float)(BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
+                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(FlyHeight - (MyPos - PlanetCenter).Length()) * YMaxA) / 1.2f;
+                MaxFSpeed = (float)Math.Sqrt(2 * HDistance * ZMaxA) / 1.2f;
+                gyros.SetOverride(BlockNav, true, gyrAng * GyroMult, 1);
+                thrusts.SetOverridePercent("R", 0);
+                thrusts.SetOverridePercent("L", 0);
                 if (UpVelocityVector.Length() < MaxUSpeed)
-                {
-                    thrusts.SetOverrideAccel("U", UpAccel);
-                }
+                    thrusts.SetOverrideAccel("U", (float)((FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
                 else
                 {
                     thrusts.SetOverridePercent("U", 0);
                     thrusts.SetOverridePercent("D", 0);
                 }
-                //if (((HDistance > safe_base_distance) || ((Math.Abs(MyPosCon.GetDim(0)) < (HDistance / 10 + 0.2f)) && (Math.Abs(MyPosCon.GetDim(1)) < (HDistance / 10 + 0.2f)))) && (ForwVelocityVector.Length() < MaxFSpeed))
-
-                if ((HDistance >= safe_base_distance) ||
-    ((Math.Abs(MyPosCon.GetDim(2)) < safe_base_distance) && (ForwVelocityVector.Length() < MaxFSpeed) &&
-        (Math.Abs(MyPosCon.GetDim(0)) < 0.8f) && (Math.Abs(MyPosCon.GetDim(1)) < 0.8f)))
-
+                if (HDistance > 10)
                 {
-                    thrusts.SetOverrideAccel("F", (float)(HDistance * AlignAccelMult));
-                    thrusts.SetOverridePercent("B", 0);
+                    if (ForwVelocityVector.Length() < MaxFSpeed)
+                    {
+                        thrusts.SetOverrideAccel("F", (float)(HDistance * AlignAccelMult));
+                        thrusts.SetOverridePercent("B", 0);
+                    }
+                    else
+                    {
+                        thrusts.SetOverridePercent("F", 0);
+                        thrusts.SetOverridePercent("B", 0);
+                    }
                 }
                 else
                 {
-                    thrusts.SetOverridePercent("F", 0);
-                    thrusts.SetOverridePercent("B", 0);
+                    thrusts.ClearThrustOverridePersent();
+                    gyros.SetOverride(false, 1);
+                    curent_mode = mode.none;
+                    Complete = true;
                 }
-                if (HDistance < 6)
-                {
-                    if (connector.Status == MyShipConnectorStatus.Connectable)
-                    {
-                        connector.Connect();
-                    }
-                    if (connector.Status == MyShipConnectorStatus.Connected)
-                    {
-                        thrusts.ClearThrustOverridePersent();
-                        gyros.SetOverride(false, 1);
-                        Complete = true;
-                    }
-                }
-                OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel);
+                OutStatusMode(MaxFSpeed, MaxUSpeed, 0, 0);
                 return Complete;
             }
-            //public bool ToBase()
-            //{
-            //    bool Complete = false;
-            //    float MaxUSpeed, MaxFSpeed;
-            //    thrusts.On();
-            //    Vector3D gyrAng = GetNavAngles(BaseDockPoint, DockMatrix);
-            //    Vector3D MyPosCon = Vector3D.Transform(MyPos, DockMatrix);
-            //    Distance = (float)(BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
-            //    MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(FlyHeight - (MyPos - PlanetCenter).Length()) * YMaxA) / 1.2f;
-            //    MaxFSpeed = (float)Math.Sqrt(2 * Distance * ZMaxA) / 1.2f;
-            //    gyros.SetOverride(true, gyrAng * GyroMult, 1);
-            //    thrusts.SetOverridePercent("R", 0);
-            //    thrusts.SetOverridePercent("L", 0);
-            //    if (UpVelocityVector.Length() < MaxUSpeed)
-            //        thrusts.SetOverrideAccel("U", (float)((FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
-            //    else
-            //    {
-            //        thrusts.SetOverridePercent("U", 0);
-            //        thrusts.SetOverridePercent("D", 0);
-            //    }
-            //    if (Distance > TargetSize)
-            //    {
-            //        if (ForwVelocityVector.Length() < MaxFSpeed)
-            //        {
-            //            thrusts.SetOverrideAccel("F", (float)(Distance * AlignAccelMult));
-            //            thrusts.SetOverridePercent("B", 0);
-            //        }
-            //        else
-            //        {
-            //            thrusts.SetOverridePercent("F", 0);
-            //            thrusts.SetOverridePercent("B", 0);
-            //        }
-            //    }
-            //    else
-            //    {
-            //        thrusts.ClearThrustOverridePersent();
-            //        gyros.SetOverride(false, 1);
-            //        curent_mode = mode.none;
-            //        Complete = true;
-            //    }
-            //    //OutStatusMode(MaxFSpeed, MaxUSpeed, 0, 0);
-            //    return Complete;
-            //}
-
             public void OutStatusMode(float MaxFSpeed, float MaxUSpeed, float MaxLSpeed, float UpAccel)
             {
                 StringBuilder values = new StringBuilder();
@@ -1090,6 +1271,7 @@ namespace MINER_A9
                 switch (argument)
                 {
                     case "save_dock": SetDockMatrix(connector.obj); break;
+                    case "save_height": SetFlyHeight(); break;
                     case "stop": Stop(); break;
                     case "un_dock":
                         {
@@ -1105,7 +1287,13 @@ namespace MINER_A9
                             strg.SaveToStorage();
                             break;
                         }
-
+                    case "to_base":
+                        {
+                            InitBlock(cockpit.obj);
+                            curent_mode = mode.to_base;
+                            strg.SaveToStorage();
+                            break;
+                        }
                     default:
                         break;
                 }
@@ -1116,6 +1304,10 @@ namespace MINER_A9
                         curent_mode = mode.none; strg.SaveToStorage();
                     }
                     if (curent_mode == mode.dock && !paused && Dock())
+                    {
+                        curent_mode = mode.none; strg.SaveToStorage();
+                    }
+                    if (curent_mode == mode.to_base && !paused && ToBase())
                     {
                         curent_mode = mode.none; strg.SaveToStorage();
                     }
@@ -1132,6 +1324,7 @@ namespace MINER_A9
                 nav.curent_mode = (Nav.mode)GetValInt("curent_mode", str.ToString());
                 //navigation.paused = GetValBool("pause", str.ToString());
                 //navigation.EmergencySetpoint = GetValBool("EmergencySetpoint", str.ToString());
+                nav.FlyHeight = GetValDouble("FlyHeight", str.ToString());
                 nav.DockMatrix = GetValMatrixD("DM", str.ToString());
                 nav.PlanetCenter = GetValVector3D("PC", str.ToString());
             }
@@ -1142,6 +1335,7 @@ namespace MINER_A9
                 values.Append("curent_mode: " + ((int)nav.curent_mode).ToString() + ";\n");
                 //values.Append("pause: " + navigation.paused.ToString() + ";\n");
                 //values.Append("EmergencySetpoint: " + navigation.EmergencySetpoint.ToString() + ";\n");
+                values.Append("FlyHeight: " + Math.Round(nav.FlyHeight, 0) + ";\n");
                 values.Append(SetValMatrixD("DM", nav.DockMatrix) + ";\n");
                 values.Append(SetValVector3D("PC", nav.PlanetCenter) + ";\n");
                 lcd_storage.OutText(values);
