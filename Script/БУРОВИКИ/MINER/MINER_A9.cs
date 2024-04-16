@@ -436,6 +436,7 @@ namespace MINER_A9
             //        gyro.Roll = (float)locRot.Z; //GetDim(2);
             //    }
             //}
+
             public void SetOverride(IMyTerminalBlock block, bool OverrideOnOff, Vector3 settings, float Power = 1)
             {
                 foreach (IMyGyro gyro in base.list_obj)
@@ -444,63 +445,69 @@ namespace MINER_A9
                         gyro.ApplyAction("Override");
                     gyro.GyroPower = Power;
                     Vector3 bforw = block.WorldMatrix.Forward;
-                    Vector3 bright = block.WorldMatrix.Right;
+                    Vector3 bleft = block.WorldMatrix.Left;
                     Vector3 bup = block.WorldMatrix.Up;
                     Vector3 gforw = gyro.WorldMatrix.Forward;
                     Vector3 gup = gyro.WorldMatrix.Up;
-                    Vector3 gleft = gyro.WorldMatrix.Left * -1;
+                    Vector3 gleft = gyro.WorldMatrix.Left;
+                    // forw
                     if (gforw == bforw) gyro.SetValueFloat("Roll", settings.Z);
                     else if (gforw == (bforw * -1)) gyro.SetValueFloat("Roll", settings.Z * -1);
-                    else if (gup == (bforw * -1)) gyro.SetValueFloat("Yaw", settings.Z);
-                    else if (gup == bforw) gyro.SetValueFloat("Yaw", settings.Z * -1);
+                    else if (gup == bforw) gyro.SetValueFloat("Yaw", settings.Z);
+                    else if (gup == (bforw * -1)) gyro.SetValueFloat("Yaw", settings.Z * -1);
                     else if (gleft == bforw) gyro.SetValueFloat("Pitch", settings.Z);
                     else if (gleft == (bforw * -1)) gyro.SetValueFloat("Pitch", settings.Z * -1);
-                    if (gleft == (bright * -1)) gyro.SetValueFloat("Pitch", settings.Y);
-                    else if (gleft == bright) gyro.SetValueFloat("Pitch", settings.Y * -1);
-                    else if (gup == bright) gyro.SetValueFloat("Yaw", settings.Y);
-                    else if (gup == (bright * -1)) gyro.SetValueFloat("Yaw", settings.Y * -1);
-                    else if (gforw == (bright * -1)) gyro.SetValueFloat("Roll", settings.Y);
-                    else if (gforw == bright) gyro.SetValueFloat("Roll", settings.Y * -1);
-                    if (gup == (bup * -1)) gyro.SetValueFloat("Yaw", settings.X);
-                    else if (gup == bup) gyro.SetValueFloat("Yaw", settings.X * -1);
+                    // left
+                    if (gleft == bleft) gyro.SetValueFloat("Pitch", settings.Y);
+                    else if (gleft == (bleft* -1)) gyro.SetValueFloat("Pitch", settings.Y * -1);
+                    else if (gup == bleft) gyro.SetValueFloat("Yaw", settings.Y);
+                    else if (gup == (bleft * -1)) gyro.SetValueFloat("Yaw", settings.Y * -1);
+                    else if (gforw == bleft) gyro.SetValueFloat("Roll", settings.Y);
+                    else if (gforw == (bleft * -1)) gyro.SetValueFloat("Roll", settings.Y * -1);
+                    // up
+                    if (gup == bup) gyro.SetValueFloat("Yaw", settings.X);
+                    else if (gup == (bup * -1)) gyro.SetValueFloat("Yaw", settings.X * -1);
                     else if (gleft == bup) gyro.SetValueFloat("Pitch", settings.X);
                     else if (gleft == (bup * -1)) gyro.SetValueFloat("Pitch", settings.X * -1);
                     else if (gforw == bup) gyro.SetValueFloat("Roll", settings.X);
                     else if (gforw == (bup * -1)) gyro.SetValueFloat("Roll", settings.X * -1);
                 }
+            }
+            //public void SetOverride(IMyTerminalBlock block, bool OverrideOnOff, Vector3 settings, float Power = 1)
+            //{
+            //    foreach (IMyGyro gyro in base.list_obj)
+            //    {
+            //        if ((!gyro.GyroOverride) && OverrideOnOff)
+            //            gyro.ApplyAction("Override");
+            //        gyro.GyroPower = Power;
+            //        Vector3 bforw = block.WorldMatrix.Forward;
+            //        Vector3 bright = block.WorldMatrix.Right;
+            //        Vector3 bup = block.WorldMatrix.Up;
+            //        Vector3 gforw = gyro.WorldMatrix.Forward;
+            //        Vector3 gup = gyro.WorldMatrix.Up;
+            //        Vector3 gleft = gyro.WorldMatrix.Left * -1;
+            //        if (gforw == bforw) gyro.SetValueFloat("Roll", settings.Z);
+            //        else if (gforw == (bforw * -1)) gyro.SetValueFloat("Roll", settings.Z * -1);
+            //        else if (gup == (bforw * -1)) gyro.SetValueFloat("Yaw", settings.Z);
+            //        else if (gup == bforw) gyro.SetValueFloat("Yaw", settings.Z * -1);
+            //        else if (gleft == bforw) gyro.SetValueFloat("Pitch", settings.Z);
+            //        else if (gleft == (bforw * -1)) gyro.SetValueFloat("Pitch", settings.Z * -1);
+            //        if (gleft == (bright * -1)) gyro.SetValueFloat("Pitch", settings.Y);
+            //        else if (gleft == bright) gyro.SetValueFloat("Pitch", settings.Y * -1);
+            //        else if (gup == bright) gyro.SetValueFloat("Yaw", settings.Y);
+            //        else if (gup == (bright * -1)) gyro.SetValueFloat("Yaw", settings.Y * -1);
+            //        else if (gforw == (bright * -1)) gyro.SetValueFloat("Roll", settings.Y);
+            //        else if (gforw == bright) gyro.SetValueFloat("Roll", settings.Y * -1);
+            //        if (gup == (bup * -1)) gyro.SetValueFloat("Yaw", settings.X);
+            //        else if (gup == bup) gyro.SetValueFloat("Yaw", settings.X * -1);
+            //        else if (gleft == bup) gyro.SetValueFloat("Pitch", settings.X);
+            //        else if (gleft == (bup * -1)) gyro.SetValueFloat("Pitch", settings.X * -1);
+            //        else if (gforw == bup) gyro.SetValueFloat("Roll", settings.X);
+            //        else if (gforw == (bup * -1)) gyro.SetValueFloat("Roll", settings.X * -1);
+            //    }
+            //}
 
-                //    //foreach (IMyGyro gyro in base.list_obj) {
-                //    //    if ((!gyro.GyroOverride) && OverrideOnOff)
-                //    //        gyro.ApplyAction("Override");
-                //    //    gyro.GyroPower = Power;
-                //    //    Vector3 bforw = block.WorldMatrix.Forward;
-                //    //    Vector3 bright = block.WorldMatrix.Right;
-                //    //    Vector3 bup = block.WorldMatrix.Up;
-                //    //    Vector3 gforw = gyro.WorldMatrix.Forward;
-                //    //    Vector3 gup = gyro.WorldMatrix.Up;
-                //    //    Vector3 gleft = gyro.WorldMatrix.Left * -1;
-                //    //    if (gforw == bforw) gyro.SetValueFloat("Roll", settings.Z);
-                //    //    else if (gforw == (bforw * -1)) gyro.SetValueFloat("Roll", settings.Z * -1);
-                //    //    else if (gup == (bforw * -1)) gyro.SetValueFloat("Yaw", settings.Z);
-                //    //    else if (gup == bforw) gyro.SetValueFloat("Yaw", settings.Z * -1);
-                //    //    else if (gleft == bforw) gyro.SetValueFloat("Pitch", settings.Z);
-                //    //    else if (gleft == (bforw * -1)) gyro.SetValueFloat("Pitch", settings.Z * -1); 
-                //    //    if (gleft == (bright * -1)) gyro.SetValueFloat("Pitch", settings.Y);
-                //    //    else if (gleft == bright) gyro.SetValueFloat("Pitch", settings.Y * -1);
-                //    //    else if (gup == bright) gyro.SetValueFloat("Yaw", settings.Y);
-                //    //    else if (gup == (bright * -1)) gyro.SetValueFloat("Yaw", settings.Y * -1);
-                //    //    else if (gforw == (bright * -1)) gyro.SetValueFloat("Roll", settings.Y);
-                //    //    else if (gforw == bright) gyro.SetValueFloat("Roll", settings.Y * -1); 
-                //    //    if (gup == (bup * -1)) gyro.SetValueFloat("Yaw", settings.X);
-                //    //    else if (gup == bup) gyro.SetValueFloat("Yaw", settings.X * -1);
-                //    //    else if (gleft == bup) gyro.SetValueFloat("Pitch", settings.X);
-                //    //    else if (gleft == (bup * -1)) gyro.SetValueFloat("Pitch", settings.X * -1);
-                //    //    else if (gforw == bup) gyro.SetValueFloat("Roll", settings.X);
-                //    //    else if (gforw == (bup * -1)) gyro.SetValueFloat("Roll", settings.X * -1);
-                //    //}
-                }
-
-                public void SetOverride(bool OverrideOnOff = true, float OverrideValue = 0, float Power = 1)
+            public void SetOverride(bool OverrideOnOff = true, float OverrideValue = 0, float Power = 1)
             {
                 foreach (IMyGyro gyro in base.list_obj)
                 {
@@ -956,7 +963,7 @@ namespace MINER_A9
             //    if (double.IsNaN(TargetRoll)) TargetRoll = 0;
             //    return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
             //}
- 
+
             public Vector3D GetNavAngles(Vector3D Target, MatrixD InvMatrix, double sfiftX = 0, double shiftZ = 0)
             {
                 Vector3D V3Dcenter = MyPos;
@@ -992,8 +999,8 @@ namespace MINER_A9
                 if (double.IsNaN(TargetPitch)) TargetPitch = 0;
                 if (double.IsNaN(TargetRoll)) TargetRoll = 0;
                 return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
-            }           
-            
+            }
+
             public void UpdateCalc()
             {
                 GravVector = cockpit.obj.GetNaturalGravity();
