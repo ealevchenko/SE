@@ -86,6 +86,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="OCTOPUS\PMP.cs" />
+    <Compile Include="Setup_Example\Ship_TH.cs" />
     <Compile Include="Setup_Example\Ship_Test.cs" />
     <Compile Include="Setup_Example\Basa_Test.cs" />
     <Compile Include="Setup_Example\IGC_Antena_Ship.cs" />
