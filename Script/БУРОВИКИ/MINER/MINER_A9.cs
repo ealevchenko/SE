@@ -15,11 +15,11 @@ using System.Runtime.Remoting.Messaging;
 using System.Text;
 using System.Threading.Tasks;
 using System.Timers;
+using VRage;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
 using VRage.Scripting;
 using VRageMath;
-using static VRageMath.Base6Directions;
 
 /// <summary>
 /// v8.0  Модифицирован под Down и Up ускорители (применим на малой гравитации, можно на ионниках)
@@ -35,25 +35,25 @@ namespace MINER_A9
         static float safe_base_distance = 100f; // безопасная дистанция
 
         static float GyroMult = 10f;
+        static float DrillGyroMult = 10f;
         static float AlignAccelMult = 0.3f;
-        static float DrillGyroMult = 2f;
-        //static float TargetSize = 100;
-        static float ReturnOnCharge = 0.2f;     // Процент заряда
-        static float ReturnOffCharge = 0.9f;    // Процент заряда
+
+        static float MinOnCharge = 0.2f;     // Процент заряда
+        static float MaxOffCharge = 0.9f;    // Процент заряда
         static float DrillSpeedLimit = 0.5f;
         static float DrillAccel = 0.5f;
-        static float DrillDepth = 25;           // глубина шахты
-        static int MaxShafts = 20;              // макс кол дыр
+        static float DrillDepth = 35;           // глубина шахты
+        static int MaxShafts = 25;              // макс кол дыр
         static float DrillFrameWidth = 8f;     // размеры буровика
         static float DrillFrameLength = 7f;
-        static int CriticalMass = 180000;       // Критическая масса
+        static int CriticalMass = 150000;       // Критическая масса
         static int StoneDumpOn = 250000;
 
-        const char green = '\uE001';
-        const char blue = '\uE002';
-        const char red = '\uE003';
-        const char yellow = '\uE004';
-        const char darkGrey = '\uE00F';
+        const char igreen = '\uE001';
+        const char iblue = '\uE002';
+        const char ired = '\uE003';
+        const char iyellow = '\uE004';
+        const char idarkGrey = '\uE00F';
         static LCD lcd_storage;
         static LCD lcd_debug;
         static LCD lcd_name;
@@ -143,14 +143,7 @@ namespace MINER_A9
             nav = new Nav(NameObj);
             strg = new MyStorage();
             strg.LoadFromStorage();
-            if (nav.curent_mode == Nav.mode.dock || nav.curent_mode == Nav.mode.un_dock)
-            {
-                nav.InitBlock(connector.obj);
-            }
-            else
-            {
-                nav.InitBlock(cockpit.obj);
-            }
+
 
         }
         public void Save() { }
@@ -168,13 +161,13 @@ namespace MINER_A9
                 lcd_name.OutText(NameObj, false);
             }
             values_info.Append(bats.TextInfo(null));
-            values_info.Append(connector.TextInfo());
+            values_info.Append(connector.TextInfo("К:Base"));
             values_info.Append(drill.TextInfo(null));
-            //values_info.Append(nav.TextInfo1());
-            //cockpit.OutText(values_info, 0);
+            values_info.Append(nav.TextInfo1());
+            cockpit.OutText(values_info, 0);
             StringBuilder values_info1 = new StringBuilder();
-            values_info1.Append(thrusts.TextInfo());
-            cockpit.OutText(values_info1, 2);
+            values_info1.Append(nav.TextCritical());
+            cockpit.OutText(values_info1, 1);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
@@ -210,62 +203,13 @@ namespace MINER_A9
             public bool Connected { get { return base.obj.Status == MyShipConnectorStatus.Connected ? true : false; } }
             public bool Unconnected { get { return base.obj.Status == MyShipConnectorStatus.Unconnected ? true : false; } }
             public bool Connectable { get { return base.obj.Status == MyShipConnectorStatus.Connectable ? true : false; } }
-            public Connector(string name) : base(name)
-            {
-                if (base.obj != null)
-                {
-
-                }
-            }
-            public string GetInfoStatus()
-            {
-                switch (base.obj.Status)
-                {
-                    case MyShipConnectorStatus.Connected:
-                        {
-                            return "ПОДКЛЮЧЕН";
-                        }
-                    case MyShipConnectorStatus.Connectable:
-                        {
-                            return "ГОТОВ";
-                        }
-                    case MyShipConnectorStatus.Unconnected:
-                        {
-                            return "НЕПОДКЛЮЧЕН";
-                        }
-                    default:
-                        {
-                            return "";
-                        }
-                }
-            }
-            public string TextInfo()
-            {
-                StringBuilder values = new StringBuilder();
-                values.Append("КОННЕКТОР: " + (Connected ? green.ToString() : (Connectable ? yellow.ToString() : red.ToString())) + "\n");
-                return values.ToString();
-            }
-            public void Connect()
-            {
-                obj.Connect();
-            }
-            public void Disconnect()
-            {
-                obj.Disconnect();
-            }
-            public long? getRemoteConnector()
-            {
-                List<IMyShipConnector> list_conn = new List<IMyShipConnector>();
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn);
-                //return list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).Count().ToString();
-                foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList())
-                {
-                    //_scr.Echo("remote_control: " + conn.DisplayNameText);
-                    //if (conn.DisplayNameText.Trim() != conn.DisplayNameText.Trim() && (conn.GetPosition() - this.GetPosition()).Length() < 2) return conn.DisplayNameText;
-                    if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 2) return conn.EntityId;
-                }
-                return null;
-            }
+            public Connector(string name) : base(name) { if (base.obj != null) { } }
+            public string TextStatus() { StringBuilder values = new StringBuilder(); values.Append(Connected ? igreen.ToString() : (Connectable ? iyellow.ToString() : ired.ToString())); return values.ToString(); }
+            public string TextInfo(string name) { StringBuilder values = new StringBuilder(); values.Append((name != null ? name : "КОННЕКТОР") + " : " + TextStatus()); return values.ToString(); }
+            public void Connect() { obj.Connect(); }
+            public void Disconnect() { obj.Disconnect(); }
+            public long? getEntityIdRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn.EntityId; } return null; }
+            public IMyShipConnector getRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn; } return null; }
         }
         public class ShipDrill : BaseListTerminalBlock<IMyShipDrill>
         {
@@ -274,7 +218,7 @@ namespace MINER_A9
             public string TextInfo(string name)
             {
                 StringBuilder values = new StringBuilder();
-                values.Append((!String.IsNullOrWhiteSpace(name) ? name : "БУРЫ") + ": " + (base.Enabled() ? green.ToString() : red.ToString()) + "\n");
+                values.Append((!String.IsNullOrWhiteSpace(name) ? name : "БУРЫ") + ": " + (base.Enabled() ? igreen.ToString() : ired.ToString()) + "\n");
                 return values.ToString();
             }
         }
@@ -826,29 +770,29 @@ namespace MINER_A9
             public float VDistance { get; private set; } // Дистанция по вертикали (плоскость Y)
             //-------------------
             public Vector3D PlanetCenter { get; set; } = new Vector3D(0.50, 0.50, 0.50);
-            private Vector3D ConnectorPoint { get; set; } = new Vector3D(0, 0, 5);
-            private Vector3D BaseDockPoint { get; set; } = new Vector3D(0, 0, -safe_base_distance);
-            private Vector3D DrillPoint { get; set; } = new Vector3D(0, 0, 0);
-            public double FlyHeight { get; set; }
+            public Vector3D ConnectorPoint { get; set; } = new Vector3D(0, 0, 5);
+            public Vector3D BaseDockPoint { get; set; } = new Vector3D(0, 0, -safe_base_distance);
             public MatrixD DockMatrix { get; set; }
+            public Vector3D DrillPoint { get; set; } = new Vector3D(0, 0, 0);
             public MatrixD DrillMatrix { get; set; }
-            public int ShaftN { get; private set; }
+            public double FlyHeight { get; set; }
+            public int ShaftN { get; set; }
             public bool StoneDumpNeeded { get; private set; } // Признак нужно сбросить груз
             public bool PullUpNeeded { get; private set; } // Требуется подтянуть
             public bool CriticalMassReached { get; private set; }// Признак критической массы
             public bool CriticalBatteryCharge { get; private set; }// Признак критического заряда
             public bool CriticalHydrogenSupply { get; private set; }// Признак критического запаса водорода
             public bool EmergencySetpoint { get; private set; } = false;
+
             public bool EmergencyReturn = false;
-            public bool go_home { get; set; }  = false; // вернутся домой и остатся
+            public bool horizont { get; set; } = false;  // держим горизонтальное направление
+            public bool go_home { get; set; } = false; // вернутся домой и остатся
             public bool paused { get; set; } = false;
             public IMyTerminalBlock BlockNav { get; set; }
-
             public Nav(string name)
             {
                 this.name_ship = name;
             }
-
             public MatrixD GetNormTransMatrixFromMyPos(IMyTerminalBlock block)
             {
                 MatrixD mRot;
@@ -861,7 +805,6 @@ namespace MINER_A9
                 mRot = MatrixD.Invert(mRot);
                 return new MatrixD(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -V3Dcenter.GetDim(0), -V3Dcenter.GetDim(1), -V3Dcenter.GetDim(2), 1) * mRot;
             }
-
             public void SetDockMatrix(IMyTerminalBlock block)
             {
                 if (connector.Connected)
@@ -913,13 +856,11 @@ namespace MINER_A9
                 //Получаем сигналы по тангажу и крены операцией atan2
                 double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
                 double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
-                //double TargetPitch = (float)Math.Atan2(gF, -gU); // тангаж
                 Vector3D TargetNorm = Vector3D.Normalize(Target - V3Dcenter);
                 //Рысканием прицеливаемся на точку Target.
                 double tF = TargetNorm.Dot(V3Dfow);
                 double tL = TargetNorm.Dot(V3Dleft);
                 double TargetYaw = -(float)Math.Atan2(tL, tF);
-                //double TargetYaw = (float)Math.Atan2(tL, tF);
                 if (double.IsNaN(TargetYaw)) TargetYaw = 0;
                 if (double.IsNaN(TargetPitch)) TargetPitch = 0;
                 if (double.IsNaN(TargetRoll)) TargetRoll = 0;
@@ -943,10 +884,18 @@ namespace MINER_A9
                 YMaxA = Math.Abs((float)Math.Min(thrusts.UpThrMax / PhysicalMass - GravVector.Length(), thrusts.DownThrMax / PhysicalMass + GravVector.Length()));
                 ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
                 XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
-
+                cargos.Update();
                 // Критические уставки
-                CriticalMassReached = (PhysicalMass > CriticalMass);
-                CriticalBatteryCharge = connector.Connected ? bats.CurrentPersent < ReturnOffCharge : bats.CurrentPersent <= ReturnOnCharge;
+                if (PhysicalMass > CriticalMass) { CriticalMassReached = true; }
+                else
+                {
+                    CriticalMassReached = false;
+                    if (cargos.StoneAmount > StoneDumpOn)
+                        StoneDumpNeeded = true;
+                    if (cargos.StoneAmount < 100)
+                        StoneDumpNeeded = false;
+                }
+                CriticalBatteryCharge = connector.Connected ? bats.CurrentPersent < MaxOffCharge : bats.CurrentPersent <= MinOnCharge;
                 //CriticalHydrogenSupply = connector_base.Connected ? hydrogen_tanks_nav.AverageFilledRatio < 1.0f : hydrogen_tanks_nav.AverageFilledRatio <= CriticalOnH2;
                 EmergencySetpoint = CriticalMassReached || CriticalBatteryCharge;// || CriticalHydrogenSupply;
 
@@ -992,13 +941,224 @@ namespace MINER_A9
             //    gyros.SetOverride(true, gyrAng * GyroMult, 1);
             //    return MyPosCon;
             //}
+
+            //------------------------------------------------
+            public void FlyConnectBase()
+            {
+                if (curent_mode == mode.none)
+                {
+                    InitBlock(cockpit.obj);
+                    curent_mode = mode.to_base;
+                    strg.SaveToStorage();
+                }
+                if (curent_mode == mode.to_base && ToBase())
+                {
+                    InitBlock(connector.obj);
+                    curent_mode = mode.dock;
+                    strg.SaveToStorage();
+                }
+                if (curent_mode == mode.dock && Dock())
+                {
+                    InitBlock(connector.obj);
+                    curent_programm = programm.none;
+                    strg.SaveToStorage();
+                }
+            }
+            public void FlyDrill()
+            {
+                if (curent_mode == mode.none)
+                {
+                    if (connector.Connected)
+                    {
+                        InitBlock(connector.obj);
+                        curent_mode = mode.un_dock;
+                        strg.SaveToStorage();
+                    }
+                    else
+                    {
+                        InitBlock(cockpit.obj);
+                        curent_mode = mode.to_drill;
+                        strg.SaveToStorage();
+                    }
+                }
+                if (curent_mode == mode.un_dock && UnDock())
+                {
+                    InitBlock(cockpit.obj);
+                    curent_mode = mode.to_drill;
+                    strg.SaveToStorage();
+                }
+                if (curent_mode == mode.to_drill && ToDrillPoint())
+                {
+                    InitBlock(cockpit.obj);
+                    curent_programm = programm.none;
+                    strg.SaveToStorage();
+                }
+            }
+            public void StartDrill()
+            {
+                if (curent_mode == mode.none)
+                {
+                    go_home = false;
+                    if (connector.Connected)
+                    {
+                        InitBlock(connector.obj);
+                        curent_mode = mode.un_dock;
+                        strg.SaveToStorage();
+                    }
+                    else
+                    {
+                        InitBlock(cockpit.obj);
+                        curent_mode = mode.to_drill;
+                        strg.SaveToStorage();
+                    }
+                }
+                else
+                {
+                    if (go_home)
+                    {
+                        if (curent_mode == mode.to_drill || curent_mode == mode.drill_align)
+                        {
+                            InitBlock(cockpit.obj);
+                            curent_mode = mode.to_base;
+                            strg.SaveToStorage();
+                        }
+                        if (curent_mode == mode.drill)
+                        {
+                            InitBlock(cockpit.obj);
+                            curent_mode = mode.pull_out;
+                            strg.SaveToStorage();
+                        }
+                    }
+                    else
+                    {
+                        if (curent_mode == mode.to_drill && ToDrillPoint())
+                        {
+                            InitBlock(cockpit.obj);
+                            curent_mode = mode.drill_align;
+                            strg.SaveToStorage();
+                        }
+                        if (curent_mode == mode.drill_align && DrillAlign())
+                        {
+                            InitBlock(cockpit.obj);
+                            curent_mode = mode.drill;
+                            strg.SaveToStorage();
+                        }
+                        if (curent_mode == mode.drill && Drill(out EmergencyReturn))
+                        {
+                            InitBlock(cockpit.obj);
+                            if (PullUpNeeded)
+                                curent_mode = mode.pull_up;
+                            else
+                                curent_mode = mode.pull_out;
+                            strg.SaveToStorage();
+                        }
+                    }
+                    if (curent_mode == mode.un_dock && UnDock())
+                    {
+                        InitBlock(cockpit.obj);
+                        curent_mode = mode.to_drill;
+                        strg.SaveToStorage();
+                    }
+                    if (curent_mode == mode.pull_up && PullUp())
+                    {
+                        InitBlock(cockpit.obj);
+                        curent_mode = mode.drill;
+                        strg.SaveToStorage();
+                    }
+                    if (curent_mode == mode.pull_out && PullOut())
+                    {
+                        if (EmergencyReturn || go_home)
+                        {
+                            InitBlock(cockpit.obj);
+                            curent_mode = mode.to_base;
+                        }
+                        else
+                        {
+                            SetNewShaft();
+                            if (ShaftN >= MaxShafts)
+
+                                curent_mode = mode.to_base;
+                            else
+                                curent_mode = mode.drill_align;
+                            InitBlock(cockpit.obj);
+                        }
+                        strg.SaveToStorage();
+                    }
+                    if (curent_mode == mode.to_base && ToBase())
+                    {
+                        InitBlock(connector.obj);
+                        curent_mode = mode.dock;
+                        strg.SaveToStorage();
+                    }
+                    if (curent_mode == mode.dock && Dock())
+                    {
+                        InitBlock(connector.obj);
+                        curent_mode = mode.base_operation;
+                        strg.SaveToStorage();
+                    }
+                    if (curent_mode == mode.base_operation)
+                    {
+                        ejector.ThrowOut(false);
+                        cargos.UnLoad();
+                        bats.Charger();
+                        thrusts.Off();
+                        thrusts.ClearThrustOverridePersent();
+                        if (go_home || ShaftN >= MaxShafts)
+                        {
+                            Stop();
+                        }
+                        else
+                        {
+                            if (EmergencySetpoint && cargos.CurrentMass == 0f)
+                            {
+                                bats.Auto();
+                                thrusts.On();
+                                ejector.ThrowOut(true);
+                                InitBlock(connector.obj);
+                                curent_mode = mode.un_dock;
+                                strg.SaveToStorage();
+                            }
+                        }
+                    }
+                }
+            }
+            //----------------------------------------------
+            //public void Horizon()
+            //{
+            //    Vector3D gyrAng = GetNavAngles(TackVector);
+            //    if (TackVector == null)
+            //    {
+            //        if (remote_control.obj.IsUnderControl)
+            //        {
+            //            gyrAng.SetDim(0, remote_control.obj.RotationIndicator.Y);
+            //        }
+            //        else if (cockpit.obj.IsUnderControl)
+            //        {
+            //            gyrAng.SetDim(0, cockpit.obj.RotationIndicator.Y);
+            //        }
+            //    }
+            //    gyros.SetOverride(true, gyrAng * GyroMult, 1);
+            //}
+            //-----------------------------------------------
             public void Stop()
             {
                 thrusts.ClearThrustOverridePersent();
                 gyros.SetOverride(false, 1);
                 curent_mode = mode.none;
-                //curent_programm = programm.none;
+                curent_programm = programm.none;
                 paused = false;
+                go_home = false;
+                strg.SaveToStorage();
+            }
+            public void Pause(bool enable)
+            {
+                if (enable)
+                {
+                    thrusts.ClearThrustOverridePersent();
+                    gyros.SetOverride(false, 1);
+                    paused = true;
+                }
+                else { paused = false; }
                 strg.SaveToStorage();
             }
             public bool UnDock()
@@ -1269,7 +1429,7 @@ namespace MINER_A9
                 if (shiftZ < 0) shiftZ = Math.Max(shiftZ, -0.1);
                 else shiftZ = Math.Min(shiftZ, 0.1);
                 Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrix, shiftX, shiftZ);
-                gyros.SetOverride(BlockNav, true, gyrAng * GyroMult, 1);
+                gyros.SetOverride(BlockNav, true, gyrAng * DrillGyroMult, 1);
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 5;
                 MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(2)) * ZMaxA) / 5;
                 if (LeftVelocityVector.Length() < MaxLSpeed)
@@ -1324,7 +1484,7 @@ namespace MINER_A9
                 float MaxLSpeed, MaxFSpeed;
                 Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
                 Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrix);
-                gyros.SetOverride(BlockNav, true, gyrAng * GyroMult, 1);
+                gyros.SetOverride(BlockNav, true, gyrAng * DrillGyroMult, 1);
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 4;
                 MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(2)) * ZMaxA) / 4;
                 if (LeftVelocityVector.Length() < MaxLSpeed)
@@ -1362,7 +1522,7 @@ namespace MINER_A9
                 float MaxLSpeed, MaxFSpeed;
                 Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
                 Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrix);
-                gyros.SetOverride(BlockNav, true, gyrAng * GyroMult, 1);
+                gyros.SetOverride(BlockNav, true, gyrAng * DrillGyroMult, 1);
                 drill.Off();
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 2;
                 MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(2)) * ZMaxA) / 2;
@@ -1391,6 +1551,48 @@ namespace MINER_A9
                     Complete = true;
                 return Complete;
             }
+            //-------------------------------------------------
+            public int SetNewShaft()
+            {
+                ShaftN++;
+                DrillPoint = GetSpiralXY(ShaftN, DrillFrameWidth, DrillFrameLength);
+                return ShaftN;
+            }
+            public Vector3D GetSpiralXY(int p, float W, float L, int n = 20)
+            {
+                int positionX = 0, positionY = 0, direction = 0, stepsCount = 1, stepPosition = 0, stepChange = 0;
+                int X = 0;
+                int Y = 0;
+                for (int i = 0; i < n * n; i++)
+                {
+                    if (i == p)
+                    {
+                        X = positionX;
+                        Y = positionY;
+                        break;
+                    }
+                    if (stepPosition < stepsCount)
+                    {
+                        stepPosition++;
+                    }
+                    else
+                    {
+                        stepPosition = 1;
+                        if (stepChange == 1)
+                        {
+                            stepsCount++;
+                        }
+                        stepChange = (stepChange + 1) % 2;
+                        direction = (direction + 1) % 4;
+                    }
+                    if (direction == 0) { positionY++; }
+                    else if (direction == 1) { positionX--; }
+                    else if (direction == 2) { positionY--; }
+                    else if (direction == 3) { positionX++; }
+                }
+                return new Vector3D(X * W, 0, Y * L);
+            }
+            //-------------------------------------------------
             public void OutStatusMode(float MaxFSpeed, float MaxUSpeed, float MaxLSpeed, float UpAccel)
             {
                 StringBuilder values = new StringBuilder();
@@ -1413,15 +1615,57 @@ namespace MINER_A9
                 //values.Append(thrusts.TextInfo());
                 //lcd_debug.OutText(values);
             }
+            public string TextInfo1()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("СКОРОСТЬ             : " + Math.Round(cockpit.obj.GetShipSpeed(), 2) + "\n");
+                values.Append("ВЫСОТА    (пов.)     : " + Math.Round(cockpit.GetCurrentHeight(), 2) + "\n");
+                values.Append("ВЫСОТА    (точка.)   : " + Math.Round(VDistance).ToString() + "\n");
+                values.Append("ДИСТАНЦИЯ (точка.)   : " + Math.Round(HDistance).ToString() + "\n");
+                values.Append("--------------------------------------\n");
+                values.Append("ГОРИЗОНТ : " + (horizont ? igreen.ToString() : ired.ToString()) + ", ");
+                values.Append("ПАУЗА : " + (paused ? igreen.ToString() : ired.ToString()) + ", ");
+                values.Append("ДОМОЙ : " + (go_home ? igreen.ToString() : ired.ToString()) + "\n");
+                values.Append("--------------------------------------\n");
+                values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
+                values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
+                return values.ToString();
+            }
+            public string TextCritical()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("--------------------------------------\n");
+                values.Append("АВАРИЙНЫЕ УСТАВКИ   : " + (EmergencySetpoint ? ired.ToString() : igreen.ToString()) + "\n");
+                values.Append("|-ФИЗ./КРИТ.(МАССА) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? ired.ToString() : igreen.ToString()) + "\n");
+                values.Append("|-БАТАРЕЯ %         : " + PText.GetPersent(bats.CurrentPersent) + " " + (CriticalBatteryCharge ? ired.ToString() : igreen.ToString()) + "\n");
+                //values.Append("|-ТОПЛИВО H2 %      : " + PText.GetPersent(hydrogen_tanks_nav.AverageFilledRatio) + " " + (CriticalHydrogenSupply ? ired.ToString() : igreen.ToString()) + "\n");
+                values.Append("--------------------------------------\n");
+                values.Append("ПРОГРАММА : " + name_programm[(int)curent_programm] + "\n");
+                values.Append("ЭТАП      : " + name_mode[(int)curent_mode] + "\n");
+                return values.ToString();
+            }
             public void Logic(string argument, UpdateType updateSource)
             {
-                UpdateCalc();
                 switch (argument)
                 {
                     case "save_dock": SetDockMatrix(connector.obj); break;
                     case "save_drill": SetDrillMatrixDepo(); break;
                     case "save_height": SetFlyHeight(); break;
+                    case "horizont":
+                        if (curent_programm == programm.none && curent_mode == mode.none)
+                        {
+                            if (horizont)
+                            {
+                                horizont = false;
+                            }
+                            else
+                            {
+                                horizont = true;
+                            }
+                        }
+                        break;
                     case "stop": Stop(); break;
+                    case "pause": Pause(!paused); break;
                     case "un_dock":
                         {
                             InitBlock(connector.obj);
@@ -1457,58 +1701,81 @@ namespace MINER_A9
                             strg.SaveToStorage();
                             break;
                         }
-                    case "drill":
-                        {
-                            InitBlock(cockpit.obj);
-                            curent_mode = mode.drill;
-                            strg.SaveToStorage();
-                            break;
-                        }
+                    case "fly_base":
+                        curent_programm = programm.fly_connect_base;
+                        strg.SaveToStorage();
+                        break;
+                    case "fly_drill":
+                        curent_programm = programm.fly_drill;
+                        strg.SaveToStorage();
+                        break;
+                    case "start_drill":
+                        curent_programm = programm.start_drill;
+                        strg.SaveToStorage();
+                        break;
                     default:
                         break;
                 }
                 if (updateSource == UpdateType.Update10)
                 {
-                    if (curent_mode == mode.un_dock && !paused && UnDock())
+                    UpdateCalc();
+                    if (!connector.Connected)
                     {
-                        curent_mode = mode.none; strg.SaveToStorage();
+                        if (cockpit.CurrentHeight > 5.0f)
+                        {
+                            bats.Auto();
+                            thrusts.On();
+                        }
                     }
-                    if (curent_mode == mode.dock && !paused && Dock())
+                    else
                     {
-                        curent_mode = mode.none; strg.SaveToStorage();
+                        // Припаркован
+                        drill.Off();
+                        reflectors_light.Off();
+                        if (curent_mode == mode.base_operation || curent_mode == mode.none)
+                        {
+                            // Если сидим в кокпите батарея не заряжается
+                            if (cockpit.obj.IsUnderControl) { bats.Auto(); } else { bats.Charger(); }
+                        }
+                        thrusts.Off();
                     }
-                    if (curent_mode == mode.to_base && !paused && ToBase())
+                    if (curent_programm == programm.none)
                     {
-                        curent_mode = mode.none; strg.SaveToStorage();
-                    }
-                    if (curent_mode == mode.to_drill && !paused && ToDrillPoint())
-                    {
-                        curent_mode = mode.none; strg.SaveToStorage();
-                    }
-                    if (curent_mode == mode.drill_align && !paused && DrillAlign())
-                    {
-                        curent_mode = mode.none; strg.SaveToStorage();
-                    }
-
-                    if (curent_mode == mode.drill && !paused)
-                    {
-                        if (Drill(out EmergencyReturn))
+                        if (curent_mode == mode.un_dock && !paused && UnDock())
+                        {
+                            curent_mode = mode.none; strg.SaveToStorage();
+                        }
+                        if (curent_mode == mode.dock && !paused && Dock())
+                        {
+                            curent_mode = mode.none; strg.SaveToStorage();
+                        }
+                        if (curent_mode == mode.to_base && !paused && ToBase())
+                        {
+                            curent_mode = mode.none; strg.SaveToStorage();
+                        }
+                        if (curent_mode == mode.to_drill && !paused && ToDrillPoint())
+                        {
+                            curent_mode = mode.none; strg.SaveToStorage();
+                        }
+                        if (curent_mode == mode.drill_align && !paused && DrillAlign())
                         {
                             curent_mode = mode.none; strg.SaveToStorage();
                         }
                     }
-                    if (curent_mode == mode.pull_up && !paused)
+                    else
                     {
-                        if (PullUp())
+                        lcd_work1.On(); lcd_work2.On(); lcd_debug.On();
+                        if (curent_programm == programm.fly_connect_base && !paused)
                         {
-                            curent_mode = mode.none; strg.SaveToStorage();
+                            FlyConnectBase();
                         }
-                    }
-                    if (curent_mode == mode.pull_out && !paused)
-                    {
-                        if (PullOut())
+                        if (curent_programm == programm.fly_drill && !paused)
                         {
-                            curent_mode = mode.none; strg.SaveToStorage();
+                            FlyDrill();
+                        }
+                        if (curent_programm == programm.start_drill && !paused)
+                        {
+                            StartDrill();
                         }
                     }
                 }
@@ -1522,22 +1789,43 @@ namespace MINER_A9
                 StringBuilder str = lcd_storage.GetText();
                 nav.curent_programm = (Nav.programm)GetValInt("curent_programm", str.ToString());
                 nav.curent_mode = (Nav.mode)GetValInt("curent_mode", str.ToString());
+                nav.horizont = GetValBool("horizont", str.ToString());
                 nav.paused = GetValBool("pause", str.ToString());
-                //navigation.EmergencySetpoint = GetValBool("EmergencySetpoint", str.ToString());
+                nav.go_home = GetValBool("go_home", str.ToString());
                 nav.FlyHeight = GetValDouble("FlyHeight", str.ToString());
+                nav.ShaftN = GetValInt("ShaftN", str.ToString());
+                nav.EmergencyReturn = GetValBool("EmergencyReturn", str.ToString());
+                DrillDepth = (float)GetValDouble("DrillDepth", str.ToString());
+                MaxShafts = GetValInt("MaxShafts", str.ToString());
                 nav.DockMatrix = GetValMatrixD("DM", str.ToString());
+                nav.BaseDockPoint = GetValVector3D("BDP", str.ToString());
                 nav.PlanetCenter = GetValVector3D("PC", str.ToString());
                 nav.DrillMatrix = GetValMatrixD("DRM", str.ToString());
+                nav.DrillPoint = nav.GetSpiralXY(nav.ShaftN, DrillFrameWidth, DrillFrameLength);
+                if (nav.curent_mode == Nav.mode.dock || nav.curent_mode == Nav.mode.un_dock)
+                {
+                    nav.InitBlock(connector.obj);
+                }
+                else
+                {
+                    nav.InitBlock(cockpit.obj);
+                }
             }
             public void SaveToStorage()
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("curent_programm: " + ((int)nav.curent_programm).ToString() + ";\n");
                 values.Append("curent_mode: " + ((int)nav.curent_mode).ToString() + ";\n");
+                values.Append("horizont: " + nav.horizont.ToString() + ";\n");
                 values.Append("pause: " + nav.paused.ToString() + ";\n");
-                //values.Append("EmergencySetpoint: " + navigation.EmergencySetpoint.ToString() + ";\n");
+                values.Append("go_home: " + nav.go_home.ToString() + ";\n");
                 values.Append("FlyHeight: " + Math.Round(nav.FlyHeight, 0) + ";\n");
+                values.Append("ShaftN: " + nav.ShaftN.ToString() + ";\n");
+                values.Append("EmergencyReturn: " + nav.EmergencyReturn.ToString() + ";\n");
+                values.Append("DrillDepth: " + Math.Round(DrillDepth, 0) + ";\n");
+                values.Append("MaxShafts: " + MaxShafts.ToString() + ";\n");
                 values.Append(SetValMatrixD("DM", nav.DockMatrix) + ";\n");
+                values.Append(SetValVector3D("BDP", nav.BaseDockPoint) + ";\n");
                 values.Append(SetValVector3D("PC", nav.PlanetCenter) + ";\n");
                 values.Append(SetValMatrixD("DRM", nav.DrillMatrix) + ";\n");
                 lcd_storage.OutText(values);
@@ -1561,3 +1849,8 @@ namespace MINER_A9
         }
     }
 }
+/*
+ выполнить переход на режимы 
+ сделать горизонт
+ общение с базой
+  */
