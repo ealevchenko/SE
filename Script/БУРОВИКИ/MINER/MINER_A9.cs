@@ -786,6 +786,7 @@ namespace MINER_A9
 
             public bool EmergencyReturn = false;
             public bool horizont { get; set; } = false;  // держим горизонтальное направление
+            public Vector3D? TackVector { get; set; } = null;
             public bool go_home { get; set; } = false; // вернутся домой и остатся
             public bool paused { get; set; } = false;
             public IMyTerminalBlock BlockNav { get; set; }
@@ -832,6 +833,7 @@ namespace MINER_A9
                 BlockNav = block;
                 thrusts.InitThrusts(block);
             }
+            public void InitMode(mode mode) { if (mode == mode.un_dock || mode == mode.dock || mode == mode.base_operation) InitBlock(connector.obj); else InitBlock(cockpit.obj); curent_mode = mode; strg.SaveToStorage(); }
             public Vector3D GetNavAngles(Vector3D Target, MatrixD InvMatrix, double sfiftX = 0, double shiftZ = 0)
             {
                 Vector3D V3Dcenter = MyPos;
@@ -865,6 +867,40 @@ namespace MINER_A9
                 if (double.IsNaN(TargetPitch)) TargetPitch = 0;
                 if (double.IsNaN(TargetRoll)) TargetRoll = 0;
                 return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
+            }
+            public Vector3D GetNavAngles(Vector3D? Vector)
+            {
+                Vector3D GravNorm = Vector3D.Normalize(GravVector);
+                //Получаем проекции вектора прицеливания на все три оси блока ДУ. 
+                double gF = GravNorm.Dot(cockpit.obj.WorldMatrix.Forward);
+                double gL = GravNorm.Dot(cockpit.obj.WorldMatrix.Left);
+                double gU = GravNorm.Dot(cockpit.obj.WorldMatrix.Up);
+                //Получаем сигналы по тангажу и крены операцией atan2
+                double TargetRoll = (float)Math.Atan2(gL, -gU); // крен
+                double TargetPitch = -(float)Math.Atan2(gF, -gU); // тангаж
+                double TargetYaw = 0;
+                if (Vector != null)
+                {
+                    Vector3D TargetNorm = Vector3D.Normalize((Vector3D)Vector);
+                    //Рысканием прицеливаемся на точку Target.
+                    double tF = TargetNorm.Dot(cockpit.obj.WorldMatrix.Forward);
+                    double tL = TargetNorm.Dot(cockpit.obj.WorldMatrix.Left);
+                    TargetYaw = -(float)Math.Atan2(tL, tF);
+                }
+                else
+                {
+                    if (cockpit.obj.IsUnderControl) TargetYaw = cockpit.obj.RotationIndicator.Y;
+                }
+                if (double.IsNaN(TargetYaw)) TargetYaw = 0;
+                if (double.IsNaN(TargetPitch)) TargetPitch = 0;
+                if (double.IsNaN(TargetRoll)) TargetRoll = 0;
+                return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
+            }
+            //----------------------------------------------
+            public void Horizon()
+            {
+                Vector3D gyrAng = GetNavAngles(TackVector);
+                gyros.SetOverride(cockpit.obj, true, gyrAng * GyroMult, 1);
             }
             public void UpdateCalc()
             {
@@ -945,53 +981,22 @@ namespace MINER_A9
             //------------------------------------------------
             public void FlyConnectBase()
             {
-                if (curent_mode == mode.none)
-                {
-                    InitBlock(cockpit.obj);
-                    curent_mode = mode.to_base;
-                    strg.SaveToStorage();
-                }
-                if (curent_mode == mode.to_base && ToBase())
-                {
-                    InitBlock(connector.obj);
-                    curent_mode = mode.dock;
-                    strg.SaveToStorage();
-                }
+                if (curent_mode == mode.none) { InitMode(mode.to_base); }
+                if (curent_mode == mode.to_base && ToBase()) { InitMode(mode.dock); }
                 if (curent_mode == mode.dock && Dock())
                 {
-                    InitBlock(connector.obj);
                     curent_programm = programm.none;
-                    strg.SaveToStorage();
+                    InitMode(mode.none);
                 }
             }
             public void FlyDrill()
             {
-                if (curent_mode == mode.none)
-                {
-                    if (connector.Connected)
-                    {
-                        InitBlock(connector.obj);
-                        curent_mode = mode.un_dock;
-                        strg.SaveToStorage();
-                    }
-                    else
-                    {
-                        InitBlock(cockpit.obj);
-                        curent_mode = mode.to_drill;
-                        strg.SaveToStorage();
-                    }
-                }
-                if (curent_mode == mode.un_dock && UnDock())
-                {
-                    InitBlock(cockpit.obj);
-                    curent_mode = mode.to_drill;
-                    strg.SaveToStorage();
-                }
+                if (curent_mode == mode.none) { if (connector.Connected) { InitMode(mode.un_dock); } else { InitMode(mode.to_drill); } }
+                if (curent_mode == mode.un_dock && UnDock()) { InitMode(mode.to_drill); }
                 if (curent_mode == mode.to_drill && ToDrillPoint())
                 {
-                    InitBlock(cockpit.obj);
                     curent_programm = programm.none;
-                    strg.SaveToStorage();
+                    InitMode(mode.none);
                 }
             }
             public void StartDrill()
@@ -999,102 +1004,50 @@ namespace MINER_A9
                 if (curent_mode == mode.none)
                 {
                     go_home = false;
-                    if (connector.Connected)
-                    {
-                        InitBlock(connector.obj);
-                        curent_mode = mode.un_dock;
-                        strg.SaveToStorage();
-                    }
-                    else
-                    {
-                        InitBlock(cockpit.obj);
-                        curent_mode = mode.to_drill;
-                        strg.SaveToStorage();
-                    }
+                    if (connector.Connected) { InitMode(mode.un_dock); } else { InitMode(mode.to_drill); }
                 }
                 else
                 {
                     if (go_home)
                     {
-                        if (curent_mode == mode.to_drill || curent_mode == mode.drill_align)
-                        {
-                            InitBlock(cockpit.obj);
-                            curent_mode = mode.to_base;
-                            strg.SaveToStorage();
-                        }
-                        if (curent_mode == mode.drill)
-                        {
-                            InitBlock(cockpit.obj);
-                            curent_mode = mode.pull_out;
-                            strg.SaveToStorage();
-                        }
+                        if (curent_mode == mode.to_drill || curent_mode == mode.drill_align) { InitMode(mode.to_base); }
+                        if (curent_mode == mode.drill) { InitMode(mode.pull_out); }
                     }
                     else
                     {
-                        if (curent_mode == mode.to_drill && ToDrillPoint())
-                        {
-                            InitBlock(cockpit.obj);
-                            curent_mode = mode.drill_align;
-                            strg.SaveToStorage();
-                        }
-                        if (curent_mode == mode.drill_align && DrillAlign())
-                        {
-                            InitBlock(cockpit.obj);
-                            curent_mode = mode.drill;
-                            strg.SaveToStorage();
-                        }
+                        if (curent_mode == mode.to_drill && ToDrillPoint()) { InitMode(mode.drill_align); }
+                        if (curent_mode == mode.drill_align && DrillAlign()) { InitMode(mode.drill); }
                         if (curent_mode == mode.drill && Drill(out EmergencyReturn))
                         {
-                            InitBlock(cockpit.obj);
-                            if (PullUpNeeded)
-                                curent_mode = mode.pull_up;
-                            else
-                                curent_mode = mode.pull_out;
-                            strg.SaveToStorage();
+                            if (PullUpNeeded) InitMode(mode.pull_up); else InitMode(mode.pull_out);
                         }
                     }
                     if (curent_mode == mode.un_dock && UnDock())
                     {
-                        InitBlock(cockpit.obj);
-                        curent_mode = mode.to_drill;
-                        strg.SaveToStorage();
+                        InitMode(mode.to_drill);
                     }
                     if (curent_mode == mode.pull_up && PullUp())
                     {
-                        InitBlock(cockpit.obj);
-                        curent_mode = mode.drill;
-                        strg.SaveToStorage();
+                        InitMode(mode.drill);
                     }
                     if (curent_mode == mode.pull_out && PullOut())
                     {
                         if (EmergencyReturn || go_home)
                         {
-                            InitBlock(cockpit.obj);
-                            curent_mode = mode.to_base;
+                            InitMode(mode.to_base);
                         }
                         else
                         {
-                            SetNewShaft();
-                            if (ShaftN >= MaxShafts)
-
-                                curent_mode = mode.to_base;
-                            else
-                                curent_mode = mode.drill_align;
-                            InitBlock(cockpit.obj);
+                            SetNewShaft(); if (ShaftN >= MaxShafts) InitMode(mode.to_base); else InitMode(mode.drill_align);
                         }
-                        strg.SaveToStorage();
                     }
                     if (curent_mode == mode.to_base && ToBase())
                     {
-                        InitBlock(connector.obj);
-                        curent_mode = mode.dock;
-                        strg.SaveToStorage();
+                        InitMode(mode.dock);
                     }
                     if (curent_mode == mode.dock && Dock())
                     {
-                        InitBlock(connector.obj);
-                        curent_mode = mode.base_operation;
-                        strg.SaveToStorage();
+                        InitMode(mode.base_operation);
                     }
                     if (curent_mode == mode.base_operation)
                     {
@@ -1114,9 +1067,7 @@ namespace MINER_A9
                                 bats.Auto();
                                 thrusts.On();
                                 ejector.ThrowOut(true);
-                                InitBlock(connector.obj);
-                                curent_mode = mode.un_dock;
-                                strg.SaveToStorage();
+                                InitMode(mode.un_dock);
                             }
                         }
                     }
@@ -1280,7 +1231,6 @@ namespace MINER_A9
                 thrusts.On();
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, DockMatrix);
                 Vector3D gyrAng = GetNavAngles(BaseDockPoint, DockMatrix);
-
                 HDistance = (float)(BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(FlyHeight - (MyPos - PlanetCenter).Length()) * YMaxA) / 1.2f;
                 MaxFSpeed = (float)Math.Sqrt(2 * HDistance * ZMaxA) / 1.2f;
@@ -1666,55 +1616,15 @@ namespace MINER_A9
                         break;
                     case "stop": Stop(); break;
                     case "pause": Pause(!paused); break;
-                    case "un_dock":
-                        {
-                            InitBlock(connector.obj);
-                            curent_mode = mode.un_dock;
-                            strg.SaveToStorage();
-                            break;
-                        }
-                    case "dock":
-                        {
-                            InitBlock(connector.obj);
-                            curent_mode = mode.dock;
-                            strg.SaveToStorage();
-                            break;
-                        }
-                    case "to_base":
-                        {
-                            InitBlock(cockpit.obj);
-                            curent_mode = mode.to_base;
-                            strg.SaveToStorage();
-                            break;
-                        }
-                    case "to_drill":
-                        {
-                            InitBlock(cockpit.obj);
-                            curent_mode = mode.to_drill;
-                            strg.SaveToStorage();
-                            break;
-                        }
-                    case "drill_align":
-                        {
-                            InitBlock(cockpit.obj);
-                            curent_mode = mode.drill_align;
-                            strg.SaveToStorage();
-                            break;
-                        }
-                    case "fly_base":
-                        curent_programm = programm.fly_connect_base;
-                        strg.SaveToStorage();
-                        break;
-                    case "fly_drill":
-                        curent_programm = programm.fly_drill;
-                        strg.SaveToStorage();
-                        break;
-                    case "start_drill":
-                        curent_programm = programm.start_drill;
-                        strg.SaveToStorage();
-                        break;
-                    default:
-                        break;
+                    case "un_dock": { InitMode(mode.un_dock); break; }
+                    case "dock": { InitMode(mode.dock); break; }
+                    case "to_base": { InitMode(mode.to_base); break; }
+                    case "to_drill": { InitMode(mode.to_drill); break; }
+                    case "drill_align": { InitMode(mode.drill_align); break; }
+                    case "fly_base": { curent_programm = programm.fly_connect_base; strg.SaveToStorage(); break; }
+                    case "fly_drill": { curent_programm = programm.fly_drill; strg.SaveToStorage(); break; }
+                    case "start_drill": { curent_programm = programm.start_drill; strg.SaveToStorage(); break; }
+                    default: break;
                 }
                 if (updateSource == UpdateType.Update10)
                 {
@@ -1741,6 +1651,14 @@ namespace MINER_A9
                     }
                     if (curent_programm == programm.none)
                     {
+                        if (horizont)
+                        {
+                            Horizon();
+                        }
+                        else
+                        {
+                            gyros.SetOverride(false, 1);
+                        }
                         if (curent_mode == mode.un_dock && !paused && UnDock())
                         {
                             curent_mode = mode.none; strg.SaveToStorage();
@@ -1850,7 +1768,5 @@ namespace MINER_A9
     }
 }
 /*
- выполнить переход на режимы 
- сделать горизонт
  общение с базой
-  */
+*/
