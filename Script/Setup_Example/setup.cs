@@ -557,8 +557,8 @@ namespace SETUP
         //info:[BT]-Антенна
         //replace:[KLEPA_H18-01]-|[KLEPA_H18_01]-
         //add:[KLEPA-H18-01]-
-        //add:[PB-ER-1]-
-        //replace:[TUNNEL-MINER-01]-|[PB-ER-1]-[TM-01]-
+        //add:[TRUCK-HO-01]-
+        //replace:[MOLE-H2]-|[MOLE-H2-01]-
         //[OS-E1]
         void Main(string argument, UpdateType updateSource)
         {

@@ -28,11 +28,11 @@ namespace MINER_A9
 {
     public sealed class Program : MyGridProgram
     {
-        string NameObj = "[MINER-A9-1]";
+        string NameObj = "[MINER_A2_2]"; // MINER-A9-1
         static string tag_nav = "[nav]";
         static string tag_ejector = "[ejector]";
         static float safe_base_height = 200f;   // безопасная высота
-        static float safe_base_distance = 100f; // безопасная дистанция
+        static float safe_base_distance = 50f; // безопасная дистанция
 
         static float GyroMult = 10f;
         static float DrillGyroMult = 10f;
@@ -936,30 +936,30 @@ namespace MINER_A9
                 EmergencySetpoint = CriticalMassReached || CriticalBatteryCharge;// || CriticalHydrogenSupply;
 
 
-                StringBuilder values = new StringBuilder();
-                //Vector3D MyPosPoint = Vector3D.Transform(MyPos, DockMatrix);
-                Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
-                values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
-                //values.Append("My_Length   : " + Math.Round(MyPosPoint.Length(), 2) + "\n");
-                //values.Append("MyPos_X_[0]   : " + Math.Round(MyPosPoint.GetDim(0), 2) + "\n");
-                //values.Append("MyPos_Y_[1]   : " + Math.Round(MyPosPoint.GetDim(1), 2) + "\n");
-                //values.Append("MyPos_Z_[2]   : " + Math.Round(MyPosPoint.GetDim(2), 2) + "\n");
-                values.Append("MyDrill_Length   : " + Math.Round(MyPosDrill.Length(), 2) + "\n");
-                values.Append("MyDrillPos_X_[0]   : " + Math.Round(MyPosDrill.GetDim(0), 2) + "\n");
-                values.Append("MyDrillPos_Y_[1]   : " + Math.Round(MyPosDrill.GetDim(1), 2) + "\n");
-                values.Append("MyDrillPos_Z_[2]   : " + Math.Round(MyPosDrill.GetDim(2), 2) + "\n");
-                values.Append("ForwVelocityVector   : " + Math.Round(ForwVelocityVector.Length(), 2) + "\n");
-                values.Append("------------------------------------------\n");
-                //float HDistance1 = (float)((Vector3D.Reject(MyPosPoint, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
-                //float HDistance = (float)(new Vector3D(MyPosPoint.GetDim(0), 0, MyPosPoint.GetDim(2))).Length();
-                //Vector3D lpc = Vector3D.Transform(PlanetCenter, DockMatrix);
-                //float VDistance = (float)(Vector3D.ProjectOnVector(ref MyPosPoint, ref lpc).Length());
-                //values.Append("HDistance_пл : " + Math.Round(HDistance1, 2) + "\n");
-                values.Append("Horz_dist    : " + Math.Round(HDistance, 2) + "\n");
-                values.Append("Vert_dist    : " + Math.Round(VDistance, 2) + "\n");
-                values.Append("------------------------------------------\n");
-                values.Append("СКОРОСТЬ     : " + Math.Round(cockpit.obj.GetShipSpeed(), 2) + "\n");
-                cockpit.OutText(values, 2);
+                //StringBuilder values = new StringBuilder();
+                ////Vector3D MyPosPoint = Vector3D.Transform(MyPos, DockMatrix);
+                //Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
+                //values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
+                ////values.Append("My_Length   : " + Math.Round(MyPosPoint.Length(), 2) + "\n");
+                ////values.Append("MyPos_X_[0]   : " + Math.Round(MyPosPoint.GetDim(0), 2) + "\n");
+                ////values.Append("MyPos_Y_[1]   : " + Math.Round(MyPosPoint.GetDim(1), 2) + "\n");
+                ////values.Append("MyPos_Z_[2]   : " + Math.Round(MyPosPoint.GetDim(2), 2) + "\n");
+                //values.Append("MyDrill_Length   : " + Math.Round(MyPosDrill.Length(), 2) + "\n");
+                //values.Append("MyDrillPos_X_[0]   : " + Math.Round(MyPosDrill.GetDim(0), 2) + "\n");
+                //values.Append("MyDrillPos_Y_[1]   : " + Math.Round(MyPosDrill.GetDim(1), 2) + "\n");
+                //values.Append("MyDrillPos_Z_[2]   : " + Math.Round(MyPosDrill.GetDim(2), 2) + "\n");
+                //values.Append("ForwVelocityVector   : " + Math.Round(ForwVelocityVector.Length(), 2) + "\n");
+                //values.Append("------------------------------------------\n");
+                ////float HDistance1 = (float)((Vector3D.Reject(MyPosPoint, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
+                ////float HDistance = (float)(new Vector3D(MyPosPoint.GetDim(0), 0, MyPosPoint.GetDim(2))).Length();
+                ////Vector3D lpc = Vector3D.Transform(PlanetCenter, DockMatrix);
+                ////float VDistance = (float)(Vector3D.ProjectOnVector(ref MyPosPoint, ref lpc).Length());
+                ////values.Append("HDistance_пл : " + Math.Round(HDistance1, 2) + "\n");
+                //values.Append("Horz_dist    : " + Math.Round(HDistance, 2) + "\n");
+                //values.Append("Vert_dist    : " + Math.Round(VDistance, 2) + "\n");
+                //values.Append("------------------------------------------\n");
+                //values.Append("СКОРОСТЬ     : " + Math.Round(cockpit.obj.GetShipSpeed(), 2) + "\n");
+                //cockpit.OutText(values, 2);
             }
             //public Vector3D GetLocalPosCon(IMyTerminalBlock block, Vector3D ConnectorPoint, MatrixD DockMatrix)
             //{
@@ -1056,25 +1056,30 @@ namespace MINER_A9
                     }
                     if (curent_mode == mode.base_operation)
                     {
-                        ejector.ThrowOut(false);
-                        cargos.UnLoad();
-                        bats.Charger();
-                        thrusts.Off();
-                        thrusts.ClearThrustOverridePersent();
-                        if (go_home || ShaftN >= MaxShafts)
+                        if (connector.Connected)
                         {
-                            Stop();
-                        }
-                        else
-                        {
-                            if (EmergencySetpoint && cargos.CurrentMass == 0f)
+                            ejector.ThrowOut(false);
+                            cargos.UnLoad();
+                            bats.Charger();
+                            thrusts.Off();
+                            thrusts.ClearThrustOverridePersent();
+                            if (go_home || ShaftN >= MaxShafts)
                             {
-                                bats.Auto();
-                                thrusts.On();
-                                ejector.ThrowOut(true);
-                                InitMode(mode.un_dock);
+                                Stop();
                             }
+                            else
+                            {
+                                if (EmergencySetpoint && cargos.CurrentMass == 0f)
+                                {
+                                    bats.Auto();
+                                    thrusts.On();
+                                    ejector.ThrowOut(true);
+                                    InitMode(mode.un_dock);
+                                }
+                            }
+
                         }
+
                     }
                 }
             }
@@ -1157,76 +1162,78 @@ namespace MINER_A9
                 //Distance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
                 Vector3D MyPosCon = Vector3D.Transform(MyPos, DockMatrix);
 
-                if (MyPosCon.GetDim(2) < 1f && Math.Abs(MyPosCon.GetDim(2)) < (safe_base_distance + 50) && Math.Abs(MyPosCon.GetDim(0)) < (safe_base_distance))
+                //if (MyPosCon.GetDim(2) < 1f && Math.Abs(MyPosCon.GetDim(2)) < (safe_base_distance + 50) && Math.Abs(MyPosCon.GetDim(0)) < (safe_base_distance))
+                //{
+                HDistance = (float)(new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
+                VDistance = (float)(new Vector3D(0, MyPosCon.GetDim(1), 0)).Length();
+                Vector3D gyrAng = GetNavAngles(ConnectorPoint, DockMatrix);
+                gyros.SetOverride(BlockNav, true, gyrAng * GyroMult, 1);
+                MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 2;
+                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 2;
+                MaxFSpeed = (float)Math.Sqrt(2 * HDistance * ZMaxA) / 2;
+                if (HDistance < 15)
+                    MaxFSpeed = MaxFSpeed / 5;
+                if (Math.Abs(MyPosCon.GetDim(1)) < 1)
+                    MaxUSpeed = 0.1f;
+                if (LeftVelocityVector.Length() < MaxLSpeed)
+                    thrusts.SetOverrideAccel("R", (float)(MyPosCon.GetDim(0) * AlignAccelMult));
+                else
                 {
-                    HDistance = (float)(new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
-                    VDistance = (float)(new Vector3D(0, MyPosCon.GetDim(1), 0)).Length();
-                    Vector3D gyrAng = GetNavAngles(ConnectorPoint, DockMatrix);
-                    gyros.SetOverride(BlockNav, true, gyrAng * GyroMult, 1);
-                    MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 2;
-                    MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 2;
-                    MaxFSpeed = (float)Math.Sqrt(2 * HDistance * ZMaxA) / 2;
-                    if (HDistance < 15)
-                        MaxFSpeed = MaxFSpeed / 5;
-                    if (Math.Abs(MyPosCon.GetDim(1)) < 1)
-                        MaxUSpeed = 0.1f;
-                    if (LeftVelocityVector.Length() < MaxLSpeed)
-                        thrusts.SetOverrideAccel("R", (float)(MyPosCon.GetDim(0) * AlignAccelMult));
-                    else
-                    {
-                        thrusts.SetOverridePercent("R", 0);
-                        thrusts.SetOverridePercent("L", 0);
-                    }
-                    float UpAccel = -(float)(MyPosCon.GetDim(1) * AlignAccelMult);
-                    float minUpAccel = 0.3f;
-                    if ((UpAccel < 0) && (UpAccel > -minUpAccel))
-                        UpAccel = -minUpAccel;
-                    if ((UpAccel > 0) && (UpAccel < minUpAccel))
-                        UpAccel = minUpAccel;
-                    if (UpVelocityVector.Length() < MaxUSpeed)
-                    {
-                        thrusts.SetOverrideAccel("U", UpAccel);
-                    }
-                    else
-                    {
-                        thrusts.SetOverridePercent("U", 0);
-                        thrusts.SetOverridePercent("D", 0);
-                    }
-                    //if (((HDistance > safe_base_distance) || ((Math.Abs(MyPosCon.GetDim(0)) < (HDistance / 10 + 0.2f)) && (Math.Abs(MyPosCon.GetDim(1)) < (HDistance / 10 + 0.2f)))) && (ForwVelocityVector.Length() < MaxFSpeed))
-                    if ((HDistance >= safe_base_distance) ||
-                        ((Math.Abs(MyPosCon.GetDim(2)) < safe_base_distance) && (ForwVelocityVector.Length() < MaxFSpeed) &&
-                        (Math.Abs(MyPosCon.GetDim(0)) < 0.8f) && (Math.Abs(MyPosCon.GetDim(1)) < 0.8f)))
-
-                    {
-                        thrusts.SetOverrideAccel("F", (float)(HDistance * AlignAccelMult));
-                        thrusts.SetOverridePercent("B", 0);
-                    }
-                    else
-                    {
-                        thrusts.SetOverridePercent("F", 0);
-                        thrusts.SetOverridePercent("B", 0);
-                    }
-                    if (HDistance < 6)
-                    {
-                        if (connector.Status == MyShipConnectorStatus.Connectable)
-                        {
-                            connector.Connect();
-                        }
-                        if (connector.Status == MyShipConnectorStatus.Connected)
-                        {
-                            thrusts.ClearThrustOverridePersent();
-                            gyros.SetOverride(false, 1);
-                            Complete = true;
-                        }
-                    }
-                    OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel);
+                    thrusts.SetOverridePercent("R", 0);
+                    thrusts.SetOverridePercent("L", 0);
+                }
+                float UpAccel = -(float)(MyPosCon.GetDim(1) * AlignAccelMult);
+                float minUpAccel = 0.3f;
+                if ((UpAccel < 0) && (UpAccel > -minUpAccel))
+                    UpAccel = -minUpAccel;
+                if ((UpAccel > 0) && (UpAccel < minUpAccel))
+                    UpAccel = minUpAccel;
+                
+                
+                if ((Math.Abs(MyPosCon.GetDim(0)) < 0.8f) && (UpVelocityVector.Length() < MaxUSpeed))
+                {
+                    thrusts.SetOverrideAccel("U", UpAccel);
                 }
                 else
                 {
-                    thrusts.ClearThrustOverridePersent();
-                    gyros.SetOverride(false, 1);
-                    Complete = true;
+                    thrusts.SetOverridePercent("U", 0);
+                    thrusts.SetOverridePercent("D", 0);
                 }
+                //if (((HDistance > safe_base_distance) || ((Math.Abs(MyPosCon.GetDim(0)) < (HDistance / 10 + 0.2f)) && (Math.Abs(MyPosCon.GetDim(1)) < (HDistance / 10 + 0.2f)))) && (ForwVelocityVector.Length() < MaxFSpeed))
+                if (//(HDistance >= safe_base_distance) ||
+                    ((Math.Abs(MyPosCon.GetDim(2)) < safe_base_distance) && (ForwVelocityVector.Length() < MaxFSpeed) &&
+                    (Math.Abs(MyPosCon.GetDim(0)) < 0.8f) && (Math.Abs(MyPosCon.GetDim(1)) < 0.8f)))
+
+                {
+                    thrusts.SetOverrideAccel("F", (float)(HDistance * AlignAccelMult));
+                    thrusts.SetOverridePercent("B", 0);
+                }
+                else
+                {
+                    thrusts.SetOverridePercent("F", 0);
+                    thrusts.SetOverridePercent("B", 0);
+                }
+                if (HDistance < 6)
+                {
+                    if (connector.Status == MyShipConnectorStatus.Connectable)
+                    {
+                        connector.Connect();
+                    }
+                    if (connector.Status == MyShipConnectorStatus.Connected)
+                    {
+                        thrusts.ClearThrustOverridePersent();
+                        gyros.SetOverride(false, 1);
+                        Complete = true;
+                    }
+                }
+                OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel);
+                //}
+                //else
+                //{
+                //    thrusts.ClearThrustOverridePersent();
+                //    gyros.SetOverride(false, 1);
+                //    Complete = true;
+                //}
                 return Complete;
             }
             public bool ToBase()
@@ -1407,7 +1414,7 @@ namespace MINER_A9
                     drill.On();
                 if ((UpVelocityVector.Length() < DrillSpeedLimit) && (!StoneDumpNeeded))
                 {
-                    if ((Math.Abs(MyPosDrill.GetDim(0)) < 1) && (Math.Abs(MyPosDrill.GetDim(2)) < 1))
+                    if ((Math.Abs(MyPosDrill.GetDim(0)) < 0.8f) && (Math.Abs(MyPosDrill.GetDim(2)) < 0.8f))
                         thrusts.SetOverrideAccel("D", (DrillAccel));
                     else
                     {
@@ -1590,11 +1597,14 @@ namespace MINER_A9
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("--------------------------------------\n");
-                values.Append("АВАРИЙНЫЕ УСТАВКИ   : " + (EmergencySetpoint ? ired.ToString() : igreen.ToString()) + "\n");
-                values.Append("|-ФИЗ./КРИТ.(МАССА) : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? ired.ToString() : igreen.ToString()) + "\n");
-                values.Append("|-БАТАРЕЯ %         : " + PText.GetPersent(bats.CurrentPersent) + " " + (CriticalBatteryCharge ? ired.ToString() : igreen.ToString()) + "\n");
+                values.Append("АВАРИЙНЫЕ УСТАВКИ    : " + (EmergencySetpoint ? ired.ToString() : igreen.ToString()) + "\n");
+                values.Append("|-ФИЗ./КРИТ.(МАССА)  : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? ired.ToString() : igreen.ToString()) + "\n");
+                values.Append("|-БАТАРЕЯ %          : " + PText.GetPersent(bats.CurrentPersent) + " " + (CriticalBatteryCharge ? ired.ToString() : igreen.ToString()) + "\n");
                 //values.Append("|-ТОПЛИВО H2 %      : " + PText.GetPersent(hydrogen_tanks_nav.AverageFilledRatio) + " " + (CriticalHydrogenSupply ? ired.ToString() : igreen.ToString()) + "\n");
-                values.Append("ПОДНЯТЬ             : " + (PullUpNeeded ? igreen.ToString() : iyellow.ToString()) + "\n");
+                values.Append("--------------------------------------\n");
+                values.Append("Камень               :" + cargos.StoneAmount + "\n");
+                values.Append("Глубина шахты        : " + DrillDepth + ", кол. шахт : " + MaxShafts + "\n");
+                values.Append("ПОДНЯТЬ              : " + (PullUpNeeded ? igreen.ToString() : iyellow.ToString()) + "\n");
                 values.Append("--------------------------------------\n");
                 values.Append("ПРОГРАММА : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП      : " + name_mode[(int)curent_mode] + "\n");
@@ -1652,7 +1662,7 @@ namespace MINER_A9
                         // Припаркован
                         drill.Off();
                         reflectors_light.Off();
-                        if (curent_mode == mode.base_operation || curent_mode == mode.none)
+                        if ((curent_mode == mode.base_operation && curent_programm != programm.none) || (curent_mode == mode.none && curent_programm == programm.none))
                         {
                             // Если сидим в кокпите батарея не заряжается
                             if (cockpit.obj.IsUnderControl) { bats.Auto(); } else { bats.Charger(); }
