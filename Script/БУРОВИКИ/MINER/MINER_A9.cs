@@ -20,6 +20,7 @@ using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
 using VRage.Scripting;
 using VRageMath;
+using static Basa_Test.Program.MessHandler;
 
 /// <summary>
 /// v8.0  Модифицирован под Down и Up ускорители (применим на малой гравитации, можно на ионниках)
@@ -29,6 +30,9 @@ namespace MINER_A9
     public sealed class Program : MyGridProgram
     {
         string NameObj = "[MINER_A2_2]"; // MINER-A9-1
+        static string tag_antena = "[antena]";
+        static int type_ship = 1; // бур
+        static string type_thruster = "A";
         static string tag_nav = "[nav]";
         static string tag_ejector = "[ejector]";
         static float safe_base_height = 200f;   // безопасная высота
@@ -54,7 +58,8 @@ namespace MINER_A9
         const char ired = '\uE003';
         const char iyellow = '\uE004';
         const char idarkGrey = '\uE00F';
-        static LCD lcd_storage,lcd_debug,lcd_name,lcd_work1, lcd_work2;
+        static LCD lcd_storage, lcd_debug, lcd_name, lcd_work1, lcd_work2;
+        static LCD lcd_lstr;
         static Batterys bats;
         static Connector connector;
         static ShipDrill drill;
@@ -65,6 +70,7 @@ namespace MINER_A9
         static Cargos cargos;
         static Ejector ejector;
         static Nav nav;
+        static MessHandler mess_handler;
         static MyStorage strg;
         static Program _scr;
         public class PText
@@ -127,6 +133,7 @@ namespace MINER_A9
             lcd_name.OutText(NameObj, false);
             lcd_work1 = new LCD(NameObj + "-LCD-Work 1");
             lcd_work2 = new LCD(NameObj + "-LCD-Work 2");
+            lcd_lstr = new LCD(NameObj + "-LCD-Listener");
             bats = new Batterys(NameObj);
             connector = new Connector(NameObj + "-Connector parking");
             drill = new ShipDrill(NameObj);
@@ -139,12 +146,14 @@ namespace MINER_A9
             cargos = new Cargos(NameObj);
             ejector = new Ejector(NameObj, tag_ejector); ejector.ThrowOut(false);
             nav = new Nav(NameObj);
+            mess_handler = new MessHandler(NameObj);
             strg = new MyStorage();
             strg.LoadFromStorage();
         }
         public void Save() { }
         public void Main(string argument, UpdateType updateSource)
         {
+            mess_handler.Logic(argument, updateSource);
             nav.Logic(argument, updateSource);
             switch (argument) { default: break; }
             if (updateSource == UpdateType.Update10)
@@ -705,7 +714,7 @@ namespace MINER_A9
                             bats.Charger();
                             thrusts.ClearThrustOverridePersent();
                             thrusts.Off();
-                            if (go_home || ShaftN >= MaxShafts) { Stop(); } else { if (EmergencySetpoint && cargos.CurrentMass == 0f) { bats.Auto(); thrusts.On(); InitMode(mode.un_dock); } }
+                            if (go_home || ShaftN >= MaxShafts) { Stop(); } else { if (!EmergencySetpoint && cargos.CurrentMass == 0f) { bats.Auto(); thrusts.On(); InitMode(mode.un_dock); } }
                         }
                     }
                 }
@@ -948,6 +957,7 @@ namespace MINER_A9
                 switch (argument)
                 {
                     case "save_dock": SetDockMatrix(connector.obj); break;
+                    case "upd_base": mess_handler.SendUpdBase(); break;
                     case "save_drill": SetDrillMatrixDepo(); break;
                     case "save_height": SetFlyHeight(); break;
                     case "depth+": DrillDepth++; if (DrillDepth > 150) DrillDepth = 150; strg.SaveToStorage(); break;
@@ -1024,6 +1034,20 @@ namespace MINER_A9
                 nav.DockMatrix = GetValMatrixD("DM", str.ToString());
                 nav.BaseDockPoint = GetValVector3D("BDP", str.ToString());
                 nav.PlanetCenter = GetValVector3D("PC", str.ToString());
+                int count = GetValInt("count_base", str.ToString());
+                mess_handler.base_points.Clear();
+                for (int i = 0; i < count; i++)
+                {
+                    MessHandler.base_point bs = new MessHandler.base_point()
+                    {
+                        name = GetValString("base[" + i + "].name", str.ToString()),
+                        addr = GetValInt64("base[" + i + "].addr", str.ToString()),
+                        type = (MessHandler.type_base)GetValInt("base[" + i + "].type", str.ToString()),
+                        dm = GetValMatrixD("base[" + i + "].DM", str.ToString()),
+                        dp = GetValVector3D("base[" + i + "].BDP", str.ToString()),
+                        centr = GetValVector3D("base[" + i + "].PC", str.ToString()),
+                    };
+                }
                 nav.DrillMatrix = GetValMatrixD("DRM", str.ToString());
                 nav.DrillPoint = nav.GetSpiralXY(nav.ShaftN, DrillFrameWidth, DrillFrameLength);
                 nav.InitMode(nav.curent_mode, false);
@@ -1044,6 +1068,18 @@ namespace MINER_A9
                 values.Append(SetValMatrixD("DM", nav.DockMatrix) + ";\n");
                 values.Append(SetValVector3D("BDP", nav.BaseDockPoint) + ";\n");
                 values.Append(SetValVector3D("PC", nav.PlanetCenter) + ";\n");
+                int i = 0;
+                foreach (MessHandler.base_point bs in mess_handler.base_points)
+                {
+                    values.Append("base[" + i + "].name: " + bs.name + ";\n");
+                    values.Append("base[" + i + "].addr: " + bs.addr.ToString() + ";\n");
+                    values.Append("base[" + i + "].type: " + ((int)bs.type).ToString() + ";\n");
+                    values.Append(SetValMatrixD("base[" + i + "].DM", bs.dm) + ";\n");
+                    values.Append(SetValVector3D("base[" + i + "].BDP", bs.dp) + ";\n");
+                    values.Append(SetValVector3D("base[" + i + "].PC", bs.centr) + ";\n");
+                    i++;
+                }
+                values.Append("count_base: " + mess_handler.base_points.Count().ToString() + ";\n");
                 values.Append(SetValMatrixD("DRM", nav.DrillMatrix) + ";\n");
                 lcd_storage.OutText(values);
             }
@@ -1063,6 +1099,139 @@ namespace MINER_A9
             public Vector3D GetValVector3D(string Key, string str) { return new Vector3D(GetValDouble(Key + "X", str.ToString()), GetValDouble(Key + "Y", str.ToString()), GetValDouble(Key + "Z", str.ToString())); }
             public string SetValVector3D(string Key, Vector3D val) { return val.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", Key + "X").Replace("Y", Key + "Y").Replace("Z", Key + "Z"); }
             public string SetValMatrixD(string Key, MatrixD val) { return val.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", Key); }
+        }
+        public class MessHandler
+        {
+            public string name_ship { get; set; }
+            public enum type_base : int
+            {
+                none = 0,
+                planet = 1,   // планета
+                space = 2,    // космос
+                metior = 3,   // метиорит
+                relocat = 4,  // перемещаемая
+            };
+            public static string[] name_type_base = { "?", "ПЛАНЕТАРНАЯ", "ОРБИТАЛЬНАЯ", "МЕТЕОРНАЯ", "ТРАНСПОРТ" };
+            public class base_point
+            {
+                public string name { get; set; }
+                public long addr { get; set; }
+                public type_base type { get; set; }
+                public MatrixD dm { get; set; }
+                public Vector3D dp { get; set; }
+                public Vector3D centr { get; set; }
+            }
+            public List<base_point> base_points = new List<base_point>();
+            public IMyRadioAntenna antenna;
+            public IMyUnicastListener ship_lstr; // Одноадресный прослушиватель базы
+            public MyIGCMessage message;
+            public long pb_address { get; set; }
+
+            public MessHandler(string name)
+            {
+                name_ship = name;
+                ship_lstr = _scr.IGC.UnicastListener;
+                List<IMyRadioAntenna> list_anten = new List<IMyRadioAntenna>();
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyRadioAntenna>(list_anten, r => r.CustomName.Contains(name));
+                _scr.Echo("MessHandler : Найдено IMyRadioAntenna - " + list_anten.Count());
+                //strg.SaveToStorage();
+            }
+            public void SendAddBase()
+            {
+                List<IMyProgrammableBlock> list_pb = new List<IMyProgrammableBlock>();
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyProgrammableBlock>(list_pb, r => r.CustomName.Contains(tag_antena));
+                IMyProgrammableBlock pb = list_pb.Where(n => ((IMyTerminalBlock)n).CustomName.Contains(tag_antena)).FirstOrDefault();
+                if (pb != null)
+                {
+                    string command = String.Format("add_ship=name:{0};type:{1};thruster:{2}", name_ship, type_ship, type_thruster);
+                    _scr.IGC.SendUnicastMessage<string>(pb.EntityId, name_ship, command);
+                }
+            }
+            public void SendUpdBase()
+            {
+                List<IMyProgrammableBlock> list_pb = new List<IMyProgrammableBlock>();
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyProgrammableBlock>(list_pb, r => r.CustomName.Contains(tag_antena));
+                IMyProgrammableBlock pb = list_pb.Where(n => ((IMyTerminalBlock)n).CustomName.Contains(tag_antena)).FirstOrDefault();
+                if (pb != null)
+                {
+                    string command = String.Format("upd_ship=name:{0};type:{1};thruster:{2}", name_ship, type_ship, type_thruster);
+                    _scr.IGC.SendUnicastMessage<string>(pb.EntityId, name_ship, command);
+                }
+            }
+            public bool RegistrationBase(Connector connector, String str, long addr)
+            {
+                //lcd_lstr.OutText("(args[1]:" + str, true);
+                if (connector.Connected)
+                {
+                    string name = strg.GetValString("name", str);
+                    type_base type = (type_base)strg.GetValInt("type", str);
+                    float safe_base_height = (float)strg.GetValDouble("s_height", str);   // 200f безопасная высота
+                    float safe_base_distance = (float)strg.GetValDouble("s_distance", str); // 50f безопасная дистанция
+                    MatrixD dm = nav.GetNormTransMatrixFromMyPos(connector.obj);
+                    Vector3D pc = cockpit.GetPlanetCenter();
+                    Vector3D dp = new Vector3D(0, 0, -safe_base_distance);
+                    base_point point = base_points.Where(s => s.addr == addr).FirstOrDefault();
+                    if (point == null)
+                    {
+                        point = new base_point()
+                        {
+                            name = name,
+                            type = type,
+                            addr = addr,
+                            centr = pc,
+                            dp = dp,
+                            dm = dm,
+                        };
+                        base_points.Add(point);
+                    }
+                    else
+                    {
+                        point.name = name; point.type = type; point.centr = pc; point.dm = dm;
+                    }
+                    //lcd_lstr.OutText("count:" + base_points.Count(), true);
+                    strg.SaveToStorage(); return true;
+                }
+                else
+                {
+                    return false;
+                }
+
+            }
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    case "test": _scr.IGC.SendUnicastMessage<string>(pb_address, "tag", argument); break;
+                    default: break;
+                }
+                if (updateSource == UpdateType.Update10)
+                {
+                    if (ship_lstr.HasPendingMessage)
+                    {
+                        message = ship_lstr.AcceptMessage();
+                        StringBuilder values = new StringBuilder();
+                        string mess_inp = Convert.ToString(message.Data); string mess_tag = Convert.ToString(message.Tag); string mess_source = Convert.ToString(message.Source);
+                        long addr = !String.IsNullOrWhiteSpace(mess_source) ? Convert.ToInt64(mess_source) : 0;
+                        values.Append("Data   : " + mess_inp + "\n");
+                        values.Append("Tag    : " + mess_tag + "\n");
+                        values.Append("Source : " + mess_source + "\n");
+                        lcd_lstr.OutText(values);
+                        string[] args = mess_inp.Split('=');
+                        //lcd_lstr.OutText("(args[0]:" + args[0], true);
+                        if (args.Count() > 0)
+                        {
+                            switch (args[0])
+                            {
+                                case "upd_base":
+                                    {
+                                        bool res = RegistrationBase(connector, args[1], addr);
+                                        break;
+                                    }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
