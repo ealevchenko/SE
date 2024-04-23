@@ -29,7 +29,7 @@ namespace MINER_A9
 {
     public sealed class Program : MyGridProgram
     {
-        string NameObj = "[MINER_A2_2]"; // MINER-A9-1
+        string NameObj = "[MINER_A2_1]"; // MINER-A9-1
         static string tag_antena = "[antena]";
         static int type_ship = 1; // бур
         static string type_thruster = "A";
@@ -652,7 +652,7 @@ namespace MINER_A9
                 XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
                 cargos.Update();
                 // Критические уставки
-                if (PhysicalMass > CriticalMass) { CriticalMassReached = true; }
+                if (PhysicalMass > CriticalMass && !connector.Connected) { CriticalMassReached = true; }
                 else
                 {
                     CriticalMassReached = false;
@@ -661,7 +661,7 @@ namespace MINER_A9
                     if (cargos.StoneAmount < 100)
                         StoneDumpNeeded = false;
                 }
-                CriticalBatteryCharge = connector.Connected ? bats.CurrentPersent < MaxOffCharge : bats.CurrentPersent <= MinOnCharge;
+                CriticalBatteryCharge = (connector.Connected ? bats.CurrentPersent < MaxOffCharge : bats.CurrentPersent <= MinOnCharge);
                 //CriticalHydrogenSupply = connector_base.Connected ? hydrogen_tanks_nav.AverageFilledRatio < 1.0f : hydrogen_tanks_nav.AverageFilledRatio <= CriticalOnH2;
                 EmergencySetpoint = CriticalMassReached || CriticalBatteryCharge;// || CriticalHydrogenSupply;
 
@@ -719,23 +719,6 @@ namespace MINER_A9
                     }
                 }
             }
-            //----------------------------------------------
-            //public void Horizon()
-            //{
-            //    Vector3D gyrAng = GetNavAngles(TackVector);
-            //    if (TackVector == null)
-            //    {
-            //        if (remote_control.obj.IsUnderControl)
-            //        {
-            //            gyrAng.SetDim(0, remote_control.obj.RotationIndicator.Y);
-            //        }
-            //        else if (cockpit.obj.IsUnderControl)
-            //        {
-            //            gyrAng.SetDim(0, cockpit.obj.RotationIndicator.Y);
-            //        }
-            //    }
-            //    gyros.SetOverride(true, gyrAng * GyroMult, 1);
-            //}
             //-----------------------------------------------
             public void Stop() { thrusts.ClearThrustOverridePersent(); gyros.SetOverride(false, 1); curent_mode = mode.none; curent_programm = programm.none; paused = false; go_home = false; strg.SaveToStorage(); }
             public void Pause(bool enable) { if (enable) { thrusts.ClearThrustOverridePersent(); gyros.SetOverride(false, 1); paused = true; } else { paused = false; } strg.SaveToStorage(); }
@@ -944,7 +927,7 @@ namespace MINER_A9
                 values.Append("|-БАТАРЕЯ %          : " + PText.GetPersent(bats.CurrentPersent) + " " + (CriticalBatteryCharge ? ired.ToString() : igreen.ToString()) + "\n");
                 //values.Append("|-ТОПЛИВО H2 %      : " + PText.GetPersent(hydrogen_tanks_nav.AverageFilledRatio) + " " + (CriticalHydrogenSupply ? ired.ToString() : igreen.ToString()) + "\n");
                 values.Append("--------------------------------------\n");
-                values.Append("Камень               :" + cargos.StoneAmount + "\n");
+                values.Append("Камень               :" + cargos.StoneAmount + ", масса : " + cargos.CurrentMass + "\n");
                 values.Append("Глубина шахты        : " + DrillDepth + ", кол. шахт : " + MaxShafts + "\n");
                 values.Append("ПОДНЯТЬ              : " + (PullUpNeeded ? igreen.ToString() : iyellow.ToString()) + "\n");
                 values.Append("--------------------------------------\n");
@@ -1237,5 +1220,6 @@ namespace MINER_A9
 }
 /*
  общение с базой
-возвращается по батарее но не заряжается опять летит на бурение
+ - завис на режиме на точку бурения
+ - если программа когда сидит в кабине батареи не переводятся в режим авто
 */
