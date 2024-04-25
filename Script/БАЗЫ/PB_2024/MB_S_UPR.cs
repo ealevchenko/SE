@@ -219,10 +219,10 @@ namespace MB_S_UPR
             gateway = new Gateway(NameObj);
             lightings_cabins = new Lightings(NameObj, "[cabins]");
             lightings_cabins.Off();
-            mergeblock_trusk1 = new ShipMergeBlock(NameObj + "-Соединитель носитель1");
-            mergeblock_trusk1.On();
-            mergeblock_trusk2 = new ShipMergeBlock(NameObj + "-Соединитель носитель2");
-            mergeblock_trusk2.On();
+            //mergeblock_trusk1 = new ShipMergeBlock(NameObj + "-Соединитель носитель1");
+            //mergeblock_trusk1.On();
+            //mergeblock_trusk2 = new ShipMergeBlock(NameObj + "-Соединитель носитель2");
+            //mergeblock_trusk2.On();
             gas_gen1 = new GasGenerators(NameObj + "-Генератор [power-1]");
             gas_gen2 = new GasGenerators(NameObj + "-Генератор [power-2]");
             gas_gen3 = new GasGenerators(NameObj + "-Генератор [power-3]");
@@ -253,8 +253,8 @@ namespace MB_S_UPR
             values.Append(bats.TextInfo());
             values.Append(hydrogen_tanks_base.TextInfo("H2-НОСИТЕЛЯ"));
             values.Append(connector_base.TextInfo("К:Base") + "\n");
-            values.Append(mergeblock_trusk1.TextInfo("СОЕД-НОСИТ-1"));
-            values.Append(mergeblock_trusk2.TextInfo("СОЕД-НОСИТ-2"));
+            //values.Append(mergeblock_trusk1.TextInfo("СОЕД-НОСИТ-1"));
+            //values.Append(mergeblock_trusk2.TextInfo("СОЕД-НОСИТ-2"));
             values.Append(control_power.TextStatus());
             cockpit.OutText(values, 0);
             //lcd_debug.OutText(values);
@@ -773,17 +773,17 @@ namespace MB_S_UPR
             }
             public void Logic(string argument, UpdateType updateSource)
             {
-                if (mergeblock_trusk1.Locked && mergeblock_trusk2.Locked)
-                {
-                    hydrogen_tanks_base.Stockpile(true);
-                    // Если сидим в кокпите батарея не заряжается
-                    if (cockpit.obj.IsUnderControl) { bats.Auto(); } else { bats.Charger(); }
-                }
-                else
-                {
-                    hydrogen_tanks_base.Stockpile(false);
-                    bats.Auto();
-                }
+                //if (mergeblock_trusk1.Locked && mergeblock_trusk2.Locked)
+                //{
+                //    hydrogen_tanks_base.Stockpile(true);
+                //    // Если сидим в кокпите батарея не заряжается
+                //    if (cockpit.obj.IsUnderControl) { bats.Auto(); } else { bats.Charger(); }
+                //}
+                //else
+                //{
+                //    hydrogen_tanks_base.Stockpile(false);
+                //    bats.Auto();
+                //}
                 switch (argument)
                 {
                     case "load":
@@ -832,4 +832,6 @@ namespace MB_S_UPR
         }
     }
 }
-
+/* 
+ ShipMergeBlock - отпилил и проблемы нужна защита на Null
+ */
