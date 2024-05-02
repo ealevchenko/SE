@@ -25,29 +25,26 @@ using static MUL_H1_NAV.Program;
 
 /// <summary>
 /// v1.0
-/// Управление метеорной базой
+/// База метеор (Контроллер управления дверями, содержанием кислорода)
 /// </summary>
-namespace MB_S_UPR
+namespace MB_S_CONTROL_O2
 {
     public sealed class Program : MyGridProgram
     {
         // v1.
         static string NameObj = "[MB-S01]";
-        static float SP_PW_PRS_0 = 90.0f;
-        static float SP_PW_PRS_1 = 40.0f;
-        static float SP_PW_PRS_2 = 30.0f;
-        static float SP_PW_PRS_3 = 20.0f;
-        static float SP_PW_PRS_4 = 10.0f;
-        static float SP_PW_PRS_CR = 5.0f;
         public enum room : int
         {
             space = 0,
             operators = 1,
-            station = 2,
-            gateway = 3,
+            gateway = 2,
+            angar_tech = 3,
+            angar_work = 4,
+            transition_left = 5,
+            transition_right = 6,
         };
-        public static string[] name_room = { "КОСМОС", "ОПЕРАТОРСКАЯ", "СТАНЦИЯ", "ШЛЮЗ" };
-        public static int[] count_room = { 0, 0, 0, 0 };
+        public static string[] name_room = { "КОСМОС", "ОПЕРАТОРСКАЯ", "ШЛЮЗ", "ТЕХ-АНГАР", "АНГАР-СБОРЩИК", "ТЕХ-ПЕРЕХОД-Л", "ТЕХ-ПЕРЕХОД-П" };
+        public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0};
 
         public static Color red = new Color(255, 0, 0);
         public static Color yellow = new Color(255, 255, 0);
@@ -61,22 +58,16 @@ namespace MB_S_UPR
 
         static LCD lcd_storage;
         static LCD lcd_debug;
-        //static LCD lcd_nav1;
-        //static LCD lcd_st1, lcd_st2, lcd_st3, lcd_st4;
-        //static LCD lcd_cntr1, lcd_cntr2;
-        //static LCD lcd_con_forw, lcd_con_back, lcd_con_info;
-        //static LCD lcd_base1, lcd_base2;
         static Batterys bats;
-        static Connector connector_base;
-        static GasGenerators gas_gen1, gas_gen2, gas_gen3, gas_gen4;
-        static Lightings lightings_cabins;
+
+        static Lightings lightings;
         static Gateway gateway;
-        static ShipMergeBlock mergeblock_trusk1, mergeblock_trusk2; // 
-        static HydrogenTanks hydrogen_tanks_base;
+
+        static O2Tanks o2_tanks_base;
         static BaseShipController cockpit;
         static MyStorage storage;
-        //static SolarPanels solar_panels_left, solar_panels_right;
-        static ControlPower control_power;
+        static Control control;
+
         //int clock = 0;
 
         static Program _scr;
@@ -90,19 +81,6 @@ namespace MB_S_UPR
             static public string GetFarm(float value) { return Math.Round(value, 1) + "L"; }
             static public string GetGPS(string name, Vector3D target) { return "GPS:" + name + ":" + target.GetDim(0) + ":" + target.GetDim(1) + ":" + target.GetDim(2) + ":\n"; }
             static public string GetGPSMatrixD(string name, MatrixD target) { return "MatrixD:" + name + "\n" + "M11:" + target.M11 + "M12:" + target.M12 + "M13:" + target.M13 + "M14:" + target.M14 + ":\n" + "M21:" + target.M21 + "M22:" + target.M22 + "M23:" + target.M23 + "M24:" + target.M24 + ":\n" + "M31:" + target.M31 + "M32:" + target.M32 + "M33:" + target.M33 + "M34:" + target.M34 + ":\n" + "M41:" + target.M41 + "M42:" + target.M42 + "M43:" + target.M43 + "M44:" + target.M44 + ":\n"; }
-        }
-        public class InpResurs
-        {
-            public string SubtypeId { get; set; } = null;
-            public float current { get; set; } = 0;
-            public float max { get; set; } = 0;
-            public bool is_power_by { get; set; } = false;
-        }
-        public class OutResurs
-        {
-            public string SubtypeId { get; set; } = null;
-            public float current { get; set; } = 0;
-            public float max { get; set; } = 0;
         }
         public class BaseListTerminalBlock<T> where T : class
         {
@@ -122,81 +100,6 @@ namespace MB_S_UPR
             public void OnOfTag(string tag) { OnOfTag(list_obj, tag); }
             public bool Enabled(string tag) { foreach (IMyTerminalBlock obj in list_obj) { if (obj.CustomName.Contains(tag) && !((IMyFunctionalBlock)obj).Enabled) { return false; } } return true; }
             public bool Enabled() { foreach (IMyTerminalBlock obj in list_obj) { if (!((IMyFunctionalBlock)obj).Enabled) { return false; } } return true; }
-            public List<InpResurs> GetInpResurs(string name)
-            {
-                List<InpResurs> result = new List<InpResurs>();
-                // Потребляемый ресурсы
-                MyResourceSinkComponent sink;
-                foreach (T obj in list_obj)
-                {
-                    ((IMyTerminalBlock)obj).Components.TryGet<MyResourceSinkComponent>(out sink);
-                    if (sink != null)
-                    {
-                        var list = sink.AcceptedResources;
-                        foreach (MyDefinitionId def in list)
-                        {
-                            if (String.IsNullOrWhiteSpace(name) || !String.IsNullOrWhiteSpace(name) && def.SubtypeId.ToString() == name)
-                            {
-                                InpResurs resurs = result.Where(r => r.SubtypeId == def.SubtypeId.ToString()).FirstOrDefault();
-                                if (resurs == null)
-                                {
-                                    resurs = new InpResurs()
-                                    {
-                                        SubtypeId = def.SubtypeId.ToString(),
-                                        is_power_by = sink.IsPoweredByType(def),
-                                        max = sink.MaxRequiredInputByType(def),
-                                        current = sink.CurrentInputByType(def)
-                                    };
-                                }
-                                else
-                                {
-                                    bool is_power_by = sink.IsPoweredByType(def);
-                                    resurs.max = sink.MaxRequiredInputByType(def);
-                                    resurs.current = sink.CurrentInputByType(def);
-                                }
-                                result.Add(resurs);
-                            }
-                        }
-                    }
-                }
-                return result;
-            }
-            public List<OutResurs> GetOutResurs(string name)
-            {
-                List<OutResurs> result = new List<OutResurs>();
-                MyResourceSourceComponent source;
-                foreach (T obj in list_obj)
-                {
-                    ((IMyTerminalBlock)obj).Components.TryGet<MyResourceSourceComponent>(out source);
-                    if (source != null)
-                    {
-                        var list = source.ResourceTypes;
-                        foreach (MyDefinitionId def in list)
-                        {
-                            if (String.IsNullOrWhiteSpace(name) || !String.IsNullOrWhiteSpace(name) && def.SubtypeId.ToString() == name)
-                            {
-                                OutResurs resurs = result.Where(r => r.SubtypeId == def.SubtypeId.ToString()).FirstOrDefault();
-                                if (resurs == null)
-                                {
-                                    resurs = new OutResurs()
-                                    {
-                                        SubtypeId = def.SubtypeId.ToString(),
-                                        max = source.DefinedOutputByType(def),
-                                        current = source.CurrentOutputByType(def)
-                                    };
-                                }
-                                else
-                                {
-                                    resurs.max = source.DefinedOutputByType(def);
-                                    resurs.current = source.CurrentOutputByType(def);
-                                }
-                                result.Add(resurs);
-                            }
-                        }
-                    }
-                }
-                return result;
-            }
         }
         public class BaseTerminalBlock<T> where T : class
         {
@@ -215,21 +118,13 @@ namespace MB_S_UPR
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
             bats = new Batterys(NameObj);
-            connector_base = new Connector(NameObj + "-Коннектор base");
+            //connector_base = new Connector(NameObj + "-Коннектор base");
             gateway = new Gateway(NameObj);
-            lightings_cabins = new Lightings(NameObj, "[cabins]");
-            lightings_cabins.Off();
-            //mergeblock_trusk1 = new ShipMergeBlock(NameObj + "-Соединитель носитель1");
-            //mergeblock_trusk1.On();
-            //mergeblock_trusk2 = new ShipMergeBlock(NameObj + "-Соединитель носитель2");
-            //mergeblock_trusk2.On();
-            gas_gen1 = new GasGenerators(NameObj + "-Генератор [power-1]");
-            gas_gen2 = new GasGenerators(NameObj + "-Генератор [power-2]");
-            gas_gen3 = new GasGenerators(NameObj + "-Генератор [power-3]");
-            gas_gen4 = new GasGenerators(NameObj + "-Генератор [power-4]");
-            hydrogen_tanks_base = new HydrogenTanks(NameObj);
-            cockpit = new BaseShipController(NameObj + "-Cocpit Locked [LCD]");
-            control_power = new ControlPower();
+            lightings = new Lightings(NameObj, "[lighting]");
+            lightings.Off();
+            o2_tanks_base = new O2Tanks(NameObj);
+            cockpit = new BaseShipController(NameObj + "-Cocpit O2 Locked [LCD]");
+            control = new Control();
             storage = new MyStorage();
             storage.LoadFromStorage();
         }
@@ -241,21 +136,20 @@ namespace MB_S_UPR
         public void Main(string argument, UpdateType updateSource)
         {
             gateway.Logic();
-            if (gateway.count_internal > 0) { lightings_cabins.On(); } else { lightings_cabins.Off(); }
             switch (argument) { default: break; }
             count_room[(int)room.space] = 0;// В космосе людей не считаем
-            control_power.Logic(argument, updateSource);// Логика системы контроля питания
+            control.Logic(argument, updateSource);// Логика системы контроля питания
             if (updateSource == UpdateType.Update100)
             {
 
             }
             StringBuilder values = new StringBuilder();
             values.Append(bats.TextInfo());
-            values.Append(hydrogen_tanks_base.TextInfo("H2-НОСИТЕЛЯ"));
-            values.Append(connector_base.TextInfo("К:Base") + "\n");
+            values.Append(o2_tanks_base.TextInfo("O2-НОСИТЕЛЯ"));
+            //values.Append(connector_base.TextInfo("К:Base") + "\n");
             //values.Append(mergeblock_trusk1.TextInfo("СОЕД-НОСИТ-1"));
             //values.Append(mergeblock_trusk2.TextInfo("СОЕД-НОСИТ-2"));
-            values.Append(control_power.TextStatus());
+            values.Append(control.TextStatus());
             cockpit.OutText(values, 0);
             //lcd_debug.OutText(values);
         }
@@ -385,19 +279,15 @@ namespace MB_S_UPR
                     default:
                         break;
                 }
-
-                if (updateSource == UpdateType.Update10)
+                foreach (room rm in Enum.GetValues(typeof(room)))
                 {
-                    foreach (room rm in Enum.GetValues(typeof(room)))
+                    if (count_room[(int)rm] > 0)
                     {
-                        if (count_room[(int)rm] > 0)
-                        {
-                            OnOfTag(rm.ToString());
-                        }
-                        else
-                        {
-                            OffOfTag(rm.ToString());
-                        }
+                        OnOfTag(rm.ToString());
+                    }
+                    else
+                    {
+                        OffOfTag(rm.ToString());
                     }
                 }
             }
@@ -413,89 +303,6 @@ namespace MB_S_UPR
                 StringBuilder values = new StringBuilder();
                 values.Append("СОЛН. ПАНЕЛЬ " + name + " : [" + Count + "] " + PText.GetCurrentOfMax(CurrentOutput, MaxOutput, "MW") + "\n");
                 values.Append("|- ВЫХ:  " + PText.GetScalePersent(CurrentOutput / MaxOutput, 20) + "\n");
-                return values.ToString();
-            }
-        }
-        public class Connector : BaseTerminalBlock<IMyShipConnector>
-        {
-            public MyShipConnectorStatus Status { get { return base.obj.Status; } }
-            public bool Connected { get { return base.obj.Status == MyShipConnectorStatus.Connected ? true : false; } }
-            public bool Unconnected { get { return base.obj.Status == MyShipConnectorStatus.Unconnected ? true : false; } }
-            public bool Connectable { get { return base.obj.Status == MyShipConnectorStatus.Connectable ? true : false; } }
-            public Connector(string name) : base(name) { if (base.obj != null) { } }
-            public string TextStatus() { StringBuilder values = new StringBuilder(); values.Append(Connected ? igreen.ToString() : (Connectable ? iyellow.ToString() : ired.ToString())); return values.ToString(); }
-            public string TextInfo(string name) { StringBuilder values = new StringBuilder(); values.Append((name != null ? name : "КОННЕКТОР") + " : " + TextStatus()); return values.ToString(); }
-            public void Connect() { obj.Connect(); }
-            public void Disconnect() { obj.Disconnect(); }
-            public long? getEntityIdRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn.EntityId; } return null; }
-            public IMyShipConnector getRemoteConnector() { List<IMyShipConnector> list_conn = new List<IMyShipConnector>(); _scr.GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(list_conn); foreach (IMyShipConnector conn in list_conn.Where(c => c.Status == MyShipConnectorStatus.Connected).ToList()) { if (conn.EntityId != base.obj.EntityId && (conn.GetPosition() - base.obj.GetPosition()).Length() < 3) return conn; } return null; }
-        }
-        public class ShipMergeBlock : BaseTerminalBlock<IMyShipMergeBlock>
-        {
-            public MergeState State { get { return base.obj.State; } }
-            public bool Unset { get { return base.obj.State == MergeState.Unset ? true : false; } }
-            public bool None { get { return base.obj.State == MergeState.None ? true : false; } }
-            public bool Locked { get { return base.obj.State == MergeState.Locked ? true : false; } }
-            public bool Constrained { get { return base.obj.State == MergeState.Constrained ? true : false; } }
-            public bool Working { get { return base.obj.State == MergeState.Working ? true : false; } }
-            public ShipMergeBlock(string name) : base(name)
-            {
-                if (base.obj != null)
-                {
-                }
-            }
-            public string GetInfoStatus()
-            {
-                switch (base.obj.State)
-                {
-                    case MergeState.Unset:
-                        {
-                            return "НЕ УСТАНОВЛЕНО";
-                        }
-                    case MergeState.Working:
-                        {
-                            return "РАБОТАЕТ";
-                        }
-                    case MergeState.Constrained:
-                        {
-                            return "ДЕРЖИТ";
-                        }
-                    case MergeState.Locked:
-                        {
-                            return "ЗАБЛОКИРОВАННО";
-                        }
-                    default: return "-";
-                }
-            }
-            public string TextInfo(string name)
-            {
-                StringBuilder values = new StringBuilder();
-                values.Append(name + ": " + GetInfoStatus() + "\n");
-                return values.ToString();
-            }
-        }
-        public class GasGenerators : BaseListTerminalBlock<IMyPowerProducer>
-        {
-            public float MaxOutput { get { return base.list_obj.Select(b => b.MaxOutput).Sum();} }
-            public float CurrentPower  { get { return base.list_obj.Select(b => b.CurrentOutput).Sum(); } }
-
-            public GasGenerators(string name_obj) : base(name_obj)
-            {
-            }
-            public GasGenerators(string name_obj, string tag) : base(name_obj, tag)
-            {
-
-            }
-            //public void Update()
-            //{
-            //    res_inp = GetInpResurs("Electricity").FirstOrDefault();
-            //}
-            public string TextInfo()
-            {
-                StringBuilder values = new StringBuilder();
-                values.Append("ГЕНЕРАТОР ГАЗА :[" + Count + "]" + "\n");
-                values.Append("|- IN: " + PText.GetCurrentOfMax(CurrentPower, MaxOutput, "W"));
-                values.Append(" - " + PText.GetScalePersent(MaxOutput > 0f ? CurrentPower / MaxOutput : 0f, 40) + "\n");
                 return values.ToString();
             }
         }
@@ -579,10 +386,10 @@ namespace MB_S_UPR
                 if (count_internal < 0) count_internal = 0;
             }
         }
-        public class HydrogenTanks : BaseListTerminalBlock<IMyGasTank>
+        public class O2Tanks : BaseListTerminalBlock<IMyGasTank>
         {
-            public HydrogenTanks(string name_obj) : base(name_obj) { AutoRefillBottles(true); }
-            public HydrogenTanks(string name_obj, string tag) : base(name_obj, tag) { AutoRefillBottles(true); }
+            public O2Tanks(string name_obj) : base(name_obj) { AutoRefillBottles(true); }
+            public O2Tanks(string name_obj, string tag) : base(name_obj, tag) { AutoRefillBottles(true); }
             public float MaxCapacity() { return base.list_obj.Select(b => b.Capacity).Sum(); }
             public double AverageFilledRatio { get { return base.list_obj.Average(t => t.FilledRatio); } }
             public double CountAutoRefillBottles { get { return base.list_obj.Count(t => t.AutoRefillBottles); } }
@@ -601,14 +408,6 @@ namespace MB_S_UPR
         public class BaseShipController
         {
             public IMyShipController obj;
-            private double current_height = 0;
-            public double CurrentHeight { get { return this.current_height; } }
-            public Matrix GetCockpitMatrix()
-            {
-                Matrix CockpitMatrix = new MatrixD();
-                this.obj.Orientation.GetMatrix(out CockpitMatrix);
-                return CockpitMatrix;
-            }
             public BaseShipController(string name)
             {
                 obj = _scr.GridTerminalSystem.GetBlockWithName(name) as IMyShipController;
@@ -625,10 +424,6 @@ namespace MB_S_UPR
                     obj = list_obj.Where(n => ((IMyTerminalBlock)n).CustomName.Contains(tag)).FirstOrDefault();
                 }
                 _scr.Echo("Выбран base_ship_controller: " + ((obj != null) ? ("Ок") : ("not Block")));
-            }
-            public void Dampeners(bool on)
-            {
-                this.obj.DampenersOverride = on;
             }
             public void OutText(StringBuilder values, int num_lcd)
             {
@@ -671,32 +466,9 @@ namespace MB_S_UPR
                 }
                 return values;
             }
-            public double GetCurrentHeight()
-            {
-                double cur_h = 0;
-                this.obj.TryGetPlanetElevation(MyPlanetElevation.Surface, out cur_h);
-                return cur_h;
-            }
-            public void Logic(string argument, UpdateType updateSource)
-            {
-                switch (argument)
-                {
-                    default:
-                        break;
-                }
-                if (updateSource == UpdateType.Update10)
-                {
-                    // Получить высоту над поверхностью
-                    current_height = GetCurrentHeight();
-                }
-            }
             public string TextInfo()
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("Гравитация: " + this.obj.GetNaturalGravity().Length() + "\n");
-                values.Append("PhysicalMass: " + this.obj.CalculateShipMass().PhysicalMass + "\n");
-                values.Append("Скорость: " + this.obj.GetShipSpeed() + "\n");
-                values.Append("Высота: " + current_height + "\n");
                 return values.ToString();
             }
         }
@@ -738,30 +510,20 @@ namespace MB_S_UPR
             public string SetValVector3D(string Key, Vector3D val) { return val.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", Key + "X").Replace("Y", Key + "Y").Replace("Z", Key + "Z"); }
             public string SetValMatrixD(string Key, MatrixD val) { return val.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", Key + "M"); }
         }
-        public class ControlPower
+        public class Control
         {
-            public bool paused = false;
-            public bool stop_dreel = false;
             public float curr_power_per { get; set; }
-
-            public ControlPower()
+            public Control()
             {
                 //storage.LoadFromStorage();
                 //LoadFromStorageJSON();
             }
             //-------------------------------------------------
-
-
             public string TextStatus()
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("------------------------\n");
                 values.Append("Текущий заряд: " + Math.Round(curr_power_per, 2).ToString() + "\n");
-
-                values.Append(gas_gen1.TextInfo());
-                values.Append(gas_gen2.TextInfo());
-                values.Append(gas_gen3.TextInfo());
-                values.Append(gas_gen4.TextInfo());
 
                 //values.Append("ЭТАП      : " + name_mode[(int)curent_mode] + "\n");
                 //values.Append("ПАУЗА     : " + (paused ? green.ToString() : red.ToString()) + ", ");
@@ -773,17 +535,6 @@ namespace MB_S_UPR
             }
             public void Logic(string argument, UpdateType updateSource)
             {
-                //if (mergeblock_trusk1.Locked && mergeblock_trusk2.Locked)
-                //{
-                //    hydrogen_tanks_base.Stockpile(true);
-                //    // Если сидим в кокпите батарея не заряжается
-                //    if (cockpit.obj.IsUnderControl) { bats.Auto(); } else { bats.Charger(); }
-                //}
-                //else
-                //{
-                //    hydrogen_tanks_base.Stockpile(false);
-                //    bats.Auto();
-                //}
                 switch (argument)
                 {
                     case "load":
@@ -798,40 +549,9 @@ namespace MB_S_UPR
                 if (updateSource == UpdateType.Update100)
                 {
                     curr_power_per = (bats.CurrentPower() / bats.MaxPower() * 100.0f);
-                    if (curr_power_per < SP_PW_PRS_1)
-                    {
-                        gas_gen1.On();
-                    }
-                    if (curr_power_per < SP_PW_PRS_2)
-                    {
-                        gas_gen2.On();
-                    }
-                    if (curr_power_per < SP_PW_PRS_3)
-                    {
-                        gas_gen3.On();
-                    }
-                    if (curr_power_per < SP_PW_PRS_4)
-                    {
-                        gas_gen4.On();
-                    }
-                    if (curr_power_per > SP_PW_PRS_0)
-                    {
-                        gas_gen4.Off();
-                        gas_gen3.Off();
-                        gas_gen2.Off();
-                    }
-                    if (curr_power_per == 100.0f)
-                    {
-                        gas_gen4.Off();
-                        gas_gen3.Off();
-                        gas_gen2.Off();
-                        gas_gen1.Off();
-                    }
                 }
             }
         }
     }
 }
-/* 
- ShipMergeBlock - отпилил и проблемы нужна защита на Null
- */
+
