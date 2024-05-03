@@ -124,7 +124,7 @@ namespace MB_S_CONTROL_O2
             lightings.Off();
             o2_tanks_base = new O2Tanks(NameObj);
             cockpit = new BaseShipController(NameObj + "-Cocpit O2 Locked [LCD]");
-            control = new Control();
+            control = new Control(NameObj);
             storage = new MyStorage();
             storage.LoadFromStorage();
         }
@@ -513,10 +513,20 @@ namespace MB_S_CONTROL_O2
         public class Control
         {
             public float curr_power_per { get; set; }
-            public Control()
+            private List<IMyDoor> doors = new List<IMyDoor>();
+            private List<IMySensorBlock> sensors = new List<IMySensorBlock>();
+            private List<IMyAirVent> vents = new List<IMyAirVent>();
+            private List<IMyInteriorLight> lights = new List<IMyInteriorLight>();
+            public Control(string name)
             {
-                //storage.LoadFromStorage();
-                //LoadFromStorageJSON();
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name));
+                _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name));
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyAirVent>(vents, r => r.CustomName.Contains(name));
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyInteriorLight>(lights, r => r.CustomName.Contains(name));
+                foreach (room group in Enum.GetValues(typeof(room))) { 
+                
+                }
+
             }
             //-------------------------------------------------
             public string TextStatus()
@@ -555,3 +565,4 @@ namespace MB_S_CONTROL_O2
     }
 }
 
+// [rm-operators]
