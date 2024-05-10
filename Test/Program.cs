@@ -6,8 +6,25 @@ using System.Threading.Tasks;
 
 namespace Test
 {
+    
     class Program
     {
+        static public string GetNameOfTemplate(string str, string tmp)
+        {
+            int istart = str.IndexOf(tmp);
+            string result = null;
+            if (istart >= 0)
+            {
+                for (var i = istart; i < str.Length; i++)
+                {
+                    result += str[i];
+                    if (str[i] == ']') return result;
+                }
+            }
+            return result;
+        }
+
+
         public class MyComp
         {
             public Component component { get; set; }
@@ -59,41 +76,47 @@ namespace Test
         }
         static void Main(string[] args)
         {
-            string st = "\n" +
-"\n" +
-"Positive number: stores wanted amount, removes excess (e.g.: 100)\n" +
-"Negative number: doesn't store items, only removes excess (e.g.: -100)\n" +
-"Keyword 'all': stores all items of that subtype (like a type container)\n" +
-"\n" +
-"Component/BulletproofGlass=0\n" +
-"Component/Computer=0\n" +
-"Component/Construction=0\n" +
-"Component/Detector=0\n" +
-"Component/Display=0\n" +
-"Component/Girder=0\n" +
-"Component/InteriorPlate=0\n" +
-"Component/LargeTube=0\n" +
-"Component/MetalGrid=0\n" +
-"Component/Motor=12\n" +
-"Component/PowerCell=0\n" +
-"Component/RadioCommunication=0\n" +
-"Component/SmallTube=0\n" +
-"Component/SteelPlate=0\n" +
-"Component/Superconductor=0\n" +
-"Ore/Cobalt=0\n" +
-"Ore/Ice=0\n";
+            string str = GetNameOfTemplate("dr [dr-gateway-01] [rm-angar_tech]- door", "[dr-gateway-");
+            Console.WriteLine(str);
+
+
+
+
+            ////            string st = "\n" +
+            ////"\n" +
+            ////"Positive number: stores wanted amount, removes excess (e.g.: 100)\n" +
+            ////"Negative number: doesn't store items, only removes excess (e.g.: -100)\n" +
+            ////"Keyword 'all': stores all items of that subtype (like a type container)\n" +
+            ////"\n" +
+            ////"Component/BulletproofGlass=0\n" +
+            ////"Component/Computer=0\n" +
+            ////"Component/Construction=0\n" +
+            ////"Component/Detector=0\n" +
+            ////"Component/Display=0\n" +
+            ////"Component/Girder=0\n" +
+            ////"Component/InteriorPlate=0\n" +
+            ////"Component/LargeTube=0\n" +
+            ////"Component/MetalGrid=0\n" +
+            ////"Component/Motor=12\n" +
+            ////"Component/PowerCell=0\n" +
+            ////"Component/RadioCommunication=0\n" +
+            ////"Component/SmallTube=0\n" +
+            ////"Component/SteelPlate=0\n" +
+            ////"Component/Superconductor=0\n" +
+            ////"Ore/Cobalt=0\n" +
+            ////"Ore/Ice=0\n";
 
             //StringBuilder test_info = new StringBuilder();
             //test_info.Append(st);
 
 
-            List<MyComp> list1 = new List<MyComp>();
-            list1.Add(new MyComp() { component = Component.Display, value = 1000 });
-            list1.Add(new MyComp() { component = Component.Motor, value = 5000 });
+            ////List<MyComp> list1 = new List<MyComp>();
+            ////list1.Add(new MyComp() { component = Component.Display, value = 1000 });
+            ////list1.Add(new MyComp() { component = Component.Motor, value = 5000 });
 
-            string res = SetListComponent(st, list1);
+            ////string res = SetListComponent(st, list1);
 
-            Console.WriteLine(res);
+            ////Console.WriteLine(res);
 
 
 

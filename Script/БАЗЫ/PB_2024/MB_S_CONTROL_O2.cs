@@ -44,7 +44,7 @@ namespace MB_S_CONTROL_O2
             transition_right = 6,
         };
         public static string[] name_room = { "КОСМОС", "ОПЕРАТОРСКАЯ", "ШЛЮЗ", "ТЕХ-АНГАР", "АНГАР-СБОРЩИК", "ТЕХ-ПЕРЕХОД-Л", "ТЕХ-ПЕРЕХОД-П" };
-        public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0};
+        public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0 };
 
         public static Color red = new Color(255, 0, 0);
         public static Color yellow = new Color(255, 255, 0);
@@ -119,7 +119,7 @@ namespace MB_S_CONTROL_O2
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
             bats = new Batterys(NameObj);
             //connector_base = new Connector(NameObj + "-Коннектор base");
-            gateway = new Gateway(NameObj);
+            //gateway = new Gateway(NameObj);
             lightings = new Lightings(NameObj, "[lighting]");
             lightings.Off();
             o2_tanks_base = new O2Tanks(NameObj);
@@ -308,68 +308,59 @@ namespace MB_S_CONTROL_O2
         }
         public class Gateway
         {
-            private List<IMyDoor> doors = new List<IMyDoor>();
-            private List<IMySensorBlock> sensors = new List<IMySensorBlock>();
             public int count_external = 0;
             public int count_internal = 0;
-            IMySensorBlock sn_external;
-            IMySensorBlock sn_internal;
-            IMyDoor door_external;
-            IMyDoor door_internal;
+            IMySensorBlock sn1;
+            IMySensorBlock sn2;
+            IMyDoor dr1;
+            IMyDoor dr2;
             bool sn1_active = false;    // датчик входа
             bool sn2_active = false;   // датчик выхода
-            public bool ActiveSNExternal { get { return sn_external.IsActive; } }
-            public Gateway(string name_obj)
+            public Gateway(string name, IMyDoor dr1, IMySensorBlock sn1, string rm1, IMyDoor dr2, IMySensorBlock sn2, string rm2)
             {
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name_obj));
-                _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name_obj));
-                sn_external = sensors.Where(r => r.CustomName.Contains("[external]")).FirstOrDefault();
-                sn_internal = sensors.Where(r => r.CustomName.Contains("[internal]")).FirstOrDefault();
-                door_external = doors.Where(r => r.CustomName.Contains("[external]")).FirstOrDefault();
-                door_internal = doors.Where(r => r.CustomName.Contains("[internal]")).FirstOrDefault();
-                this.door_external.ApplyAction("OnOff_On");
-                this.door_internal.ApplyAction("OnOff_On");
-                this.door_external.CloseDoor();
-                this.door_internal.CloseDoor();
+                this.dr1.ApplyAction("OnOff_On");
+                this.dr2.ApplyAction("OnOff_On");
+                this.dr1.CloseDoor();
+                this.dr2.CloseDoor();
             }
             public void Logic()
             {
-                if (!sn_external.IsActive && door_external.Status == DoorStatus.Open)
+                if (!sn1.IsActive && dr1.Status == DoorStatus.Open)
                 {
                     // Игрок не найден возле внутр двери
-                    door_external.CloseDoor();
+                    dr1.CloseDoor();
                 }
-                if (sn_external.IsActive && door_external.Status == DoorStatus.Closed && door_internal.Status == DoorStatus.Closed)
+                if (sn1.IsActive && dr1.Status == DoorStatus.Closed && dr2.Status == DoorStatus.Closed)
                 {
                     // Игрокнайден возле внутр дверь закрыта и внешняя закрыта
-                    door_external.OpenDoor();
+                    dr1.OpenDoor();
                 }
-                if (!sn_internal.IsActive && door_internal.Status == DoorStatus.Open)
+                if (!sn2.IsActive && dr2.Status == DoorStatus.Open)
                 {
                     // Игрок не найден возле внутр двери
-                    door_internal.CloseDoor();
+                    dr2.CloseDoor();
                 }
-                if (sn_internal.IsActive && door_internal.Status == DoorStatus.Closed && door_external.Status == DoorStatus.Closed)
+                if (sn2.IsActive && dr2.Status == DoorStatus.Closed && dr1.Status == DoorStatus.Closed)
                 {
                     // Игрокнайден возле внутр дверь закрыта и внешняя закрыта
-                    door_internal.OpenDoor();
+                    dr2.OpenDoor();
                 }
                 // Логика направдения движения
-                if (sn1_active && !sn2_active && sn_internal.IsActive)
+                if (sn1_active && !sn2_active && sn2.IsActive)
                 {
                     // Выход
                     sn2_active = true;
                     count_external--;
                     count_internal++;
                 }
-                if (sn2_active && !sn1_active && sn_external.IsActive)
+                if (sn2_active && !sn1_active && sn1.IsActive)
                 {
                     // Вход
                     sn1_active = true;
                     count_external++;
                     count_internal--;
                 }
-                if (sn2_active && sn1_active && !sn_internal.IsActive && !sn_external.IsActive)
+                if (sn2_active && sn1_active && !sn2.IsActive && !sn1.IsActive)
                 {
                     // Вход
                     sn1_active = false;
@@ -379,8 +370,8 @@ namespace MB_S_CONTROL_O2
                 if (!sn1_active && !sn2_active)
                 {
                     // Выход
-                    sn1_active = sn_external.IsActive;
-                    sn2_active = sn_internal.IsActive;
+                    sn1_active = sn1.IsActive;
+                    sn2_active = sn2.IsActive;
                 }
                 if (count_external < 0) count_external = 0;
                 if (count_internal < 0) count_internal = 0;
@@ -517,16 +508,61 @@ namespace MB_S_CONTROL_O2
             private List<IMySensorBlock> sensors = new List<IMySensorBlock>();
             private List<IMyAirVent> vents = new List<IMyAirVent>();
             private List<IMyInteriorLight> lights = new List<IMyInteriorLight>();
+            private List<Gateway> gateways = new List<Gateway>();
             public Control(string name)
             {
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name));
                 _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name));
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyAirVent>(vents, r => r.CustomName.Contains(name));
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyInteriorLight>(lights, r => r.CustomName.Contains(name));
-                foreach (room group in Enum.GetValues(typeof(room))) { 
-                
+                // gateway - получим шлюзы
+                List<IGrouping<string, IMyDoor>> dr_gr = doors.Where(d => d.CustomName.Contains("[dr-gateway-")).GroupBy(g => GetNameOfTemplate(g.CustomName, "[dr-gateway-")).ToList();
+                foreach (IGrouping<string, IMyDoor> gtw in dr_gr)
+                {
+                    if (gtw.Count() == 2)
+                    {
+                        // Первая дверь
+                        IMyDoor dr1 = gtw.First();
+                        string rm1 = GetNameOfTemplate(dr1.CustomName, "[rm-");
+                        IMySensorBlock sn1 = sensors.Where(s => s.CustomName.Contains(gtw.Key) && s.CustomName.Contains(rm1)).FirstOrDefault();
+                        // Вторая дверь
+                        IMyDoor dr2 = gtw.Last();
+                        string rm2 = GetNameOfTemplate(dr2.CustomName, "[rm-");
+                        IMySensorBlock sn2 = sensors.Where(s => s.CustomName.Contains(gtw.Key) && s.CustomName.Contains(rm2)).FirstOrDefault();
+                        Gateway dr_gtw = new Gateway(gtw.Key, dr1, sn1, rm1, dr2, sn2, rm2);
+                        gateways.Add(dr_gtw);
+                    }
+
+
+
+                    //foreach (IMyDoor dr in gtw.ToList())
+                    //{
+                    //    string rm_name = GetNameOfTemplate(dr.CustomName, "[rm-");
+                    //    IMySensorBlock snb = sensors.Where(s => s.CustomName.Contains(gtw.Key) && s.CustomName.Contains(rm_name)).FirstOrDefault();
+                    //}
+
+
                 }
 
+                foreach (room group in Enum.GetValues(typeof(room)))
+                {
+
+                }
+
+            }
+            public string GetNameOfTemplate(string str, string tmp)
+            {
+                int istart = str.IndexOf(tmp);
+                string result = null;
+                if (istart >= 0)
+                {
+                    for (var i = istart; i < str.Length; i++)
+                    {
+                        result += str[i];
+                        if (str[i] == ']') return result;
+                    }
+                }
+                return result;
             }
             //-------------------------------------------------
             public string TextStatus()
@@ -566,3 +602,27 @@ namespace MB_S_CONTROL_O2
 }
 
 // [rm-operators]
+// [dr-gateway]
+// [dr-inner]
+// [dr-gate]
+// [sn-gateway]
+// [sn-inner]
+// [sn-gate]
+
+// [dr-gateway] [rm-operators]
+// [sn-gateway] [rm-operators]
+// [dr-gateway] [rm-angar_tech]
+// [sn-gateway] [rm-angar_tech]
+
+// [sn-inner] [rm-operators]
+// [dr-inner] [rm-operators] [rm-angar_tech]
+// [sn-inner] [rm-angar_tech]
+
+//sn [dr-gateway-01] [rm-operators] - sn
+//dr [dr-gateway-01] [rm-operators]- door
+//dr [dr-gateway-01] [rm-angar_tech]- door
+//sn [dr-gateway-01] [rm-angar_tech] - sn
+
+//sn [dr-inner-01] [rm-operators] - sn
+//dr [dr-inner-01] [rm-operators] [rm-angar_tech] - door
+//sn [dr-inner-01] [rm-angar_tech] - sn
