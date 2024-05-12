@@ -609,6 +609,11 @@ namespace MB_S_CONTROL_O2
 // [sn-inner]
 // [sn-gate]
 
+// [MB-S01]-Gate [dr-gate-sg-work] [rm-sg_work]
+// [MB-S01]-Gate [dr-gate-angar_work] [rm-angar_work]
+
+// [MB-S01]-Vent [rm-angar_work]
+
 // [dr-gateway] [rm-operators]
 // [sn-gateway] [rm-operators]
 // [dr-gateway] [rm-angar_tech]
