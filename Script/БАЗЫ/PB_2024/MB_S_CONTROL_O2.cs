@@ -36,14 +36,19 @@ namespace MB_S_CONTROL_O2
         public enum room : int
         {
             space = 0,
-            operators = 1,
-            gateway = 2,
-            angar_tech = 3,
-            angar_work = 4,
-            transition_left = 5,
-            transition_right = 6,
+            cabin = 1,
+            relaxation = 2,
+            tech_ladder = 3,
+            operators = 4,
+            gateway = 5,
+            angar_tech = 6,
+            angar_work = 7,
+            transition_left = 8,
+            transition_right = 9,
+            oxygen_block = 10,
+
         };
-        public static string[] name_room = { "КОСМОС", "ОПЕРАТОРСКАЯ", "ШЛЮЗ", "ТЕХ-АНГАР", "АНГАР-СБОРЩИК", "ТЕХ-ПЕРЕХОД-Л", "ТЕХ-ПЕРЕХОД-П" };
+        public static string[] name_room = { "КОСМОС", "КАЮТА", "КОМ. ОТДЫХА", "ТЕХ-ЛЕСТНИЦА", "ОПЕРАТОРСКАЯ", "ШЛЮЗ", "ТЕХ-АНГАР", "АНГАР-СБОРЩИК", "ТЕХ-ПЕРЕХОД-Л", "ТЕХ-ПЕРЕХОД-П", "КОМ. ХРАН. O2" };
         public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0 };
 
         public static Color red = new Color(255, 0, 0);
@@ -135,7 +140,7 @@ namespace MB_S_CONTROL_O2
         // Переключить батареи
         public void Main(string argument, UpdateType updateSource)
         {
-            gateway.Logic();
+            //gateway.Logic();
             switch (argument) { default: break; }
             count_room[(int)room.space] = 0;// В космосе людей не считаем
             control.Logic(argument, updateSource);// Логика системы контроля питания
@@ -308,6 +313,7 @@ namespace MB_S_CONTROL_O2
         }
         public class Gateway
         {
+            string name;
             public int count_external = 0;
             public int count_internal = 0;
             IMySensorBlock sn1;
@@ -318,6 +324,8 @@ namespace MB_S_CONTROL_O2
             bool sn2_active = false;   // датчик выхода
             public Gateway(string name, IMyDoor dr1, IMySensorBlock sn1, string rm1, IMyDoor dr2, IMySensorBlock sn2, string rm2)
             {
+                this.name = name;
+                this.dr1 = dr1; this.dr2 = dr2; this.sn1 = sn1; this.sn2 = sn2;
                 this.dr1.ApplyAction("OnOff_On");
                 this.dr2.ApplyAction("OnOff_On");
                 this.dr1.CloseDoor();
@@ -511,25 +519,39 @@ namespace MB_S_CONTROL_O2
             private List<Gateway> gateways = new List<Gateway>();
             public Control(string name)
             {
+                StringBuilder values = new StringBuilder();
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name));
                 _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name));
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyAirVent>(vents, r => r.CustomName.Contains(name));
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyInteriorLight>(lights, r => r.CustomName.Contains(name));
                 // gateway - получим шлюзы
                 List<IGrouping<string, IMyDoor>> dr_gr = doors.Where(d => d.CustomName.Contains("[dr-gateway-")).GroupBy(g => GetNameOfTemplate(g.CustomName, "[dr-gateway-")).ToList();
+                lcd_debug.OutText("Старт ->", false);
                 foreach (IGrouping<string, IMyDoor> gtw in dr_gr)
                 {
+                    lcd_debug.OutText("\nIGrouping -> " + gtw.Key, true);
+                    lcd_debug.OutText("\ndoors -> " + doors.Count(), true);
+                    lcd_debug.OutText("\nsensors -> " + sensors.Count(), true);
+                    lcd_debug.OutText("\nvents -> " + vents.Count(), true);
+                    lcd_debug.OutText("\ngtw.Count() -> " + gtw.Count(), true);
                     if (gtw.Count() == 2)
                     {
                         // Первая дверь
                         IMyDoor dr1 = gtw.First();
+                        lcd_debug.OutText("\ndr1 -> " + dr1.CustomName, true);
                         string rm1 = GetNameOfTemplate(dr1.CustomName, "[rm-");
+                        lcd_debug.OutText("\nrm1 -> " + rm1, true);
                         IMySensorBlock sn1 = sensors.Where(s => s.CustomName.Contains(gtw.Key) && s.CustomName.Contains(rm1)).FirstOrDefault();
+                        lcd_debug.OutText("\nsn1 -> " + sn1.CustomName, true);
                         // Вторая дверь
                         IMyDoor dr2 = gtw.Last();
+                        lcd_debug.OutText("\ndr2 -> " + dr2.CustomName, true);
                         string rm2 = GetNameOfTemplate(dr2.CustomName, "[rm-");
+                        lcd_debug.OutText("\nrm2 -> " + rm2, true);
                         IMySensorBlock sn2 = sensors.Where(s => s.CustomName.Contains(gtw.Key) && s.CustomName.Contains(rm2)).FirstOrDefault();
+                        lcd_debug.OutText("\nsn2 -> " + sn2.CustomName, true);
                         Gateway dr_gtw = new Gateway(gtw.Key, dr1, sn1, rm1, dr2, sn2, rm2);
+
                         gateways.Add(dr_gtw);
                     }
 
@@ -543,11 +565,11 @@ namespace MB_S_CONTROL_O2
 
 
                 }
+                lcd_debug.OutText("\ngateways.Count() -> " + gateways.Count(), true);
+                //foreach (room group in Enum.GetValues(typeof(room)))
+                //{
 
-                foreach (room group in Enum.GetValues(typeof(room)))
-                {
-
-                }
+                //}
 
             }
             public string GetNameOfTemplate(string str, string tmp)
@@ -592,6 +614,11 @@ namespace MB_S_CONTROL_O2
                     default:
                         break;
                 }
+
+                foreach (Gateway gtw in gateways) {
+                    gtw.Logic();
+                }
+
                 if (updateSource == UpdateType.Update100)
                 {
                     curr_power_per = (bats.CurrentPower() / bats.MaxPower() * 100.0f);
@@ -608,25 +635,67 @@ namespace MB_S_CONTROL_O2
 // [sn-gateway]
 // [sn-inner]
 // [sn-gate]
+//
+
+
+//[rm-space]
+//[rm-cabin]
+//[rm-relaxation]
+//[rm-tech_ladder]
+
+
+//rm-operators
+//gateway
+//angar_tech
+//angar_work
+//transition_left
+//transition_right
+
 
 // [MB-S01]-Gate [dr-gate-sg-work] [rm-sg_work]
 // [MB-S01]-Gate [dr-gate-angar_work] [rm-angar_work]
 
+// [MB-S01]-[lcd-info] [rm-cabin]
+// [MB-S01]-[lcd-info] [rm-relaxation]
+// [MB-S01]-[lcd-info] [rm-angar_tech]
+// [MB-S01]-[lcd-info] [rm-oxygen_block]
+
 // [MB-S01]-Vent [rm-angar_work]
+// [MB-S01]-Vent [rm-cabin]
+// [MB-S01]-Vent [rm-relaxation]
+// [MB-S01]-Vent [rm-oxygen_block]
 
 // [dr-gateway] [rm-operators]
 // [sn-gateway] [rm-operators]
 // [dr-gateway] [rm-angar_tech]
 // [sn-gateway] [rm-angar_tech]
 
-// [sn-inner] [rm-operators]
-// [dr-inner] [rm-operators] [rm-angar_tech]
-// [sn-inner] [rm-angar_tech]
+// [MB-S01]-sn [dr-inner-cabin-relaxation] [rm-cabin]
+// [MB-S01]-dr [dr-inner-cabin-relaxation] [rm-cabin] [rm-relaxation]
+// [MB-S01]-sn [dr-inner-cabin-relaxation] [rm-relaxation]
+
+// [MB-S01]-sn [dr-inner-tladder-relaxation] [rm-tech_ladder]
+// [MB-S01]-dr [dr-inner-tladder-relaxation] [rm-tech_ladder] [rm-relaxation]
+// [MB-S01]-sn [dr-inner-tladder-relaxation] [rm-relaxation]
+
+// [MB-S01]-sn [dr-inner-tangar-relaxation] [rm-angar_tech]
+// [MB-S01]-dr [dr-inner-tangar-relaxation] [rm-angar_tech] [rm-relaxation]
+// [MB-S01]-sn [dr-inner-tangar-relaxation] [rm-relaxation]
+
+// [MB-S01]-sn [dr-inner-boxygen-relaxation] [rm-oxygen_block]
+// [MB-S01]-dr [dr-inner-boxygen-relaxation] [rm-oxygen_block] [rm-relaxation]
+// [MB-S01]-sn [dr-inner-boxygen-relaxation] [rm-relaxation]
+
+// [MB-S01]-sn [dr-gateway-cabin] [rm-cabin]
+// [MB-S01]-dr [dr-gateway-cabin] [rm-cabin]
+// [MB-S01]-dr [dr-gateway-cabin] [rm-space]
+// [MB-S01]-sn [dr-gateway-cabin] [rm-space]
 
 //sn [dr-gateway-01] [rm-operators] - sn
 //dr [dr-gateway-01] [rm-operators]- door
 //dr [dr-gateway-01] [rm-angar_tech]- door
 //sn [dr-gateway-01] [rm-angar_tech] - sn
+
 
 //sn [dr-inner-01] [rm-operators] - sn
 //dr [dr-inner-01] [rm-operators] [rm-angar_tech] - door
