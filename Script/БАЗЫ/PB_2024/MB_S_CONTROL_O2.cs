@@ -45,10 +45,20 @@ namespace MB_S_CONTROL_O2
             angar_work = 7,
             transition_left = 8,
             transition_right = 9,
-            oxygen_block = 10,
-
+            waiting = 10,
+            medical = 11,
+            operators_work = 12,
+            operators_fabric = 13,
+            fabric = 14,
+            sg_work = 15,
+            operators_dors = 16,
+            operators_weapon = 17,
         };
-        public static string[] name_room = { "КОСМОС", "КАЮТА", "КОМ. ОТДЫХА", "ТЕХ-ЛЕСТНИЦА", "ОПЕРАТОРСКАЯ", "ШЛЮЗ", "ТЕХ-АНГАР", "АНГАР-СБОРЩИК", "ТЕХ-ПЕРЕХОД-Л", "ТЕХ-ПЕРЕХОД-П", "КОМ. ХРАН. O2" };
+        public static string[] name_room = { "КОСМОС", "КАЮТА", 
+            "КОМ. ОТДЫХА", "ТЕХ-ЛЕСТНИЦА", "ОПЕРАТОРСКАЯ", "ШЛЮЗ", 
+            "ТЕХ-АНГАР", "АНГАР-СБОРЩИК", "ТЕХ-ПЕРЕХОД-Л", "ТЕХ-ПЕРЕХОД-П", 
+            "КОМ. ОЖИДАНИЯ", "МЕД-БЛОК", "ОПЕР. СБОРЩИК", "ОПЕР. ФАБРИКА", 
+            "ФАБРИКА", "СБОРЩИК-МС", "ОПЕР. К-ДВ-О2" , "ОПЕР. К-ОРУЖИЯ" };
         public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0 };
 
         public static Color red = new Color(255, 0, 0);
@@ -642,15 +652,8 @@ namespace MB_S_CONTROL_O2
 //[rm-cabin]
 //[rm-relaxation]
 //[rm-tech_ladder]
-
-
-//rm-operators
-//gateway
-//angar_tech
-//angar_work
-//transition_left
-//transition_right
-
+//[rm-operators_fabric]
+//[rm-fabric]
 
 // [MB-S01]-Gate [dr-gate-sg-work] [rm-sg_work]
 // [MB-S01]-Gate [dr-gate-angar_work] [rm-angar_work]
@@ -658,17 +661,30 @@ namespace MB_S_CONTROL_O2
 // [MB-S01]-[lcd-info] [rm-cabin]
 // [MB-S01]-[lcd-info] [rm-relaxation]
 // [MB-S01]-[lcd-info] [rm-angar_tech]
-// [MB-S01]-[lcd-info] [rm-oxygen_block]
+// [MB-S01]-[lcd-info] [rm-waiting]
+// [MB-S01]-[lcd-info] [rm-medical]
+// [MB-S01]-[lcd-info] [rm-tech_ladder]
+// [MB-S01]-[lcd-info] [rm-operators_work]
+// [MB-S01]-[lcd-info] [rm-operators_fabric]
+// [MB-S01]-[lcd-info] [rm-fabric]
+// [MB-S01]-[lcd-info] [rm-sg_work]
+// [MB-S01]-[lcd-info] [rm-angar_work]
+// [MB-S01]-[lcd-info] [rm-operators_dors]
+// [MB-S01]-[lcd-info] [rm-operators_weapon]
 
 // [MB-S01]-Vent [rm-angar_work]
 // [MB-S01]-Vent [rm-cabin]
 // [MB-S01]-Vent [rm-relaxation]
-// [MB-S01]-Vent [rm-oxygen_block]
-
-// [dr-gateway] [rm-operators]
-// [sn-gateway] [rm-operators]
-// [dr-gateway] [rm-angar_tech]
-// [sn-gateway] [rm-angar_tech]
+// [MB-S01]-Vent [rm-waiting]
+// [MB-S01]-Vent [rm-angar_tech]
+// [MB-S01]-Vent [rm-medical]
+// [MB-S01]-Vent [rm-tech_ladder]
+// [MB-S01]-Vent [rm-operators_work]
+// [MB-S01]-Vent [rm-operators_fabric]
+// [MB-S01]-Vent [rm-fabric]
+// [MB-S01]-Vent [rm-sg_work]
+// [MB-S01]-Vent [rm-operators_dors]
+// [MB-S01]-Vent [rm-operators_weapon]
 
 // [MB-S01]-sn [dr-inner-cabin-relaxation] [rm-cabin]
 // [MB-S01]-dr [dr-inner-cabin-relaxation] [rm-cabin] [rm-relaxation]
@@ -678,24 +694,77 @@ namespace MB_S_CONTROL_O2
 // [MB-S01]-dr [dr-inner-tladder-relaxation] [rm-tech_ladder] [rm-relaxation]
 // [MB-S01]-sn [dr-inner-tladder-relaxation] [rm-relaxation]
 
-// [MB-S01]-sn [dr-inner-tangar-relaxation] [rm-angar_tech]
-// [MB-S01]-dr [dr-inner-tangar-relaxation] [rm-angar_tech] [rm-relaxation]
-// [MB-S01]-sn [dr-inner-tangar-relaxation] [rm-relaxation]
+// [MB-S01]-sn [dr-inner-tladder-ofabric] [rm-tech_ladder]
+// [MB-S01]-dr [dr-inner-tladder-ofabric] [rm-tech_ladder] [rm-operators_fabric]
+// [MB-S01]-sn [dr-inner-tladder-ofabric] [rm-operators_fabric]
 
-// [MB-S01]-sn [dr-inner-boxygen-relaxation] [rm-oxygen_block]
-// [MB-S01]-dr [dr-inner-boxygen-relaxation] [rm-oxygen_block] [rm-relaxation]
-// [MB-S01]-sn [dr-inner-boxygen-relaxation] [rm-relaxation]
+// [MB-S01]-sn [dr-inner-tladder-fabric] [rm-tech_ladder]
+// [MB-S01]-dr [dr-inner-tladder-fabric] [rm-tech_ladder] [rm-fabric]
+// [MB-S01]-sn [dr-inner-tladder-fabric] [rm-fabric]
+
+// [MB-S01]-sn [dr-inner-tladder-owork] [rm-tech_ladder]
+// [MB-S01]-dr [dr-inner-tladder-owork] [rm-tech_ladder] [rm-operators_work]
+// [MB-S01]-sn [dr-inner-tladder-owork] [rm-operators_work]
+
+// [MB-S01]-sn [dr-inner-ofabric-fabric] [rm-operators_fabric]
+// [MB-S01]-dr [dr-inner-ofabric-fabric] [rm-operators_fabric] [rm-fabric]
+// [MB-S01]-sn [dr-inner-ofabric-fabric] [rm-fabric]
+
+
+// [MB-S01]-sn [dr-inner-waiting-relaxation] [rm-waiting]
+// [MB-S01]-dr [dr-inner-waiting-relaxation] [rm-waiting] [rm-relaxation]
+// [MB-S01]-sn [dr-inner-waiting-relaxation] [rm-relaxation]
+
+// [MB-S01]-sn [dr-inner-waiting-medical] [rm-waiting]
+// [MB-S01]-dr [dr-inner-waiting-medical] [rm-waiting] [rm-medical]
+// [MB-S01]-sn [dr-inner-waiting-medical] [rm-medical]
+
+// [MB-S01]-sn [dr-inner-sgwork-owork] [rm-sg_work]
+// [MB-S01]-dr [dr-inner-sgwork-owork] [rm-sg_work] [rm-operators_work]
+// [MB-S01]-sn [dr-inner-sgwork-owork] [rm-operators_work]
+
+// [MB-S01]-sn [dr-inner-odors-awork] [rm-operators_dors]
+// [MB-S01]-dr [dr-inner-odors-awork] [rm-operators_dors] [rm-angar_work]
+// [MB-S01]-sn [dr-inner-odors-awork] [rm-angar_work]
+
+// [MB-S01]-sn [dr-inner-oweapon-awork] [rm-operators_weapon]
+// [MB-S01]-dr [dr-inner-oweapon-awork] [rm-operators_weapon] [rm-angar_work]
+// [MB-S01]-sn [dr-inner-oweapon-awork] [rm-angar_work]
 
 // [MB-S01]-sn [dr-gateway-cabin] [rm-cabin]
 // [MB-S01]-dr [dr-gateway-cabin] [rm-cabin]
 // [MB-S01]-dr [dr-gateway-cabin] [rm-space]
 // [MB-S01]-sn [dr-gateway-cabin] [rm-space]
 
-//sn [dr-gateway-01] [rm-operators] - sn
-//dr [dr-gateway-01] [rm-operators]- door
-//dr [dr-gateway-01] [rm-angar_tech]- door
-//sn [dr-gateway-01] [rm-angar_tech] - sn
+// [MB-S01]-sn [dr-gateway-relaxation] [rm-relaxation]
+// [MB-S01]-dr [dr-gateway-relaxation] [rm-relaxation]
+// [MB-S01]-dr [dr-gateway-relaxation] [rm-angar_tech]
+// [MB-S01]-sn [dr-gateway-relaxation] [rm-angar_tech]
 
+// [MB-S01]-sn [dr-gateway-owork] [rm-operators_work]
+// [MB-S01]-dr [dr-gateway-owork] [rm-operators_work]
+// [MB-S01]-dr [dr-gateway-owork] [rm-space]
+// [MB-S01]-sn [dr-gateway-owork] [rm-space]
+
+// [MB-S01]-sn [dr-gateway-sg_work2] [rm-sg_work]
+// [MB-S01]-dr [dr-gateway-sg_work2] [rm-sg_work]
+// [MB-S01]-dr [dr-gateway-sg_work2] [rm-angar_work]
+// [MB-S01]-sn [dr-gateway-sg_work2] [rm-angar_work]
+
+// [MB-S01]-sn [dr-gateway-angar_work] [rm-space]
+// [MB-S01]-dr [dr-gateway-angar_work] [rm-space]
+// [MB-S01]-dr [dr-gateway-angar_work] [rm-angar_work]
+// [MB-S01]-sn [dr-gateway-angar_work] [rm-angar_work]
+
+// [MB-S01]-sn [dr-gateway-sg_work_odors] [rm-sg_work]
+// [MB-S01]-dr [dr-gateway-sg_work_odors] [rm-sg_work]
+// [MB-S01]-dr [dr-gateway-sg_work_odors] [rm-operators_dors]
+// [MB-S01]-sn [dr-gateway-sg_work_odors] [rm-operators_dors]
+
+// [MB-S01]-sn [dr-gateway-sg_work_oweapon] [rm-sg_work]
+// [MB-S01]-dr [dr-gateway-sg_work_oweapon] [rm-sg_work]
+// [MB-S01]-dr [dr-gateway-sg_work_oweapon] [rm-operators_weapon]
+// [MB-S01]-sn [dr-gateway-sg_work_oweapon] [rm-operators_weapon]
 
 //sn [dr-inner-01] [rm-operators] - sn
 //dr [dr-inner-01] [rm-operators] [rm-angar_tech] - door
