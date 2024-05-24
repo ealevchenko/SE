@@ -22,6 +22,7 @@ using VRage.Game.ModAPI.Ingame;
 using VRage.Scripting;
 using VRageMath;
 using static MUL_H1_NAV.Program;
+using static VRage.Game.MyObjectBuilder_CurveDefinition;
 
 /// <summary>
 /// v1.0
@@ -54,10 +55,10 @@ namespace MB_S_CONTROL_O2
             operators_dors = 16,
             operators_weapon = 17,
         };
-        public static string[] name_room = { "КОСМОС", "КАЮТА", 
-            "КОМ. ОТДЫХА", "ТЕХ-ЛЕСТНИЦА", "ОПЕРАТОРСКАЯ", "ШЛЮЗ", 
-            "ТЕХ-АНГАР", "АНГАР-СБОРЩИК", "ТЕХ-ПЕРЕХОД-Л", "ТЕХ-ПЕРЕХОД-П", 
-            "КОМ. ОЖИДАНИЯ", "МЕД-БЛОК", "ОПЕР. СБОРЩИК", "ОПЕР. ФАБРИКА", 
+        public static string[] name_room = { "КОСМОС", "КАЮТА",
+            "КОМ. ОТДЫХА", "ТЕХ-ЛЕСТНИЦА", "ОПЕРАТОРСКАЯ", "ШЛЮЗ",
+            "ТЕХ-АНГАР", "АНГАР-СБОРЩИК", "ТЕХ-ПЕРЕХОД-Л", "ТЕХ-ПЕРЕХОД-П",
+            "КОМ. ОЖИДАНИЯ", "МЕД-БЛОК", "ОПЕР. СБОРЩИК", "ОПЕР. ФАБРИКА",
             "ФАБРИКА", "СБОРЩИК-МС", "ОПЕР. К-ДВ-О2" , "ОПЕР. К-ОРУЖИЯ" };
         public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0 };
 
@@ -86,6 +87,19 @@ namespace MB_S_CONTROL_O2
         //int clock = 0;
 
         static Program _scr;
+
+        public class RoomStatus
+        {
+            public room room { get; set; }
+            public string name { get; set; }
+            public float ox_level { get; set; }
+            public VentStatus vent_status { get; set; }
+            public int pipel_count { get; set; }
+            public List<IMyDoor> doors = new List<IMyDoor>();
+            public List<IMyAirVent> vents = new List<IMyAirVent>();
+            public List<IMyInteriorLight> light = new List<IMyInteriorLight>();
+            public List<IMyTextPanel> panel = new List<IMyTextPanel>();
+        }
         public class PText
         {
             static public string GetPersent(double perse) { return " - " + Math.Round((perse * 100), 1) + "%"; }
@@ -522,27 +536,54 @@ namespace MB_S_CONTROL_O2
         public class Control
         {
             public float curr_power_per { get; set; }
+            List<RoomStatus> list_rs = new List<RoomStatus>();
+
             private List<IMyDoor> doors = new List<IMyDoor>();
             private List<IMySensorBlock> sensors = new List<IMySensorBlock>();
             private List<IMyAirVent> vents = new List<IMyAirVent>();
             private List<IMyInteriorLight> lights = new List<IMyInteriorLight>();
+            private List<IMyTextPanel> panels = new List<IMyTextPanel>();
+            private List<IMyTextPanel> ipanels = new List<IMyTextPanel>();
             private List<Gateway> gateways = new List<Gateway>();
             public Control(string name)
             {
+                // Создадим структуру состояния помещений
+                foreach (room group in Enum.GetValues(typeof(room)))
+                {
+                    RoomStatus rs = new RoomStatus()
+                    {
+                        room = group,
+                        pipel_count = 0,
+                        name = name_room[(int)group],
+                        ox_level = 0,
+                        vent_status = 0,
+                    };
+                    list_rs.Add(rs);
+                }
+
+
+
+
                 StringBuilder values = new StringBuilder();
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name));
                 _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name));
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyAirVent>(vents, r => r.CustomName.Contains(name));
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyInteriorLight>(lights, r => r.CustomName.Contains(name));
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyTextPanel>(panels, r => r.CustomName.Contains(name));
+                ipanels = panels.Where(x => x.CustomName.Contains("[lcd-info]")).ToList();
                 // gateway - получим шлюзы
                 List<IGrouping<string, IMyDoor>> dr_gr = doors.Where(d => d.CustomName.Contains("[dr-gateway-")).GroupBy(g => GetNameOfTemplate(g.CustomName, "[dr-gateway-")).ToList();
                 lcd_debug.OutText("Старт ->", false);
+                lcd_debug.OutText("\nlist_rs -> " + list_rs.Count(), true);
+                lcd_debug.OutText("\ndoors -> " + doors.Count(), true);
+                lcd_debug.OutText("\nsensors -> " + sensors.Count(), true);
+                lcd_debug.OutText("\nvents -> " + vents.Count(), true);
+                lcd_debug.OutText("\nvents -> " + vents.Count(), true);
+                lcd_debug.OutText("\nipanels.Count() -> " + ipanels.Count(), true);
+                // Настройка Gateway
                 foreach (IGrouping<string, IMyDoor> gtw in dr_gr)
                 {
                     lcd_debug.OutText("\nIGrouping -> " + gtw.Key, true);
-                    lcd_debug.OutText("\ndoors -> " + doors.Count(), true);
-                    lcd_debug.OutText("\nsensors -> " + sensors.Count(), true);
-                    lcd_debug.OutText("\nvents -> " + vents.Count(), true);
                     lcd_debug.OutText("\ngtw.Count() -> " + gtw.Count(), true);
                     if (gtw.Count() == 2)
                     {
@@ -561,21 +602,13 @@ namespace MB_S_CONTROL_O2
                         IMySensorBlock sn2 = sensors.Where(s => s.CustomName.Contains(gtw.Key) && s.CustomName.Contains(rm2)).FirstOrDefault();
                         lcd_debug.OutText("\nsn2 -> " + sn2.CustomName, true);
                         Gateway dr_gtw = new Gateway(gtw.Key, dr1, sn1, rm1, dr2, sn2, rm2);
-
                         gateways.Add(dr_gtw);
                     }
-
-
-
-                    //foreach (IMyDoor dr in gtw.ToList())
-                    //{
-                    //    string rm_name = GetNameOfTemplate(dr.CustomName, "[rm-");
-                    //    IMySensorBlock snb = sensors.Where(s => s.CustomName.Contains(gtw.Key) && s.CustomName.Contains(rm_name)).FirstOrDefault();
-                    //}
-
-
                 }
                 lcd_debug.OutText("\ngateways.Count() -> " + gateways.Count(), true);
+                // Настройка info-panel
+
+
                 //foreach (room group in Enum.GetValues(typeof(room)))
                 //{
 
@@ -595,6 +628,18 @@ namespace MB_S_CONTROL_O2
                     }
                 }
                 return result;
+            }
+            public void SetTextLCDInfo(room rm, Color color)
+            {
+                List<IMyTextPanel> objs = panels.Where(x => x.CustomName.Contains("[rm-" + rm.ToString() + "]")).ToList();
+                foreach (IMyTextPanel obj in objs)
+                {
+                    obj.SetValue("Content", (Int64)1);
+                    obj.SetValueColor("FontColor", color);
+                    obj.SetValueFloat("FontSize", 7.0f);
+                    obj.SetValue("alignment", (Int64)2);
+                    obj.WriteText(name_room[(int)rm].ToUpper(), false);
+                }
             }
             //-------------------------------------------------
             public string TextStatus()
@@ -624,11 +669,32 @@ namespace MB_S_CONTROL_O2
                     default:
                         break;
                 }
-
-                foreach (Gateway gtw in gateways) {
+                // Проверим двери
+                foreach (Gateway gtw in gateways)
+                {
                     gtw.Logic();
                 }
-
+                // Переберем таблички и покажем кислород
+                foreach (room group in Enum.GetValues(typeof(room)))
+                {
+                    IMyAirVent vent = vents.Where(x => x.CustomName.Contains("[rm-" + group.ToString() + "]")).FirstOrDefault();
+                    if (vent != null)
+                    {
+                        float Ol = vent.GetOxygenLevel();
+                        if (Ol > 0.9)
+                        {
+                            SetTextLCDInfo(group, green);
+                        }
+                        else if (Ol == 0)
+                        {
+                            SetTextLCDInfo(group, red);
+                        }
+                        else
+                        {
+                            SetTextLCDInfo(group, yellow);
+                        }
+                    }
+                }
                 if (updateSource == UpdateType.Update100)
                 {
                     curr_power_per = (bats.CurrentPower() / bats.MaxPower() * 100.0f);
