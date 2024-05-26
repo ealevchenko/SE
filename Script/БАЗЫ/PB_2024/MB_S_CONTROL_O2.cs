@@ -21,8 +21,7 @@ using VRage.Game;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Scripting;
 using VRageMath;
-using static MUL_H1_NAV.Program;
-using static VRage.Game.MyObjectBuilder_CurveDefinition;
+
 
 /// <summary>
 /// v1.0
@@ -54,12 +53,13 @@ namespace MB_S_CONTROL_O2
             sg_work = 15,
             operators_dors = 16,
             operators_weapon = 17,
+            fabric_tech = 18,
         };
         public static string[] name_room = { "КОСМОС", "КАЮТА",
             "КОМ. ОТДЫХА", "ТЕХ-ЛЕСТНИЦА", "ОПЕРАТОРСКАЯ", "ШЛЮЗ",
             "ТЕХ-АНГАР", "АНГАР-СБОРЩИК", "ТЕХ-ПЕРЕХОД-Л", "ТЕХ-ПЕРЕХОД-П",
             "КОМ. ОЖИДАНИЯ", "МЕД-БЛОК", "ОПЕР. СБОРЩИК", "ОПЕР. ФАБРИКА",
-            "ФАБРИКА", "СБОРЩИК-МС", "ОПЕР. К-ДВ-О2" , "ОПЕР. К-ОРУЖИЯ" };
+            "ФАБРИКА", "СБОРЩИК-МС", "ОПЕР. К-ДВ-О2" , "ОПЕР. К-ОРУЖИЯ", "ТЕХ-КОР-СБОРЩИК" };
         public static int[] count_room = { 0, 0, 0, 0, 0, 0, 0 };
 
         public static Color red = new Color(255, 0, 0);
@@ -74,6 +74,9 @@ namespace MB_S_CONTROL_O2
 
         static LCD lcd_storage;
         static LCD lcd_debug;
+        static LCD lcd_debug1;
+        static LCD lcd_debug2;
+        static LCD lcd_info1, lcd_info2;
         static Batterys bats;
 
         static Lightings lightings;
@@ -97,8 +100,56 @@ namespace MB_S_CONTROL_O2
             public int pipel_count { get; set; }
             public List<IMyDoor> doors = new List<IMyDoor>();
             public List<IMyAirVent> vents = new List<IMyAirVent>();
-            public List<IMyInteriorLight> light = new List<IMyInteriorLight>();
-            public List<IMyTextPanel> panel = new List<IMyTextPanel>();
+            public List<IMyInteriorLight> lights = new List<IMyInteriorLight>();
+            public List<IMyTextPanel> panels = new List<IMyTextPanel>();
+            public float cur_ox_level { get { return vents != null && vents.Count() > 0 ? vents.ToList().Average(c => c.GetOxygenLevel()) : 0; } }
+            //public void PowerInner(bool on)
+            //{
+            //    if (doors != null && doors.Count() > 0)
+            //    {
+            //        foreach (IMyDoor dr in doors.Where(d => d.CustomName.Contains("[dr-inner-")).ToList())
+            //        {
+            //            if (on)
+            //            {
+            //                dr.ApplyAction("OnOff_On");
+            //            }
+            //            else
+            //            {
+            //                dr.ApplyAction("OnOff_Off");
+            //            }
+            //        }
+            //    }
+            //}
+            public void Close()
+            {
+                if (doors != null && doors.Count() > 0)
+                {
+                    foreach (IMyDoor dr in doors)
+                    {
+                        dr.CloseDoor();
+                    }
+                }
+            }
+            public void Open()
+            {
+                if (doors != null && doors.Count() > 0)
+                {
+                    foreach (IMyDoor dr in doors)
+                    {
+                        dr.OpenDoor();
+                    }
+                }
+            }
+            public void Depressurize(bool on)
+            {
+                if (vents != null && vents.Count() > 0)
+                {
+                    foreach (IMyAirVent vn in vents)
+                    {
+                        vn.Depressurize = on;
+                    }
+                }
+            }
         }
         public class PText
         {
@@ -146,6 +197,10 @@ namespace MB_S_CONTROL_O2
             _scr = this;
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
+            lcd_debug1 = new LCD(NameObj + "-LCD-DEBUG1");
+            lcd_debug2 = new LCD(NameObj + "-LCD-DEBUG2");
+            lcd_info1 = new LCD(NameObj + "-LCD-INFO-O2");
+            lcd_info2 = new LCD(NameObj + "-LCD-INFO-RM");
             bats = new Batterys(NameObj);
             //connector_base = new Connector(NameObj + "-Коннектор base");
             //gateway = new Gateway(NameObj);
@@ -180,7 +235,9 @@ namespace MB_S_CONTROL_O2
             //values.Append(mergeblock_trusk2.TextInfo("СОЕД-НОСИТ-2"));
             values.Append(control.TextStatus());
             cockpit.OutText(values, 0);
-            //lcd_debug.OutText(values);
+
+            lcd_info1.OutText(control.TextInfoO2(), false);
+            lcd_info2.OutText(control.TextInfoDetali(), false);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
@@ -409,6 +466,76 @@ namespace MB_S_CONTROL_O2
                 if (count_internal < 0) count_internal = 0;
             }
         }
+        public class Inner
+        {
+            public string name;
+            public string rm1 = null;
+            public string rm2 = null;
+            public int count1 = 0;
+            public int count2 = 0;
+            IMySensorBlock sn1;
+            IMySensorBlock sn2;
+            public IMyDoor dr;
+            bool sn1_active = false;    // датчик входа
+            bool sn2_active = false;   // датчик выхода
+            public Inner(string name, IMyDoor dr, IMySensorBlock sn1, string rm1, IMySensorBlock sn2, string rm2)
+            {
+                this.name = name;
+                this.dr = dr;
+                this.rm1 = rm1;
+                this.rm2 = rm2;
+                this.sn1 = sn1;
+                this.sn2 = sn2;
+                this.dr.ApplyAction("OnOff_On");
+                this.dr.CloseDoor();
+                this.dr.CloseDoor();
+            }
+            public void Logic()
+            {
+                if (!sn1.IsActive && !sn2.IsActive && dr.Status == DoorStatus.Open)
+                {
+                    // Игрок не найден возле внутр двери
+                    dr.CloseDoor();
+                }
+                if ((sn1.IsActive || sn2.IsActive) && dr.Status == DoorStatus.Closed)
+                {
+                    // Игрокнайден возле внутр дверь закрыта и внешняя закрыта
+                    dr.OpenDoor();
+                }
+                // Логика направдения движения
+                if (sn1_active && !sn2_active && sn2.IsActive)
+                {
+                    // Выход
+                    sn2_active = true;
+                    count1--;
+                    count2++;
+                }
+                if (sn2_active && !sn1_active && sn1.IsActive)
+                {
+                    // Вход
+                    sn1_active = true;
+                    count1++;
+                    count2--;
+                }
+                if (sn2_active && sn1_active && !sn2.IsActive && !sn1.IsActive)
+                {
+                    // Вход
+                    sn1_active = false;
+                    sn2_active = false;
+                }
+
+                if (!sn1_active && !sn2_active)
+                {
+                    // Выход
+                    sn1_active = sn1.IsActive;
+                    sn2_active = sn2.IsActive;
+                }
+                if (count1 < 0) count1 = 0;
+                if (count2 < 0) count2 = 0;
+            }
+
+
+        }
         public class O2Tanks : BaseListTerminalBlock<IMyGasTank>
         {
             public O2Tanks(string name_obj) : base(name_obj) { AutoRefillBottles(true); }
@@ -535,9 +662,9 @@ namespace MB_S_CONTROL_O2
         }
         public class Control
         {
+            int index_rm = 1;
             public float curr_power_per { get; set; }
             List<RoomStatus> list_rs = new List<RoomStatus>();
-
             private List<IMyDoor> doors = new List<IMyDoor>();
             private List<IMySensorBlock> sensors = new List<IMySensorBlock>();
             private List<IMyAirVent> vents = new List<IMyAirVent>();
@@ -545,8 +672,16 @@ namespace MB_S_CONTROL_O2
             private List<IMyTextPanel> panels = new List<IMyTextPanel>();
             private List<IMyTextPanel> ipanels = new List<IMyTextPanel>();
             private List<Gateway> gateways = new List<Gateway>();
+            private List<Inner> inners = new List<Inner>();
+
             public Control(string name)
             {
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name));
+                _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name));
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyAirVent>(vents, r => r.CustomName.Contains(name));
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyInteriorLight>(lights, r => r.CustomName.Contains(name));
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyTextPanel>(panels, r => r.CustomName.Contains(name));
+                ipanels = panels.Where(x => x.CustomName.Contains("[lcd-info]")).ToList();
                 // Создадим структуру состояния помещений
                 foreach (room group in Enum.GetValues(typeof(room)))
                 {
@@ -557,62 +692,90 @@ namespace MB_S_CONTROL_O2
                         name = name_room[(int)group],
                         ox_level = 0,
                         vent_status = 0,
+                        doors = doors.Where(d => d.CustomName.Contains("[rm-" + group)).ToList(),
+                        vents = vents.Where(d => d.CustomName.Contains("[rm-" + group)).ToList(),
+                        lights = lights.Where(d => d.CustomName.Contains("[rm-" + group)).ToList(),
+                        panels = ipanels.Where(d => d.CustomName.Contains("[rm-" + group)).ToList(),
                     };
+                    rs.Close();
                     list_rs.Add(rs);
                 }
-
-
-
-
                 StringBuilder values = new StringBuilder();
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors, r => r.CustomName.Contains(name));
-                _scr.GridTerminalSystem.GetBlocksOfType<IMySensorBlock>(sensors, r => r.CustomName.Contains(name));
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyAirVent>(vents, r => r.CustomName.Contains(name));
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyInteriorLight>(lights, r => r.CustomName.Contains(name));
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyTextPanel>(panels, r => r.CustomName.Contains(name));
-                ipanels = panels.Where(x => x.CustomName.Contains("[lcd-info]")).ToList();
                 // gateway - получим шлюзы
                 List<IGrouping<string, IMyDoor>> dr_gr = doors.Where(d => d.CustomName.Contains("[dr-gateway-")).GroupBy(g => GetNameOfTemplate(g.CustomName, "[dr-gateway-")).ToList();
+                List<IGrouping<string, IMyDoor>> dr_grin = doors.Where(d => d.CustomName.Contains("[dr-inner-")).GroupBy(g => GetNameOfTemplate(g.CustomName, "[dr-inner-")).ToList();
+
+
+
                 lcd_debug.OutText("Старт ->", false);
                 lcd_debug.OutText("\nlist_rs -> " + list_rs.Count(), true);
                 lcd_debug.OutText("\ndoors -> " + doors.Count(), true);
                 lcd_debug.OutText("\nsensors -> " + sensors.Count(), true);
                 lcd_debug.OutText("\nvents -> " + vents.Count(), true);
-                lcd_debug.OutText("\nvents -> " + vents.Count(), true);
-                lcd_debug.OutText("\nipanels.Count() -> " + ipanels.Count(), true);
+                lcd_debug.OutText("\nvlights -> " + lights.Count(), true);
+                lcd_debug.OutText("\npanels -> " + panels.Count(), true);
+                lcd_debug.OutText("\nipanels -> " + ipanels.Count(), true);
+                lcd_debug.OutText("\ndr_grin -> " + dr_grin.Count(), true);
                 // Настройка Gateway
                 foreach (IGrouping<string, IMyDoor> gtw in dr_gr)
                 {
-                    lcd_debug.OutText("\nIGrouping -> " + gtw.Key, true);
-                    lcd_debug.OutText("\ngtw.Count() -> " + gtw.Count(), true);
+                    //lcd_debug.OutText("\nIGrouping -> " + gtw.Key, true);
+                    //lcd_debug.OutText("\ngtw.Count() -> " + gtw.Count(), true);
                     if (gtw.Count() == 2)
                     {
                         // Первая дверь
                         IMyDoor dr1 = gtw.First();
-                        lcd_debug.OutText("\ndr1 -> " + dr1.CustomName, true);
+                        //lcd_debug.OutText("\ndr1 -> " + dr1.CustomName, true);
                         string rm1 = GetNameOfTemplate(dr1.CustomName, "[rm-");
-                        lcd_debug.OutText("\nrm1 -> " + rm1, true);
+                        //lcd_debug.OutText("\nrm1 -> " + rm1, true);
                         IMySensorBlock sn1 = sensors.Where(s => s.CustomName.Contains(gtw.Key) && s.CustomName.Contains(rm1)).FirstOrDefault();
-                        lcd_debug.OutText("\nsn1 -> " + sn1.CustomName, true);
+                        //lcd_debug.OutText("\nsn1 -> " + sn1.CustomName, true);
                         // Вторая дверь
                         IMyDoor dr2 = gtw.Last();
-                        lcd_debug.OutText("\ndr2 -> " + dr2.CustomName, true);
+                        //lcd_debug.OutText("\ndr2 -> " + dr2.CustomName, true);
                         string rm2 = GetNameOfTemplate(dr2.CustomName, "[rm-");
-                        lcd_debug.OutText("\nrm2 -> " + rm2, true);
+                        //lcd_debug.OutText("\nrm2 -> " + rm2, true);
                         IMySensorBlock sn2 = sensors.Where(s => s.CustomName.Contains(gtw.Key) && s.CustomName.Contains(rm2)).FirstOrDefault();
-                        lcd_debug.OutText("\nsn2 -> " + sn2.CustomName, true);
+                        //lcd_debug.OutText("\nsn2 -> " + sn2.CustomName, true);
                         Gateway dr_gtw = new Gateway(gtw.Key, dr1, sn1, rm1, dr2, sn2, rm2);
                         gateways.Add(dr_gtw);
                     }
                 }
+                // Настройка dr-inner-
+                foreach (IGrouping<string, IMyDoor> inr in dr_grin)
+                {
+                    //lcd_debug.OutText("\nIGrouping -> " + inr.Key, true);
+                    //lcd_debug.OutText("\ngtw.Count() -> " + inr.Count(), true);
+                    if (inr.Count() == 1)
+                    {
+                        // Первая дверь
+                        IMyDoor dr = inr.First();
+                        //lcd_debug.OutText("\ndr1 -> " + dr1.CustomName, true);
+
+                        //lcd_debug.OutText("\nrm1 -> " + rm1, true);
+                        List<IMySensorBlock> sns = sensors.Where(s => s.CustomName.Contains(inr.Key)).ToList();
+                        IMySensorBlock sn1 = null;
+                        IMySensorBlock sn2 = null;
+                        string rm1 = null;
+                        string rm2 = null;
+                        if (sns.Count() == 2)
+                        {
+                            sn1 = sns.First();
+                            rm1 = GetNameOfTemplate(sn1.CustomName, "[rm-");
+                            sn2 = sns.Last();
+                            rm2 = GetNameOfTemplate(sn2.CustomName, "[rm-");
+                        }
+                        //lcd_debug.OutText("\nrm2 -> " + rm2, true);
+                        //lcd_debug.OutText("\nsn2 -> " + sn2.CustomName, true);
+                        if (sn1 != null && sn2 != null && rm1 != null && rm2 != null)
+                        {
+                            Inner dr_inr = new Inner(inr.Key, dr, sn1, rm1, sn2, rm2);
+                            inners.Add(dr_inr);
+                        }
+                    }
+                }
                 lcd_debug.OutText("\ngateways.Count() -> " + gateways.Count(), true);
-                // Настройка info-panel
-
-
-                //foreach (room group in Enum.GetValues(typeof(room)))
-                //{
-
-                //}
+                lcd_debug.OutText("\ninners.Count() -> " + inners.Count(), true);
 
             }
             public string GetNameOfTemplate(string str, string tmp)
@@ -632,6 +795,10 @@ namespace MB_S_CONTROL_O2
             public void SetTextLCDInfo(room rm, Color color)
             {
                 List<IMyTextPanel> objs = panels.Where(x => x.CustomName.Contains("[rm-" + rm.ToString() + "]")).ToList();
+                SetTextLCDInfo(objs, rm, color);
+            }
+            public void SetTextLCDInfo(List<IMyTextPanel> objs, room rm, Color color)
+            {
                 foreach (IMyTextPanel obj in objs)
                 {
                     obj.SetValue("Content", (Int64)1);
@@ -660,6 +827,18 @@ namespace MB_S_CONTROL_O2
             {
                 switch (argument)
                 {
+                    case "rm+":
+                        {
+                            if (index_rm > list_rs.Count() - 1) index_rm = 1;
+                            else index_rm++;
+                            break;
+                        }
+                    case "rm-":
+                        {
+                            if (index_rm < 1) index_rm = list_rs.Count() - 1;
+                            else index_rm--;
+                            break;
+                        }
                     case "load":
                         storage.LoadFromStorage();
                         break;
@@ -669,36 +848,131 @@ namespace MB_S_CONTROL_O2
                     default:
                         break;
                 }
+                StringBuilder values = new StringBuilder();
+                lcd_debug1.OutText("Кислород------", false);
+                foreach (RoomStatus rs in list_rs)
+                {
+                    float Ol = rs.cur_ox_level;
+                    lcd_debug1.OutText("\nПомещение " + rs.room + ", Ol=" + Ol, true);
+                    //lcd_debug1.OutText("\ndoors " + rs.doors.Count(), true);
+                    //rs.PowerInner(Ol > 0.9); // Отключить двери нет воздуха
+                    if (Ol > 0.9)
+                    {
+                        SetTextLCDInfo(rs.panels, rs.room, green);
+                    }
+                    else if (Ol == 0)
+                    {
+                        SetTextLCDInfo(rs.room, red);
+                    }
+                    else
+                    {
+                        SetTextLCDInfo(rs.room, yellow);
+                    }
+                }
                 // Проверим двери
                 foreach (Gateway gtw in gateways)
                 {
                     gtw.Logic();
                 }
-                // Переберем таблички и покажем кислород
-                foreach (room group in Enum.GetValues(typeof(room)))
+                //StringBuilder values1 = new StringBuilder();
+                lcd_debug2.OutText("ДВЕРИ------", false);
+                foreach (Inner inr in inners)
                 {
-                    IMyAirVent vent = vents.Where(x => x.CustomName.Contains("[rm-" + group.ToString() + "]")).FirstOrDefault();
-                    if (vent != null)
+
+                    RoomStatus rs1 = list_rs.Where(l => "[rm-" + l.room.ToString() + "]" == inr.rm1).FirstOrDefault();
+                    RoomStatus rs2 = list_rs.Where(l => "[rm-" + l.room.ToString() + "]" == inr.rm2).FirstOrDefault();
+                    lcd_debug2.OutText("\ninr -" + inr.name + ", rm1 -" + inr.rm1 + ", rm2 -" + inr.rm2, true);
+                    bool bol1 = rs1 != null ? rs1.cur_ox_level > 0.9 : false;
+                    bool bol2 = rs2 != null ? rs2.cur_ox_level > 0.9 : false;
+                    lcd_debug2.OutText("\nbol1=" + bol1.ToString() + "bol2=" + bol2.ToString(), true);
+                    if (bol1 != bol2)
                     {
-                        float Ol = vent.GetOxygenLevel();
-                        if (Ol > 0.9)
-                        {
-                            SetTextLCDInfo(group, green);
-                        }
-                        else if (Ol == 0)
-                        {
-                            SetTextLCDInfo(group, red);
-                        }
-                        else
-                        {
-                            SetTextLCDInfo(group, yellow);
-                        }
+                        inr.dr.ApplyAction("OnOff_Off");
+                        lcd_debug2.OutText("\nOFF", true);
+                    }
+                    else
+                    {
+                        inr.dr.ApplyAction("OnOff_On");
+                        lcd_debug2.OutText("\nON", true);
+                        inr.Logic();
                     }
                 }
                 if (updateSource == UpdateType.Update100)
                 {
                     curr_power_per = (bats.CurrentPower() / bats.MaxPower() * 100.0f);
                 }
+            }
+
+            public string TextInfoO2()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("==СПИСОК ПОМЕЩЕНИЙ==\n");
+                foreach (RoomStatus rs in list_rs)
+                {
+                    if ((int)rs.room > 0)
+                    {
+                        float Ol = rs.cur_ox_level;
+                        if ((int)rs.room == index_rm)
+                        {
+
+                        }
+                        values.Append(((int)rs.room == index_rm ? "->" : "  ") + "[" + ((Ol > 0.9) ? igreen.ToString() : ((Ol == 0) ? ired.ToString() : iyellow.ToString())) + "]" + rs.name + "\t" + PText.GetPersent(Ol) + "\n");
+                    }
+                }
+                return values.ToString();
+            }
+            public string TextInfoDetali()
+            {
+                StringBuilder values = new StringBuilder();
+                RoomStatus rs = list_rs.Where(l => l.room.ToString() == ((room)index_rm).ToString()).FirstOrDefault();
+                if (rs != null)
+                {
+                    values.Append("==ПОМЕЩЕНИЕ [ " + rs.name + " ]==\n");
+                    values.Append("+-О2 в помещении" + PText.GetPersent(rs.cur_ox_level) + "\n");
+                    values.Append("| " + PText.GetScalePersent(rs.cur_ox_level, 20) + "\n");
+                    values.Append("+-Вентиляторы [" + rs.vents.Count() + "]" + "\n");
+                    foreach (IMyAirVent vnt in rs.vents)
+                    {
+                        values.Append("| |-" + vnt.Status.ToString() + " - " + (vnt.Depressurize ? iblue.ToString() : igreen.ToString()) + "\n");
+                    }
+                    if (rs.doors != null && rs.doors.Count() > 0)
+                    {
+                        List<IMyDoor> drs_gtw = rs.doors.Where(d => d.CustomName.Contains("[dr-gateway-")).ToList();
+                        List<IMyDoor> drs_inr = rs.doors.Where(d => d.CustomName.Contains("[dr-inner-")).ToList();
+                        List<IMyDoor> drs_gate = rs.doors.Where(d => d.CustomName.Contains("[dr-gate-")).ToList();
+                        if (drs_gtw != null)
+                        {
+                            values.Append("+-Двери 'GATEWAY' [" + drs_gtw.Count() + "]" + "\n");
+                            foreach (IMyDoor dr in drs_gtw)
+                            {
+                                //IMyFunctionalBlock
+                                values.Append("| |-" + GetNameOfTemplate(dr.CustomName, "[dr-") + " - " + dr.Status + " E:" + (dr.Enabled ? igreen.ToString() : ired.ToString()) +
+                                    " O:" + (dr.Status == DoorStatus.Open ? igreen.ToString() : (dr.Status == DoorStatus.Closed ? ired.ToString() : iyellow.ToString())) + "\n");
+                            }
+                        }
+                        if (drs_inr != null)
+                        {
+                            values.Append("+-Двери 'INNER' [" + drs_gtw.Count() + "]" + "\n");
+                            foreach (IMyDoor dr in drs_inr)
+                            {
+                                //IMyFunctionalBlock
+                                values.Append("| |-" + GetNameOfTemplate(dr.CustomName, "[dr-") + " - " + dr.Status + " E:" + (dr.Enabled ? igreen.ToString() : ired.ToString()) +
+                                    " O:" + (dr.Status == DoorStatus.Open ? igreen.ToString() : (dr.Status == DoorStatus.Closed ? ired.ToString() : iyellow.ToString())) + "\n");
+                            }
+                        }
+                        if (drs_gate != null)
+                        {
+                            values.Append("+-Двери 'GATE' [" + drs_gate.Count() + "]" + "\n");
+                            //foreach (IMyDoor dr in drs_inr)
+                            //{
+                            //    //IMyFunctionalBlock
+                            //    values.Append("| |-" + GetNameOfTemplate(dr.CustomName, "[dr-") + " - " + dr.Status + " E:" + (dr.Enabled ? igreen.ToString() : ired.ToString()) +
+                            //        " O:" + (dr.Status == DoorStatus.Open ? igreen.ToString() : (dr.Status == DoorStatus.Closed ? ired.ToString() : iyellow.ToString())) + "\n");
+                            //}
+                        }
+                    }
+                }
+                return values.ToString();
             }
         }
     }
@@ -737,6 +1011,11 @@ namespace MB_S_CONTROL_O2
 // [MB-S01]-[lcd-info] [rm-angar_work]
 // [MB-S01]-[lcd-info] [rm-operators_dors]
 // [MB-S01]-[lcd-info] [rm-operators_weapon]
+// [MB-S01]-[lcd-info] [rm-gateway]
+// [MB-S01]-[lcd-info] [rm-transition_right]
+// [MB-S01]-[lcd-info] [rm-transition_left]
+// [MB-S01]-[lcd-info] [rm-fabric_tech]
+
 
 // [MB-S01]-Vent [rm-angar_work]
 // [MB-S01]-Vent [rm-cabin]
@@ -751,6 +1030,10 @@ namespace MB_S_CONTROL_O2
 // [MB-S01]-Vent [rm-sg_work]
 // [MB-S01]-Vent [rm-operators_dors]
 // [MB-S01]-Vent [rm-operators_weapon]
+// [MB-S01]-Vent [rm-gateway]
+// [MB-S01]-Vent [rm-transition_right]
+// [MB-S01]-Vent [rm-transition_left]
+// [MB-S01]-Vent [rm-fabric_tech]
 
 // [MB-S01]-sn [dr-inner-cabin-relaxation] [rm-cabin]
 // [MB-S01]-dr [dr-inner-cabin-relaxation] [rm-cabin] [rm-relaxation]
@@ -797,6 +1080,34 @@ namespace MB_S_CONTROL_O2
 // [MB-S01]-dr [dr-inner-oweapon-awork] [rm-operators_weapon] [rm-angar_work]
 // [MB-S01]-sn [dr-inner-oweapon-awork] [rm-angar_work]
 
+// [MB-S01]-sn [dr-inner-gateway-rtransition] [rm-gateway]
+// [MB-S01]-dr [dr-inner-gateway-rtransition] [rm-gateway] [rm-transition_right]
+// [MB-S01]-sn [dr-inner-gateway-rtransition] [rm-transition_right]
+
+// [MB-S01]-sn [dr-inner-tfabric-rtransition] [rm-fabric_tech]
+// [MB-S01]-dr [dr-inner-tfabric-rtransition] [rm-fabric_tech] [rm-transition_right]
+// [MB-S01]-sn [dr-inner-tfabric-rtransition] [rm-transition_right]
+
+// [MB-S01]-sn [dr-inner-tfabric-fabric] [rm-fabric_tech]
+// [MB-S01]-dr [dr-inner-tfabric-fabric] [rm-fabric_tech] [rm-fabric]
+// [MB-S01]-sn [dr-inner-tfabric-fabric] [rm-fabric]
+
+// [MB-S01]-sn [dr-inner-doperators-rtransition] [rm-operators_dors]
+// [MB-S01]-dr [dr-inner-doperators-rtransition] [rm-operators_dors] [rm-transition_right]
+// [MB-S01]-sn [dr-inner-doperators-rtransition] [rm-transition_right]
+
+// [MB-S01]-sn [dr-inner-oweapon-ltransition] [rm-operators_weapon]
+// [MB-S01]-dr [dr-inner-oweapon-ltransition] [rm-operators_weapon] [rm-transition_left]
+// [MB-S01]-sn [dr-inner-oweapon-ltransition] [rm-transition_left]
+
+// [MB-S01]-sn [dr-inner-tfabric-ltransition] [rm-fabric_tech]
+// [MB-S01]-dr [dr-inner-tfabric-ltransition] [rm-fabric_tech] [rm-transition_left]
+// [MB-S01]-sn [dr-inner-tfabric-ltransition] [rm-transition_left]
+
+// [MB-S01]-sn [dr-inner-gateway-ltransition] [rm-gateway]
+// [MB-S01]-dr [dr-inner-gateway-ltransition] [rm-gateway] [rm-transition_left]
+// [MB-S01]-sn [dr-inner-gateway-ltransition] [rm-transition_left]
+
 // [MB-S01]-sn [dr-gateway-cabin] [rm-cabin]
 // [MB-S01]-dr [dr-gateway-cabin] [rm-cabin]
 // [MB-S01]-dr [dr-gateway-cabin] [rm-space]
@@ -831,6 +1142,31 @@ namespace MB_S_CONTROL_O2
 // [MB-S01]-dr [dr-gateway-sg_work_oweapon] [rm-sg_work]
 // [MB-S01]-dr [dr-gateway-sg_work_oweapon] [rm-operators_weapon]
 // [MB-S01]-sn [dr-gateway-sg_work_oweapon] [rm-operators_weapon]
+
+// [MB-S01]-sn [dr-gateway-gateway] [rm-gateway]
+// [MB-S01]-dr [dr-gateway-gateway] [rm-gateway]
+// [MB-S01]-dr [dr-gateway-gateway] [rm-space]
+// [MB-S01]-sn [dr-gateway-gateway] [rm-space]
+
+// [MB-S01]-sn [dr-gateway-rtransition] [rm-transition_right]
+// [MB-S01]-dr [dr-gateway-rtransition] [rm-transition_right]
+// [MB-S01]-dr [dr-gateway-rtransition] [rm-angar_tech]
+// [MB-S01]-sn [dr-gateway-rtransition] [rm-angar_tech]
+
+// [MB-S01]-sn [dr-gateway-ltransition] [rm-transition_left]
+// [MB-S01]-dr [dr-gateway-ltransition] [rm-transition_left]
+// [MB-S01]-dr [dr-gateway-ltransition] [rm-angar_tech]
+// [MB-S01]-sn [dr-gateway-ltransition] [rm-angar_tech]
+
+// [MB-S01]-sn [dr-gateway-rtransition-space] [rm-transition_right]
+// [MB-S01]-dr [dr-gateway-rtransition-space] [rm-transition_right]
+// [MB-S01]-dr [dr-gateway-rtransition-space] [rm-space]
+// [MB-S01]-sn [dr-gateway-rtransition-space] [rm-space]
+
+// [MB-S01]-sn [dr-gateway-ltransition-space] [rm-transition_left]
+// [MB-S01]-dr [dr-gateway-ltransition-space] [rm-transition_left]
+// [MB-S01]-dr [dr-gateway-ltransition-space] [rm-space]
+// [MB-S01]-sn [dr-gateway-ltransition-space] [rm-space]
 
 //sn [dr-inner-01] [rm-operators] - sn
 //dr [dr-inner-01] [rm-operators] [rm-angar_tech] - door
