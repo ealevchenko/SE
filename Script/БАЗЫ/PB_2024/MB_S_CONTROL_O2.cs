@@ -91,6 +91,83 @@ namespace MB_S_CONTROL_O2
 
         static Program _scr;
 
+        class Help
+        {
+            static public float GetOxygenLevel(List<IMyAirVent> obj)
+            {
+                return obj != null && obj.Count() > 0 ? obj.ToList().Average(c => c.GetOxygenLevel()) : 0;
+            }
+            // Помещение разермитизированно
+            static public bool isPressurizationEnabled(List<IMyAirVent> obj)
+            {
+                if (obj != null)
+                {
+                    foreach (IMyAirVent vn in obj)
+                    {
+                        if (!vn.PressurizationEnabled)
+                        {
+                            return false;
+                        }
+                    }
+
+                }
+                return true;
+            }
+            // Разгерметизировать
+            static public void Depressurize(List<IMyAirVent> obj, bool on)
+            {
+                if (obj != null)
+                {
+                    foreach (IMyAirVent vn in obj)
+                    {
+                        vn.Depressurize = on;
+                    }
+                }
+            }
+            static public void OpenClose(List<IMyDoor> obj, bool open)
+            {
+                if (obj != null)
+                {
+                    foreach (IMyDoor dr in obj)
+                    {
+                        if (open) dr.OpenDoor(); else dr.CloseDoor();
+                    }
+                }
+            }
+            static public bool isCloseDoors(List<IMyDoor> obj)
+            {
+                if (obj != null)
+                {
+                    foreach (IMyDoor dr in obj)
+                    {
+                        if (dr.Status != DoorStatus.Closed)
+                        {
+                            return false;
+                        }
+                    }
+
+                }
+                return true;
+            }
+            static public bool isOpenDoors(List<IMyDoor> obj)
+            {
+                if (obj != null)
+                {
+                    foreach (IMyDoor dr in obj)
+                    {
+                        if (dr.Status != DoorStatus.Open)
+                        {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+            static public float LevelDoors(List<IMyDoor> obj)
+            {
+                return obj != null && obj.Count() > 0 ? obj.ToList().Average(c => c.OpenRatio) : 0;
+            }
+        }
         public class RoomStatus
         {
             public room room { get; set; }
@@ -536,6 +613,109 @@ namespace MB_S_CONTROL_O2
 
 
         }
+        public class Gate
+        {
+            private bool open { get; set; }
+            private bool close { get; set; }
+
+            public string name;
+            public string rm = null;
+            //public int count1 = 0;
+            //public int count2 = 0;
+            public List<IMyDoor> drs;
+            public List<IMyDoor> drs_inr;
+            public List<IMyDoor> drs_gtw;
+            List<IMyAirVent> vents;
+            //bool sn1_active = false;    // датчик входа
+            //bool sn2_active = false;   // датчик выхода
+            public Gate(string name, List<IMyDoor> drs, string rm, List<IMyAirVent> vents, List<IMyDoor> drs_gtw, List<IMyDoor> drs_inr)
+            {
+                this.name = name;
+                this.drs = drs;
+                this.drs_inr = drs_inr;
+                this.drs_gtw = drs_gtw;
+                this.drs = drs;
+                this.vents = vents;
+                this.rm = rm;
+                OnOff(true);
+                this.Close();
+            }
+            public void OnOff(bool on)
+            {
+                foreach (IMyDoor dr in drs)
+                {
+                    if (on) dr.ApplyAction("OnOff_On");
+                    else dr.ApplyAction("OnOff_Off");
+                }
+            }
+            private void Close()
+            {
+                foreach (IMyDoor dr in drs)
+                {
+                    dr.CloseDoor();
+                }
+            }
+            private void Open()
+            {
+                foreach (IMyDoor dr in drs)
+                {
+                    dr.OpenDoor();
+                }
+            }
+
+            public bool OpenGate()
+            {
+                bool result = false;
+
+                bool o_gtw = Help.isOpenDoors(this.drs_gtw);
+                bool o_inr = Help.isOpenDoors(this.drs_inr);
+                float ol = Help.GetOxygenLevel(this.vents);
+                bool press = Help.isPressurizationEnabled(this.vents);
+                // закрыть
+                if (o_gtw) {
+                    Help.OpenClose(this.drs_gtw, false);
+                }
+                if (o_inr) {
+                    Help.OpenClose(this.drs_inr, false);
+                }
+                if (!o_gtw && !o_inr) {
+                    if (press)
+                    {
+                        Help.Depressurize(this.vents, true); // включить разгермитизацию
+                    }
+                    else {
+                        if (ol == 0f)
+                        {
+                            Help.OpenClose(this.drs, true);
+                        }
+                        else { 
+                            // проверить на заполненый бак кислорода! может некуда закачивать!
+                        }
+                    }
+                }
+                result = Help.isOpenDoors(this.drs);
+                return result;
+            }
+            public bool CloseGate()
+            {
+                bool result = false;
+
+                return result;
+            }
+
+            public void Logic(string argument, UpdateType updateSource)
+            {
+                switch (argument)
+                {
+                    case "open-gate": { open = true; close = false; break; }
+                    case "close-gate": { close = true; open = false; break; }
+                    default: break;
+                }
+                if (open && OpenGate()) open = false;
+                if (close && CloseGate()) close = false;
+            }
+        }
+
         public class O2Tanks : BaseListTerminalBlock<IMyGasTank>
         {
             public O2Tanks(string name_obj) : base(name_obj) { AutoRefillBottles(true); }
@@ -671,8 +851,9 @@ namespace MB_S_CONTROL_O2
             private List<IMyInteriorLight> lights = new List<IMyInteriorLight>();
             private List<IMyTextPanel> panels = new List<IMyTextPanel>();
             private List<IMyTextPanel> ipanels = new List<IMyTextPanel>();
-            private List<Gateway> gateways = new List<Gateway>();
-            private List<Inner> inners = new List<Inner>();
+            private List<Gateway> gateways = new List<Gateway>(); // Классы дверей шлюз (2дв 2датч.)
+            private List<Inner> inners = new List<Inner>(); // Классы дверей межкоютных с учетом разницы O2 (1дв 2датч.)
+            private List<Gate> gates = new List<Gate>(); // Классы ангарных дверей с учетом O2 (1...дв)
 
             public Control(string name)
             {
@@ -704,19 +885,19 @@ namespace MB_S_CONTROL_O2
                 // gateway - получим шлюзы
                 List<IGrouping<string, IMyDoor>> dr_gr = doors.Where(d => d.CustomName.Contains("[dr-gateway-")).GroupBy(g => GetNameOfTemplate(g.CustomName, "[dr-gateway-")).ToList();
                 List<IGrouping<string, IMyDoor>> dr_grin = doors.Where(d => d.CustomName.Contains("[dr-inner-")).GroupBy(g => GetNameOfTemplate(g.CustomName, "[dr-inner-")).ToList();
-
-
-
+                List<IGrouping<string, IMyDoor>> dr_gate = doors.Where(d => d.CustomName.Contains("[dr-gate-")).GroupBy(g => GetNameOfTemplate(g.CustomName, "[dr-gate-")).ToList();
                 lcd_debug.OutText("Старт ->", false);
-                lcd_debug.OutText("\nlist_rs -> " + list_rs.Count(), true);
-                lcd_debug.OutText("\ndoors -> " + doors.Count(), true);
-                lcd_debug.OutText("\nsensors -> " + sensors.Count(), true);
-                lcd_debug.OutText("\nvents -> " + vents.Count(), true);
-                lcd_debug.OutText("\nvlights -> " + lights.Count(), true);
-                lcd_debug.OutText("\npanels -> " + panels.Count(), true);
-                lcd_debug.OutText("\nipanels -> " + ipanels.Count(), true);
+                //lcd_debug.OutText("\nlist_rs -> " + list_rs.Count(), true);
+                //lcd_debug.OutText("\ndoors -> " + doors.Count(), true);
+                //lcd_debug.OutText("\nsensors -> " + sensors.Count(), true);
+                //lcd_debug.OutText("\nvents -> " + vents.Count(), true);
+                //lcd_debug.OutText("\nvlights -> " + lights.Count(), true);
+                //lcd_debug.OutText("\npanels -> " + panels.Count(), true);
+                //lcd_debug.OutText("\nipanels -> " + ipanels.Count(), true);
+                lcd_debug.OutText("\ndr_gr -> " + dr_gr.Count(), true);
                 lcd_debug.OutText("\ndr_grin -> " + dr_grin.Count(), true);
-                // Настройка Gateway
+                lcd_debug.OutText("\ndr_gate -> " + dr_gate.Count(), true);
+                // Настройка дверей Gateway
                 foreach (IGrouping<string, IMyDoor> gtw in dr_gr)
                 {
                     //lcd_debug.OutText("\nIGrouping -> " + gtw.Key, true);
@@ -741,7 +922,7 @@ namespace MB_S_CONTROL_O2
                         gateways.Add(dr_gtw);
                     }
                 }
-                // Настройка dr-inner-
+                // Настройка дверей inner
                 foreach (IGrouping<string, IMyDoor> inr in dr_grin)
                 {
                     //lcd_debug.OutText("\nIGrouping -> " + inr.Key, true);
@@ -774,9 +955,23 @@ namespace MB_S_CONTROL_O2
                         }
                     }
                 }
+                // Настройка ангарных дверей gates
+                foreach (IGrouping<string, IMyDoor> gts in dr_gate)
+                {
+                    if (gts != null && gts.Count() > 0)
+                    {
+                        string rm = GetNameOfTemplate(gts.ToList()[0].CustomName, "[rm-");
+                        List<IMyAirVent> vnts = vents.Where(d => d.CustomName.Contains(rm)).ToList();
+                        List<IMyDoor> drinr = doors.Where(d => d.CustomName.Contains("[dr-inner-") && d.CustomName.Contains(rm)).ToList();
+                        List<IMyDoor> drgtw = doors.Where(d => d.CustomName.Contains("[dr-gateway-") && d.CustomName.Contains(rm)).ToList();
+                        Gate gt = new Gate(gts.Key, gts.ToList(), rm, vnts, drgtw, drinr);
+                    }
+                }
+
+
                 lcd_debug.OutText("\ngateways.Count() -> " + gateways.Count(), true);
                 lcd_debug.OutText("\ninners.Count() -> " + inners.Count(), true);
-
+                lcd_debug.OutText("\ngates.Count() -> " + gates.Count(), true);
             }
             public string GetNameOfTemplate(string str, string tmp)
             {
