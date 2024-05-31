@@ -81,6 +81,7 @@ namespace MB_S_CONTROL_O2
 
         static Lightings lightings;
         static Gateway gateway;
+        static Gate gt_angar_work;
 
         static O2Tanks o2_tanks_base;
         static BaseShipController cockpit;
@@ -293,6 +294,7 @@ namespace MB_S_CONTROL_O2
             lcd_info1 = new LCD(NameObj + "-LCD-INFO-O2");
             lcd_info2 = new LCD(NameObj + "-LCD-INFO-RM");
             bats = new Batterys(NameObj);
+            gt_angar_work = new Gate(NameObj, "dr-gate-angar_work");
             //connector_base = new Connector(NameObj + "-Коннектор base");
             //gateway = new Gateway(NameObj);
             lightings = new Lightings(NameObj, "[lighting]");
@@ -311,6 +313,9 @@ namespace MB_S_CONTROL_O2
         public void Main(string argument, UpdateType updateSource)
         {
             //gateway.Logic();
+            //gt_angar_work.Logic(argument, updateSource);
+
+
             switch (argument) { default: break; }
             count_room[(int)room.space] = 0;// В космосе людей не считаем
             control.Logic(argument, updateSource);// Логика системы контроля питания
@@ -319,7 +324,7 @@ namespace MB_S_CONTROL_O2
 
             }
             StringBuilder values = new StringBuilder();
-            values.Append(bats.TextInfo());
+            values.Append(bats.TextInfo(null));
             values.Append(o2_tanks_base.TextInfo("O2-НОСИТЕЛЯ"));
             //values.Append(connector_base.TextInfo("К:Base") + "\n");
             //values.Append(mergeblock_trusk1.TextInfo("СОЕД-НОСИТ-1"));
@@ -339,103 +344,22 @@ namespace MB_S_CONTROL_O2
         }
         public class Batterys : BaseListTerminalBlock<IMyBatteryBlock>
         {
-            //         public int count_work_batterys { get { return list_obj.Where(n => !((IMyTerminalBlock)n).CustomName.Contains(tag_batterys_duty)).Count(); } }
-            public bool charger = false;
-            public Batterys(string name_obj) : base(name_obj)
-            {
-                Init();
-            }
-            public Batterys(string name_obj, string tag) : base(name_obj, tag)
-            {
-                Init();
-            }
-            public void Init()
-            {
-                base.On();
-                charger = IsCharger();
-            }
-            public float MaxPower()
-            {
-                return base.list_obj.Select(b => b.MaxStoredPower).Sum();
-            }
-            public float CurrentPower()
-            {
-                return base.list_obj.Select(b => b.CurrentStoredPower).Sum();
-            }
-            public float CurrentPersent()
-            {
-                return base.list_obj.Select(b => b.CurrentStoredPower).Sum() / base.list_obj.Select(b => b.MaxStoredPower).Sum();
-            }
-            public int CountCharger()
-            {
-                List<IMyBatteryBlock> res = base.list_obj.Where(b => ((IMyBatteryBlock)b).ChargeMode == ChargeMode.Recharge).ToList();
-                return res.Count();
-            }
-            public int CountAuto()
-            {
-                List<IMyBatteryBlock> res = base.list_obj.Where(b => ((IMyBatteryBlock)b).ChargeMode == ChargeMode.Auto).ToList();
-                return res.Count();
-            }
-            public bool IsCharger()
-            {
-                int count_charger = CountCharger();
-                return count_charger > 0;
-                //return count_work_batterys > 0 && count_charger > 0 && count_work_batterys == count_charger ? true : false;
-            }
-            public bool IsAuto()
-            {
-                int count_auto = CountAuto();
-                return Count > 0 && count_auto > 0 && Count == count_auto ? true : false;
-            }
-            public void Charger()
-            {
-                foreach (IMyBatteryBlock obj in base.list_obj)
-                {
-                    // проверка батарея дежурного режима
-                    //if (!obj.CustomName.Contains(tag_batterys_duty))
-                    //{
-                    //    obj.ChargeMode = ChargeMode.Recharge;
-                    //}
-                    obj.ChargeMode = ChargeMode.Recharge;
-                }
-                charger = IsCharger();
-            }
-            public void Auto()
-            {
-                foreach (IMyBatteryBlock obj in base.list_obj)
-                {
-                    obj.ChargeMode = ChargeMode.Auto;
-                }
-                charger = IsCharger();
-            }
-            public void Logic(string argument, UpdateType updateSource)
-            {
-                switch (argument)
-                {
-                    case "bat_charger":
-                        Charger();
-                        break;
-                    case "bat_auto":
-                        Auto();
-                        break;
-                    case "bat_toggle":
-                        if (charger) { Auto(); } else { Charger(); }
-                        break;
-                    default:
-                        break;
-                }
-
-                if (updateSource == UpdateType.Update10)
-                {
-
-                }
-
-            }
-            public string TextInfo()
+            public float MaxPower { get { return base.list_obj.Select(b => b.MaxStoredPower).Sum(); } }
+            public float CurrentPower { get { return base.list_obj.Select(b => b.CurrentStoredPower).Sum(); } }
+            public float CurrentPersent { get { return base.list_obj.Select(b => b.CurrentStoredPower).Sum() / base.list_obj.Select(b => b.MaxStoredPower).Sum(); } }
+            public float CountCharger { get { return base.list_obj.Where(b => ((IMyBatteryBlock)b).ChargeMode == ChargeMode.Recharge).ToList().Count(); } }
+            public float CountAuto { get { return base.list_obj.Where(b => ((IMyBatteryBlock)b).ChargeMode == ChargeMode.Auto).ToList().Count(); } }
+            public bool IsCharger { get { return base.list_obj.Where(b => ((IMyBatteryBlock)b).ChargeMode == ChargeMode.Recharge).ToList().Count() > 0; } }
+            public bool IsAuto { get { return base.list_obj.Where(b => ((IMyBatteryBlock)b).ChargeMode == ChargeMode.Auto).ToList().Count() > 0; } }
+            public Batterys(string name_obj) : base(name_obj) { }
+            public Batterys(string name_obj, string tag) : base(name_obj, tag) { }
+            public void Charger() { foreach (IMyBatteryBlock obj in base.list_obj) { obj.ChargeMode = ChargeMode.Recharge; } }
+            public void Auto() { foreach (IMyBatteryBlock obj in base.list_obj) { obj.ChargeMode = ChargeMode.Auto; } }
+            public string TextInfo(string name)
             {
                 StringBuilder values = new StringBuilder();
-                values.Append("БАТАРЕЯ: [" + Count + "] [А-" + CountAuto() + " З-" + CountCharger() + "]" + PText.GetCurrentOfMax(CurrentPower(), MaxPower(), "MW") + "\n");
-                values.Append("|- ЗАР:  " + PText.GetScalePersent(CurrentPower() / MaxPower(), 20) + "\n");
+                values.Append((!String.IsNullOrWhiteSpace(name) ? name : "БАТАРЕИ") + ": [" + Count + "] [А-" + CountAuto + " З-" + CountCharger + "]" + PText.GetCurrentOfMax(CurrentPower, MaxPower, "MW") + "\n");
+                values.Append("|- ЗАР:  " + PText.GetScalePersent(CurrentPower / MaxPower, 20) + "\n");
                 return values.ToString();
             }
         }
@@ -648,11 +572,26 @@ namespace MB_S_CONTROL_O2
                 this.drs = drs;
                 this.drs_inr = drs_inr;
                 this.drs_gtw = drs_gtw;
-                this.drs = drs;
                 this.vents = vents;
                 this.rm = rm;
                 OnOff(true);
                 this.Close();
+            }
+            public Gate(string NameObj, string name)
+            {
+                this.name = name;
+                List<IMyDoor> dors = new List<IMyDoor>();
+                List<IMyAirVent> vents = new List<IMyAirVent>();
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(dors, r => r.CustomName.Contains(NameObj));
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyAirVent>(vents, r => r.CustomName.Contains(name));
+                this.drs = dors.Where(d => d.CustomName.Contains("[" + name + "]")).ToList();
+                if (this.drs != null && this.drs.Count() > 0)
+                {
+                    this.rm = Help.GetNameOfTemplate(this.drs.ToList()[0].CustomName, "[rm-");
+                    this.vents = vents.Where(d => d.CustomName.Contains(rm)).ToList();
+                    this.drs_inr = dors.Where(d => d.CustomName.Contains("[dr-inner-") && d.CustomName.Contains(rm)).ToList();
+                    this.drs_gtw = dors.Where(d => d.CustomName.Contains("[dr-gateway-") && d.CustomName.Contains(rm)).ToList();
+                }
             }
             public void OnOff(bool on)
             {
@@ -1034,10 +973,9 @@ namespace MB_S_CONTROL_O2
                         List<IMyDoor> drinr = doors.Where(d => d.CustomName.Contains("[dr-inner-") && d.CustomName.Contains(rm)).ToList();
                         List<IMyDoor> drgtw = doors.Where(d => d.CustomName.Contains("[dr-gateway-") && d.CustomName.Contains(rm)).ToList();
                         Gate gt = new Gate(gts.Key, gts.ToList(), rm, vnts, drgtw, drinr);
+                        gates.Add(gt);
                     }
                 }
-
-
                 lcd_debug.OutText("\ngateways.Count() -> " + gateways.Count(), true);
                 lcd_debug.OutText("\ninners.Count() -> " + inners.Count(), true);
                 lcd_debug.OutText("\ngates.Count() -> " + gates.Count(), true);
@@ -1076,6 +1014,7 @@ namespace MB_S_CONTROL_O2
             }
             public void Logic(string argument, UpdateType updateSource)
             {
+                gt_angar_work.Logic(argument, updateSource);
                 switch (argument)
                 {
                     case "rm+":
@@ -1150,7 +1089,7 @@ namespace MB_S_CONTROL_O2
                 }
                 if (updateSource == UpdateType.Update100)
                 {
-                    curr_power_per = (bats.CurrentPower() / bats.MaxPower() * 100.0f);
+                    curr_power_per = (bats.CurrentPower / bats.MaxPower * 100.0f);
                 }
             }
 
