@@ -1,3 +1,117 @@
+Power {[MOLE-H2]}
+PowerTime {[MOLE-H2]}
+
+Power {[MB-S01]}
+PowerTime {[MB-S01]}
+
+Tanks {[MB-S01]} Hydrogen
+Tanks {[MB-S01]} Oxygen
+Cargo {[MB-S01]} 
+Inventory {[MB-S01]} ore/ice
+
+
+Inventory {[MB-S01]} +ore
+Inventory {[MB-S01]} +ingot -scrap
+Inventory {[MB-S01]} +component
+
+center Очист. завод 1
+Working {[MB-S01]-Очист. завод 1}
+InvListX {[MB-S01]-Очист. завод 1}
+center Очист. завод 2
+Working {[MB-S01]-Очист. завод 2}
+InvListX {[MB-S01]-Очист. завод 2}
+center Очист. завод 3
+Working {[MB-S01]-Очист. завод 3}
+InvListX {[MB-S01]-Очист. завод 3}
+center Очист. завод 4
+Working {[MB-S01]-Очист. завод 4}
+InvListX {[MB-S01]-Очист. завод 4}
+
+center Сборщик 1-1
+Working {[MB-S01]-Сборщик 1-1}
+InvListX {[MB-S01]-Сборщик 1-1}
+center Сборщик 1-2
+Working {[MB-S01]-Сборщик 1-2}
+InvListX {[MB-S01]-Сборщик 1-2}
+center Сборщик 2-1
+Working {[MB-S01]-Сборщик 2-1}
+InvListX {[MB-S01]-Сборщик 2-1}
+center Сборщик 2-2
+Working {[MB-S01]-Сборщик 2-2}
+InvListX {[MB-S01]-Сборщик 2-2}
+
+
+center ГЕНЕРАТОРЫ O2/H2
+echo Группа 1:
+Working {[MB-S01]-Генератор O2/H2 1}
+InvListX {[MB-S01]-Генератор O2/H2 1}
+echo Группа 2:
+Working {[MB-S01]-Генератор O2/H2 2}
+InvListX {[MB-S01]-Генератор O2/H2 2}
+echo Группа 3:
+Working {[MB-S01]-Генератор O2/H2 3}
+InvListX {[MB-S01]-Генератор O2/H2 3}
+echo Группа 4:
+Working {[MB-S01]-Генератор O2/H2 4}
+InvListX {[MB-S01]-Генератор O2/H2 4}
+center ЛЕД В НАЛИЧИИ
+echo Всего:
+InvListX  {[MB-S01]} +ore
+echo В БПК ICE:
+InvListX  {[MB-S01]-БПК ICE} +ore
+center H2 В НАЛИЧИИ
+echo Топливо:
+Tanks {[MB-S01]-Бак H2 [fuel]} Hydrogen
+echo Питание герераторов:
+Tanks {[MB-S01]-Бак Н2 [Power-} Hydrogen
+center O2 В НАЛИЧИИ
+Tanks {[MB-S01]-Бак O2 [tank-O2]} Oxygen
+
+center ЭНЕРГИЯ НВ БАЗЕ
+Power {[MB-S01]}
+echo
+PowerStored {[MB-S01]}
+echo Питание герераторов:
+Tanks {[MB-S01]-Бак Н2 [Power-} Hydrogen
+center ГЕНЕРАТОРЫ O2/H2
+echo power-1:
+Working {[MB-S01]-H2-генератор [power-1]}
+InvListX {[MB-S01]-H2-генератор [power-1]}
+
+
+
+
+@2 AutoLCD
+Cargo {[MOLE-H2]}
+InventoryX {[MOLE-H2]}
+@3 AutoLCD
+Power {[MOLE-H2]} 
+PowerTime {[MOLE-H2]} 
+
+@2 AutoLCD
+Cargo {[TRUCK-HO-01]}
+InventoryX {[TRUCK-HO-01]}
+@3 AutoLCD
+Tanks {[TRUCK-HO-01]} Hydrogen
+Power {[TRUCK-HO-01]} 
+PowerTime {[TRUCK-HO-01]} 
+
+[MB-S01]-Autocrafting 1
+
+[MB-S01]- Защитная створка [rm-cabin]
+[MB-S01]- Шарнир защитная створка [rm-cabin]
+[MB-S01]- Шарнир защитная створка [rm-cabin]
+Герметичная створка защита
+
+PowerTime {[TRUCK-HO-01]}
+Tanks {[TRUCK-HO-01]} Hydrogen
+Cargo {[TRUCK-HO-01]}
+InventoryX {[TRUCK-HO-01]}
+
+[PB-ER-1]-Голографический стол [track];[PB-ER-1]-LCD prg [track] 1;[PB-ER-1]-LCD prg [track] 2;[PB-ER-1]-LCD prg [track] 3;true;0
+[PB-ER-1]-Голографический стол [bull];[PB-ER-1]-LCD prg [bull] 1;[PB-ER-1]-LCD prg [bull] 2;[PB-ER-1]-LCD prg [bull] 3;true;0
+[PB-ER-1]-LCD prg [bull] 1
+
 БАК :Водородный бак [+] - 100% - Capacity 15МЛ
 БАК :Водородный бак [+] - 100% - Capacity 15МЛ
 БАК :Водородный бак [+] - 100% - Capacity 15МЛ
@@ -12,6 +126,9 @@
 Ионный НФ-ускоритель
 Большой ионный ускоритель
 Ионный ускоритель
+
+
+waiting 
 
 
 [backward]

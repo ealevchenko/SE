@@ -77,6 +77,7 @@ namespace MB_S_CONTROL_O2
         static LCD lcd_debug1;
         static LCD lcd_debug2;
         static LCD lcd_info1, lcd_info2;
+        static LCD lcd_gate_angar_work1, lcd_gate_angar_work2;
         static Batterys bats;
 
         static Lightings lightings;
@@ -128,7 +129,23 @@ namespace MB_S_CONTROL_O2
                 }
                 return true;
             }
-            // Разгерметизировать
+            // Можно закачать кислород
+            static public bool isCanPressurize(List<IMyAirVent> obj)
+            {
+                if (obj != null)
+                {
+                    foreach (IMyAirVent vn in obj)
+                    {
+                        if (!vn.CanPressurize)
+                        {
+                            return false;
+                        }
+                    }
+
+                }
+                return true;
+            }
+            // Режим откачки кислорода из помещения (вкл выкл)
             static public void Depressurize(List<IMyAirVent> obj, bool on)
             {
                 if (obj != null)
@@ -293,6 +310,8 @@ namespace MB_S_CONTROL_O2
             lcd_debug2 = new LCD(NameObj + "-LCD-DEBUG2");
             lcd_info1 = new LCD(NameObj + "-LCD-INFO-O2");
             lcd_info2 = new LCD(NameObj + "-LCD-INFO-RM");
+            lcd_gate_angar_work1 = new LCD(NameObj + "-LCD-GATE-ANGAR-WORK1");
+            lcd_gate_angar_work2 = new LCD(NameObj + "-LCD-GATE-ANGAR-WORK2");
             bats = new Batterys(NameObj);
             gt_angar_work = new Gate(NameObj, "dr-gate-angar_work");
             //connector_base = new Connector(NameObj + "-Коннектор base");
@@ -553,8 +572,8 @@ namespace MB_S_CONTROL_O2
         }
         public class Gate
         {
-            private bool open { get; set; }
-            private bool close { get; set; }
+            public bool open { get; set; } = false;
+            public bool close { get; set; } = false;
 
             public string name;
             public string rm = null;
@@ -583,14 +602,14 @@ namespace MB_S_CONTROL_O2
                 List<IMyDoor> dors = new List<IMyDoor>();
                 List<IMyAirVent> vents = new List<IMyAirVent>();
                 _scr.GridTerminalSystem.GetBlocksOfType<IMyDoor>(dors, r => r.CustomName.Contains(NameObj));
-                _scr.GridTerminalSystem.GetBlocksOfType<IMyAirVent>(vents, r => r.CustomName.Contains(name));
+                _scr.GridTerminalSystem.GetBlocksOfType<IMyAirVent>(vents, r => r.CustomName.Contains(NameObj));
                 this.drs = dors.Where(d => d.CustomName.Contains("[" + name + "]")).ToList();
                 if (this.drs != null && this.drs.Count() > 0)
                 {
                     this.rm = Help.GetNameOfTemplate(this.drs.ToList()[0].CustomName, "[rm-");
-                    this.vents = vents.Where(d => d.CustomName.Contains(rm)).ToList();
-                    this.drs_inr = dors.Where(d => d.CustomName.Contains("[dr-inner-") && d.CustomName.Contains(rm)).ToList();
-                    this.drs_gtw = dors.Where(d => d.CustomName.Contains("[dr-gateway-") && d.CustomName.Contains(rm)).ToList();
+                    this.vents = vents.Where(d => d.CustomName.Contains(this.rm)).ToList();
+                    this.drs_inr = dors.Where(d => d.CustomName.Contains("[dr-inner-") && d.CustomName.Contains(this.rm)).ToList();
+                    this.drs_gtw = dors.Where(d => d.CustomName.Contains("[dr-gateway-") && d.CustomName.Contains(this.rm)).ToList();
                 }
             }
             public void OnOff(bool on)
@@ -605,11 +624,17 @@ namespace MB_S_CONTROL_O2
             private void Open() { Help.OpenClose(drs, true); }
             public bool OpenGate()
             {
+                //lcd_debug1.OutText("\nstart - OpenGate ", false);
+                //lcd_debug1.OutText("\nthis.rm " + this.rm, true);
                 bool result = false;
                 bool o_gtw = Help.isOpenDoors(this.drs_gtw);
+                //lcd_debug1.OutText("\no_gtw =" + o_gtw.ToString(), true);
                 bool o_inr = Help.isOpenDoors(this.drs_inr);
+                //lcd_debug1.OutText("\no_inr =" + o_inr.ToString(), true);
                 float ol = Help.GetOxygenLevel(this.vents);
+                //lcd_debug1.OutText("\nol =" + ol.ToString(), true);
                 bool press = Help.isPressurizationEnabled(this.vents);
+                //lcd_debug1.OutText("\npress =" + press.ToString(), true);
                 // закрыть
                 if (o_gtw)
                 {
@@ -621,7 +646,7 @@ namespace MB_S_CONTROL_O2
                 }
                 if (!o_gtw && !o_inr)
                 {
-                    if (press)
+                    if (ol > 0f && press && o2_tanks_base.AverageFilledRatio < 1.0)
                     {
                         Help.Depressurize(this.vents, true); // включить разгермитизацию
                     }
@@ -635,16 +660,20 @@ namespace MB_S_CONTROL_O2
                     }
                 }
                 result = Help.isOpenDoors(this.drs);
+                //lcd_debug1.OutText("\nresult =" + result.ToString(), true);
                 return result;
             }
             public bool CloseGate()
             {
+                lcd_debug1.OutText("\nstart - OpenGate ", false);
                 bool result = false;
                 bool c_drs = Help.isCloseDoors(this.drs);
                 bool c_gtw = Help.isCloseDoors(this.drs_gtw);
                 bool c_inr = Help.isCloseDoors(this.drs_inr);
-                bool press = Help.isPressurizationEnabled(this.vents);
+                bool o2_start = Help.isCanPressurize(this.vents);
+                //bool press = Help.isPressurizationEnabled(this.vents);
                 float ol = Help.GetOxygenLevel(this.vents);
+                lcd_debug1.OutText("\nol =" + ol.ToString(), true);
                 if (!c_drs)
                 {
                     Help.OpenClose(this.drs, false);
@@ -659,16 +688,14 @@ namespace MB_S_CONTROL_O2
                 }
                 if (c_drs && c_gtw && c_inr)
                 {
-                    if (!press)
-                    {
-                        Help.Depressurize(this.vents, false); // выключить разгермитизацию
-                    }
+                    Help.Depressurize(this.vents, !o2_start); // выключить подачу кислорода
                 }
-                if (ol == 1f || (ol < 1f && o2_tanks_base.AverageFilledRatio == 0.0))
+                if (ol >= 0.99f || (ol < 1f && o2_tanks_base.AverageFilledRatio == 0.0))
                 {
                     // В помещение закачан кисл. или в баке нет кислорода
                     result = true;
                 }
+                lcd_debug1.OutText("\nresult =" + result.ToString(), true);
                 return result;
             }
             public string TextInfo(string name)
@@ -676,9 +703,11 @@ namespace MB_S_CONTROL_O2
                 StringBuilder values = new StringBuilder();
                 values.Append(("O2-БАКИ") + " : [" + o2_tanks_base.Count + "] [А-" + o2_tanks_base.CountAutoRefillBottles + " З-" + o2_tanks_base.CountStockpile + "]" + PText.GetCurrentOfMax((float)(o2_tanks_base.Capacity * o2_tanks_base.AverageFilledRatio) / 1000000, (float)o2_tanks_base.Capacity / 1000000, "МЛ") + "\n");
                 values.Append("+- ЗАП:  " + PText.GetScalePersent(o2_tanks_base.AverageFilledRatio, 20) + "\n");
-                values.Append("|\n");
                 if (this.vents != null && this.vents.Count() > 0)
                 {
+                    float ol = Help.GetOxygenLevel(this.vents);
+                    values.Append("+-О2 в помещении" + PText.GetPersent(ol) + " Герметично " + (Help.isCanPressurize(this.vents) ? igreen.ToString() : ired.ToString()) + "\n");
+                    values.Append("| " + PText.GetScalePersent(ol, 20) + "\n");
                     values.Append("+-Вентиляторы [" + this.vents.Count() + "]" + "\n");
                     foreach (IMyAirVent vnt in this.vents)
                     {
@@ -686,6 +715,7 @@ namespace MB_S_CONTROL_O2
                     }
                 }
                 values.Append("=GATE " + name + " =\n");
+                values.Append("+-Команда [open] " + (this.open ? igreen.ToString() : ired.ToString()) + " [close] " + (this.close ? igreen.ToString() : ired.ToString()) + " =\n");
                 if (this.drs != null && this.drs.Count() > 0)
                 {
                     values.Append("+- [O]:" + (Help.isOpenDoors(drs) ? igreen.ToString() : ired.ToString()) + " " + PText.GetScalePersent(Help.LevelDoors(drs), 20) + " " + (Help.isCloseDoors(drs) ? igreen.ToString() : ired.ToString()) + "[З] \n");
@@ -712,12 +742,25 @@ namespace MB_S_CONTROL_O2
                 }
                 return values.ToString();
             }
+            public void ToggleOpenClose()
+            {
+                if (!this.open && !this.close)
+                {
+                    this.close = Help.isOpenDoors(this.drs);
+                    this.open = Help.isCloseDoors(this.drs);
+                }
+                else
+                {
+                    this.close = !this.close;
+                    this.open = !this.open;
+                }
+            }
             public void Logic(string argument, UpdateType updateSource)
             {
                 switch (argument)
                 {
-                    case "open-gate": { open = true; close = false; break; }
-                    case "close-gate": { close = true; open = false; break; }
+                    case "open-gate": { this.open = true; this.close = false; break; }
+                    case "close-gate": { this.open = false; this.close = true; ; break; }
                     default: break;
                 }
                 if (open && OpenGate()) open = false;
@@ -729,10 +772,10 @@ namespace MB_S_CONTROL_O2
             public O2Tanks(string name_obj) : base(name_obj) { AutoRefillBottles(true); }
             public O2Tanks(string name_obj, string tag) : base(name_obj, tag) { AutoRefillBottles(true); }
             public float MaxCapacity() { return base.list_obj.Select(b => b.Capacity).Sum(); }
-            public double AverageFilledRatio { get { return base.list_obj.Average(t => t.FilledRatio); } }
-            public double CountAutoRefillBottles { get { return base.list_obj.Count(t => t.AutoRefillBottles); } }
-            public double CountStockpile { get { return base.list_obj.Count(t => t.Stockpile); } }
-            public double Capacity { get { return base.list_obj.Sum(t => t.Capacity); } }
+            public double AverageFilledRatio { get { return base.list_obj != null && base.list_obj.Count() > 0 ? base.list_obj.Average(t => t.FilledRatio) : 0; } }
+            public double CountAutoRefillBottles { get { return base.list_obj != null ? base.list_obj.Count(t => t.AutoRefillBottles) : 0; } }
+            public double CountStockpile { get { return base.list_obj != null ? base.list_obj.Count(t => t.Stockpile) : 0; } }
+            public double Capacity { get { return base.list_obj != null ? base.list_obj.Sum(t => t.Capacity) : 0; } }
             public void AutoRefillBottles(bool on) { foreach (IMyGasTank obj in base.list_obj) { obj.AutoRefillBottles = on; } }
             public void Stockpile(bool on) { foreach (IMyGasTank obj in base.list_obj) { obj.Stockpile = on; } }
             public string TextInfo(string name)
@@ -1015,6 +1058,7 @@ namespace MB_S_CONTROL_O2
             public void Logic(string argument, UpdateType updateSource)
             {
                 gt_angar_work.Logic(argument, updateSource);
+                lcd_gate_angar_work1.OutText(gt_angar_work.TextInfo("Ангар-сборщика"), false);
                 switch (argument)
                 {
                     case "rm+":
@@ -1022,6 +1066,18 @@ namespace MB_S_CONTROL_O2
                             if (index_rm > list_rs.Count() - 1) index_rm = 1;
                             else index_rm++;
                             break;
+                        }
+                    case "gt_aw_open":
+                        {
+                            gt_angar_work.open = true; gt_angar_work.close = false; break;
+                        }
+                    case "gt_aw_close":
+                        {
+                            gt_angar_work.open = false; gt_angar_work.close = true; break;
+                        }
+                    case "gt_aw_toggle":
+                        {
+                            gt_angar_work.ToggleOpenClose(); break;
                         }
                     case "rm-":
                         {
@@ -1038,12 +1094,12 @@ namespace MB_S_CONTROL_O2
                     default:
                         break;
                 }
-                StringBuilder values = new StringBuilder();
-                lcd_debug1.OutText("Кислород------", false);
+                //StringBuilder values = new StringBuilder();
+                //lcd_debug1.OutText("Кислород------", false);
                 foreach (RoomStatus rs in list_rs)
                 {
                     float Ol = rs.cur_ox_level;
-                    lcd_debug1.OutText("\nПомещение " + rs.room + ", Ol=" + Ol, true);
+                    //lcd_debug1.OutText("\nПомещение " + rs.room + ", Ol=" + Ol, true);
                     //lcd_debug1.OutText("\ndoors " + rs.doors.Count(), true);
                     //rs.PowerInner(Ol > 0.9); // Отключить двери нет воздуха
                     if (Ol > 0.9)
@@ -1092,7 +1148,6 @@ namespace MB_S_CONTROL_O2
                     curr_power_per = (bats.CurrentPower / bats.MaxPower * 100.0f);
                 }
             }
-
             public string TextInfoO2()
             {
                 StringBuilder values = new StringBuilder();
@@ -1177,6 +1232,7 @@ namespace MB_S_CONTROL_O2
 // [sn-gate]
 //
 
+// [MB-S01] -К1[connect][rm-angar_tech]
 
 //[rm-space]
 //[rm-cabin]
@@ -1187,6 +1243,11 @@ namespace MB_S_CONTROL_O2
 
 // [MB-S01]-Gate [dr-gate-sg-work] [rm-sg_work]
 // [MB-S01]-Gate [dr-gate-angar_work] [rm-angar_work]
+// [MB-S01]-Gate [dr-gate-big-angar_tech] [rm-angar_tech]
+// [MB-S01]-Gate [dr-gate-small-angar_tech1] [rm-angar_tech]
+
+// [MB-S01]-Вн. турель [rm-angar_work]
+
 
 // [MB-S01]-[lcd-info] [rm-cabin]
 // [MB-S01]-[lcd-info] [rm-relaxation]
@@ -1206,6 +1267,7 @@ namespace MB_S_CONTROL_O2
 // [MB-S01]-[lcd-info] [rm-transition_left]
 // [MB-S01]-[lcd-info] [rm-fabric_tech]
 
+// [MB-S01]-Кнопка gate-angar_work [internal]
 
 // [MB-S01]-Vent [rm-angar_work]
 // [MB-S01]-Vent [rm-cabin]
