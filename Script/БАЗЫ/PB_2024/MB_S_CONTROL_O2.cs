@@ -78,12 +78,13 @@ namespace MB_S_CONTROL_O2
         static LCD lcd_debug2;
         static LCD lcd_info1, lcd_info2;
         static LCD lcd_gate_angar_work1, lcd_gate_angar_work2;
+        static LCD lcd_gt_angar_work1, lcd_gt_sg_work1, lcd_gt_big_angar_tech1, lcd_gt_small_angar_tech1;
+        static LCD lcd_gt_angar_work2, lcd_gt_sg_work2, lcd_gt_big_angar_tech2, lcd_gt_small_angar_tech2;
         static Batterys bats;
 
         static Lightings lightings;
         static Gateway gateway;
-        static Gate gt_angar_work;
-
+        static Gate gt_angar_work, gt_sg_work, gt_big_angar_tech, gt_small_angar_tech;
         static O2Tanks o2_tanks_base;
         static BaseShipController cockpit;
         static MyStorage storage;
@@ -312,10 +313,20 @@ namespace MB_S_CONTROL_O2
             lcd_info2 = new LCD(NameObj + "-LCD-INFO-RM");
             lcd_gate_angar_work1 = new LCD(NameObj + "-LCD-GATE-ANGAR-WORK1");
             lcd_gate_angar_work2 = new LCD(NameObj + "-LCD-GATE-ANGAR-WORK2");
+            lcd_gt_angar_work1 = new LCD(NameObj + "-LCD-GATE-AW1");
+            lcd_gt_angar_work2 = new LCD(NameObj + "-LCD-GATE-AW2");
+            lcd_gt_sg_work1 = new LCD(NameObj + "-LCD-GATE-SW1");
+            lcd_gt_sg_work2 = new LCD(NameObj + "-LCD-GATE-SW2");
+            lcd_gt_big_angar_tech1 = new LCD(NameObj + "-LCD-GATE-BAT1");
+            lcd_gt_big_angar_tech2 = new LCD(NameObj + "-LCD-GATE-BAT2");
+            lcd_gt_small_angar_tech1 = new LCD(NameObj + "-LCD-GATE-SAT1");
+            lcd_gt_small_angar_tech2 = new LCD(NameObj + "-LCD-GATE-SAT2");
             bats = new Batterys(NameObj);
             gt_angar_work = new Gate(NameObj, "dr-gate-angar_work");
+            gt_sg_work = new Gate(NameObj, "dr-gate-sg-work");
+            gt_big_angar_tech = new Gate(NameObj, "dr-gate-big-angar_tech");
+            gt_small_angar_tech = new Gate(NameObj, "dr-gate-small-angar_tech");
             //connector_base = new Connector(NameObj + "-Коннектор base");
-            //gateway = new Gateway(NameObj);
             lightings = new Lightings(NameObj, "[lighting]");
             lightings.Off();
             o2_tanks_base = new O2Tanks(NameObj, "[tank-O2]");
@@ -698,7 +709,7 @@ namespace MB_S_CONTROL_O2
                 lcd_debug1.OutText("\nresult =" + result.ToString(), true);
                 return result;
             }
-            public string TextInfo(string name)
+            public string TextInfoDetali(string name)
             {
                 StringBuilder values = new StringBuilder();
                 values.Append(("O2-БАКИ") + " : [" + o2_tanks_base.Count + "] [А-" + o2_tanks_base.CountAutoRefillBottles + " З-" + o2_tanks_base.CountStockpile + "]" + PText.GetCurrentOfMax((float)(o2_tanks_base.Capacity * o2_tanks_base.AverageFilledRatio) / 1000000, (float)o2_tanks_base.Capacity / 1000000, "МЛ") + "\n");
@@ -740,6 +751,20 @@ namespace MB_S_CONTROL_O2
                             " O:" + (dr.Status == DoorStatus.Open ? igreen.ToString() : (dr.Status == DoorStatus.Closed ? ired.ToString() : iyellow.ToString())) + "\n");
                     }
                 }
+                return values.ToString();
+            }
+            public string TextInfo(string name)
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("Ворота [" + name + "]\n");
+                bool od = Help.isOpenDoors(drs);
+                bool cd = Help.isCloseDoors(drs);
+                values.Append("<<" + (this.open ? igreen.ToString() : idarkGrey.ToString()) +
+                    "<<[Open]:" + (od ? igreen.ToString() : ired.ToString()) +
+                    " " + PText.GetScalePersent(Help.LevelDoors(drs), 20) +
+                    " [Close]" + (cd ? igreen.ToString() : ired.ToString()) +
+                    ">>" + (this.close ? igreen.ToString() : idarkGrey.ToString()) + ">>" +
+                    "\n");
                 return values.ToString();
             }
             public void ToggleOpenClose()
@@ -1007,19 +1032,19 @@ namespace MB_S_CONTROL_O2
                     }
                 }
                 // Настройка ангарных дверей gates
-                foreach (IGrouping<string, IMyDoor> gts in dr_gate)
-                {
-                    if (gts != null && gts.Count() > 0)
-                    {
-                        string rm = Help.GetNameOfTemplate(gts.ToList()[0].CustomName, "[rm-");
-                        List<IMyAirVent> vnts = vents.Where(d => d.CustomName.Contains(rm)).ToList();
-                        List<IMyDoor> drinr = doors.Where(d => d.CustomName.Contains("[dr-inner-") && d.CustomName.Contains(rm)).ToList();
-                        List<IMyDoor> drgtw = doors.Where(d => d.CustomName.Contains("[dr-gateway-") && d.CustomName.Contains(rm)).ToList();
-                        Gate gt = new Gate(gts.Key, gts.ToList(), rm, vnts, drgtw, drinr);
-                        gates.Add(gt);
-                    }
-                }
-                lcd_debug.OutText("\ngateways.Count() -> " + gateways.Count(), true);
+                //foreach (IGrouping<string, IMyDoor> gts in dr_gate)
+                //{
+                //    if (gts != null && gts.Count() > 0)
+                //    {
+                //        string rm = Help.GetNameOfTemplate(gts.ToList()[0].CustomName, "[rm-");
+                //        List<IMyAirVent> vnts = vents.Where(d => d.CustomName.Contains(rm)).ToList();
+                //        List<IMyDoor> drinr = doors.Where(d => d.CustomName.Contains("[dr-inner-") && d.CustomName.Contains(rm)).ToList();
+                //        List<IMyDoor> drgtw = doors.Where(d => d.CustomName.Contains("[dr-gateway-") && d.CustomName.Contains(rm)).ToList();
+                //        Gate gt = new Gate(gts.Key, gts.ToList(), rm, vnts, drgtw, drinr);
+                //        gates.Add(gt);
+                //    }
+                //}
+                //lcd_debug.OutText("\ngateways.Count() -> " + gateways.Count(), true);
                 lcd_debug.OutText("\ninners.Count() -> " + inners.Count(), true);
                 lcd_debug.OutText("\ngates.Count() -> " + gates.Count(), true);
             }
@@ -1058,13 +1083,30 @@ namespace MB_S_CONTROL_O2
             public void Logic(string argument, UpdateType updateSource)
             {
                 gt_angar_work.Logic(argument, updateSource);
-                lcd_gate_angar_work1.OutText(gt_angar_work.TextInfo("Ангар-сборщика"), false);
+                gt_sg_work.Logic(argument, updateSource);
+                gt_big_angar_tech.Logic(argument, updateSource);
+                gt_small_angar_tech.Logic(argument, updateSource);
+                lcd_gate_angar_work1.OutText(gt_angar_work.TextInfoDetali("Ангар-сборщика"), false);
+                lcd_gt_angar_work1.OutText(gt_angar_work.TextInfo("АНГАР-СБОРЩИК"), false);
+                lcd_gt_angar_work2.OutText(gt_angar_work.TextInfo("АНГАР-СБОРЩИК"), false);
+                lcd_gt_sg_work1.OutText(gt_sg_work.TextInfo("СБОРЩИК"), false);
+                lcd_gt_sg_work2.OutText(gt_sg_work.TextInfo("СБОРЩИК"), false);
+                lcd_gt_big_angar_tech1.OutText(gt_big_angar_tech.TextInfo("БВ-ТЕХ-АНГАР"), false);
+                lcd_gt_big_angar_tech2.OutText(gt_big_angar_tech.TextInfo("БВ-ТЕХ-АНГАР"), false);
+                lcd_gt_small_angar_tech1.OutText(gt_small_angar_tech.TextInfo("МВ-ТЕХ-АНГАР"), false);
+                lcd_gt_small_angar_tech2.OutText(gt_small_angar_tech.TextInfo("МВ-ТЕХ-АНГАР"), false);
                 switch (argument)
                 {
                     case "rm+":
                         {
                             if (index_rm > list_rs.Count() - 1) index_rm = 1;
                             else index_rm++;
+                            break;
+                        }
+                    case "rm-":
+                        {
+                            if (index_rm < 1) index_rm = list_rs.Count() - 1;
+                            else index_rm--;
                             break;
                         }
                     case "gt_aw_open":
@@ -1079,11 +1121,41 @@ namespace MB_S_CONTROL_O2
                         {
                             gt_angar_work.ToggleOpenClose(); break;
                         }
-                    case "rm-":
+                    case "gt_sw_open":
                         {
-                            if (index_rm < 1) index_rm = list_rs.Count() - 1;
-                            else index_rm--;
-                            break;
+                            gt_sg_work.open = true; gt_sg_work.close = false; break;
+                        }
+                    case "gt_sw_close":
+                        {
+                            gt_sg_work.open = false; gt_sg_work.close = true; break;
+                        }
+                    case "gt_sw_toggle":
+                        {
+                            gt_sg_work.ToggleOpenClose(); break;
+                        }
+                    case "gt_bat_open":
+                        {
+                            gt_big_angar_tech.open = true; gt_big_angar_tech.close = false; break;
+                        }
+                    case "gt_bat_close":
+                        {
+                            gt_big_angar_tech.open = false; gt_big_angar_tech.close = true; break;
+                        }
+                    case "gt_bat_toggle":
+                        {
+                            gt_big_angar_tech.ToggleOpenClose(); break;
+                        }
+                    case "gt_sat_open":
+                        {
+                            gt_small_angar_tech.open = true; gt_small_angar_tech.close = false; break;
+                        }
+                    case "gt_sat_close":
+                        {
+                            gt_small_angar_tech.open = false; gt_small_angar_tech.close = true; break;
+                        }
+                    case "gt_sat_toggle":
+                        {
+                            gt_small_angar_tech.ToggleOpenClose(); break;
                         }
                     case "load":
                         storage.LoadFromStorage();
@@ -1232,7 +1304,7 @@ namespace MB_S_CONTROL_O2
 // [sn-gate]
 //
 
-// [MB-S01] -К1[connect][rm-angar_tech]
+// [MB-S01] -К1 [connect] [rm-angar_tech]
 
 //[rm-space]
 //[rm-cabin]
@@ -1244,7 +1316,7 @@ namespace MB_S_CONTROL_O2
 // [MB-S01]-Gate [dr-gate-sg-work] [rm-sg_work]
 // [MB-S01]-Gate [dr-gate-angar_work] [rm-angar_work]
 // [MB-S01]-Gate [dr-gate-big-angar_tech] [rm-angar_tech]
-// [MB-S01]-Gate [dr-gate-small-angar_tech1] [rm-angar_tech]
+// [MB-S01]-Gate [dr-gate-small-angar_tech] [rm-angar_tech]
 
 // [MB-S01]-Вн. турель [rm-angar_work]
 
