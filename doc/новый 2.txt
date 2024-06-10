@@ -1,3 +1,17 @@
+Power {[KROTIK-H74]}
+PowerTime {[KROTIK-H74]}
+
+Inventory {[KROTIK-H74]} +ore
+
+center H2 В НАЛИЧИИ
+echo Топливо:
+Tanks {[KROTIK-H74]-Tank H2} Hydrogen
+echo Питание герераторов:
+Tanks {[KROTIK-H74]-Tank [power] H2} Hydrogen
+center O2 В НАЛИЧИИ
+Tanks {[MB-S01]-Бак O2} Oxygen
+
+
 Power {[MOLE-H2]}
 PowerTime {[MOLE-H2]}
 
@@ -67,18 +81,54 @@ Tanks {[MB-S01]-Бак Н2 [Power-} Hydrogen
 center O2 В НАЛИЧИИ
 Tanks {[MB-S01]-Бак O2 [tank-O2]} Oxygen
 
+
+
+center H2 ГЕНЕРАТОРЫ
+echo Питание герераторов:
+Tanks {[MB-S01]-Бак Н2 [Power-} Hydrogen
+echo power-1:
+Working {[MB-S01]-H2-генератор [power-1]}
+InvListX {[MB-S01]-H2-генератор [power-1]}
+echo power-2:
+Working {[MB-S01]-H2-генератор [power-2]}
+InvListX {[MB-S01]-H2-генератор [power-2]}
+echo power-3:
+Working {[MB-S01]-H2-генератор [power-3]}
+InvListX {[MB-S01]-H2-генератор [power-3]}
+echo power-4:
+Working {[MB-S01]-H2-генератор [power-4]}
+InvListX {[MB-S01]-H2-генератор [power-4]}
+echo power-5:
+Working {[MB-S01]-H2-генератор [power-5]}
+InvListX {[MB-S01]-H2-генератор [power-5]}
+echo power-6:
+Working {[MB-S01]-H2-генератор [power-6]}
+InvListX {[MB-S01]-H2-генератор [power-6]}
 center ЭНЕРГИЯ НВ БАЗЕ
 Power {[MB-S01]}
 echo
 PowerStored {[MB-S01]}
-echo Питание герераторов:
-Tanks {[MB-S01]-Бак Н2 [Power-} Hydrogen
-center ГЕНЕРАТОРЫ O2/H2
-echo power-1:
-Working {[MB-S01]-H2-генератор [power-1]}
-InvListX {[MB-S01]-H2-генератор [power-1]}
+PowerTime {[MB-S01]}
 
+Cargo {[MB-S01]-БПК Components} 
+Inventory {[MB-S01]-БПК Components} +component
 
+Cargo {[MB-S01]-БПК Ingots} 
+Inventory {[MB-S01]-БПК Ingots} +ingot -scrap
+
+Cargo {[MB-S01]-БПК Ores} 
+Inventory {[MB-S01]-БПК Ores} +ore
+
+Cargo {[MB-S01]-БПК} 
+Inventory {[MB-S01]-БПК} +ammo
+
+Cargo {[MB-S01]-БПК ICE} 
+Inventory {[MB-S01]-БПК ICE} +ore/ice
+
+[MB-S01]-[LCD] ingot fab
+[MB-S01]-[LCD] ore fab
+[MB-S01]-[LCD] ammo fab
+[MB-S01]-[LCD] ice fab
 
 
 @2 AutoLCD
