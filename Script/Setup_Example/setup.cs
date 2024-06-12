@@ -559,6 +559,7 @@ namespace SETUP
         //add:[KLEPA-H18-01]-
         //replace:[KROTIK-H76-01]-|[KROTIK-H74]-
         //add:[KROTIK-H76-01]-
+        //add:[SPY-I19]-
         //add:[TRUCK-HO-01]-
         //replace:[MOLE-H2]-|[MOLE-H2-01]-
         //[OS-E1]
