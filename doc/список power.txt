@@ -1,0 +1,298 @@
+ВЫХОД       : [ 5.63624MW / 238.71996MW ]
+ПОТРЕБЛЕНИЕ : [ 5.55126MW / 30000272MW ]
+------------------------------- 
+MyObjectBuilder_OxygenGenerator, 
+max_input : 0.5, cur_input : 0, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_OxygenTank, LargeHydrogenTank
+max_input : 1.5E+07, cur_input : 0, is_power_by : False
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_RemoteControl, LargeBlockRemoteControl
+max_input : 0.01, cur_input : 1E-07, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_Refinery, LargeRefinery
+max_input : 0.56, cur_input : 0, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_MyProgrammableBlock, LargeProgrammableBlock
+max_input : 0.0005, cur_input : 0.0005, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_HydrogenEngine, LargeHydrogenEngine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 5, cur_output : 0
+------------------------------- 
+MyObjectBuilder_HydrogenEngine, LargeHydrogenEngine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 5, cur_output : 0
+------------------------------- 
+MyObjectBuilder_CameraBlock, LargeCameraBlock
+max_input : 3E-05, cur_input : 3E-05, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_OxygenTank, LargeHydrogenTank
+max_input : 1.5E+07, cur_input : 0, is_power_by : False
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_OxygenGenerator, 
+max_input : 0.5, cur_input : 0, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_Cockpit, LargeBlockCockpitIndustrial
+max_input : 60, cur_input : 0, is_power_by : False
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_HydrogenEngine, LargeHydrogenEngine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 5, cur_output : 0
+------------------------------- 
+MyObjectBuilder_OxygenGenerator, 
+max_input : 0.5, cur_input : 0, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_Refinery, LargeRefinery
+max_input : 0.56, cur_input : 0, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_Beacon, LargeBlockBeacon
+max_input : 20, cur_input : 0, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_OreDetector, LargeOreDetector
+max_input : 0.002, cur_input : 0.002, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_MyProgrammableBlock, LargeProgrammableBlock
+max_input : 0.0005, cur_input : 0.0005, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_HydrogenEngine, LargeHydrogenEngine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 5, cur_output : 0
+------------------------------- 
+MyObjectBuilder_BatteryBlock, LargeBlockBatteryBlockWarfare2
+max_input : 12, cur_input : 0.3466091, is_power_by : True
+max_output : 12, cur_output : 0.005656242
+------------------------------- 
+MyObjectBuilder_HydrogenEngine, LargeHydrogenEngine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 5, cur_output : 0
+------------------------------- 
+MyObjectBuilder_SolarPanel, LargeBlockSolarPanel
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.16, cur_output : 0.09370869
+------------------------------- 
+MyObjectBuilder_SolarPanel, LargeBlockSolarPanel
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.16, cur_output : 0.04685407
+------------------------------- 
+MyObjectBuilder_SolarPanel, LargeBlockSolarPanel
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.16, cur_output : 0.01561802
+------------------------------- 
+MyObjectBuilder_OxygenGenerator, 
+max_input : 0.5, cur_input : 0, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_HydrogenEngine, LargeHydrogenEngine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 5, cur_output : 0
+------------------------------- 
+MyObjectBuilder_BatteryBlock, LargeBlockBatteryBlockWarfare2
+max_input : 12, cur_input : 0.3466091, is_power_by : True
+max_output : 12, cur_output : 0.005656242
+------------------------------- 
+MyObjectBuilder_BatteryBlock, LargeBlockBatteryBlockWarfare2
+max_input : 12, cur_input : 0.3466091, is_power_by : True
+max_output : 12, cur_output : 0.005656242
+------------------------------- 
+MyObjectBuilder_BatteryBlock, LargeBlockBatteryBlockWarfare2
+max_input : 12, cur_input : 0.3466091, is_power_by : True
+max_output : 12, cur_output : 0.005656242
+------------------------------- 
+MyObjectBuilder_TextPanel, LargeLCDPanel
+max_input : 0.0001, cur_input : 0.0001, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_BatteryBlock, LargeBlockBatteryBlockWarfare2
+max_input : 12, cur_input : 0.3466091, is_power_by : True
+max_output : 12, cur_output : 0.005656242
+------------------------------- 
+MyObjectBuilder_HydrogenEngine, LargeHydrogenEngine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 5, cur_output : 0
+------------------------------- 
+MyObjectBuilder_SolarPanel, LargeBlockSolarPanel
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.16, cur_output : 0.1249438
+------------------------------- 
+MyObjectBuilder_BatteryBlock, LargeBlockBatteryBlockWarfare2
+max_input : 12, cur_input : 0.3466091, is_power_by : True
+max_output : 12, cur_output : 0.005656242
+------------------------------- 
+MyObjectBuilder_BatteryBlock, LargeBlockBatteryBlockWarfare2
+max_input : 12, cur_input : 0.3466091, is_power_by : True
+max_output : 12, cur_output : 0.005656242
+------------------------------- 
+MyObjectBuilder_SolarPanel, LargeBlockSolarPanel
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.16, cur_output : 0.09370734
+------------------------------- 
+MyObjectBuilder_BatteryBlock, LargeBlockBatteryBlockWarfare2
+max_input : 12, cur_input : 0.3466091, is_power_by : True
+max_output : 12, cur_output : 0.005656242
+------------------------------- 
+MyObjectBuilder_SolarPanel, LargeBlockSolarPanel
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.16, cur_output : 0.03123569
+------------------------------- 
+MyObjectBuilder_BatteryBlock, LargeBlockBatteryBlockWarfare2
+max_input : 12, cur_input : 0.3466091, is_power_by : True
+max_output : 12, cur_output : 0.005656242
+------------------------------- 
+MyObjectBuilder_BatteryBlock, LargeBlockBatteryBlockWarfare2
+max_input : 12, cur_input : 0.3466091, is_power_by : True
+max_output : 12, cur_output : 0.005656242
+------------------------------- 
+MyObjectBuilder_Assembler, LargeAssembler
+max_input : 0.56, cur_input : 0, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_HydrogenEngine, LargeHydrogenEngine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 5, cur_output : 0
+------------------------------- 
+MyObjectBuilder_BatteryBlock, LargeBlockBatteryBlockWarfare2
+max_input : 12, cur_input : 0.3466091, is_power_by : True
+max_output : 12, cur_output : 0.005656242
+------------------------------- 
+MyObjectBuilder_BatteryBlock, LargeBlockBatteryBlockWarfare2
+max_input : 12, cur_input : 0.3466091, is_power_by : True
+max_output : 12, cur_output : 0.005656242
+------------------------------- 
+MyObjectBuilder_InteriorLight, LargeBlockLight_1corner
+max_input : 8E-05, cur_input : 8E-05, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_SolarPanel, LargeBlockSolarPanel
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.16, cur_output : 0.124942
+------------------------------- 
+MyObjectBuilder_SolarPanel, LargeBlockSolarPanel
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.16, cur_output : 0.124942
+------------------------------- 
+MyObjectBuilder_SolarPanel, LargeBlockSolarPanel
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.16, cur_output : 0.1249417
+------------------------------- 
+MyObjectBuilder_BatteryBlock, LargeBlockBatteryBlockWarfare2
+max_input : 12, cur_input : 0.3466091, is_power_by : True
+max_output : 12, cur_output : 0.005656242
+------------------------------- 
+MyObjectBuilder_BatteryBlock, LargeBlockBatteryBlockWarfare2
+max_input : 12, cur_input : 0.3466091, is_power_by : True
+max_output : 12, cur_output : 0.005656242
+------------------------------- 
+MyObjectBuilder_BatteryBlock, LargeBlockBatteryBlockWarfare2
+max_input : 12, cur_input : 0.3466091, is_power_by : True
+max_output : 12, cur_output : 0.005656242
+------------------------------- 
+MyObjectBuilder_TextPanel, LargeLCDPanel
+max_input : 0.0001, cur_input : 0.0001, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_SolarPanel, LargeBlockSolarPanel
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.16, cur_output : 0.124941
+------------------------------- 
+MyObjectBuilder_SolarPanel, LargeBlockSolarPanel
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.16, cur_output : 0.1249403
+------------------------------- 
+MyObjectBuilder_BatteryBlock, LargeBlockBatteryBlockWarfare2
+max_input : 12, cur_input : 0.3466091, is_power_by : True
+max_output : 12, cur_output : 0.005656242
+------------------------------- 
+MyObjectBuilder_SolarPanel, LargeBlockSolarPanel
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.16, cur_output : 0.1249399
+------------------------------- 
+MyObjectBuilder_Searchlight, LargeSearchlight
+max_input : 0.001, cur_input : 0.001, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_ReflectorLight, RotatingLightLarge
+max_input : 0.0002, cur_input : 0, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_ReflectorLight, RotatingLightLarge
+max_input : 0.0002, cur_input : 0, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_Searchlight, LargeSearchlight
+max_input : 0.001, cur_input : 0.001, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_ReflectorLight, RotatingLightLarge
+max_input : 0.0002, cur_input : 0, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_ReflectorLight, RotatingLightLarge
+max_input : 0.0002, cur_input : 0, is_power_by : True
+max_output : 0, cur_output : 0
+------------------------------- 
+MyObjectBuilder_WindTurbine, LargeBlockWindTurbine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.4, cur_output : 0.3817706
+------------------------------- 
+MyObjectBuilder_WindTurbine, LargeBlockWindTurbine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.4, cur_output : 0.3244146
+------------------------------- 
+MyObjectBuilder_WindTurbine, LargeBlockWindTurbine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.4, cur_output : 0.3913308
+------------------------------- 
+MyObjectBuilder_WindTurbine, LargeBlockWindTurbine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.4, cur_output : 0.3817709
+------------------------------- 
+MyObjectBuilder_WindTurbine, LargeBlockWindTurbine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.4, cur_output : 0.3913308
+------------------------------- 
+MyObjectBuilder_WindTurbine, LargeBlockWindTurbine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.4, cur_output : 0.3244033
+------------------------------- 
+MyObjectBuilder_WindTurbine, LargeBlockWindTurbine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.4, cur_output : 0.3817715
+------------------------------- 
+MyObjectBuilder_WindTurbine, LargeBlockWindTurbine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.4, cur_output : 0.3244003
+------------------------------- 
+MyObjectBuilder_WindTurbine, LargeBlockWindTurbine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.4, cur_output : 0.3913306
+------------------------------- 
+MyObjectBuilder_WindTurbine, LargeBlockWindTurbine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.4, cur_output : 0.3913308
+------------------------------- 
+MyObjectBuilder_WindTurbine, LargeBlockWindTurbine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.4, cur_output : 0.3817706
+------------------------------- 
+MyObjectBuilder_WindTurbine, LargeBlockWindTurbine
+max_input : 0, cur_input : 0, is_power_by : False
+max_output : 0.4, cur_output : 0.3244012
+------------------------------- 
+MyObjectBuilder_TextPanel, LargeLCDPanelWide
+max_input : 0.0002, cur_input : 0.0002, is_power_by : True
+max_output : 0, cur_output : 0

@@ -1,0 +1,91 @@
+APOLN1-Батарея 10
+MyBatteryBlock {143A04EDBB1AA2F} APOLN1-Батарея 10
+91092678031288879
+TyepID=MyObjectBuilder_BatteryBlock
+SubtyepID=SmallBlockBatteryBlock
+Mass=1040.4
+IsBeingHacked =False
+IsWorking =True
+IsFunctional =True
+DisassembleRatio =1
+DisplayNameText =APOLN1-Батарея 10
+
+Actions:
+OnOff:Переключить блок Вкл/Выкл(Вкл)
+OnOff_On:Переключить блок Вкл(Вкл)
+OnOff_Off:Переключить блок Выкл(Вкл)
+ShowOnHUD:Отображать на экране Вкл/Выкл(Выкл)
+ShowOnHUD_On:Отображать на экране Вкл(Выкл)
+ShowOnHUD_Off:Отображать на экране Выкл(Выкл)
+IncreaseFontSize:Увеличить Размер шрифта()
+DecreaseFontSize:Уменьшить Размер шрифта()
+IncreaseTextPaddingSlider:Увеличить Отступ текста()
+DecreaseTextPaddingSlider:Уменьшить Отступ текста()
+IncreaseChangeIntervalSlider:Увеличить Интервал переключения()
+DecreaseChangeIntervalSlider:Уменьшить Интервал переключения()
+PreserveAspectRatio:Сохранять соотношение сторон Вкл/Выкл()
+Recharge:Зарядка вкл/выкл(Зарядка)
+Discharge:Разрядка вкл/выкл(Зарядка)
+Auto:Включение авто(Зарядка)
+
+Properties:
+OnOff:Boolean (True)
+ShowInTerminal:Boolean (False)
+ShowInInventory:Boolean (True)
+ShowInToolbarConfig:Boolean (True)
+Name:StringBuilder (APOLN1-Батарея 10)
+ShowOnHUD:Boolean (False)
+Content:Int64 (0) Valid Range: 0->3
+ScriptForegroundColor:Color
+ScriptBackgroundColor:Color
+Font:Int64 (0) Valid Range: 151057691->1147350002
+FontSize:Single (1) Valid Range: 0.1->10
+FontColor:Color
+alignment:Int64 (0) Valid Range: 0->2
+TextPaddingSlider:Single (0) Valid Range: 0->50
+BackgroundColor:Color
+ChangeIntervalSlider:Single (0) Valid Range: 0->30
+PreserveAspectRatio:Boolean (False)
+ChargeMode:Int64 (1) Valid Range: 0->2
+
+DetailedInfo:
+Тип: Батарея
+Макс. отдача: 4.00 MW
+Макс. потребление: 4.00 MW
+Макс. заряд: 1.00 MWh
+Потребление: 0 W
+Отдача: 0 W
+Заряд: 1.00 MWh
+Полное исчерпание через: -
+----------
+
+CustomInfo=
+CustomName=APOLN1-Батарея 10
+CustomData=
+CustomNameWithFaction=
+ShowOnHUD=False
+
+IMyFunctionalBlock
+ Enabled=True
+
+IMyPowerProducer
+ CurrentOutput=0
+ MaxOutput=0
+
+IMyTextSurfaceProvider
+ SurfaceCount=0
+
+IMyBatteryBlock
+ CurrentStoredPower=1
+ HasCapacityRemaining=True
+ MaxStoredPower=1
+ MaxOutput=0
+ ChargeMode=Recharge
+
+No Inventory
+
+Accepted resources:
+ Electricity (Electricity)
+ Current=0 Max=4 PoweredBy=True
+Provided resources:
+ Electricity Current=0 Max=4

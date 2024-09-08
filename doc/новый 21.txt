@@ -1,0 +1,236 @@
+- ShowInTerminal
+ - ShowInInventory
+ - ShowInToolbarConfig
+ - Name
+ - ShowOnHUD
+ - Content
+ - ScriptForegroundColor
+ - ScriptBackgroundColor
+ - Font
+ - FontSize
+ - FontColor
+ - alignment
+ - TextPaddingSlider
+ - BackgroundColor
+ - ChangeIntervalSlider
+ - PreserveAspectRatio
+ - UseConveyor
+ - Auto-Refill
+ 
+ 
+ Echo("Accepted resources:");
+	values.Append("\nAccepted resources:");
+	MyResourceSinkComponent sink;
+	unit.Components.TryGet<MyResourceSinkComponent>(out sink);
+	if (sink != null)
+	{
+		var list = sink.AcceptedResources;
+		for (int j = 0; j < list.Count; ++j)
+		{
+			values.Append("\n " + list[j].SubtypeId.ToString() +" ("+list[j].SubtypeName+")");
+			Echo(list[j].SubtypeId.ToString() +" ("+list[j].SubtypeName+")");
+
+			float currentInput = 0;
+			float maxRequiredInput = 0;
+			bool isPoweredBy = false;
+
+			currentInput=sink.CurrentInputByType(list[j]);
+			isPoweredBy=sink.IsPoweredByType(list[j]);
+			maxRequiredInput=sink.MaxRequiredInputByType(list[j]);
+
+			values.Append("\n Current=" + currentInput.ToString() + " Max=" + maxRequiredInput.ToString() + " Is=" + isPoweredBy.ToString());
+
+		}
+	}
+	else
+	{
+		values.Append("\n No Resources");
+		Echo("No resources");
+	}
+
+ГЕН.H2/O2: БАЗА-МЗ1-Генератор O2/H2 (балоны)
+MyGasGenerator {1666AECC46CF87F} БАЗА-МЗ1-Генератор O2/H2 (балоны)
+100885606802716799
+TyepID=MyObjectBuilder_OxygenGenerator
+SubtyepID=
+Mass=2587
+IsBeingHacked =False
+IsWorking =False
+IsFunctional =True
+DisassembleRatio =1
+DisplayNameText =БАЗА-МЗ1-Генератор O2/H2 (балоны)
+
+Actions:
+OnOff:Переключить блок Вкл/Выкл(Выкл)
+OnOff_On:Переключить блок Вкл(Выкл)
+OnOff_Off:Переключить блок Выкл(Выкл)
+ShowOnHUD:Отображать на экране Вкл/Выкл(Выкл)
+ShowOnHUD_On:Отображать на экране Вкл(Выкл)
+ShowOnHUD_Off:Отображать на экране Выкл(Выкл)
+IncreaseFontSize:Увеличить Размер шрифта()
+DecreaseFontSize:Уменьшить Размер шрифта()
+IncreaseTextPaddingSlider:Увеличить Отступ текста()
+DecreaseTextPaddingSlider:Уменьшить Отступ текста()
+IncreaseChangeIntervalSlider:Увеличить Интервал переключения()
+DecreaseChangeIntervalSlider:Уменьшить Интервал переключения()
+PreserveAspectRatio:Сохранять соотношение сторон Вкл/Выкл()
+UseConveyor:Использовать систему конвейеров Вкл/Выкл(Вкл)
+Refill:Наполнить баллоны()
+Auto-Refill:Автонаполнение Вкл/Выкл(Вкл)
+
+Properties:
+OnOff:Boolean (False)
+ShowInTerminal:Boolean (False)
+ShowInInventory:Boolean (True)
+ShowInToolbarConfig:Boolean (True)
+Name:StringBuilder (БАЗА-МЗ1-Генератор O2/H2 (балоны))
+ShowOnHUD:Boolean (False)
+Content:Int64 (0) Valid Range: 0->3
+ScriptForegroundColor:Color
+ScriptBackgroundColor:Color
+Font:Int64 (0) Valid Range: 151057691->1147350002
+FontSize:Single (1) Valid Range: 0.1->10
+FontColor:Color
+alignment:Int64 (0) Valid Range: 0->2
+TextPaddingSlider:Single (0) Valid Range: 0->50
+BackgroundColor:Color
+ChangeIntervalSlider:Single (0) Valid Range: 0->30
+PreserveAspectRatio:Boolean (False)
+UseConveyor:Boolean (True)
+Auto-Refill:Boolean (True)
+
+DetailedInfo:
+Тип: Генератор O2/H2
+Макс. потребление: 500.00 kW
+----------
+
+-ГЕНЕРАТОРЫ O2/H2: [10<20] А[20] К[20] 
+ |- ПОТРЕБЛЕНИЕ: 20 [ 0.5MW /10.0MW ]
+ |  [''''''''''''''''''']-0% 
+ |- ИНВЕНТАРЬ: [ 39.5KL /40.0KL ] - 39.5Т
+ |  [''''''''''''''''''']-0% 
+ |- ВЫРАБОТАННО: 
+    |- H2: [ 0.5KL /10.0KL ] 
+    | [''''''''''''''''''']-0% 
+    |- O2  [ 0.5KL /10.0KL ]   
+      [''''''''''''''''''']-0% 
+
+
+
+val_obj=
+val_obj=MyObjectBuilder_OxygenGenerator
+val_obj=MyObjectBuilder_OxygenGenerator
+val_obj=
+val_obj=
+val_obj=MyObjectBuilder_OxygenGenerator/
+curr_mass=5156.792КГ curr_vol=1.908012Л curr_max_vol=40Л
+Current=0.5 Max=0.5 PoweredBy=True
+Oxygen Current=0 Max=250Л
+Hydrogen Current=500Л Max=500Л
+
+
+
+CustomInfo=
+CustomName=БАЗА-МЗ1-Генератор O2/H2 (балоны)
+CustomData=
+CustomNameWithFaction=
+ShowOnHUD=False
+
+IMyFunctionalBlock
+ Enabled=False
+
+IMyTextSurfaceProvider
+ SurfaceCount=0
+
+HasInventory
+ InventoryCount=1
+
+IMyInventory[0]
+ CurrentMass=99321.949306
+ CurrentVolume=36.749121
+ IsFull=False
+ MaxVolume=40
+
+Accepted resources:
+ Electricity (Electricity)
+ Current=0 Max=0.5 PoweredBy=True
+Provided resources:
+ Oxygen Current=0 Max=250
+ Hydrogen Current=0 Max=500
+ 
+ БАЗА-МЗ1-Водородный генератор 1
+MyHydrogenEngine {12316D5768E8212} БАЗА-МЗ1-Водородный генератор 1
+81934324295696914
+TyepID=MyObjectBuilder_HydrogenEngine
+SubtyepID=LargeHydrogenEngine
+Mass=3253.8
+IsBeingHacked =False
+IsWorking =False
+IsFunctional =True
+DisassembleRatio =1
+DisplayNameText =БАЗА-МЗ1-Водородный генератор 1
+
+Actions:
+OnOff:Переключить блок Вкл/Выкл(Выкл)
+OnOff_On:Переключить блок Вкл(Выкл)
+OnOff_Off:Переключить блок Выкл(Выкл)
+ShowOnHUD:Отображать на экране Вкл/Выкл(Выкл)
+ShowOnHUD_On:Отображать на экране Вкл(Выкл)
+ShowOnHUD_Off:Отображать на экране Выкл(Выкл)
+IncreaseFontSize:Увеличить Размер шрифта()
+DecreaseFontSize:Уменьшить Размер шрифта()
+IncreaseTextPaddingSlider:Увеличить Отступ текста()
+DecreaseTextPaddingSlider:Уменьшить Отступ текста()
+IncreaseChangeIntervalSlider:Увеличить Интервал переключения()
+DecreaseChangeIntervalSlider:Уменьшить Интервал переключения()
+PreserveAspectRatio:Сохранять соотношение сторон Вкл/Выкл()
+
+Properties:
+OnOff:Boolean (False)
+ShowInTerminal:Boolean (False)
+ShowInInventory:Boolean (True)
+ShowInToolbarConfig:Boolean (True)
+Name:StringBuilder (БАЗА-МЗ1-Водородный генератор 1)
+ShowOnHUD:Boolean (False)
+Content:Int64 (0) Valid Range: 0->3
+ScriptForegroundColor:Color
+ScriptBackgroundColor:Color
+Font:Int64 (0) Valid Range: 151057691->1147350002
+FontSize:Single (1) Valid Range: 0.1->10
+FontColor:Color
+alignment:Int64 (0) Valid Range: 0->2
+TextPaddingSlider:Single (0) Valid Range: 0->50
+BackgroundColor:Color
+ChangeIntervalSlider:Single (0) Valid Range: 0->30
+PreserveAspectRatio:Boolean (False)
+
+DetailedInfo:
+Тип: Водородный генератор
+Макс. отдача: 5.00 MW
+Отдача: 0 W
+Заполнено: 0.0% (0 л/100000 л)
+----------
+
+CustomInfo=
+CustomName=БАЗА-МЗ1-Водородный генератор 1
+CustomData=
+CustomNameWithFaction=
+ShowOnHUD=False
+
+IMyFunctionalBlock
+ Enabled=False
+
+IMyPowerProducer
+ CurrentOutput=0
+ MaxOutput=5
+
+IMyTextSurfaceProvider
+ SurfaceCount=0
+
+No Inventory
+
+Accepted resources:
+ Hydrogen (Hydrogen)
+ Current=0 f=0.02 PoweredBy=True
+Provided resources:
+ Electricity Current=0 Max=5

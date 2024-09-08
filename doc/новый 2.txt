@@ -1,0 +1,423 @@
+Power {[KROTIK-H74]}
+PowerTime {[KROTIK-H74]}
+
+Inventory {[KROTIK-H74]} +ore
+
+center H2 В НАЛИЧИИ
+echo Топливо:
+Tanks {[KROTIK-H74]-Tank H2} Hydrogen
+echo Питание герераторов:
+Tanks {[KROTIK-H74]-Tank [power] H2} Hydrogen
+center O2 В НАЛИЧИИ
+Tanks {[MB-S01]-Бак O2} Oxygen
+
+
+Power {[MOLE-H2]}
+PowerTime {[MOLE-H2]}
+
+Power {[MB-S01]}
+PowerTime {[MB-S01]}
+
+Tanks {[MB-S01]} Hydrogen
+Tanks {[MB-S01]} Oxygen
+Cargo {[MB-S01]} 
+Inventory {[MB-S01]} ore/ice
+
+
+Inventory {[MB-S01]} +ore
+Inventory {[MB-S01]} +ingot -scrap
+Inventory {[MB-S01]} +component
+
+center Очист. завод 1
+Working {[MB-S01]-Очист. завод 1}
+InvListX {[MB-S01]-Очист. завод 1}
+center Очист. завод 2
+Working {[MB-S01]-Очист. завод 2}
+InvListX {[MB-S01]-Очист. завод 2}
+center Очист. завод 3
+Working {[MB-S01]-Очист. завод 3}
+InvListX {[MB-S01]-Очист. завод 3}
+center Очист. завод 4
+Working {[MB-S01]-Очист. завод 4}
+InvListX {[MB-S01]-Очист. завод 4}
+
+center Сборщик 1-1
+Working {[MB-S01]-Сборщик 1-1}
+InvListX {[MB-S01]-Сборщик 1-1}
+center Сборщик 1-2
+Working {[MB-S01]-Сборщик 1-2}
+InvListX {[MB-S01]-Сборщик 1-2}
+center Сборщик 2-1
+Working {[MB-S01]-Сборщик 2-1}
+InvListX {[MB-S01]-Сборщик 2-1}
+center Сборщик 2-2
+Working {[MB-S01]-Сборщик 2-2}
+InvListX {[MB-S01]-Сборщик 2-2}
+
+
+center ГЕНЕРАТОРЫ O2/H2
+echo Группа 1:
+Working {[MB-S01]-Генератор O2/H2 1}
+InvListX {[MB-S01]-Генератор O2/H2 1}
+echo Группа 2:
+Working {[MB-S01]-Генератор O2/H2 2}
+InvListX {[MB-S01]-Генератор O2/H2 2}
+echo Группа 3:
+Working {[MB-S01]-Генератор O2/H2 3}
+InvListX {[MB-S01]-Генератор O2/H2 3}
+echo Группа 4:
+Working {[MB-S01]-Генератор O2/H2 4}
+InvListX {[MB-S01]-Генератор O2/H2 4}
+center ЛЕД В НАЛИЧИИ
+echo Всего:
+InvListX  {[MB-S01]} +ore
+echo В БПК ICE:
+InvListX  {[MB-S01]-БПК ICE} +ore
+center H2 В НАЛИЧИИ
+echo Топливо:
+Tanks {[MB-S01]-Бак H2 [fuel]} Hydrogen
+echo Питание герераторов:
+Tanks {[MB-S01]-Бак Н2 [Power-} Hydrogen
+center O2 В НАЛИЧИИ
+Tanks {[MB-S01]-Бак O2 [tank-O2]} Oxygen
+
+
+
+center H2 ГЕНЕРАТОРЫ
+echo Питание герераторов:
+Tanks {[MB-S01]-Бак Н2 [Power-} Hydrogen
+echo power-1:
+Working {[MB-S01]-H2-генератор [power-1]}
+InvListX {[MB-S01]-H2-генератор [power-1]}
+echo power-2:
+Working {[MB-S01]-H2-генератор [power-2]}
+InvListX {[MB-S01]-H2-генератор [power-2]}
+echo power-3:
+Working {[MB-S01]-H2-генератор [power-3]}
+InvListX {[MB-S01]-H2-генератор [power-3]}
+echo power-4:
+Working {[MB-S01]-H2-генератор [power-4]}
+InvListX {[MB-S01]-H2-генератор [power-4]}
+echo power-5:
+Working {[MB-S01]-H2-генератор [power-5]}
+InvListX {[MB-S01]-H2-генератор [power-5]}
+echo power-6:
+Working {[MB-S01]-H2-генератор [power-6]}
+InvListX {[MB-S01]-H2-генератор [power-6]}
+center ЭНЕРГИЯ НВ БАЗЕ
+Power {[MB-S01]}
+echo
+PowerStored {[MB-S01]}
+PowerTime {[MB-S01]}
+
+Cargo {[MB-S01]-БПК Components} 
+Inventory {[MB-S01]-БПК Components} +component
+
+Cargo {[MB-S01]-БПК Ingots} 
+Inventory {[MB-S01]-БПК Ingots} +ingot -scrap
+
+Cargo {[MB-S01]-БПК Ores} 
+Inventory {[MB-S01]-БПК Ores} +ore
+
+Cargo {[MB-S01]-БПК} 
+Inventory {[MB-S01]-БПК} +ammo
+
+Cargo {[MB-S01]-БПК ICE} 
+Inventory {[MB-S01]-БПК ICE} +ore/ice
+
+[MB-S01]-[LCD] ingot fab
+[MB-S01]-[LCD] ore fab
+[MB-S01]-[LCD] ammo fab
+[MB-S01]-[LCD] ice fab
+
+
+@2 AutoLCD
+Cargo {[MOLE-H2]}
+InventoryX {[MOLE-H2]}
+@3 AutoLCD
+Power {[MOLE-H2]} 
+PowerTime {[MOLE-H2]} 
+
+@2 AutoLCD
+Cargo {[TRUCK-HO-01]}
+InventoryX {[TRUCK-HO-01]}
+@3 AutoLCD
+Tanks {[TRUCK-HO-01]} Hydrogen
+Power {[TRUCK-HO-01]} 
+PowerTime {[TRUCK-HO-01]} 
+
+[MB-S01]-Autocrafting 1
+
+[MB-S01]- Защитная створка [rm-cabin]
+[MB-S01]- Шарнир защитная створка [rm-cabin]
+[MB-S01]- Шарнир защитная створка [rm-cabin]
+Герметичная створка защита
+
+PowerTime {[TRUCK-HO-01]}
+Tanks {[TRUCK-HO-01]} Hydrogen
+Cargo {[TRUCK-HO-01]}
+InventoryX {[TRUCK-HO-01]}
+
+[PB-ER-1]-Голографический стол [track];[PB-ER-1]-LCD prg [track] 1;[PB-ER-1]-LCD prg [track] 2;[PB-ER-1]-LCD prg [track] 3;true;0
+[PB-ER-1]-Голографический стол [bull];[PB-ER-1]-LCD prg [bull] 1;[PB-ER-1]-LCD prg [bull] 2;[PB-ER-1]-LCD prg [bull] 3;true;0
+[PB-ER-1]-LCD prg [bull] 1
+
+БАК :Водородный бак [+] - 100% - Capacity 15МЛ
+БАК :Водородный бак [+] - 100% - Capacity 15МЛ
+БАК :Водородный бак [+] - 100% - Capacity 15МЛ
+БАК :Водородный бак [+] - 100% - Capacity 15МЛ
+БАК :Кислородный бак [+] - 100% - Capacity 0.1МЛ
+БАК :Кислородный бак [+] - 100% - Capacity 0.1МЛ
+
+
+Большой водородный ускоритель
+Водородный ускоритель
+Большой ионный НФ-ускоритель
+Ионный НФ-ускоритель
+Большой ионный ускоритель
+Ионный ускоритель
+
+
+waiting 
+
+
+[backward]
+
+id.SubtypeName LargeBlockLargeHydrogenThrust
+
+CustomData 
+CustomInfo 
+CustomName SANA1-[backward] Большой водородный ускоритель 5
+CustomNameWithFaction 
+DetailedInfo Тип: Большой водородный ускоритель
+Макс. потребление: 4.8 m³
+
+DisplayName 
+DisplayNameText SANA1-[backward] Большой водородный ускоритель 5
+EntityId 129247710599072692
+Name 129247710599072692
+ToString MyThrust {1CB2E1BA64A4BB4} SANA1-[backward] Большой водородный ускоритель 5
+id.ToString MyObjectBuilder_Thrust/LargeBlockLargeHydrogenThrust
+id.SubtypeName LargeBlockLargeHydrogenThrust
+id.SubtypeId LargeBlockLargeHydrogenThrust
+id.SubtypeIdAttribute LargeBlockLargeHydrogenThrust
+id.TypeIdString MyObjectBuilder_Thrust
+id.TypeIdStringAttribute MyObjectBuilder_Thrust
+
+
+
+
+
+LargeBlockSmallHydrogenThrust
+LargeBlockSmallThrustSciFi
+LargeBlockLargeHydrogenThrust
+LargeBlockLargeThrustSciFi
+LargeBlockLargeAtmosphericThrustSciFi
+LargeBlockSmallAtmosphericThrustSciFi
+LargeBlockLargeAtmosphericThrust
+LargeBlockSmallAtmosphericThrust
+LargeBlockLargeThrust
+LargeBlockSmallThrust
+
+[backward]
+[forward]
+
+
+Ускорителей:56
+УСКОРИТЕЛЕЙ:36|56
+|-ВПЕРЕД: 6|6 [{В-2|2}{И-4|4}]
+  |-Пер:0МН [ 0МН / 31.7МН ]
+  |-[''''''''''''''''''''''''''''''''''''''''] - 0%
+|-НАЗАД: 6|14 [{В-0|8}{И-6|6}]
+  |-Пер:0МН [ 0МН / 10.7МН ]
+  |-[''''''''''''''''''''''''''''''''''''''''] - 0%
+|-ВЛЕВО: 0|0 []
+  |-Пер:0МН [ 0МН / 0МН ]
+  |-[] - NaN%
+|-ВПРАВО: 0|0 []
+  |-Пер:0МН [ 0МН / 0МН ]
+  |-[] - NaN%
+|-ВВЕРХ: 0|0 []
+  |-Пер:0МН [ 0МН / 0МН ]
+  |-[] - NaN%
+|-ВНИЗ: 0|0 []
+  |-Пер:0МН [ 0МН / 0МН ]
+  |-[] - NaN%
+
+-ВП: [04/16] [ЗАД:10.7МН] [0.0МН/31.7МН]
+ |- ВУ: [02/06] -[''''''''''''''''''''''''']-0%
+ |- ИУ: [02/10] -[''''''''''''''''''''''''']-0%
+-НЗ: [04/16] [ЗАД:10.7МН] [0.0МН/31.7МН]
+ |- ВУ: 02/06 -[''''''''''''''''''''''''']-0%
+ |- ИУ: 02/10 -[''''''''''''''''''''''''']-0%
+ 
+ 
+
+НЗ:07/08 ЗАД:10.7МН -[''''''''''''''''''''''''']-0% [0.0/31.7]МН
+ВЛ:07/08 ЗАД:10.7МН -[''''''''''''''''''''''''']-0% [0.0/31.7]МН
+ВП:07/08 ЗАД:10.7МН -[''''''''''''''''''''''''']-0% [0.0/31.7]МН
+ВВ:07/08 ЗАД:10.7МН -[''''''''''''''''''''''''']-0% [0.0/31.7]МН
+ВН:07/08 ЗАД:10.7МН -[''''''''''''''''''''''''']-0% [0.0/31.7]МН
+
+
+>ГЕНЕРАТОРЫ O2/H2: [10/20] А[20] К[20]
+ |- ПОТРЕБЛЕНИЕ: [ 0.5MW /10.0MW ]
+ |  [''''''''''''''''''']-0% 
+ |- ИНВЕНТАРЬ: [ 39.5KL /40.0KL ] - 39.5Т
+ |  [''''''''''''''''''']-0% 
+ |- ВЫРАБОТАННО: 
+    |- H2: [ 0.5KL /10.0KL ] 
+    | [''''''''''''''''''']-0% 
+    |- O2  [ 0.5KL /10.0KL ]   
+      [''''''''''''''''''']-0% 
+	 
+	 
+	 
+	 
+	 
+	 
+                // стоит сзади (уск ввперед)
+
+
+                //result += "    |-ВУ: " + PText.GetCountThrust(count_on_thrast(location.backward, group_thrust.hydrogen), count_thrast(location.backward, group_thrust.hydrogen));
+                //result += " Пер:" + PText.GetThrust(sum_to_thrast(location.backward, group_thrust.hydrogen));
+                //result += " " + PText.GetCurrentThrust((sum_cur_thrast(location.backward, group_thrust.hydrogen)), sum_max_thrast(location.backward, group_thrust.hydrogen)) + "\n";
+                //result += "    | " + PText.GetScalePersent((sum_cur_thrast(location.backward, group_thrust.hydrogen) / sum_max_thrast(location.backward, group_thrust.hydrogen)), 40) + "\n";
+
+                //result += "    |-ИУ: " + PText.GetCountThrust(count_on_thrast(location.backward, group_thrust.ionic), count_thrast(location.backward, group_thrust.ionic));
+                //result += " Пер:" + PText.GetThrust(sum_to_thrast(location.backward, group_thrust.ionic));
+                //result += " " + PText.GetCurrentThrust((sum_cur_thrast(location.backward, group_thrust.ionic)), sum_max_thrast(location.backward, group_thrust.ionic)) + "\n";
+                //result += "    | " + PText.GetScalePersent((sum_cur_thrast(location.backward, group_thrust.ionic) / sum_max_thrast(location.backward, group_thrust.ionic)), 40) + "\n";
+
+
+                //foreach (int el in location.){ 
+
+                //}
+                //foreach (IMyThrust obj in list_obj)
+                //{
+                //    VRage.ObjectBuilders.SerializableDefinitionId id = obj.BlockDefinition;
+                //    result += "id.SubtypeName " + id.SubtypeName + "\n";
+                //}
+
+                //List<IMyThrust> list_Forward = new List<IMyThrust>();
+                //List<IMyThrust> list_Backward = new List<IMyThrust>();
+                //// Под управлением с контроллера 
+                //if (is_control)
+                //{
+                //    list_Forward = list_obj.Where(t => t.GridThrustDirection == Vector3I.Forward).ToList();
+                //    list_Backward = list_obj.Where(t => t.GridThrustDirection == Vector3I.Backward).ToList();
+                //}
+                //else
+                //{
+                //    list_Forward = list_obj.Where(t => t.CustomName.Contains(location.forward.ToString())).ToList();
+                //    list_Backward = list_obj.Where(t => t.CustomName.Contains(location.backward.ToString())).ToList();
+                //}
+
+                //result += "ВПЕРЕД :" + list_Forward.Count() + "\n";
+
+
+                //result += "Ускорителей_Forward :" + list_Forward.Count() + "\n";
+                //result += "Ускорителей_Backward :" + list_Backward.Count() + "\n";
+
+                //float sum_to = 0;               // перехват тяги тяга МН
+                //float sum_to_percent = 0;       // процент от макс перехват тяги тяга %
+                //float sum_max_thrust = 0;       // Макс тяга МН
+                //float sum_max_eff_thrust = 0;   // Макс эфектив тяга МН
+                //float sum_cur_thrust = 0;       // Текущая тяга МН
+                //int count = 0;
+
+                //result += "CustomData " + list_Backward[0].CustomData + "\n";
+                //result += "CustomInfo " + list_Backward[0].CustomInfo+ "\n";
+                //result += "CustomName " + list_Backward[0].CustomName+ "\n";
+                //result += "CustomNameWithFaction " + list_Backward[0].CustomNameWithFaction+ "\n";
+                //result += "DetailedInfo " + list_Backward[0].DetailedInfo + "\n";
+                //result += "DisplayName " + list_Backward[0].DisplayName+ "\n";
+                //result += "DisplayNameText " + list_Backward[0].DisplayNameText+ "\n";
+                //result += "EntityId " + list_Backward[0].EntityId+ "\n";
+                //result += "Name " + list_Backward[0].Name+ "\n";
+                //result += "ToString " + list_Backward[0].ToString()+ "\n";
+
+                //VRage.ObjectBuilders.SerializableDefinitionId id = list_Backward[0].BlockDefinition;
+                //result += "id.ToString " + id.ToString() + "\n";
+                //result += "id.SubtypeName " + id.SubtypeName + "\n";
+                //result += "id.SubtypeId " + id.SubtypeId + "\n";
+                //result += "id.SubtypeIdAttribute " + id.SubtypeIdAttribute + "\n";
+                //result += "id.TypeIdString " + id.TypeIdString + "\n";
+                //result += "id.TypeIdStringAttribute " + id.TypeIdStringAttribute + "\n";
+
+                //IMyCameraBlock
+
+                //foreach (IMyThrust obj in list_Backward)
+                //{
+                //    count++;
+                //    sum_to += obj.ThrustOverride;
+                //    sum_to_percent += obj.ThrustOverridePercentage;
+                //    sum_max_thrust += obj.MaxThrust;
+                //    sum_max_eff_thrust += obj.MaxEffectiveThrust;
+                //    sum_cur_thrust += obj.CurrentThrust;
+                //}
+                //result += "БВУ:" + count + "\n";
+                //result += "TO :" + PText.GetThrust(sum_to) + "\n";
+                //result += "TOP :" + PText.GetPersent(sum_to_percent / count) + "\n";
+                //result += "MT :" + PText.GetThrust(sum_max_thrust) + "\n";
+
+                //result += "MET :" + PText.GetThrust(sum_max_eff_thrust) + "\n";
+                //result += "CT :" + PText.GetThrust(sum_cur_thrust) + "\n";
+                //result += "ВПЕРЕД: [" + list_Backward.Count() + "]" + "\n";
+
+                //valus_thrust result_backward_lha = GetOptionThrust(list_Backward, location.backward, ThrustSubtypeName.LargeBlockLargeHydrogenThrust);
+                //result += "БВУ:" + result_backward_lha.count + " " + PText.GetCurrentThrust(result_backward_lha.sum_to, result_backward_lha.sum_cur_thrust, result_backward_lha.sum_max_thrust) + "\n";
+                //result += "" + PText.GetScalePersent((result_backward_lha.sum_cur_thrust / result_backward_lha.sum_max_thrust), 50) + "\n";
+
+                //value_thrust result_backward_lia = GetStatusThrustOfText(list_Backward.ToList().Where(d => d.DefinitionDisplayNameText == "Большой ионный НФ-ускоритель").ToList(), "backward", "Большой ионный НФ-ускоритель");
+                //result += "БИУ:" + result_backward_lia.count + " " + PText.GetCurrentThrust(result_backward_lia.sum_to, result_backward_lia.sum_cur_thrust, result_backward_lia.sum_max_thrust) + "\n";
+                //result += "" + PText.GetScalePersent((result_backward_lia.sum_cur_thrust / result_backward_lia.sum_max_thrust), 50) + "\n";
+
+                //foreach (IMyThrust obj in list_obj)
+                //{
+                //    switch (obj.DefinitionDisplayNameText)
+                //    {
+                //        case "Большой водородный ускоритель":
+                //            {
+                //                result += obj.DefinitionDisplayNameText + "\n";
+                //                float TO = obj.ThrustOverride;
+                //                float TOP = obj.ThrustOverridePercentage;
+                //                float MT = obj.MaxThrust;
+                //                float MET = obj.MaxEffectiveThrust;
+                //                float CT = obj.CurrentThrust;
+                //                result += "TO :" + PText.GetThrust(TO) + "\n";
+                //                result += "TOP :" + TOP + PText.GetPersent(TOP) + "\n";
+                //                result += "MT :" + PText.GetThrust(MT) + "\n";
+                //                result += "MET :" + PText.GetThrust(MET) + "\n";
+                //                result += "CT :" + PText.GetThrust(CT) + "\n";
+                //                //result += "GTD :" + obj.GridThrustDirection =  + "\n";
+
+                //                if (obj.GridThrustDirection == Vector3I.Forward) { }
+                //                //fr_h2 += obj.FilledRatio;
+                //                //cap_h2 += obj.Capacity;
+                //                //count_th2++;
+                //                //tdh2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "] - " + (obj.FilledRatio * 100) + "% " + PText.GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
+                //                return result;
+                //                //break;
+                //            }
+                //            //case "Кислородный бак":
+                //            //    {
+                //            //        fr_o2 += obj.FilledRatio;
+                //            //        cap_o2 += obj.Capacity;
+                //            //        count_to2++;
+                //            //        tdo2 += "|  |-БАК:[" + (obj.Enabled ? "{+}" : "{-}") + (obj.Stockpile ? "{>}" : "{<}") + (obj.AutoRefillBottles ? "{A}" : "{ }") + "] - " + (obj.FilledRatio * 100) + "% " + PText.GetCapacityTanks(obj.FilledRatio, obj.Capacity) + "\n";
+                //            //        break;
+                //            //    }
+                //    }
+
+                //}
+                //string result = "";
+                //result += "|    H2:" + PText.GetCapacityTanks((fr_h2 / count_th2), cap_h2) + "\n";
+                //result += "|-+" + PText.GetPersent((fr_h2 / count_th2), 50) + "\n";
+                //result += tdh2;
+                //result += "|\n";
+                //result += "|    O2:" + PText.GetCapacityTanks((fr_o2 / count_to2), cap_o2) + "\n";
+                //result += "|-+" + PText.GetPersent((fr_o2 / count_to2), 50) + "\n";
+                //result += tdo2;
+                //result += "|\n";
+                return result;

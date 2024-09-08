@@ -1,0 +1,190 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{55F0BB14-41B4-4B52-9A23-E038DC5993DE}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Script</RootNamespace>
+    <AssemblyName>Script</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>bin\x64\Release\</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="Sandbox.Common">
+      <HintPath>..\LIB\Sandbox.Common.dll</HintPath>
+    </Reference>
+    <Reference Include="Sandbox.Game">
+      <HintPath>..\LIB\Sandbox.Game.dll</HintPath>
+    </Reference>
+    <Reference Include="SpaceEngineers.Game">
+      <HintPath>..\LIB\SpaceEngineers.Game.dll</HintPath>
+    </Reference>
+    <Reference Include="SpaceEngineers.ObjectBuilders">
+      <HintPath>..\LIB\SpaceEngineers.ObjectBuilders.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+    <Reference Include="VRage">
+      <HintPath>..\LIB\VRage.dll</HintPath>
+    </Reference>
+    <Reference Include="VRage.Game">
+      <HintPath>..\LIB\VRage.Game.dll</HintPath>
+    </Reference>
+    <Reference Include="VRage.Game.XmlSerializers">
+      <HintPath>..\LIB\VRage.Game.XmlSerializers.dll</HintPath>
+    </Reference>
+    <Reference Include="VRage.Library">
+      <HintPath>..\LIB\VRage.Library.dll</HintPath>
+    </Reference>
+    <Reference Include="VRage.Math">
+      <HintPath>..\LIB\VRage.Math.dll</HintPath>
+    </Reference>
+    <Reference Include="VRage.XmlSerializers">
+      <HintPath>..\LIB\VRage.XmlSerializers.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="OCTOPUS\PMP.cs" />
+    <Compile Include="Setup_Example\Ship_TH.cs" />
+    <Compile Include="Setup_Example\Ship_Test.cs" />
+    <Compile Include="Setup_Example\Basa_Test.cs" />
+    <Compile Include="Setup_Example\IGC_Antena_Ship.cs" />
+    <Compile Include="Setup_Example\IGC_Antena_Basa.cs" />
+    <Compile Include="БАЗЫ\MinerHub\MINER_HUB_UPR_V2.cs" />
+    <Compile Include="БАЗЫ\MinerHub\MINER_HUB_UPR.cs" />
+    <Compile Include="БАЗЫ\MPB\MPB_NAV.cs" />
+    <Compile Include="БАЗЫ\MPB\MPB_UPR.cs" />
+    <Compile Include="OCTOPUS\Roach1.cs" />
+    <Compile Include="OCTOPUS\Hrv4.cs" />
+    <Compile Include="OCTOPUS\Octopus2.cs" />
+    <Compile Include="БАЗЫ\OSS\OSS_BM_UPR.cs" />
+    <Compile Include="БАЗЫ\OSS\OSS_BM_DORS.cs" />
+    <Compile Include="OCTOPUS\Octopus1.cs" />
+    <Compile Include="БАЗЫ\OS_X\OS_EX_UPR.cs" />
+    <Compile Include="БАЗЫ\PB_2024\MB_S_UPR_NAV.cs" />
+    <Compile Include="БАЗЫ\PB_2024\MB_S_CONTROL_O2.cs" />
+    <Compile Include="БАЗЫ\PB_2024\PB_ER_UPR.cs" />
+    <Compile Include="БАЗЫ\SPB\SPB_EUROPE_DORS.cs" />
+    <Compile Include="БАЗЫ\SPB\SPB_MARS_DORS.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\MOLE_A1.cs" />
+    <Compile Include="БУРОВИКИ\MINER\MINER_A9_old.cs" />
+    <Compile Include="БУРОВИКИ\MINER\MINER_A9.cs" />
+    <Compile Include="БУРОВИКИ\TUNNEL_MINER\TUNNEL_MINER_V1.cs" />
+    <Compile Include="БУРОВИКИ\TUNNEL_MINER\STEP_DRILL.cs" />
+    <Compile Include="БУРОВИКИ\TUNNEL_MINER\TUNNEL_MINER.cs" />
+    <Compile Include="БУРОВИКИ\MINER\MINER_I2_E1.cs" />
+    <Compile Include="БУРОВИКИ\MINER\MINER_A2_E1.cs" />
+    <Compile Include="БУРОВИКИ\test\MINER_A1_NAV.cs" />
+    <Compile Include="БУРОВИКИ\MINER\MINER_A1.cs" />
+    <Compile Include="БУРОВИКИ\test\KROTIK_A1P.cs" />
+    <Compile Include="БУРОВИКИ\test\KROTIK_A1M_NAV_4.cs" />
+    <Compile Include="БУРОВИКИ\test\KROTIK_A1M_NAV_3.cs" />
+    <Compile Include="БУРОВИКИ\test\KROTIK_A1M_NAV_2.cs" />
+    <Compile Include="БУРОВИКИ\test\KROTIK_A1M_NAV_1.cs" />
+    <Compile Include="БУРОВИКИ\test\KROTIK_A1M_NAV_My.cs" />
+    <Compile Include="БУРОВИКИ\test\KROTIK_A1_NAV.cs" />
+    <Compile Include="БУРОВИКИ\test\KROTIK_A1M_V4_ok1.cs" />
+    <Compile Include="БУРОВИКИ\test\KROTIK_A1M_V4.cs" />
+    <Compile Include="БУРОВИКИ\test\KROTIK_A1M_V3_2.cs" />
+    <Compile Include="БУРОВИКИ\test\KROTIK_A1M_V3_1.cs" />
+    <Compile Include="БУРОВИКИ\test\KROTIK_A1M_V3.cs" />
+    <Compile Include="БУРОВИКИ\test\KROTIK_A1M_V2.cs" />
+    <Compile Include="БУРОВИКИ\test\KROTIK_A1M1.cs" />
+    <Compile Include="БУРОВИКИ\test\KROTIK_A1M.cs" />
+    <Compile Include="БУРОВИКИ\test\KROTIK_A1K21.cs" />
+    <Compile Include="БУРОВИКИ\KROTIK\KROTIK_H1.cs" />
+    <Compile Include="БУРОВИКИ\MINER\MINER_A2_1.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\BUG\BUG_H2_NAV.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\BUG\BUG_A1_H2_NAV.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\TRUCK\TRUCK_H1.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\РАКЕТОНОСИТЕЛИ\BULL_H.cs" />
+    <Compile Include="КОРАБЛИ\APOLN1.cs" />
+    <Compile Include="Setup_Example\Primary_bur.cs" />
+    <Compile Include="БАЗЫ\Basa_Earth\BASE_EARTH_PROJECTOR_SG.cs" />
+    <Compile Include="OCTOPUS\Octopus.cs" />
+    <Compile Include="Setup_Example\Connection.cs" />
+    <Compile Include="Setup_Example\gorizontcs.cs" />
+    <Compile Include="СORVETTE\СORVETTE_H1\СORVETTE_H1_NAV - Копировать.cs" />
+    <Compile Include="СORVETTE\СORVETTE_H1\СORVETTE_H1_NAV.cs" />
+    <Compile Include="СORVETTE\СORVETTE_H1\СORVETTE_H1_DOOR.cs" />
+    <Compile Include="СВАРЩИКИ\KLEPA3.cs" />
+    <Compile Include="БУРОВИКИ\test\KROTIK_old1.cs" />
+    <Compile Include="СВАРЩИКИ\KLEPA\KLEPA_A2.cs" />
+    <Compile Include="СВАРЩИКИ\KLEPA\KLEPA_A14.cs" />
+    <Compile Include="СВАРЩИКИ\KLEPA\KLEPA_H18.cs" />
+    <Compile Include="СВАРЩИКИ\KLEPA\KLEPA_A1.cs" />
+    <Compile Include="СВАРЩИКИ\KLEPA\KLEPA_H1.cs" />
+    <Compile Include="СВАРЩИКИ\KLEPA\test\KLEPA_A1.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\MUL_CARGO.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\MUL_H1_NAV.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\Arhiv\MUL_H2_NAV - Копировать.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\Arhiv\MUL_H2_NAV - К2.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\Arhiv\MUL_H2_NAV - Копировать %282%29.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\Arhiv\MUL_H2_NAV - Копировать%283%29.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\MUL_H2_NAV - Копировать.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\MUL_H2_NAV.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\MUL_H2_DOOR.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\MUL_H1_UPR.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\ТЯГАЧИ\MUL1.cs" />
+    <Compile Include="КОРАБЛИ\NASTYA\NASTYA_LOGIC_DOORS.cs" />
+    <Compile Include="КОРАБЛИ\NASTYA\NASTYA_PROJECTOR.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="БУРОВИКИ\SANA\SANA1-NAVIGATION.cs" />
+    <Compile Include="БУРОВИКИ\SANA\SANA1-Управление.cs" />
+    <Compile Include="Setup_Example\setup.cs" />
+    <Compile Include="БАЗЫ\БАЗА_МЗ1\БАЗА-МЗ1.cs" />
+    <Compile Include="БАЗЫ\БАЗА_МЗ1\БАЗА_МЗ1_PROJECTOR_LM.cs" />
+    <Compile Include="БАЗЫ\БАЗА_МЗ1\БАЗА_МЗ1_PROJECTOR_SG.cs" />
+    <Compile Include="БУРОВИКИ\test\KROTIK_A1.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\.editorconfig">
+      <Link>.editorconfig</Link>
+    </None>
+    <None Include="App.config" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
