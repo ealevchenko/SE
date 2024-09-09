@@ -28,7 +28,7 @@ namespace MINER_A9_old
 {
     public sealed class Program : MyGridProgram
     {
-        string NameObj = "[MINER_A2_2]"; // MINER-A9-1
+        string NameObj = "[MINER_A9_01]"; // MINER_A9_01
         static string tag_nav = "[nav]";
         static string tag_ejector = "[ejector]";
         static float safe_base_height = 200f;   // безопасная высота
@@ -58,6 +58,7 @@ namespace MINER_A9_old
         static LCD lcd_debug;
         static LCD lcd_name;
         static LCD lcd_work1, lcd_work2;
+        static LCD lcd_test1, lcd_test2, lcd_test3;
         static Batterys bats;
         static Connector connector;
         static ShipDrill drill;
@@ -129,6 +130,9 @@ namespace MINER_A9_old
             lcd_name = new LCD(NameObj + "-LCD-Name");
             lcd_work1 = new LCD(NameObj + "-LCD-Work 1");
             lcd_work2 = new LCD(NameObj + "-LCD-Work 2");
+            lcd_test1 = new LCD(NameObj + "-test1");
+            lcd_test2 = new LCD(NameObj + "-test2");
+            lcd_test3 = new LCD(NameObj + "-test3");
             bats = new Batterys(NameObj);
             connector = new Connector(NameObj + "-Connector parking");
             drill = new ShipDrill(NameObj);
@@ -936,14 +940,22 @@ namespace MINER_A9_old
                 EmergencySetpoint = CriticalMassReached || CriticalBatteryCharge;// || CriticalHydrogenSupply;
 
 
-                //StringBuilder values = new StringBuilder();
-                ////Vector3D MyPosPoint = Vector3D.Transform(MyPos, DockMatrix);
+                StringBuilder values1 = new StringBuilder();
+                Vector3D MyPosPoint = Vector3D.Transform(MyPos, DockMatrix);
                 //Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
-                //values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
-                ////values.Append("My_Length   : " + Math.Round(MyPosPoint.Length(), 2) + "\n");
-                ////values.Append("MyPos_X_[0]   : " + Math.Round(MyPosPoint.GetDim(0), 2) + "\n");
-                ////values.Append("MyPos_Y_[1]   : " + Math.Round(MyPosPoint.GetDim(1), 2) + "\n");
-                ////values.Append("MyPos_Z_[2]   : " + Math.Round(MyPosPoint.GetDim(2), 2) + "\n");
+                values1.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
+                values1.Append("BlockNav :" + (BlockNav!= null).ToString() + "\n");
+                values1.Append("My_Length   : " + Math.Round(MyPosPoint.Length(), 2) + "\n");
+                values1.Append("MyPos_X_[0]   : " + Math.Round(MyPosPoint.GetDim(0), 2) + "\n");
+                values1.Append("MyPos_Y_[1]   : " + Math.Round(MyPosPoint.GetDim(1), 2) + "\n");
+                values1.Append("MyPos_Z_[2]   : " + Math.Round(MyPosPoint.GetDim(2), 2) + "\n");
+                lcd_test1.OutText(values1);
+
+                StringBuilder values2 = new StringBuilder();
+                //Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
+                values2.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
+                values2.Append("StoneDumpNeeded :" + StoneDumpNeeded.ToString() + "\n");
+                lcd_test2.OutText(values2);
                 //values.Append("MyDrill_Length   : " + Math.Round(MyPosDrill.Length(), 2) + "\n");
                 //values.Append("MyDrillPos_X_[0]   : " + Math.Round(MyPosDrill.GetDim(0), 2) + "\n");
                 //values.Append("MyDrillPos_Y_[1]   : " + Math.Round(MyPosDrill.GetDim(1), 2) + "\n");
@@ -952,7 +964,7 @@ namespace MINER_A9_old
                 //values.Append("------------------------------------------\n");
                 ////float HDistance1 = (float)((Vector3D.Reject(MyPosPoint, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
                 ////float HDistance = (float)(new Vector3D(MyPosPoint.GetDim(0), 0, MyPosPoint.GetDim(2))).Length();
-                ////Vector3D lpc = Vector3D.Transform(PlanetCenter, DockMatrix);
+                //Vector3D lpc = Vector3D.Transform(PlanetCenter, DockMatrix);
                 ////float VDistance = (float)(Vector3D.ProjectOnVector(ref MyPosPoint, ref lpc).Length());
                 ////values.Append("HDistance_пл : " + Math.Round(HDistance1, 2) + "\n");
                 //values.Append("Horz_dist    : " + Math.Round(HDistance, 2) + "\n");
@@ -960,6 +972,26 @@ namespace MINER_A9_old
                 //values.Append("------------------------------------------\n");
                 //values.Append("СКОРОСТЬ     : " + Math.Round(cockpit.obj.GetShipSpeed(), 2) + "\n");
                 //cockpit.OutText(values, 2);
+
+                //StringBuilder values = new StringBuilder();
+                ////values.Append(" STATUS\n");
+                ////Vector3D MyPosPoint = Vector3D.Transform(MyPos, DockMatrix);
+                ////values.Append("My_Length   : " + Math.Round(MyPosPoint.Length(), 2) + "\n");
+                ////values.Append("MyPosDrill[0]   : " + Math.Round(MyPosPoint.GetDim(0), 2) + "\n");
+                ////values.Append("MyPosDrill[1]   : " + Math.Round(MyPosPoint.GetDim(1), 2) + "\n");
+                ////values.Append("MyPosDrill[2]   : " + Math.Round(MyPosPoint.GetDim(2), 2) + "\n");
+                ////values.Append("------------------------------------------\n");
+                ////values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
+                //values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
+                ////values.Append("Dist(вертикаль): " + Math.Round(VDistance).ToString() + "\n");
+                ////values.Append("Dist(горизонталь): " + Math.Round(HDistance).ToString() + "\n");
+                //values.Append("------------------------------------------\n");
+                //values.Append("ZMaxA (F-B) : " + Math.Round(ZMaxA, 2).ToString() + ", MaxFSpeed: " + Math.Round(MaxFSpeed, 2).ToString() + "\n");
+                //values.Append("YMaxA (U-D) : " + Math.Round(YMaxA, 2).ToString() + ", MaxUSpeed: " + Math.Round(MaxUSpeed, 2).ToString() + "\n");
+                //values.Append("XMaxA (L-R) : " + Math.Round(XMaxA, 2).ToString() + ", MaxLSpeed: " + Math.Round(MaxLSpeed, 2).ToString() + "\n");
+                //cockpit.OutText(values, 0);
+                ////values.Append(thrusts.TextInfo());
+                //lcd_test1.OutText(values);
             }
             //public Vector3D GetLocalPosCon(IMyTerminalBlock block, Vector3D ConnectorPoint, MatrixD DockMatrix)
             //{
@@ -1060,7 +1092,9 @@ namespace MINER_A9_old
                         {
                             ejector.ThrowOut(false);
                             cargos.UnLoad();
-                            bats.Charger();
+                            // Если сидим в кокпите батарея не заряжается
+                            if (cockpit.obj.IsUnderControl) { bats.Auto(); } else { bats.Charger(); }
+                            //bats.Charger();
                             thrusts.Off();
                             thrusts.ClearThrustOverridePersent();
                             if (go_home || ShaftN >= MaxShafts)
@@ -1069,7 +1103,7 @@ namespace MINER_A9_old
                             }
                             else
                             {
-                                if (EmergencySetpoint && cargos.CurrentMass == 0f)
+                                if (!EmergencySetpoint && cargos.CurrentMass == 0f)
                                 {
                                     bats.Auto();
                                     thrusts.On();
@@ -1575,7 +1609,7 @@ namespace MINER_A9_old
                 values.Append("XMaxA (L-R) : " + Math.Round(XMaxA, 2).ToString() + ", MaxLSpeed: " + Math.Round(MaxLSpeed, 2).ToString() + "\n");
                 cockpit.OutText(values, 0);
                 //values.Append(thrusts.TextInfo());
-                //lcd_debug.OutText(values);
+                lcd_test1.OutText(values);
             }
             public string TextInfo1()
             {
@@ -1608,6 +1642,7 @@ namespace MINER_A9_old
                 values.Append("--------------------------------------\n");
                 values.Append("ПРОГРАММА : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП      : " + name_mode[(int)curent_mode] + "\n");
+                values.Append("Я Управ.  : " + cockpit.obj.IsUnderControl.ToString() + "\n");
                 return values.ToString();
             }
             public void Logic(string argument, UpdateType updateSource)
@@ -1662,7 +1697,7 @@ namespace MINER_A9_old
                         // Припаркован
                         drill.Off();
                         reflectors_light.Off();
-                        if ((curent_mode == mode.base_operation && curent_programm != programm.none) || (curent_mode == mode.none && curent_programm == programm.none))
+                        if ((curent_mode == mode.none && curent_programm == programm.none))
                         {
                             // Если сидим в кокпите батарея не заряжается
                             if (cockpit.obj.IsUnderControl) { bats.Auto(); } else { bats.Charger(); }
