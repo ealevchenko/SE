@@ -91,6 +91,7 @@
     <Compile Include="Setup_Example\Basa_Test.cs" />
     <Compile Include="Setup_Example\IGC_Antena_Ship.cs" />
     <Compile Include="Setup_Example\IGC_Antena_Basa.cs" />
+    <Compile Include="SEZON_2024\БУРОВИКИ\MV_A9.cs" />
     <Compile Include="БАЗЫ\MinerHub\MINER_HUB_UPR_V2.cs" />
     <Compile Include="БАЗЫ\MinerHub\MINER_HUB_UPR.cs" />
     <Compile Include="БАЗЫ\MPB\MPB_NAV.cs" />
