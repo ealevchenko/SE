@@ -20,6 +20,7 @@ using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
 using VRage.Scripting;
 using VRageMath;
+using static MINER_VERTICAL_A9.Program;
 
 /// <summary>
 ///  БУРОВИК ВЕРТИКАЛЬНОГО БУРЕНИЯ (v9.0)
@@ -31,7 +32,7 @@ namespace MINER_VERTICAL_A9
     {
         string NameObj = "[MV-A9-01]";
         static string tag_nav = "[nav]";
-        static string tag_ejector = "[ejector]";
+        static string tag_ejector = "[out]";
         static float safe_base_height = 200f;   // безопасная высота
         static float safe_base_distance = 50f; // безопасная дистанция
 
@@ -70,6 +71,9 @@ namespace MINER_VERTICAL_A9
         static Cargos cargos;
         static Ejector ejector;
         static ConveyorSorter sorter;
+        static GasGenerator gas_gen;
+        static HydrogenEngines h2_engines;
+        static Reactors reactors;
         static Nav nav;
         static MyStorage strg;
         static Program _scr;
@@ -147,11 +151,12 @@ namespace MINER_VERTICAL_A9
             cargos = new Cargos(NameObj);
             ejector = new Ejector(NameObj, tag_ejector); ejector.ThrowOut(true); ejector.On();
             sorter = new ConveyorSorter(NameObj); sorter.DrainAll(true); sorter.On();
+            gas_gen = new GasGenerator(NameObj); gas_gen.Off();
+            h2_engines = new HydrogenEngines(NameObj); h2_engines.Off();
+            reactors = new Reactors(NameObj); reactors.Off();
             nav = new Nav(NameObj);
             strg = new MyStorage();
             strg.LoadFromStorage();
-
-
         }
         public void Save() { }
         public void Main(string argument, UpdateType updateSource)
@@ -226,6 +231,21 @@ namespace MINER_VERTICAL_A9
             {
                 StringBuilder values = new StringBuilder();
                 values.Append((!String.IsNullOrWhiteSpace(name) ? name : "БУРЫ") + ": " + (base.Enabled() ? igreen.ToString() : ired.ToString()) + "\n");
+                return values.ToString();
+            }
+        }
+        public class GasGenerator : BaseListTerminalBlock<IMyGasGenerator>
+        {
+            public GasGenerator(string name_obj) : base(name_obj) { }
+            public GasGenerator(string name_obj, string tag) : base(name_obj, tag) { }
+            public string TextInfo(string name)
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append((!String.IsNullOrWhiteSpace(name) ? name : "ГЕН.H2/O2: "));
+                foreach (IMyGasGenerator obj in list_obj)
+                {
+                    values.Append("[" + (obj.Enabled ? "+" : "-") + "]");
+                }
                 return values.ToString();
             }
         }
@@ -700,6 +720,42 @@ namespace MINER_VERTICAL_A9
                 foreach (IMyConveyorSorter enj in base.list_obj) { enj.DrainAll = enable; }
             }
         }
+        public class HydrogenEngines : BaseListTerminalBlock<IMyPowerProducer>
+        {
+            public HydrogenEngines(string name_obj) : base(name_obj)
+            {
+                //MyObjectBuilder_HydrogenEngine
+                base.list_obj = base.list_obj.Where(o => o.BlockDefinition.TypeIdString == "MyObjectBuilder_HydrogenEngine").ToList();
+                _scr.Echo("Найдено HydrogenEngine :" + base.list_obj.Count());
+            }
+            public HydrogenEngines(string name_obj, string tag) : base(name_obj, tag)
+            {
+                base.list_obj = base.list_obj.Where(o => o.BlockDefinition.TypeIdString == "MyObjectBuilder_HydrogenEngine").ToList();
+                _scr.Echo("Найдено HydrogenEngine :" + base.list_obj.Count());
+            }
+            public float MaxOutput()
+            {
+                return base.list_obj.Select(b => b.MaxOutput).Sum();
+            }
+            public float CurrentOutput()
+            {
+                return base.list_obj.Select(b => b.CurrentOutput).Sum();
+            }
+            public string TextInfo(string name)
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append((!String.IsNullOrWhiteSpace(name) ? name : "ГЕНЕРАТОР")+ ":[" + Count + "]" + "\n");
+                values.Append("|- OUT  : [" + Count + "] " + (Count > 0 ? igreen.ToString() : iyellow.ToString()) + " " + PText.GetCurrentOfMax(CurrentOutput(), MaxOutput(), "W") + "\n");
+                float max = MaxOutput();
+                values.Append("|  " + PText.GetScalePersent(max > 0f ? CurrentOutput() / max : 0f, 40) + "\n");
+                return values.ToString();
+            }
+        }
+        public class Reactors : BaseListTerminalBlock<IMyReactor>
+        {
+            public Reactors(string name_obj) : base(name_obj) { }
+            public Reactors(string name_obj, string tag) : base(name_obj, tag) { }
+        }
         public class Ejector : BaseListTerminalBlock<IMyShipConnector> { public Ejector(string name_obj) : base(name_obj) { } public Ejector(string name_obj, string tag) : base(name_obj, tag) { } public void ThrowOut(bool enable) { foreach (IMyShipConnector enj in base.list_obj) { enj.ThrowOut = enable; } } }
         public class Nav
         {
@@ -899,6 +955,14 @@ namespace MINER_VERTICAL_A9
                 ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
                 XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
                 cargos.Update();
+                if (cargos.IceAmount > 100)
+                {
+                    gas_gen.On(); h2_engines.On();
+                }
+                else
+                {
+                    gas_gen.Off(); h2_engines.Off();
+                };
                 // Критические уставки
                 if (PhysicalMass > CriticalMass) { CriticalMassReached = true; }
                 else
@@ -910,6 +974,7 @@ namespace MINER_VERTICAL_A9
                         StoneDumpNeeded = false;
                 }
                 CriticalBatteryCharge = connector.Connected ? bats.CurrentPersent < MaxOffCharge : bats.CurrentPersent <= MinOnCharge;
+                if (CriticalBatteryCharge) { reactors.On(); } else { reactors.Off(); }
                 //CriticalHydrogenSupply = connector_base.Connected ? hydrogen_tanks_nav.AverageFilledRatio < 1.0f : hydrogen_tanks_nav.AverageFilledRatio <= CriticalOnH2;
                 EmergencySetpoint = CriticalMassReached || CriticalBatteryCharge;// || CriticalHydrogenSupply;
                 //ТЕСТИРОВАНИЕ
@@ -922,9 +987,9 @@ namespace MINER_VERTICAL_A9
                 values1.Append("MyPos_Y_[1]   : " + Math.Round(MyPosPoint.GetDim(1), 2) + "\n");
                 values1.Append("MyPos_Z_[2]   : " + Math.Round(MyPosPoint.GetDim(2), 2) + "\n");
                 lcd_test1.OutText(values1);
-
-
-
+                StringBuilder values2 = new StringBuilder();
+                values2.Append("IceAmount :" + cargos.IceAmount + "\n");
+                lcd_test2.OutText(values2);
                 StringBuilder values3 = new StringBuilder();
                 Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
                 values3.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
@@ -933,7 +998,7 @@ namespace MINER_VERTICAL_A9
                 values3.Append("MyDrillPos_X_[0]   : " + Math.Round(MyPosDrill.GetDim(0), 2) + "\n");
                 values3.Append("MyDrillPos_Y_[1]   : " + Math.Round(MyPosDrill.GetDim(1), 2) + "\n");
                 values3.Append("MyDrillPos_Z_[2]   : " + Math.Round(MyPosDrill.GetDim(2), 2) + "\n");
-                lcd_test2.OutText(values3);
+                lcd_test3.OutText(values3);
             }
             //------------------------------------------------
             public void FlyConnectBase()
@@ -1597,6 +1662,7 @@ namespace MINER_VERTICAL_A9
                     }
                     if (curent_programm == programm.none)
                     {
+                        lcd_work1.Off(); lcd_work2.Off(); lcd_debug.Off();
                         if (horizont)
                         {
                             Horizon();
