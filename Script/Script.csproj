@@ -91,7 +91,8 @@
     <Compile Include="Setup_Example\Basa_Test.cs" />
     <Compile Include="Setup_Example\IGC_Antena_Ship.cs" />
     <Compile Include="Setup_Example\IGC_Antena_Basa.cs" />
-    <Compile Include="SEZON_2024\БУРОВИКИ\MV_A9.cs" />
+    <Compile Include="SEZON_2025\БУРОВИКИ\MV_A9.cs" />
+    <Compile Include="SEZON_2025\СВАРШИКИ\KLEPA_H2.cs" />
     <Compile Include="БАЗЫ\MinerHub\MINER_HUB_UPR_V2.cs" />
     <Compile Include="БАЗЫ\MinerHub\MINER_HUB_UPR.cs" />
     <Compile Include="БАЗЫ\MPB\MPB_NAV.cs" />
@@ -140,6 +141,7 @@
     <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\BUG\BUG_A1_H2_NAV.cs" />
     <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\TRUCK\TRUCK_H1.cs" />
     <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\РАКЕТОНОСИТЕЛИ\BULL_H.cs" />
+    <Compile Include="ГРУЗОВОЙ ТРАНСПОРТ\РАКЕТОНОСИТЕЛИ\SHATL_S1_H.cs" />
     <Compile Include="КОРАБЛИ\APOLN1.cs" />
     <Compile Include="Setup_Example\Primary_bur.cs" />
     <Compile Include="БАЗЫ\Basa_Earth\BASE_EARTH_PROJECTOR_SG.cs" />

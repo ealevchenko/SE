@@ -562,6 +562,7 @@ namespace SETUP
         //add:[SPY-I19]-
         //add:[TRUCK-HO-01]-
         //add:[BER-01]-
+        //add:[SHATL-S2-01]-
         //replace:[MOLE-H2]-|[MOLE-H2-01]-
         //[OS-E1]
         void Main(string argument, UpdateType updateSource)
@@ -684,7 +685,10 @@ namespace SETUP
 
 
         }
-        //public class ShipWelder
+    }
+}
+        
+//public class ShipWelder
         //{
         //    public List<IMyShipWelder> list_obj = new List<IMyShipWelder>();
 
@@ -737,5 +741,3 @@ namespace SETUP
         //        }
         //    }
         //}
-    }
-}
