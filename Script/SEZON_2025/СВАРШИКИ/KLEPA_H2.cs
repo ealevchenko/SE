@@ -31,9 +31,10 @@ namespace KLEPA_H2
     {
         string NameObj = "[KLEPA-H2-01]";
         static string tag_nav = "[nav]";
-        static float safe_base_height = 200.0f;   // безопасная высота
-        static float safe_fly_height = 300.0f;   // безопасная высота полета
-        static float safe_base_distance = 50.0f; // безопасная дистанция
+        static float safe_base_height = 200.0f;     // безопасная высота
+        static float safe_fly_height = 500.0f;      // безопасная высота полета
+        static float safe_fly_distance = 700.0f;    // безопасная дистанция полета
+        static float safe_base_distance = 50.0f;    // безопасная дистанция
 
         static float GyroMult = 10f;
         static float AlignAccelMult = 0.6f;
@@ -63,6 +64,7 @@ namespace KLEPA_H2
         static Cargos cargos;
         static GasGenerator gas_gen;
         static HydrogenEngines h2_engines;
+        static Camera camera_forw;
         static Nav nav;
         static MyStorage strg;
         static Program _scr;
@@ -137,6 +139,7 @@ namespace KLEPA_H2
             cargos = new Cargos(NameObj);
             gas_gen = new GasGenerator(NameObj); gas_gen.On();
             h2_engines = new HydrogenEngines(NameObj); h2_engines.On();
+            camera_forw = new Camera(NameObj + "-Камера [forw]");
             nav = new Nav(NameObj);
             strg = new MyStorage();
             strg.LoadFromStorage();
@@ -739,6 +742,38 @@ namespace KLEPA_H2
                 return values.ToString();
             }
         }
+        public class Camera : BaseTerminalBlock<IMyCameraBlock>
+        {
+            public Camera(string name) : base(name) { base.obj.EnableRaycast = true; }
+            public MyDetectedEntityInfo? Raycast(double dist_scan, float pitch_scan, float yaw_scan)
+            {
+                MyDetectedEntityInfo? result = null;
+                if (base.obj.CanScan(dist_scan))
+                {
+                    result = base.obj.Raycast(dist_scan, pitch_scan, yaw_scan);
+                }
+                return result;
+            }
+            public string TextInfo() { StringBuilder values = new StringBuilder(); return values.ToString(); }
+            public string GetTextDetectedEntityInfo(MyDetectedEntityInfo? info)
+            {
+                StringBuilder values = new StringBuilder();
+                if (info != null)
+                {
+                    Vector3D? HitPosition = ((MyDetectedEntityInfo)info).HitPosition;
+                    values.Append("РАССТОЯНИЕ   : " + (HitPosition != null ? Math.Round(((Vector3D)((Vector3D)HitPosition) - base.obj.GetPosition()).Length(), 2).ToString() : "") + "\n");
+                    values.Append("Name         : " + ((MyDetectedEntityInfo)info).Name + "\n");
+                    values.Append("Type         : " + ((MyDetectedEntityInfo)info).Type + "\n");
+                    values.Append("HitPosition  : " + HitPosition + "\n");
+                    values.Append("Orientation  : " + ((MyDetectedEntityInfo)info).Orientation + "\n");
+                    values.Append("Velocity     : " + ((MyDetectedEntityInfo)info).Velocity + "\n");
+                    values.Append("Relationship : " + ((MyDetectedEntityInfo)info).Relationship + "\n");
+                    values.Append("BoundingBox  : " + ((MyDetectedEntityInfo)info).BoundingBox + "\n");
+                }
+                else { values.Append("РАССТОЯНИЕ   : \n"); values.Append("Name         : \n"); values.Append("Type         : \n"); values.Append("HitPosition  : \n"); values.Append("Orientation  : \n"); values.Append("Velocity     : \n"); values.Append("Relationship : \n"); values.Append("BoundingBox  : \n"); };
+                return values.ToString();
+            }
+        }
         public class Nav
         {
             public enum programm : int
@@ -795,6 +830,10 @@ namespace KLEPA_H2
             public bool go_home { get; set; } = false; // вернутся домой и остатся
             public bool paused { get; set; } = false;
             public IMyTerminalBlock BlockNav { get; set; }
+            public MyDetectedEntityInfo? info_scan { get; set; }
+            public double dist_scan { get; set; } = 1000;
+            public double? dist_forw { get; set; } = null;
+            public bool up_safe { get; set; } = false;
             public Nav(string name)
             {
                 this.name_ship = name;
@@ -954,6 +993,8 @@ namespace KLEPA_H2
                 //values2.Append("IceAmount :" + cargos.IceAmount + "\n");
                 //lcd_test2.OutText(values2);
                 StringBuilder values3 = new StringBuilder();
+                values3.Append(camera_forw.GetTextDetectedEntityInfo(info_scan).ToString() + "\n");
+                values3.Append("UP_SAFE   : " + (!up_safe ? igreen.ToString() : ired.ToString()) + "\n");
                 lcd_test3.OutText(values3);
             }
             //------------------------------------------------
@@ -1092,22 +1133,41 @@ namespace KLEPA_H2
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 2; //
                 MaxFSpeed = (float)Math.Sqrt(2 * HDistance * ZMaxA) / 3;
 
+                info_scan = camera_forw.Raycast(dist_scan, 0f, 0f);
+                dist_forw = null;
+                bool up_safe = false;
+                if (info_scan != null)
+                {
+                    Vector3D? HitPosition = ((MyDetectedEntityInfo)info_scan).HitPosition;
+                    if (HitPosition != null)
+                    {
+                        dist_forw = ((Vector3D)HitPosition - camera_forw.obj.GetPosition()).Length();
+                        up_safe = dist_forw < safe_fly_distance;
+                    }
+                }
+                //safe_fly_distance
                 thrusts.SetOverridePercent("R", 0);
                 thrusts.SetOverridePercent("L", 0);
                 if (HDistance > (safe_base_distance * 2))
                 {
                     // далеко от базы (расстояние до земли)
-                    //cockpit.GetCurrentHeight()
-                    //if (Math.Abs(cockpit.GetCurrentHeight() - safe_fly_height) < 5.0f) MaxUSpeed = MinUDSpeed;
-                    float UpAccel = getAccel(-(float)((cockpit.GetCurrentHeight() - safe_fly_height) * AlignAccelMult), MinUDSpeed);
-                    if (UpVelocityVector.Length() < MaxUSpeed)
-                        thrusts.SetOverrideAccel("U", UpAccel);
+                    if (up_safe)
+                    {
+                        thrusts.SetOverridePercent("U", 1.0f);
+                    }
                     else
                     {
-                        thrusts.SetOverridePercent("U", 0);
-                        thrusts.SetOverridePercent("D", 0);
+                        float UpAccel = getAccel(-(float)((cockpit.GetCurrentHeight() - safe_fly_height) * AlignAccelMult), MinUDSpeed);
+                        if (UpVelocityVector.Length() < MaxUSpeed && UpAccel >= 0)
+                            thrusts.SetOverrideAccel("U", UpAccel);
+                        else
+                        {
+                            thrusts.SetOverridePercent("U", 0);
+                            thrusts.SetOverridePercent("D", 0);
+                        }
                     }
-                    if (ForwVelocityVector.Length() < MaxFSpeed) //  && Math.Abs(cockpit.GetCurrentHeight() - safe_fly_height) < 5.0f
+
+                    if (ForwVelocityVector.Length() < MaxFSpeed && Math.Abs(cockpit.GetCurrentHeight()) > safe_fly_height - 50 && !up_safe) // 
                     {
                         thrusts.SetOverrideAccel("F", (float)(HDistance * AlignAccelMult));
                         thrusts.SetOverridePercent("B", 0);
@@ -1135,46 +1195,19 @@ namespace KLEPA_H2
                         thrusts.SetOverrideAccel("F", (float)(HDistance * AlignAccelMult));
                         thrusts.SetOverridePercent("B", 0);
                     }
-                    else {
+                    else
+                    {
                         thrusts.SetOverridePercent("F", 0);
                         thrusts.SetOverridePercent("B", 0);
                     }
-                    
+
                 }
-                if (HDistance < 1.0f && VDistance < 1.0f) {
+                if (HDistance < 1.0f && VDistance < 1.0f)
+                {
                     thrusts.ClearThrustOverridePersent();
                     gyros.SetOverride(false, 1);
                     Complete = true;
                 }
-                //thrusts.SetOverridePercent("R", 0);
-                //thrusts.SetOverridePercent("L", 0);
-                //if (UpVelocityVector.Length() < MaxUSpeed)
-                //    thrusts.SetOverrideAccel("U", (float)((FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
-                //else
-                //{
-                //    thrusts.SetOverridePercent("U", 0);
-                //    thrusts.SetOverridePercent("D", 0);
-                //}
-                //if (HDistance > safe_base_distance)
-                //{
-                //    if (ForwVelocityVector.Length() < MaxFSpeed)
-                //    {
-                //        thrusts.SetOverrideAccel("F", (float)(HDistance * AlignAccelMult));
-                //        thrusts.SetOverridePercent("B", 0);
-                //    }
-                //    else
-                //    {
-                //        thrusts.SetOverridePercent("F", 0);
-                //        thrusts.SetOverridePercent("B", 0);
-                //    }
-                //}
-                //else
-                //{
-                //    thrusts.ClearThrustOverridePersent();
-                //    gyros.SetOverride(false, 1);
-                //    curent_mode = mode.none;
-                //    Complete = true;
-                //}
                 OutStatusMode(MaxFSpeed, MaxUSpeed, 0, 0);
                 return Complete;
             }
@@ -1339,20 +1372,20 @@ namespace KLEPA_H2
                         }
                         if (curent_mode == mode.un_dock && !paused && UnDock())
                         {
-                            curent_mode = mode.none; strg.SaveToStorage();
+                            curent_mode = mode.none; InitMode(mode.none); strg.SaveToStorage();
                         }
                         if (curent_mode == mode.dock && !paused && Dock())
                         {
-                            curent_mode = mode.none; strg.SaveToStorage();
+                            curent_mode = mode.none; InitMode(mode.none); strg.SaveToStorage();
                         }
                         if (curent_mode == mode.to_point_base && !paused && ToPointBase())
                         {
-                            curent_mode = mode.dock; strg.SaveToStorage();
+                            curent_mode = mode.dock; InitMode(mode.dock); strg.SaveToStorage();
                             //curent_mode = mode.none; strg.SaveToStorage();
                         }
                         if (curent_mode == mode.to_base && !paused && ToBase())
                         {
-                            curent_mode = mode.none; strg.SaveToStorage();
+                            curent_mode = mode.none; InitMode(mode.none); strg.SaveToStorage();
                         }
                     }
                     else
