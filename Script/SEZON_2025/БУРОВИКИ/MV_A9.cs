@@ -23,7 +23,7 @@ using VRageMath;
 using static MINER_VERTICAL_A9.Program;
 
 /// <summary>
-///  БУРОВИК ВЕРТИКАЛЬНОГО БУРЕНИЯ (v9.0)
+///  БУРОВИК ВЕРТИКАЛЬНОГО БУРЕНИЯ (v9.07-02-2025)
 ///  Модифицирован под Down и Up ускорители (применим на малой гравитации, можно на ионниках)
 /// </summary>
 namespace MINER_VERTICAL_A9
@@ -33,12 +33,14 @@ namespace MINER_VERTICAL_A9
         string NameObj = "[MV-A9-01]";
         static string tag_nav = "[nav]";
         static string tag_ejector = "[out]";
-        static float safe_base_height = 200f;   // безопасная высота
-        static float safe_base_distance = 50f; // безопасная дистанция
+        //static float safe_base_height = 300f;   // безопасная высота
+        static float safe_base_distance = 100f; // безопасная дистанция
 
         static float GyroMult = 10f;
         static float DrillGyroMult = 10f;
-        static float AlignAccelMult = 0.3f;
+        static float AlignAccelMult = 0.6f;
+        static float MinUDSpeed = 0.5f;
+        static float MinUDAccel = 0.5f;
 
         static float MinOnCharge = 0.2f;     // Процент заряда
         static float MaxOffCharge = 0.9f;    // Процент заряда
@@ -163,11 +165,7 @@ namespace MINER_VERTICAL_A9
         {
             StringBuilder values_info = new StringBuilder();
             nav.Logic(argument, updateSource);
-            switch (argument)
-            {
-                default:
-                    break;
-            }
+            switch (argument) { default: break; }
             if (updateSource == UpdateType.Update10)
             {
                 lcd_name.OutText(NameObj, false);
@@ -868,6 +866,10 @@ namespace MINER_VERTICAL_A9
                 thrusts.InitThrusts(block);
             }
             public void InitMode(mode mode) { if (mode == mode.un_dock || mode == mode.dock || mode == mode.base_operation) InitBlock(connector.obj); else InitBlock(cockpit.obj); curent_mode = mode; strg.SaveToStorage(); }
+            public float getAccel(float Accel, float minAccel = 0.1f)
+            {
+                if ((Accel < 0) && (Accel > -minAccel)) return -minAccel; if ((Accel > 0) && (Accel < minAccel)) return minAccel; return Accel;
+            }
             public Vector3D GetNavAngles(Vector3D Target, MatrixD InvMatrix, double sfiftX = 0, double shiftZ = 0)
             {
                 Vector3D V3Dcenter = MyPos;
@@ -975,8 +977,7 @@ namespace MINER_VERTICAL_A9
                 }
                 CriticalBatteryCharge = connector.Connected ? bats.CurrentPersent < MaxOffCharge : bats.CurrentPersent <= MinOnCharge;
                 if (CriticalBatteryCharge) { reactors.On(); } else { reactors.Off(); }
-                //CriticalHydrogenSupply = connector_base.Connected ? hydrogen_tanks_nav.AverageFilledRatio < 1.0f : hydrogen_tanks_nav.AverageFilledRatio <= CriticalOnH2;
-                EmergencySetpoint = CriticalMassReached || CriticalBatteryCharge;// || CriticalHydrogenSupply;
+                EmergencySetpoint = (!connector.Connected ? CriticalMassReached : false) || CriticalBatteryCharge;
                 //ТЕСТИРОВАНИЕ
                 StringBuilder values1 = new StringBuilder();
                 Vector3D MyPosPoint = Vector3D.Transform(MyPos, DockMatrix);
@@ -1166,49 +1167,24 @@ namespace MINER_VERTICAL_A9
                 gyros.SetOverride(BlockNav, true, gyrAng * GyroMult, 1);
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(0)) * XMaxA) / 2;
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCon.GetDim(1)) * YMaxA) / 2;
+                if (MaxUSpeed < MinUDSpeed) MaxUSpeed = MinUDSpeed;
                 MaxFSpeed = (float)Math.Sqrt(2 * HDistance * ZMaxA) / 2;
-                if (HDistance < 15)
-                    MaxFSpeed = MaxFSpeed / 5;
-                if (Math.Abs(MyPosCon.GetDim(1)) < 1)
-                    MaxUSpeed = 0.1f;
+                if (HDistance < 15) MaxFSpeed = MaxFSpeed / 5;
+                if (Math.Abs(MyPosCon.GetDim(1)) < 1) MaxUSpeed = MinUDSpeed;
                 if (LeftVelocityVector.Length() < MaxLSpeed)
                     thrusts.SetOverrideAccel("R", (float)(MyPosCon.GetDim(0) * AlignAccelMult));
-                else
-                {
-                    thrusts.SetOverridePercent("R", 0);
-                    thrusts.SetOverridePercent("L", 0);
-                }
-                float UpAccel = -(float)(MyPosCon.GetDim(1) * AlignAccelMult);
-                float minUpAccel = 0.3f;
-                if ((UpAccel < 0) && (UpAccel > -minUpAccel))
-                    UpAccel = -minUpAccel;
-                if ((UpAccel > 0) && (UpAccel < minUpAccel))
-                    UpAccel = minUpAccel;
-
+                else { thrusts.SetOverridePercent("R", 0); thrusts.SetOverridePercent("L", 0); }
+                float UpAccel = getAccel(-(float)(MyPosCon.GetDim(1) * AlignAccelMult), MinUDAccel);
 
                 if ((Math.Abs(MyPosCon.GetDim(0)) < 0.8f) && (UpVelocityVector.Length() < MaxUSpeed))
                 {
                     thrusts.SetOverrideAccel("U", UpAccel);
                 }
-                else
-                {
-                    thrusts.SetOverridePercent("U", 0);
-                    thrusts.SetOverridePercent("D", 0);
-                }
-                //if (((HDistance > safe_base_distance) || ((Math.Abs(MyPosCon.GetDim(0)) < (HDistance / 10 + 0.2f)) && (Math.Abs(MyPosCon.GetDim(1)) < (HDistance / 10 + 0.2f)))) && (ForwVelocityVector.Length() < MaxFSpeed))
-                if (//(HDistance >= safe_base_distance) ||
-                    ((Math.Abs(MyPosCon.GetDim(2)) < safe_base_distance) && (ForwVelocityVector.Length() < MaxFSpeed) &&
-                    (Math.Abs(MyPosCon.GetDim(0)) < 0.8f) && (Math.Abs(MyPosCon.GetDim(1)) < 0.8f)))
-
-                {
-                    thrusts.SetOverrideAccel("F", (float)(HDistance * AlignAccelMult));
-                    thrusts.SetOverridePercent("B", 0);
-                }
-                else
-                {
-                    thrusts.SetOverridePercent("F", 0);
-                    thrusts.SetOverridePercent("B", 0);
-                }
+                else { thrusts.SetOverridePercent("U", 0); thrusts.SetOverridePercent("D", 0); }
+                if (ForwVelocityVector.Length() < MaxFSpeed && MyPosCon.GetDim(2) < 0 && 
+                    ((HDistance >= safe_base_distance) || (Math.Abs(MyPosCon.GetDim(2)) < safe_base_distance && Math.Abs(MyPosCon.GetDim(0)) < 1.0f && Math.Abs(MyPosCon.GetDim(1)) < 1.0f)))
+                { thrusts.SetOverrideAccel("F", (float)(HDistance * AlignAccelMult)); thrusts.SetOverridePercent("B", 0); }
+                else { thrusts.SetOverridePercent("F", 0); thrusts.SetOverridePercent("B", 0); }
                 if (HDistance < 6)
                 {
                     if (connector.Status == MyShipConnectorStatus.Connectable)
@@ -1241,22 +1217,11 @@ namespace MINER_VERTICAL_A9
                 if (UpVelocityVector.Length() < MaxUSpeed)
                     thrusts.SetOverrideAccel("U", (float)((FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
                 else
-                {
-                    thrusts.SetOverridePercent("U", 0);
-                    thrusts.SetOverridePercent("D", 0);
-                }
+                { thrusts.SetOverridePercent("U", 0); thrusts.SetOverridePercent("D", 0); }
                 if (HDistance > safe_base_distance)
                 {
-                    if (ForwVelocityVector.Length() < MaxFSpeed)
-                    {
-                        thrusts.SetOverrideAccel("F", (float)(HDistance * AlignAccelMult));
-                        thrusts.SetOverridePercent("B", 0);
-                    }
-                    else
-                    {
-                        thrusts.SetOverridePercent("F", 0);
-                        thrusts.SetOverridePercent("B", 0);
-                    }
+                    if (ForwVelocityVector.Length() < MaxFSpeed) { thrusts.SetOverrideAccel("F", (float)(HDistance * AlignAccelMult)); thrusts.SetOverridePercent("B", 0); }
+                    else { thrusts.SetOverridePercent("F", 0); thrusts.SetOverridePercent("B", 0); }
                 }
                 else
                 {
@@ -1612,19 +1577,7 @@ namespace MINER_VERTICAL_A9
                     case "depth-": DrillDepth--; if (DrillDepth < 5) DrillDepth = 5; strg.SaveToStorage(); break;
                     case "ms+": MaxShafts++; if (MaxShafts > 50) MaxShafts = 50; strg.SaveToStorage(); break;
                     case "ms-": MaxShafts--; if (MaxShafts < 4) MaxShafts = 4; strg.SaveToStorage(); break;
-                    case "horizont":
-                        if (curent_programm == programm.none && curent_mode == mode.none)
-                        {
-                            if (horizont)
-                            {
-                                horizont = false;
-                            }
-                            else
-                            {
-                                horizont = true;
-                            }
-                        }
-                        break;
+                    case "horizont": if (curent_programm == programm.none && curent_mode == mode.none) { if (horizont) { horizont = false; } else { horizont = true; } } break;
                     case "stop": Stop(); break;
                     case "pause": Pause(!paused); break;
                     case "un_dock": { InitMode(mode.un_dock); break; }
@@ -1673,23 +1626,23 @@ namespace MINER_VERTICAL_A9
                         }
                         if (curent_mode == mode.un_dock && !paused && UnDock())
                         {
-                            curent_mode = mode.none; strg.SaveToStorage();
+                            curent_mode = mode.none; InitMode(mode.none); //strg.SaveToStorage();
                         }
                         if (curent_mode == mode.dock && !paused && Dock())
                         {
-                            curent_mode = mode.none; strg.SaveToStorage();
+                            curent_mode = mode.none; InitMode(mode.none); //strg.SaveToStorage();
                         }
                         if (curent_mode == mode.to_base && !paused && ToBase())
                         {
-                            curent_mode = mode.none; strg.SaveToStorage();
+                            curent_mode = mode.none; InitMode(mode.none); //strg.SaveToStorage();
                         }
                         if (curent_mode == mode.to_drill && !paused && ToDrillPoint())
                         {
-                            curent_mode = mode.none; strg.SaveToStorage();
+                            curent_mode = mode.none; InitMode(mode.none); //strg.SaveToStorage();
                         }
                         if (curent_mode == mode.drill_align && !paused && DrillAlign())
                         {
-                            curent_mode = mode.none; strg.SaveToStorage();
+                            curent_mode = mode.none; InitMode(mode.none); //strg.SaveToStorage();
                         }
                     }
                     else
@@ -1728,7 +1681,7 @@ namespace MINER_VERTICAL_A9
                 DrillDepth = (float)GetValDouble("DrillDepth", str.ToString());
                 MaxShafts = GetValInt("MaxShafts", str.ToString());
                 nav.DockMatrix = GetValMatrixD("DM", str.ToString());
-                nav.BaseDockPoint = GetValVector3D("BDP", str.ToString());
+                //nav.BaseDockPoint = GetValVector3D("BDP", str.ToString());
                 nav.PlanetCenter = GetValVector3D("PC", str.ToString());
                 nav.DrillMatrix = GetValMatrixD("DRM", str.ToString());
                 nav.DrillPoint = nav.GetSpiralXY(nav.ShaftN, DrillFrameWidth, DrillFrameLength);
@@ -1755,7 +1708,7 @@ namespace MINER_VERTICAL_A9
                 values.Append("DrillDepth: " + Math.Round(DrillDepth, 0) + ";\n");
                 values.Append("MaxShafts: " + MaxShafts.ToString() + ";\n");
                 values.Append(SetValMatrixD("DM", nav.DockMatrix) + ";\n");
-                values.Append(SetValVector3D("BDP", nav.BaseDockPoint) + ";\n");
+                //values.Append(SetValVector3D("BDP", nav.BaseDockPoint) + ";\n");
                 values.Append(SetValVector3D("PC", nav.PlanetCenter) + ";\n");
                 values.Append(SetValMatrixD("DRM", nav.DrillMatrix) + ";\n");
                 lcd_storage.OutText(values);
@@ -1782,57 +1735,3 @@ namespace MINER_VERTICAL_A9
 /*
     общение с базой
 */
-//values.Append("ForwVelocityVector   : " + Math.Round(ForwVelocityVector.Length(), 2) + "\n");
-//values.Append("------------------------------------------\n");
-////float HDistance1 = (float)((Vector3D.Reject(MyPosPoint, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
-////float HDistance = (float)(new Vector3D(MyPosPoint.GetDim(0), 0, MyPosPoint.GetDim(2))).Length();
-//Vector3D lpc = Vector3D.Transform(PlanetCenter, DockMatrix);
-////float VDistance = (float)(Vector3D.ProjectOnVector(ref MyPosPoint, ref lpc).Length());
-////values.Append("HDistance_пл : " + Math.Round(HDistance1, 2) + "\n");
-//values.Append("Horz_dist    : " + Math.Round(HDistance, 2) + "\n");
-//values.Append("Vert_dist    : " + Math.Round(VDistance, 2) + "\n");
-//values.Append("------------------------------------------\n");
-//values.Append("СКОРОСТЬ     : " + Math.Round(cockpit.obj.GetShipSpeed(), 2) + "\n");
-//cockpit.OutText(values, 2);
-
-//StringBuilder values = new StringBuilder();
-////values.Append(" STATUS\n");
-////Vector3D MyPosPoint = Vector3D.Transform(MyPos, DockMatrix);
-////values.Append("My_Length   : " + Math.Round(MyPosPoint.Length(), 2) + "\n");
-////values.Append("MyPosDrill[0]   : " + Math.Round(MyPosPoint.GetDim(0), 2) + "\n");
-////values.Append("MyPosDrill[1]   : " + Math.Round(MyPosPoint.GetDim(1), 2) + "\n");
-////values.Append("MyPosDrill[2]   : " + Math.Round(MyPosPoint.GetDim(2), 2) + "\n");
-////values.Append("------------------------------------------\n");
-////values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
-//values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
-////values.Append("Dist(вертикаль): " + Math.Round(VDistance).ToString() + "\n");
-////values.Append("Dist(горизонталь): " + Math.Round(HDistance).ToString() + "\n");
-//values.Append("------------------------------------------\n");
-//values.Append("ZMaxA (F-B) : " + Math.Round(ZMaxA, 2).ToString() + ", MaxFSpeed: " + Math.Round(MaxFSpeed, 2).ToString() + "\n");
-//values.Append("YMaxA (U-D) : " + Math.Round(YMaxA, 2).ToString() + ", MaxUSpeed: " + Math.Round(MaxUSpeed, 2).ToString() + "\n");
-//values.Append("XMaxA (L-R) : " + Math.Round(XMaxA, 2).ToString() + ", MaxLSpeed: " + Math.Round(MaxLSpeed, 2).ToString() + "\n");
-//cockpit.OutText(values, 0);
-////values.Append(thrusts.TextInfo());
-//lcd_test1.OutText(values);
-
-//public Vector3D GetLocalPosCon(IMyTerminalBlock block, Vector3D ConnectorPoint, MatrixD DockMatrix)
-//{
-//    Vector3D MyPosCon = Vector3D.Transform(block.GetPosition(), DockMatrix);
-//    Vector3D gyrAng = GetNavAngles(block, ConnectorPoint, DockMatrix);
-//    // расчет дистанций
-//    if (Vector3D.IsZero(PlanetCenter))
-//    {
-//        HDistance = (float)(new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
-//        VDistance = (float)(new Vector3D(0, MyPosCon.GetDim(1), 0)).Length();
-//    }
-//    else
-//    {
-//        //HDistance = (float)((Vector3D.Reject(MyPosCon, Vector3D.Normalize(Vector3D.Transform(PlanetCenter, DockMatrix)))).Length() + ConnectorPoint.Length());
-//        //Vector3D lpc = Vector3D.Transform(PlanetCenter, DockMatrix); // На дальних расстояниях
-//        //VDistance = (float)(Vector3D.ProjectOnVector(ref MyPosCon, ref lpc).Length());
-//        HDistance = (float)(new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
-//        VDistance = (float)(new Vector3D(0, MyPosCon.GetDim(1), 0)).Length();
-//    }
-//    gyros.SetOverride(true, gyrAng * GyroMult, 1);
-//    return MyPosCon;
-//}
