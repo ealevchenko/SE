@@ -58,6 +58,9 @@ namespace BASE_EA
         static LCD lcd_info1;
         static Batterys bats;
         static Upr upr;
+        static PistonsBase pst;
+        static MotorStator mst;
+
         static MyStorage storage;
 
         static Program _scr;
@@ -108,12 +111,14 @@ namespace BASE_EA
         }
         public Program()
         {
-            Runtime.UpdateFrequency = UpdateFrequency.Update100;
+            Runtime.UpdateFrequency = UpdateFrequency.Update10;
             _scr = this;
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
             lcd_info1 = new LCD(NameObj + "-LCD-INFO-O2");
             bats = new Batterys(NameObj);
+            pst = new PistonsBase(NameObj, "[p-test]");
+            mst = new MotorStator(NameObj + "-MotorStator");
             storage = new MyStorage();
             storage.LoadFromStorage();
         }
@@ -127,7 +132,7 @@ namespace BASE_EA
             switch (argument) { default: break; }
             //count_room[(int)room.none] = 0;// В космосе людей не считаем
             upr.Logic(argument, updateSource);// Логика системы контроля питания
-            if (updateSource == UpdateType.Update100)
+            if (updateSource == UpdateType.Update10)
             {
 
             }
@@ -165,7 +170,7 @@ namespace BASE_EA
         }
         public class PistonsBase : BaseListTerminalBlock<IMyPistonBase>
         {
-            public float? task_position { get; set; } = null;
+            public float? task { get; set; } = null;
             private float tolerance = 0.1f;
             private float multiply_speed = 0.5f;
             public float Position { get { return base.list_obj.Select(b => b.CurrentPosition).Sum(); } }
@@ -203,54 +208,41 @@ namespace BASE_EA
                     p.Velocity = speed / base.list_obj.Count();
                 }
             }
-            public bool SetPosition(float? position)
+            public bool SetPosition(float position)
             {
-                if (position == null || base.list_obj == null || base.list_obj.Count == 0) return false;
+                task = position;
+                if (base.list_obj == null || base.list_obj.Count == 0) return false;
                 float speed = 0f;
                 double curennt_position = this.Position;
-                double dist = ((float)position - curennt_position);
-                if (Math.Abs(dist) > tolerance)
+                double difference = (position - curennt_position);
+                if (Math.Abs(difference) > tolerance)
                 {
-                    if (curennt_position > (position + tolerance))
-                    {
-                        speed = -(float)(Math.Abs(curennt_position - (float)position) * multiply_speed);
-                        this.SetVelocity(speed);
-                        return false;
-                    }
-                    else if (curennt_position < (position - tolerance))
-                    {
-                        //double dist = (position - curennt_position);
-                        speed = (float)(Math.Abs((float)position - curennt_position) * multiply_speed);
-                        this.SetVelocity(speed);
-                        return false;
-                    }
-                    else
-                    {
-                        this.SetVelocity(speed);
-                        return true;
-                        //this.task_position = null;
-                    }
-
+                    speed = (float)(difference * this.multiply_speed);
+                    this.SetVelocity(speed);
+                    return false;
+                    //if (curennt_position > (position + tolerance))
+                    //{
+                    //    speed = -(float)(Math.Abs(curennt_position - (float)position) * multiply_speed);
+                    //    this.SetVelocity(speed);
+                    //    return false;
+                    //}
+                    //else if (curennt_position < (position - tolerance))
+                    //{
+                    //    speed = (float)(Math.Abs((float)position - curennt_position) * multiply_speed);
+                    //    this.SetVelocity(speed);
+                    //    return false;
+                    //}
+                    //else
+                    //{
+                    //    this.SetVelocity(speed);
+                    //    return true;
+                    //    //this.task_position = null;
+                    //}
                 }
                 else
                 {
                     this.SetVelocity(speed);
                     return true;
-                }
-
-                // Текущее положение
-
-
-            }
-            public void Logic(string argument, UpdateType updateSource)
-            {
-                switch (argument)
-                {
-                    default: break;
-                }
-                if (updateSource == UpdateType.Update10)
-                {
-                    bool res = SetPosition((float)task_position);
                 }
             }
             public string TextInfo(string name)
@@ -259,7 +251,109 @@ namespace BASE_EA
                 StringBuilder values = new StringBuilder();
                 values.Append("ПОРШЕНЬ  : " + name + " [" + base.list_obj.Count + "] \n");
                 values.Append("НИЗ      : " + Math.Round(this.LowestPosition, 1) + " ВЕРХ: " + Math.Round(this.HighestPosition, 1) + "\n");
-                values.Append("ПОЛОЖ    : " + Math.Round(this.Position, 1) + " СКОРОСТЬ : " + Math.Round(this.Velocity, 3) + " ЗАД : " + this.task_position + "\n");
+                values.Append("ПОЛОЖ    : " + Math.Round(this.Position, 1) + " СКОРОСТЬ : " + Math.Round(this.Velocity, 3) + " ЗАД : " + this.task + "\n");
+                return values.ToString();
+            }
+        }
+        public class MotorStator : BaseTerminalBlock<IMyMotorStator>
+        {
+            public float? task { get; set; } = null;
+            private float tolerance = 0.1f;
+            private float multiply_speed = 0.1f;
+
+            public double Degrees { get { return this.obj != null ? (this.obj.Angle * 180 / Math.PI) : 0; } }
+            public MotorStator(string name_obj) : base(name_obj)
+            {
+
+            }
+            //public double RadToGradus(float rad)
+            //{
+            //    return rad * 180 / Math.PI;
+            //}
+
+            public bool SetDegrees(float degrees) {
+                float speed = 0f;
+                double curennt_degrees = this.Degrees;
+                double difference = (degrees - curennt_degrees);
+                if (Math.Abs(difference) > tolerance)
+                {
+                    speed = (float)(difference * this.multiply_speed);
+                    this.obj.TargetVelocityRPM = speed;
+                    return false;
+                }
+                else
+                {
+                    this.obj.TargetVelocityRPM = speed;
+                    return true;
+                }
+            }
+            public void RotateToGradus(float degr)
+            {
+                if (this.obj == null) return;
+                float speed = 0f;
+                // Текущее положение
+                double curennt_degr = this.Degrees;
+                if (curennt_degr > (degr + tolerance))
+                {
+                    double dist = curennt_degr - degr;
+                    if (Math.Abs(dist) <= 180.1f)
+                    {
+                        speed = -(float)(Math.Abs(dist) * multiply_speed);
+                    }
+                    else
+                    {
+                        speed = (float)(Math.Abs(dist) * multiply_speed);
+                    }
+
+                    this.obj.TargetVelocityRPM = speed;
+                }
+                else if (curennt_degr < (degr - tolerance))
+                {
+                    double dist = (degr - curennt_degr);
+                    if (Math.Abs(dist) <= 180.1f)
+                    {
+                        speed = (float)(Math.Abs(degr - curennt_degr) * multiply_speed);
+                    }
+                    else
+                    {
+                        speed = -(float)(Math.Abs(degr - curennt_degr) * multiply_speed);
+                    }
+
+                    this.obj.TargetVelocityRPM = speed;
+                }
+                else
+                {
+                    this.obj.TargetVelocityRPM = speed;
+                    this.task = null;
+                }
+            }
+            //public double GetCurrentGradus()
+            //{
+            //    if (this.obj == null) return 0;
+            //    return RadToGradus(this.obj.Angle);
+            //}
+            //public void Logic(string argument, UpdateType updateSource)
+            //{
+            //    switch (argument)
+            //    {
+            //        default:
+            //            break;
+            //    }
+            //    if (updateSource == UpdateType.Update10)
+            //    {
+            //        if (task_degr != null)
+            //        {
+            //            RotateToGradus((float)task_degr);
+            //        }
+            //    }
+            //}
+            public string TextInfo()
+            {
+                if (this.obj == null) return "";
+                StringBuilder values = new StringBuilder();
+                values.Append("ШАРНИР : " + this.obj.CustomName + "\n");
+                values.Append("БЛОК : " + (this.obj.RotorLock ? ired.ToString() : igreen.ToString()) + " НИЗ: " + Math.Round(this.obj.LowerLimitDeg, 1) + " ВЕРХ: " + Math.Round(this.obj.UpperLimitDeg, 1) + "\n");
+                values.Append("УГОЛ : " + Math.Round(this.Degrees, 1) + " СКОРОСТЬ : " + Math.Round(this.obj.TargetVelocityRPM, 3) + " ЗАД : " + this.task + "\n");
                 return values.ToString();
             }
         }
@@ -306,17 +400,42 @@ namespace BASE_EA
         }
         public class Upr
         {
+            bool pos_15 = false;
+            bool pos_5 = false;
+            bool pos_20 = false;
+            bool pos_0 = false;
+            bool ms_0 = false;
+            bool ms_45 = false;
+            bool ms_m45 = false;
+
             public void Logic(string argument, UpdateType updateSource)
             {
                 switch (argument)
                 {
-                    case "save_dock": break;
+                    case "pos_15": pos_15 = true; break;
+                    case "pos_5": pos_5 = true; break;
+                    case "pos_20": pos_20 = true; break;
+                    case "pos_0": pos_0 = true; break;
+                    case "ms_0": ms_0 = true; break;
+                    case "ms_45": ms_45 = true; break;
+                    case "ms_m45": ms_m45 = true; break;
                     default: break;
                 }
                 if (updateSource == UpdateType.Update10)
                 {
-
+                    if (pos_15 && pst.SetPosition(15)) { pos_15 = false; }
+                    if (pos_5 && pst.SetPosition(5)) { pos_5 = false; }
+                    if (pos_20 && pst.SetPosition(20)) { pos_20 = false; }
+                    if (pos_0 && pst.SetPosition(0)) { pos_0 = false; }
+                    if (ms_0 && mst.SetDegrees(0)) { ms_0 = false; }
+                    if (ms_45 && mst.SetDegrees(45)) { ms_45 = false; }
+                    if (ms_m45 && mst.SetDegrees(-45)) { ms_m45 = false; }
                 }
+                StringBuilder values = new StringBuilder();
+                values.Append(pst.TextInfo("[p-test]"));
+                values.Append(pst.TextInfo("---------------"));
+                values.Append(mst.TextInfo());
+                lcd_debug.OutText(values);
             }
         }
     }
