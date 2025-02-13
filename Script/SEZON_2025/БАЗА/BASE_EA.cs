@@ -271,10 +271,11 @@ namespace BASE_EA
             //    return rad * 180 / Math.PI;
             //}
 
-            public bool SetDegrees(float degrees) {
+            public bool SetDegrees(float degrees)
+            {
                 float speed = 0f;
                 double curennt_degrees = this.Degrees;
-                double difference = (degrees - curennt_degrees);
+                double difference = ((degrees + 90.0f) - (curennt_degrees + 90.0f));
                 if (Math.Abs(difference) > tolerance)
                 {
                     speed = (float)(difference * this.multiply_speed);
