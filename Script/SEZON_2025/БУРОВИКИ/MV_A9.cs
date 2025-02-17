@@ -742,7 +742,7 @@ namespace MINER_VERTICAL_A9
             public string TextInfo(string name)
             {
                 StringBuilder values = new StringBuilder();
-                values.Append((!String.IsNullOrWhiteSpace(name) ? name : "ГЕНЕРАТОР")+ ":[" + Count + "]" + "\n");
+                values.Append((!String.IsNullOrWhiteSpace(name) ? name : "ГЕНЕРАТОР") + ":[" + Count + "]" + "\n");
                 values.Append("|- OUT  : [" + Count + "] " + (Count > 0 ? igreen.ToString() : iyellow.ToString()) + " " + PText.GetCurrentOfMax(CurrentOutput(), MaxOutput(), "W") + "\n");
                 float max = MaxOutput();
                 values.Append("|  " + PText.GetScalePersent(max > 0f ? CurrentOutput() / max : 0f, 40) + "\n");
@@ -933,11 +933,7 @@ namespace MINER_VERTICAL_A9
                 return new Vector3D(TargetYaw, TargetPitch, TargetRoll);
             }
             //----------------------------------------------
-            public void Horizon()
-            {
-                Vector3D gyrAng = GetNavAngles(TackVector);
-                gyros.SetOverride(cockpit.obj, true, gyrAng * GyroMult, 1);
-            }
+            public void Horizon() { Vector3D gyrAng = GetNavAngles(TackVector); gyros.SetOverride(cockpit.obj, true, gyrAng * GyroMult, 1); }
             public void UpdateCalc()
             {
                 GravVector = cockpit.obj.GetNaturalGravity();
@@ -1171,32 +1167,18 @@ namespace MINER_VERTICAL_A9
                 MaxFSpeed = (float)Math.Sqrt(2 * HDistance * ZMaxA) / 2;
                 if (HDistance < 15) MaxFSpeed = MaxFSpeed / 5;
                 if (Math.Abs(MyPosCon.GetDim(1)) < 1) MaxUSpeed = MinUDSpeed;
-                if (LeftVelocityVector.Length() < MaxLSpeed)
-                    thrusts.SetOverrideAccel("R", (float)(MyPosCon.GetDim(0) * AlignAccelMult));
+                if (LeftVelocityVector.Length() < MaxLSpeed) thrusts.SetOverrideAccel("R", (float)(MyPosCon.GetDim(0) * AlignAccelMult));
                 else { thrusts.SetOverridePercent("R", 0); thrusts.SetOverridePercent("L", 0); }
                 float UpAccel = getAccel(-(float)(MyPosCon.GetDim(1) * AlignAccelMult), MinUDAccel);
-
-                if ((Math.Abs(MyPosCon.GetDim(0)) < 0.8f) && (UpVelocityVector.Length() < MaxUSpeed))
-                {
-                    thrusts.SetOverrideAccel("U", UpAccel);
-                }
+                if ((Math.Abs(MyPosCon.GetDim(0)) < 0.8f) && (UpVelocityVector.Length() < MaxUSpeed)) { thrusts.SetOverrideAccel("U", UpAccel); }
                 else { thrusts.SetOverridePercent("U", 0); thrusts.SetOverridePercent("D", 0); }
-                if (ForwVelocityVector.Length() < MaxFSpeed && MyPosCon.GetDim(2) < 0 && 
-                    ((HDistance >= safe_base_distance) || (Math.Abs(MyPosCon.GetDim(2)) < safe_base_distance && Math.Abs(MyPosCon.GetDim(0)) < 1.0f && Math.Abs(MyPosCon.GetDim(1)) < 1.0f)))
+                if (ForwVelocityVector.Length() < MaxFSpeed && MyPosCon.GetDim(2) < 0 && ((HDistance >= safe_base_distance) || (Math.Abs(MyPosCon.GetDim(2)) < safe_base_distance && Math.Abs(MyPosCon.GetDim(0)) < 1.0f && Math.Abs(MyPosCon.GetDim(1)) < 1.0f)))
                 { thrusts.SetOverrideAccel("F", (float)(HDistance * AlignAccelMult)); thrusts.SetOverridePercent("B", 0); }
                 else { thrusts.SetOverridePercent("F", 0); thrusts.SetOverridePercent("B", 0); }
                 if (HDistance < 6)
                 {
-                    if (connector.Status == MyShipConnectorStatus.Connectable)
-                    {
-                        connector.Connect();
-                    }
-                    if (connector.Status == MyShipConnectorStatus.Connected)
-                    {
-                        thrusts.ClearThrustOverridePersent();
-                        gyros.SetOverride(false, 1);
-                        Complete = true;
-                    }
+                    if (connector.Status == MyShipConnectorStatus.Connectable) { connector.Connect(); }
+                    if (connector.Status == MyShipConnectorStatus.Connected) { thrusts.ClearThrustOverridePersent(); gyros.SetOverride(false, 1); Complete = true; }
                 }
                 //OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel);
                 return Complete;
@@ -1246,25 +1228,12 @@ namespace MINER_VERTICAL_A9
                 gyros.SetOverride(BlockNav, true, gyrAng * GyroMult, 1);
                 thrusts.SetOverridePercent("R", 0);
                 thrusts.SetOverridePercent("L", 0);
-                if (UpVelocityVector.Length() < MaxUSpeed)
-                    thrusts.SetOverrideAccel("U", (float)((FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
-                else
-                {
-                    thrusts.SetOverridePercent("U", 0);
-                    thrusts.SetOverridePercent("D", 0);
-                }
+                if (UpVelocityVector.Length() < MaxUSpeed) thrusts.SetOverrideAccel("U", (float)((FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
+                else { thrusts.SetOverridePercent("U", 0); thrusts.SetOverridePercent("D", 0); }
                 if (HDistance > safe_base_distance)
                 {
-                    if (ForwVelocityVector.Length() < MaxFSpeed)
-                    {
-                        thrusts.SetOverrideAccel("F", (float)(HDistance * AlignAccelMult));
-                        thrusts.SetOverridePercent("B", 0);
-                    }
-                    else
-                    {
-                        thrusts.SetOverridePercent("F", 0);
-                        thrusts.SetOverridePercent("B", 0);
-                    }
+                    if (ForwVelocityVector.Length() < MaxFSpeed) { thrusts.SetOverrideAccel("F", (float)(HDistance * AlignAccelMult)); thrusts.SetOverridePercent("B", 0); }
+                    else { thrusts.SetOverridePercent("F", 0); thrusts.SetOverridePercent("B", 0); }
                 }
                 else
                 {
@@ -1280,7 +1249,7 @@ namespace MINER_VERTICAL_A9
             {
                 bool Complete = false;
                 float MaxUSpeed, MaxLSpeed, MaxFSpeed;
-                float UpAccel = 0;
+                //float UpAccel = 0;
                 thrusts.On();
                 Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
                 Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 5), DrillMatrix);
@@ -1288,38 +1257,15 @@ namespace MINER_VERTICAL_A9
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 2;
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(1)) * YMaxA) / 2;
                 MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(2)) * ZMaxA) / 2;
-                if (double.IsNaN(MaxUSpeed)) MaxUSpeed = 0.1f;
-                if (Math.Abs(MyPosDrill.GetDim(1)) < 1)
-                    MaxUSpeed = 0.1f;
-                if (LeftVelocityVector.Length() < MaxLSpeed)
-                    thrusts.SetOverrideAccel("R", (float)(MyPosDrill.GetDim(0) * AlignAccelMult));
-                else
-                {
-                    thrusts.SetOverridePercent("R", 0);
-                    thrusts.SetOverridePercent("L", 0);
-                }
-                if (ForwVelocityVector.Length() < MaxFSpeed)
-                    thrusts.SetOverrideAccel("B", (float)(MyPosDrill.GetDim(2) * AlignAccelMult));
-                else
-                {
-                    thrusts.SetOverridePercent("F", 0);
-                    thrusts.SetOverridePercent("B", 0);
-                }
-                if (UpVelocityVector.Length() < MaxUSpeed)
-                {
-                    UpAccel = -(float)(MyPosDrill.GetDim(1) * AlignAccelMult);
-                    float minUpAccel = 0.1f;
-                    if ((UpAccel < 0) && (UpAccel > -minUpAccel))
-                        UpAccel = -minUpAccel;
-                    if ((UpAccel > 0) && (UpAccel < minUpAccel))
-                        UpAccel = minUpAccel;
-                    thrusts.SetOverrideAccel("U", UpAccel);
-                }
-                else
-                {
-                    thrusts.SetOverridePercent("U", 0);
-                    thrusts.SetOverridePercent("D", 0);
-                }
+                if (double.IsNaN(MaxUSpeed) || MaxUSpeed < MinUDSpeed) MaxUSpeed = MinUDSpeed;
+                if (Math.Abs(MyPosDrill.GetDim(1)) < 1) MaxUSpeed = MinUDSpeed;
+                if (LeftVelocityVector.Length() < MaxLSpeed) thrusts.SetOverrideAccel("R", (float)(MyPosDrill.GetDim(0) * AlignAccelMult));
+                else { thrusts.SetOverridePercent("R", 0); thrusts.SetOverridePercent("L", 0); }
+                if (ForwVelocityVector.Length() < MaxFSpeed) thrusts.SetOverrideAccel("B", (float)(MyPosDrill.GetDim(2) * AlignAccelMult));
+                else { thrusts.SetOverridePercent("F", 0); thrusts.SetOverridePercent("B", 0); }
+                float UpAccel = getAccel(-(float)(MyPosDrill.GetDim(1) * AlignAccelMult), MinUDAccel);
+                if (UpVelocityVector.Length() < MaxUSpeed) { thrusts.SetOverrideAccel("U", UpAccel); }
+                else { thrusts.SetOverridePercent("U", 0); thrusts.SetOverridePercent("D", 0); }
                 if (MyPosDrill.Length() < 0.5)
                 {
                     thrusts.ClearThrustOverridePersent();
@@ -1404,33 +1350,13 @@ namespace MINER_VERTICAL_A9
                 gyros.SetOverride(BlockNav, true, gyrAng * DrillGyroMult, 1);
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 4;
                 MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(2)) * ZMaxA) / 4;
-                if (LeftVelocityVector.Length() < MaxLSpeed)
-                    thrusts.SetOverrideAccel("R", (float)(MyPosDrill.GetDim(0) * 0.5));
-                else
-                {
-                    thrusts.SetOverridePercent("R", 0);
-                    thrusts.SetOverridePercent("L", 0);
-                }
-                if (ForwVelocityVector.Length() < MaxFSpeed)
-                    thrusts.SetOverrideAccel("B", (float)(MyPosDrill.GetDim(2) * 0.5));
-                else
-                {
-                    thrusts.SetOverridePercent("F", 0);
-                    thrusts.SetOverridePercent("B", 0);
-                }
-
-                if (UpVelocityVector.Length() < DrillSpeedLimit * 5)
-                    thrusts.SetOverrideAccel("U", (DrillAccel * 2));
-                else
-                {
-                    thrusts.SetOverridePercent("U", 0);
-                    thrusts.SetOverridePercent("D", 0);
-                }
-                if ((MyPosDrill.GetDim(1) > 0) || ((MyPosDrill.GetDim(0) < 0.15) && (MyPosDrill.GetDim(2) < 0.15)))
-                {
-                    Complete = true;
-                    PullUpNeeded = false;
-                }
+                if (LeftVelocityVector.Length() < MaxLSpeed) thrusts.SetOverrideAccel("R", (float)(MyPosDrill.GetDim(0) * 0.5));
+                else { thrusts.SetOverridePercent("R", 0); thrusts.SetOverridePercent("L", 0); }
+                if (ForwVelocityVector.Length() < MaxFSpeed) thrusts.SetOverrideAccel("B", (float)(MyPosDrill.GetDim(2) * 0.5));
+                else { thrusts.SetOverridePercent("F", 0); thrusts.SetOverridePercent("B", 0); }
+                if (UpVelocityVector.Length() < DrillSpeedLimit * 5) thrusts.SetOverrideAccel("U", (DrillAccel * 2));
+                else { thrusts.SetOverridePercent("U", 0); thrusts.SetOverridePercent("D", 0); }
+                if ((MyPosDrill.GetDim(1) > 0) || ((MyPosDrill.GetDim(0) < 0.15) && (MyPosDrill.GetDim(2) < 0.15))) { Complete = true; PullUpNeeded = false; }
                 return Complete;
             }
             public bool PullOut()
@@ -1443,38 +1369,17 @@ namespace MINER_VERTICAL_A9
                 drill.Off();
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 2;
                 MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(2)) * ZMaxA) / 2;
-                if (LeftVelocityVector.Length() < MaxLSpeed)
-                    thrusts.SetOverrideAccel("R", (float)(MyPosDrill.GetDim(0) * 1));
-                else
-                {
-                    thrusts.SetOverridePercent("R", 0);
-                    thrusts.SetOverridePercent("L", 0);
-                }
-                if (ForwVelocityVector.Length() < MaxFSpeed)
-                    thrusts.SetOverrideAccel("B", (float)(MyPosDrill.GetDim(2) * 1));
-                else
-                {
-                    thrusts.SetOverridePercent("F", 0);
-                    thrusts.SetOverridePercent("B", 0);
-                }
-                if ((UpVelocityVector.Length() < DrillSpeedLimit * 5) && (MyPosDrill.GetDim(0) < 0.5) && (MyPosDrill.GetDim(2) < 0.5))
-                    thrusts.SetOverrideAccel("U", (DrillAccel * 2));
-                else
-                {
-                    thrusts.SetOverridePercent("U", 0);
-                    thrusts.SetOverridePercent("D", 0);
-                }
-                if (MyPosDrill.GetDim(1) > 0)
-                    Complete = true;
+                if (LeftVelocityVector.Length() < MaxLSpeed) thrusts.SetOverrideAccel("R", (float)(MyPosDrill.GetDim(0) * 1));
+                else { thrusts.SetOverridePercent("R", 0); thrusts.SetOverridePercent("L", 0); }
+                if (ForwVelocityVector.Length() < MaxFSpeed) thrusts.SetOverrideAccel("B", (float)(MyPosDrill.GetDim(2) * 1));
+                else { thrusts.SetOverridePercent("F", 0); thrusts.SetOverridePercent("B", 0); }
+                if ((UpVelocityVector.Length() < DrillSpeedLimit * 5) && (MyPosDrill.GetDim(0) < 0.5) && (MyPosDrill.GetDim(2) < 0.5)) thrusts.SetOverrideAccel("U", (DrillAccel * 2));
+                else { thrusts.SetOverridePercent("U", 0); thrusts.SetOverridePercent("D", 0); }
+                if (MyPosDrill.GetDim(1) > 0) Complete = true;
                 return Complete;
             }
             //-------------------------------------------------
-            public int SetNewShaft()
-            {
-                ShaftN++;
-                DrillPoint = GetSpiralXY(ShaftN, DrillFrameWidth, DrillFrameLength);
-                return ShaftN;
-            }
+            public int SetNewShaft() { ShaftN++; DrillPoint = GetSpiralXY(ShaftN, DrillFrameWidth, DrillFrameLength); return ShaftN; }
             public Vector3D GetSpiralXY(int p, float W, float L, int n = 20)
             {
                 int positionX = 0, positionY = 0, direction = 0, stepsCount = 1, stepPosition = 0, stepChange = 0;
