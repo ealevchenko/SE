@@ -29,11 +29,13 @@ namespace MINER_HORIZONTAL_A9
 {
     public sealed class Program : MyGridProgram
     {
-        string NameObj = "[MH-A9-01]";
+        string NameObj = "[MH-A4-01]";
         static string tag_nav = "[nav]";
         static string tag_ejector = "[out]";
         //static float safe_base_height = 300f;   // безопасная высота
-        static float safe_base_distance = 100f; // безопасная дистанция
+        static float safe_point_distance = 100f; // безопасная дистанция до точки
+        static float safe_base_distance = 50f; // безопасная дистанция
+        static float safe_base_height = 200.0f;     // безопасная высота
 
         static float GyroMult = 10f;
         static float DrillGyroMult = 10f;
@@ -74,7 +76,6 @@ namespace MINER_HORIZONTAL_A9
         static ConveyorSorter sorter;
         static GasGenerator gas_gen;
         static HydrogenEngines h2_engines;
-        static Reactors reactors;
         static Nav nav;
         static MyStorage strg;
         static Program _scr;
@@ -154,7 +155,6 @@ namespace MINER_HORIZONTAL_A9
             sorter = new ConveyorSorter(NameObj); sorter.DrainAll(true); sorter.On();
             gas_gen = new GasGenerator(NameObj); gas_gen.Off();
             h2_engines = new HydrogenEngines(NameObj); h2_engines.Off();
-            reactors = new Reactors(NameObj); reactors.Off();
             nav = new Nav(NameObj);
             strg = new MyStorage();
             strg.LoadFromStorage();
@@ -741,17 +741,12 @@ namespace MINER_HORIZONTAL_A9
             public string TextInfo(string name)
             {
                 StringBuilder values = new StringBuilder();
-                values.Append((!String.IsNullOrWhiteSpace(name) ? name : "ГЕНЕРАТОР")+ ":[" + Count + "]" + "\n");
+                values.Append((!String.IsNullOrWhiteSpace(name) ? name : "ГЕНЕРАТОР") + ":[" + Count + "]" + "\n");
                 values.Append("|- OUT  : [" + Count + "] " + (Count > 0 ? igreen.ToString() : iyellow.ToString()) + " " + PText.GetCurrentOfMax(CurrentOutput(), MaxOutput(), "W") + "\n");
                 float max = MaxOutput();
                 values.Append("|  " + PText.GetScalePersent(max > 0f ? CurrentOutput() / max : 0f, 40) + "\n");
                 return values.ToString();
             }
-        }
-        public class Reactors : BaseListTerminalBlock<IMyReactor>
-        {
-            public Reactors(string name_obj) : base(name_obj) { }
-            public Reactors(string name_obj, string tag) : base(name_obj, tag) { }
         }
         public class Ejector : BaseListTerminalBlock<IMyShipConnector> { public Ejector(string name_obj) : base(name_obj) { } public Ejector(string name_obj, string tag) : base(name_obj, tag) { } public void ThrowOut(bool enable) { foreach (IMyShipConnector enj in base.list_obj) { enj.ThrowOut = enable; } } }
         public class Nav
@@ -777,8 +772,9 @@ namespace MINER_HORIZONTAL_A9
                 drill = 7,
                 pull_up = 8,
                 pull_out = 9,
+                drill_pozition = 10,
             };
-            public static string[] name_mode = { "", "БАЗА", "РАСТЫКОВКА", "К БАЗЕ", "СТЫКОВКА", "К ШАХТЕ", "НА ТОЧКУ БУРЕНИЯ", "БУРИМ", "ОСТАНОВИТЬ БУР", "ВЫТАЩИТЬ БУР" };
+            public static string[] name_mode = { "", "БАЗА", "РАСТЫКОВКА", "К БАЗЕ", "СТЫКОВКА", "К ШАХТЕ", "НА ТОЧКУ БУРЕНИЯ", "БУРИМ", "ОСТАНОВИТЬ БУР", "ВЫТАЩИТЬ БУР", "БУР ПОВОРОТ" };
             public mode curent_mode = mode.none;
             public string name_ship { get; set; }
             public Vector3D MyPos { get; private set; }
@@ -801,13 +797,17 @@ namespace MINER_HORIZONTAL_A9
             public float VDistance { get; private set; } // Дистанция по вертикали (плоскость Y)
             //-------------------
             public Vector3D PlanetCenter { get; set; } = new Vector3D(0.50, 0.50, 0.50);
+            //public Vector3D ConnectorPoint { get; set; } = new Vector3D(0, 0, 5);
+            //public Vector3D BaseDockPoint { get; set; } = new Vector3D(0, 0, -safe_base_distance);
             public Vector3D ConnectorPoint { get; set; } = new Vector3D(0, 0, 5);
             public Vector3D BaseDockPoint { get; set; } = new Vector3D(0, 0, -safe_base_distance);
             public MatrixD DockMatrix { get; set; }
             public Vector3D DrillPoint { get; set; } = new Vector3D(0, 0, 0);
             public MatrixD DrillMatrix { get; set; }
+            public MatrixD DrillMatrixCount { get; set; }
             public double FlyHeight { get; set; }
             public int ShaftN { get; set; }
+            public int ShaftC { get; set; } // Количество поворотов
             public bool StoneDumpNeeded { get; private set; } // Признак нужно сбросить груз
             public bool PullUpNeeded { get; private set; } // Требуется подтянуть
             public bool CriticalMassReached { get; private set; }// Признак критической массы
@@ -856,7 +856,14 @@ namespace MINER_HORIZONTAL_A9
             public void SetDrillMatrixDepo()
             {
                 DrillMatrix = GetNormTransMatrixFromMyPos(cockpit.obj);
-                ShaftN = 0; DrillPoint = new Vector3D(0, 0, 0);
+                DrillMatrixCount = GetNormTransMatrixFromMyPos(cockpit.obj);
+                ShaftN = 0; ShaftC = 0; DrillPoint = new Vector3D(0, 0, 0);
+                strg.SaveToStorage();
+            }
+            public void SetDrillMatrixDepoCount()
+            {
+                DrillMatrixCount = GetNormTransMatrixFromMyPos(cockpit.obj);
+                ShaftN = 0;
                 strg.SaveToStorage();
             }
             public void InitBlock(IMyTerminalBlock block)
@@ -942,6 +949,7 @@ namespace MINER_HORIZONTAL_A9
                 GravVector = cockpit.obj.GetNaturalGravity();
                 gravity = GravVector.LengthSquared() > 0.2f;
                 PhysicalMass = cockpit.obj.CalculateShipMass().PhysicalMass;
+
                 if (BlockNav != null)
                 {
                     MyPrevPos = MyPos;
@@ -975,24 +983,27 @@ namespace MINER_HORIZONTAL_A9
                         StoneDumpNeeded = false;
                 }
                 CriticalBatteryCharge = connector.Connected ? bats.CurrentPersent < MaxOffCharge : bats.CurrentPersent <= MinOnCharge;
-                if (CriticalBatteryCharge) { reactors.On(); } else { reactors.Off(); }
+                //if (CriticalBatteryCharge) { reactors.On(); } else { reactors.Off(); }
                 EmergencySetpoint = (!connector.Connected ? CriticalMassReached : false) || CriticalBatteryCharge;
                 //ТЕСТИРОВАНИЕ
                 StringBuilder values1 = new StringBuilder();
                 Vector3D MyPosPoint = Vector3D.Transform(MyPos, DockMatrix);
                 values1.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
                 values1.Append("BlockNav :" + (BlockNav != null).ToString() + "\n");
+                values1.Append("BlockConnector :" + (BlockNav != null && BlockNav is IMyShipConnector ? igreen.ToString() : ired.ToString()) + "\n");
                 values1.Append("My_Length   : " + Math.Round(MyPosPoint.Length(), 2) + "\n");
                 values1.Append("MyPos_X_[0]   : " + Math.Round(MyPosPoint.GetDim(0), 2) + "\n");
                 values1.Append("MyPos_Y_[1]   : " + Math.Round(MyPosPoint.GetDim(1), 2) + "\n");
                 values1.Append("MyPos_Z_[2]   : " + Math.Round(MyPosPoint.GetDim(2), 2) + "\n");
                 lcd_test1.OutText(values1);
                 StringBuilder values2 = new StringBuilder();
-                values2.Append("IceAmount :" + cargos.IceAmount + "\n");
+                //values2.Append("IceAmount :" + cargos.IceAmount + "\n");
+                values2.Append(thrusts.TextInfo());
                 lcd_test2.OutText(values2);
                 StringBuilder values3 = new StringBuilder();
                 Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
                 values3.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
+                values3.Append("BlockShip :" + (BlockNav != null && BlockNav is IMyShipController ? igreen.ToString() : ired.ToString()) + "\n");
                 values3.Append("StoneDumpNeeded :" + StoneDumpNeeded.ToString() + "\n");
                 values3.Append("MyDrill_Length   : " + Math.Round(MyPosDrill.Length(), 2) + "\n");
                 values3.Append("MyDrillPos_X_[0]   : " + Math.Round(MyPosDrill.GetDim(0), 2) + "\n");
@@ -1060,8 +1071,14 @@ namespace MINER_HORIZONTAL_A9
                         }
                         else
                         {
-                            SetNewShaft(); if (ShaftN >= MaxShafts) InitMode(mode.to_base); else InitMode(mode.drill_align);
+                            ShaftC++;
+                            InitMode(mode.drill_pozition);
+                            //SetNewShaft(); if (ShaftN >= MaxShafts) InitMode(mode.to_base); else InitMode(mode.drill_align);
                         }
+                    }
+                    if (curent_mode == mode.drill_pozition && PozitionDrill())
+                    {
+                        if (ShaftC > 15) InitMode(mode.to_base); else InitMode(mode.drill_align);
                     }
                     if (curent_mode == mode.to_base && ToBase())
                     {
@@ -1178,7 +1195,7 @@ namespace MINER_HORIZONTAL_A9
                     thrusts.SetOverrideAccel("U", UpAccel);
                 }
                 else { thrusts.SetOverridePercent("U", 0); thrusts.SetOverridePercent("D", 0); }
-                if (ForwVelocityVector.Length() < MaxFSpeed && MyPosCon.GetDim(2) < 0 && 
+                if (ForwVelocityVector.Length() < MaxFSpeed && MyPosCon.GetDim(2) < 0 &&
                     ((HDistance >= safe_base_distance) || (Math.Abs(MyPosCon.GetDim(2)) < safe_base_distance && Math.Abs(MyPosCon.GetDim(0)) < 1.0f && Math.Abs(MyPosCon.GetDim(1)) < 1.0f)))
                 { thrusts.SetOverrideAccel("F", (float)(HDistance * AlignAccelMult)); thrusts.SetOverridePercent("B", 0); }
                 else { thrusts.SetOverridePercent("F", 0); thrusts.SetOverridePercent("B", 0); }
@@ -1198,46 +1215,14 @@ namespace MINER_HORIZONTAL_A9
                 //OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel);
                 return Complete;
             }
-            public bool ToBase()
+            public bool FP(Vector3D Point, MatrixD Matrix)
             {
                 bool Complete = false;
                 float MaxUSpeed, MaxFSpeed;
                 thrusts.On();
-                Vector3D MyPosCon = Vector3D.Transform(MyPos, DockMatrix);
-                Vector3D gyrAng = GetNavAngles(BaseDockPoint, DockMatrix);
-                HDistance = (float)(BaseDockPoint - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
-                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(FlyHeight - (MyPos - PlanetCenter).Length()) * YMaxA) / 1.2f;
-                MaxFSpeed = (float)Math.Sqrt(2 * HDistance * ZMaxA) / 1.2f;
-                gyros.SetOverride(BlockNav, true, gyrAng * GyroMult, 1);
-                thrusts.SetOverridePercent("R", 0);
-                thrusts.SetOverridePercent("L", 0);
-                if (UpVelocityVector.Length() < MaxUSpeed)
-                    thrusts.SetOverrideAccel("U", (float)((FlyHeight - (MyPos - PlanetCenter).Length()) * AlignAccelMult));
-                else
-                { thrusts.SetOverridePercent("U", 0); thrusts.SetOverridePercent("D", 0); }
-                if (HDistance > safe_base_distance)
-                {
-                    if (ForwVelocityVector.Length() < MaxFSpeed) { thrusts.SetOverrideAccel("F", (float)(HDistance * AlignAccelMult)); thrusts.SetOverridePercent("B", 0); }
-                    else { thrusts.SetOverridePercent("F", 0); thrusts.SetOverridePercent("B", 0); }
-                }
-                else
-                {
-                    thrusts.ClearThrustOverridePersent();
-                    gyros.SetOverride(false, 1);
-                    curent_mode = mode.none;
-                    Complete = true;
-                }
-                //OutStatusMode(MaxFSpeed, MaxUSpeed, 0, 0);
-                return Complete;
-            }
-            public bool ToDrillPoint()
-            {
-                bool Complete = false;
-                float MaxUSpeed, MaxFSpeed;
-                thrusts.On();
-                Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix);
-                Vector3D gyrAng = GetNavAngles(new Vector3D(0, 0, 0), DrillMatrix);
-                HDistance = (float)(DrillPoint - new Vector3D(MyPosDrill.GetDim(0), 0, MyPosDrill.GetDim(2))).Length();
+                Vector3D MyPosCon = Vector3D.Transform(MyPos, Matrix);
+                Vector3D gyrAng = GetNavAngles(Point, Matrix);
+                HDistance = (float)(Point - new Vector3D(MyPosCon.GetDim(0), 0, MyPosCon.GetDim(2))).Length();
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(FlyHeight - (MyPos - PlanetCenter).Length()) * YMaxA) / 1.2f;
                 MaxFSpeed = (float)Math.Sqrt(2 * HDistance * ZMaxA) / 1.2f;
                 gyros.SetOverride(BlockNav, true, gyrAng * GyroMult, 1);
@@ -1250,7 +1235,7 @@ namespace MINER_HORIZONTAL_A9
                     thrusts.SetOverridePercent("U", 0);
                     thrusts.SetOverridePercent("D", 0);
                 }
-                if (HDistance > safe_base_distance)
+                if (HDistance > safe_point_distance)
                 {
                     if (ForwVelocityVector.Length() < MaxFSpeed)
                     {
@@ -1273,58 +1258,96 @@ namespace MINER_HORIZONTAL_A9
                 //OutStatusMode(MaxFSpeed, MaxUSpeed, 0, 0);
                 return Complete;
             }
-            public bool DrillAlign()
+            public bool ToBase()
+            {
+                return FP(BaseDockPoint, DockMatrix);
+            }
+            public bool ToDrillPoint()
+            {
+                return FP(DrillPoint, DrillMatrix);                
+            }
+            public bool TP(Vector3D Point, MatrixD Matrix)
             {
                 bool Complete = false;
                 float MaxUSpeed, MaxLSpeed, MaxFSpeed;
                 float UpAccel = 0;
                 thrusts.On();
-                Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
-                Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 5), DrillMatrix);
+                Vector3D MyPosCcp = Vector3D.Transform(MyPos, Matrix) - Point;
+                Vector3D gyrAng = GetNavAngles(MyPosCcp + Point + new Vector3D(0, 0, 2), Matrix);
                 gyros.SetOverride(BlockNav, true, gyrAng * GyroMult, 1);
-                MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 2;
-                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(1)) * YMaxA) / 2;
-                MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(2)) * ZMaxA) / 2;
+                MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCcp.GetDim(0)) * XMaxA) / 2;
+                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCcp.GetDim(1)) * YMaxA) / 2;
+                MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCcp.GetDim(2)) * ZMaxA) / 2;
                 if (double.IsNaN(MaxUSpeed)) MaxUSpeed = 0.1f;
-                if (Math.Abs(MyPosDrill.GetDim(1)) < 1)
+                if (Math.Abs(MyPosCcp.GetDim(1)) < 1)
                     MaxUSpeed = 0.1f;
                 if (LeftVelocityVector.Length() < MaxLSpeed)
-                    thrusts.SetOverrideAccel("R", (float)(MyPosDrill.GetDim(0) * AlignAccelMult));
+                    thrusts.SetOverrideAccel("R", (float)(MyPosCcp.GetDim(0) * AlignAccelMult));
                 else
                 {
                     thrusts.SetOverridePercent("R", 0);
                     thrusts.SetOverridePercent("L", 0);
                 }
                 if (ForwVelocityVector.Length() < MaxFSpeed)
-                    thrusts.SetOverrideAccel("B", (float)(MyPosDrill.GetDim(2) * AlignAccelMult));
+                    thrusts.SetOverrideAccel("B", (float)(MyPosCcp.GetDim(2) * AlignAccelMult));
                 else
                 {
                     thrusts.SetOverridePercent("F", 0);
                     thrusts.SetOverridePercent("B", 0);
                 }
+                UpAccel = getAccel(-(float)(MyPosCcp.GetDim(1) * AlignAccelMult), MinUDAccel);
                 if (UpVelocityVector.Length() < MaxUSpeed)
                 {
-                    UpAccel = -(float)(MyPosDrill.GetDim(1) * AlignAccelMult);
-                    float minUpAccel = 0.1f;
-                    if ((UpAccel < 0) && (UpAccel > -minUpAccel))
-                        UpAccel = -minUpAccel;
-                    if ((UpAccel > 0) && (UpAccel < minUpAccel))
-                        UpAccel = minUpAccel;
                     thrusts.SetOverrideAccel("U", UpAccel);
                 }
-                else
-                {
-                    thrusts.SetOverridePercent("U", 0);
-                    thrusts.SetOverridePercent("D", 0);
-                }
-                if (MyPosDrill.Length() < 0.5)
+                else { thrusts.SetOverridePercent("U", 0); thrusts.SetOverridePercent("D", 0); }
+                if (MyPosCcp.Length() < 0.5)
                 {
                     thrusts.ClearThrustOverridePersent();
                     gyros.SetOverride(false, 1);
-                    curent_mode = mode.none;
                     Complete = true;
                 }
                 //OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel);
+                return Complete;
+            }
+            public bool DrillAlign()
+            {
+                return TP(DrillPoint, DrillMatrix);                
+            }
+            public Vector3D GetNewPosition(int ShaftC)
+            {
+                switch (ShaftC)
+                {
+                    case 0: return new Vector3D(0, 0, 2);
+                    case 1: return new Vector3D(1, 0, 2);
+                    case 2: return new Vector3D(2, 0, 2);
+                    case 3: return new Vector3D(2, 0, 1);
+                    case 4: return new Vector3D(2, 0, 0);
+                    case 5: return new Vector3D(2, 0, -1);
+                    case 6: return new Vector3D(2, 0, -2);
+                    case 7: return new Vector3D(1, 0, -2);
+                    case 8: return new Vector3D(0, 0, -2);
+                    case 9: return new Vector3D(-1, 0, -2);
+                    case 10: return new Vector3D(-2, 0, -2);
+                    case 11: return new Vector3D(-2, 0, -1);
+                    case 12: return new Vector3D(-2, 0, 0);
+                    case 13: return new Vector3D(-2, 0, 1);
+                    case 14: return new Vector3D(-2, 0, 2);
+                    case 15: return new Vector3D(-1, 0, 2);
+                    default: return new Vector3D(0, 0, 2);
+                }
+            }
+            public bool PozitionDrill()
+            {
+                bool Complete = false;
+                Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix);
+                Vector3D gyrAng = GetNavAngles(MyPosDrill + GetNewPosition(ShaftC), DrillMatrix, 0, 0);
+                gyros.SetOverride(BlockNav, true, gyrAng * DrillGyroMult, 1);
+                if (Math.Abs(gyros.getYaw()) < 0.01f)
+                {
+                    DrillMatrixCount = GetNormTransMatrixFromMyPos(cockpit.obj);
+                    Complete = true;
+                }
                 return Complete;
             }
             public bool Drill(out bool Emergency)
@@ -1335,29 +1358,29 @@ namespace MINER_HORIZONTAL_A9
                 bool Complete = false;
                 Emergency = false;
                 float MaxLSpeed, MaxFSpeed, MaxUSpeed;
-                Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
-                double shiftX = MyPosDrill.GetDim(0) / 2;
-                if (shiftX < 0) shiftX = Math.Max(shiftX, -0.1);
-                else shiftX = Math.Min(shiftX, 0.1);
-                double shiftY = MyPosDrill.GetDim(2) / 2;
-                if (shiftY < 0) shiftY = Math.Max(shiftY, -0.1);
-                else shiftY = Math.Min(shiftY, 0.1);
-
-                Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrix, shiftX, shiftY);
+                Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrixCount) - DrillPoint;
+                //double shiftX = MyPosDrill.GetDim(0) / 2;
+                //if (shiftX < 0) shiftX = Math.Max(shiftX, -0.1);
+                //else shiftX = Math.Min(shiftX, 0.1);
+                //double shiftY = MyPosDrill.GetDim(2) / 2;
+                //if (shiftY < 0) shiftY = Math.Max(shiftY, -0.1);
+                //else shiftY = Math.Min(shiftY, 0.1);
+                //Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrix, shiftX, shiftY);
+                Vector3D gyrAng = GetNavAngles(MyPosDrill + new Vector3D(0, 0, 1), DrillMatrixCount, 0, 0);
                 gyros.SetOverride(BlockNav, true, gyrAng * DrillGyroMult, 1);
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 5;
                 //MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(2)) * ZMaxA) / 5;
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(1)) * YMaxA) / 5;
 
                 if (LeftVelocityVector.Length() < MaxLSpeed)
-                    thrusts.SetOverrideAccel("R", (float)(MyPosDrill.GetDim(0) * 5));
+                    thrusts.SetOverrideAccel("R", (float)(MyPosDrill.GetDim(0) * 10));
                 else
                 {
                     thrusts.SetOverridePercent("R", 0);
                     thrusts.SetOverridePercent("L", 0);
                 }
                 if (UpVelocityVector.Length() < MaxUSpeed)
-                    thrusts.SetOverrideAccel("D", (float)(MyPosDrill.GetDim(1) * 5));
+                    thrusts.SetOverrideAccel("D", (float)(MyPosDrill.GetDim(1) * 10));
                 else
                 {
                     thrusts.SetOverridePercent("U", 0);
@@ -1367,17 +1390,15 @@ namespace MINER_HORIZONTAL_A9
                     drill.Off();
                 else if (!StoneDumpNeeded && !drill.Enabled())
                     drill.On();
-
-
                 if ((ForwVelocityVector.Length() < DrillSpeedLimit) && (!StoneDumpNeeded))
                 {
-                    if ((Math.Abs(MyPosDrill.GetDim(0)) < 0.8f) && (Math.Abs(MyPosDrill.GetDim(1)) < 0.8f))
-                        thrusts.SetOverrideAccel("F", (DrillAccel));
+                    if ((Math.Abs(MyPosDrill.GetDim(0)) < 1.5f) && (Math.Abs(MyPosDrill.GetDim(1)) < 1f))
+                        thrusts.SetOverrideAccel("F", DrillAccel);
                     else
                     {
-                        thrusts.SetOverrideAccel("B", (DrillAccel));
-                        PullUpNeeded = true;
-                        Complete = true;
+                        thrusts.SetOverrideAccel("B", 0);
+                        //PullUpNeeded = true;
+                        //Complete = true;
                     }
                 }
                 else
@@ -1401,8 +1422,8 @@ namespace MINER_HORIZONTAL_A9
             {
                 bool Complete = false;
                 float MaxLSpeed, MaxUSpeed, MaxFSpeed;
-                Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
-                Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrix);
+                Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrixCount) - DrillPoint;
+                Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrixCount);
                 gyros.SetOverride(BlockNav, true, gyrAng * DrillGyroMult, 1);
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 4;
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(1)) * YMaxA) / 4;
@@ -1422,14 +1443,14 @@ namespace MINER_HORIZONTAL_A9
                     thrusts.SetOverridePercent("D", 0);
                 }
 
-                if (ForwVelocityVector.Length() < DrillSpeedLimit * 5)
+                if (ForwVelocityVector.Length() < DrillSpeedLimit)
                     thrusts.SetOverrideAccel("B", (DrillAccel * 2));
                 else
                 {
                     thrusts.SetOverridePercent("F", 0);
                     thrusts.SetOverridePercent("B", 0);
                 }
-                if ((MyPosDrill.GetDim(2) < 0) || ((MyPosDrill.GetDim(0) < 0.15) && (MyPosDrill.GetDim(1) < 0.15)))
+                if ((MyPosDrill.GetDim(2) < 0) || ((MyPosDrill.GetDim(0) < 0.5) && (MyPosDrill.GetDim(1) < 0.5)))
                 {
                     Complete = true;
                     PullUpNeeded = false;
@@ -1440,8 +1461,8 @@ namespace MINER_HORIZONTAL_A9
             {
                 bool Complete = false;
                 float MaxLSpeed, MaxUSpeed, MaxFSpeed;
-                Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
-                Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrix);
+                Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrixCount) - DrillPoint;
+                Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrixCount);
                 gyros.SetOverride(BlockNav, true, gyrAng * DrillGyroMult, 1);
                 drill.Off();
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 2;
@@ -1556,8 +1577,9 @@ namespace MINER_HORIZONTAL_A9
                 values.Append("ДИСТАНЦИЯ (точка.)   : " + Math.Round(HDistance).ToString() + "\n");
                 values.Append("--------------------------------------\n");
                 values.Append("ГОРИЗОНТ : " + (horizont ? igreen.ToString() : ired.ToString()) + ", ");
-                values.Append("ПАУЗА : " + (paused ? igreen.ToString() : ired.ToString()) + ", ");
-                values.Append("ДОМОЙ : " + (go_home ? igreen.ToString() : ired.ToString()) + "\n");
+                values.Append("ПАУЗА    : " + (paused ? igreen.ToString() : ired.ToString()) + ", ");
+                values.Append("ДОМОЙ    : " + (go_home ? igreen.ToString() : ired.ToString()) + "\n");
+                values.Append("ShaftC   : " + (ShaftC) + "\n");
                 values.Append("--------------------------------------\n");
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
@@ -1600,6 +1622,7 @@ namespace MINER_HORIZONTAL_A9
                     case "to_base": { InitMode(mode.to_base); break; }
                     case "to_drill": { InitMode(mode.to_drill); break; }
                     case "drill_align": { InitMode(mode.drill_align); break; }
+                    case "drill_pozition": { InitMode(mode.drill_pozition); break; }
                     case "fly_base": { curent_programm = programm.fly_connect_base; strg.SaveToStorage(); break; }
                     case "fly_drill": { curent_programm = programm.fly_drill; strg.SaveToStorage(); break; }
                     case "start_drill": { curent_programm = programm.start_drill; strg.SaveToStorage(); break; }
@@ -1641,23 +1664,27 @@ namespace MINER_HORIZONTAL_A9
                         }
                         if (curent_mode == mode.un_dock && !paused && UnDock())
                         {
-                            curent_mode = mode.none; InitMode(mode.none); //strg.SaveToStorage();
+                           InitMode(mode.none); //strg.SaveToStorage();
                         }
                         if (curent_mode == mode.dock && !paused && Dock())
                         {
-                            curent_mode = mode.none; InitMode(mode.none); //strg.SaveToStorage();
+                            InitMode(mode.none); //strg.SaveToStorage();
                         }
                         if (curent_mode == mode.to_base && !paused && ToBase())
                         {
-                            curent_mode = mode.none; InitMode(mode.none); //strg.SaveToStorage();
+                            InitMode(mode.none); //strg.SaveToStorage();
                         }
                         if (curent_mode == mode.to_drill && !paused && ToDrillPoint())
                         {
-                            curent_mode = mode.none; InitMode(mode.none); //strg.SaveToStorage();
+                            InitMode(mode.none); //strg.SaveToStorage();
                         }
                         if (curent_mode == mode.drill_align && !paused && DrillAlign())
                         {
-                            curent_mode = mode.none; InitMode(mode.none); //strg.SaveToStorage();
+                            InitMode(mode.none); //strg.SaveToStorage();
+                        }
+                        if (curent_mode == mode.drill_pozition && !paused && PozitionDrill())
+                        {
+                            InitMode(mode.none); //strg.SaveToStorage();
                         }
                     }
                     else
@@ -1692,6 +1719,7 @@ namespace MINER_HORIZONTAL_A9
                 nav.go_home = GetValBool("go_home", str.ToString());
                 nav.FlyHeight = GetValDouble("FlyHeight", str.ToString());
                 nav.ShaftN = GetValInt("ShaftN", str.ToString());
+                nav.ShaftC = GetValInt("ShaftC", str.ToString());
                 nav.EmergencyReturn = GetValBool("EmergencyReturn", str.ToString());
                 DrillDepth = (float)GetValDouble("DrillDepth", str.ToString());
                 MaxShafts = GetValInt("MaxShafts", str.ToString());
@@ -1699,8 +1727,9 @@ namespace MINER_HORIZONTAL_A9
                 //nav.BaseDockPoint = GetValVector3D("BDP", str.ToString());
                 nav.PlanetCenter = GetValVector3D("PC", str.ToString());
                 nav.DrillMatrix = GetValMatrixD("DRM", str.ToString());
-                nav.DrillPoint = nav.GetSpiralXY(nav.ShaftN, DrillFrameWidth, DrillFrameLength);
-                if (nav.curent_mode == Nav.mode.dock || nav.curent_mode == Nav.mode.un_dock)
+                nav.DrillMatrixCount = GetValMatrixD("DRMC", str.ToString());
+                //nav.DrillPoint = nav.GetSpiralXY(nav.ShaftN, DrillFrameWidth, DrillFrameLength);
+                if (nav.curent_mode == Nav.mode.dock || nav.curent_mode == Nav.mode.un_dock || nav.curent_mode == Nav.mode.base_operation)
                 {
                     nav.InitBlock(connector.obj);
                 }
@@ -1719,6 +1748,7 @@ namespace MINER_HORIZONTAL_A9
                 values.Append("go_home: " + nav.go_home.ToString() + ";\n");
                 values.Append("FlyHeight: " + Math.Round(nav.FlyHeight, 0) + ";\n");
                 values.Append("ShaftN: " + nav.ShaftN.ToString() + ";\n");
+                values.Append("ShaftC: " + nav.ShaftC.ToString() + ";\n");
                 values.Append("EmergencyReturn: " + nav.EmergencyReturn.ToString() + ";\n");
                 values.Append("DrillDepth: " + Math.Round(DrillDepth, 0) + ";\n");
                 values.Append("MaxShafts: " + MaxShafts.ToString() + ";\n");
@@ -1726,6 +1756,7 @@ namespace MINER_HORIZONTAL_A9
                 //values.Append(SetValVector3D("BDP", nav.BaseDockPoint) + ";\n");
                 values.Append(SetValVector3D("PC", nav.PlanetCenter) + ";\n");
                 values.Append(SetValMatrixD("DRM", nav.DrillMatrix) + ";\n");
+                values.Append(SetValMatrixD("DRMC", nav.DrillMatrixCount) + ";\n");
                 lcd_storage.OutText(values);
             }
             private string GetVal(string Key, string str, string val) { string pattern = @"(" + Key + "):([^:^;]+);"; System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(str.Replace("\n", ""), pattern); if (match.Success) { val = match.Groups[2].Value; } return val; }
