@@ -769,7 +769,7 @@ namespace MINER_HORIZONTAL_A9
                 dock = 4,
                 to_drill = 5,
                 drill_shift = 6,
-                drill_align = 7,
+                drill_start = 7,
                 drill = 8,
                 pull_up = 9,
                 pull_out = 10,
@@ -1046,13 +1046,13 @@ namespace MINER_HORIZONTAL_A9
                 {
                     if (go_home)
                     {
-                        if (curent_mode == mode.to_drill || curent_mode == mode.drill_align) { InitMode(mode.to_base); }
+                        if (curent_mode == mode.to_drill || curent_mode == mode.drill_start) { InitMode(mode.to_base); }
                         if (curent_mode == mode.drill) { InitMode(mode.pull_out); }
                     }
                     else
                     {
-                        if (curent_mode == mode.to_drill && ToDrillPoint()) { InitMode(mode.drill_align); }
-                        if (curent_mode == mode.drill_align && DrillAlign()) { InitMode(mode.drill); }
+                        if (curent_mode == mode.to_drill && ToDrillPoint()) { InitMode(mode.drill_start); }
+                        if (curent_mode == mode.drill_start && ToDrillStartPoint()) { InitMode(mode.drill); }
                         if (curent_mode == mode.drill && Drill(out EmergencyReturn))
                         {
                             if (PullUpNeeded) InitMode(mode.pull_up); else InitMode(mode.pull_out);
@@ -1076,12 +1076,12 @@ namespace MINER_HORIZONTAL_A9
                         {
                             ShaftC++;
                             InitMode(mode.drill_pozition);
-                            //SetNewShaft(); if (ShaftN >= MaxShafts) InitMode(mode.to_base); else InitMode(mode.drill_align);
+                            //SetNewShaft(); if (ShaftN >= MaxShafts) InitMode(mode.to_base); else InitMode(mode.drill_start);
                         }
                     }
                     if (curent_mode == mode.drill_pozition && PozitionDrill())
                     {
-                        if (ShaftC > 15) InitMode(mode.to_base); else InitMode(mode.drill_align);
+                        if (ShaftC > 15) InitMode(mode.to_base); else InitMode(mode.drill_start);
                     }
                     if (curent_mode == mode.to_base && ToBase())
                     {
@@ -1268,7 +1268,7 @@ namespace MINER_HORIZONTAL_A9
                 float UpAccel = 0;
                 thrusts.On();
                 Vector3D MyPosCcp = Vector3D.Transform(MyPos, Matrix) - Point;
-                Vector3D gyrAng = GetNavAngles(MyPosCcp + Point + new Vector3D(0, 0, 2), Matrix);
+                Vector3D gyrAng = GetNavAngles(Point + new Vector3D(0, 0, 2), Matrix);
                 gyros.SetOverride(BlockNav, true, gyrAng * GyroMult, 1);
                 MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCcp.GetDim(0)) * XMaxA) / 2;
                 MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCcp.GetDim(1)) * YMaxA) / 2;
@@ -1293,7 +1293,7 @@ namespace MINER_HORIZONTAL_A9
                 return Complete;
             }
             public bool ToDrillShiftPoint() { return TP(DrillShiftPoint, DrillMatrix); }
-            public bool DrillAlign() { return TP(DrillPoint, DrillMatrix); }
+            public bool ToDrillStartPoint() { return TP(DrillPoint, DrillMatrix); }
             public Vector3D GetNewPosition(int ShaftC)
             {
                 switch (ShaftC)
@@ -1320,8 +1320,9 @@ namespace MINER_HORIZONTAL_A9
             public bool PozitionDrill()
             {
                 bool Complete = false;
-                Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix);
-                Vector3D gyrAng = GetNavAngles(MyPosDrill + GetNewPosition(ShaftC), DrillMatrix, 0, 0);
+                //Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix);
+                //Vector3D gyrAng = GetNavAngles(MyPosDrill + GetNewPosition(ShaftC), DrillMatrix, 0, 0);
+                Vector3D gyrAng = GetNavAngles(GetNewPosition(ShaftC), DrillMatrix, 0, 0);
                 gyros.SetOverride(BlockNav, true, gyrAng * DrillGyroMult, 1);
                 if (Math.Abs(gyros.getYaw()) < 0.01f)
                 {
@@ -1602,8 +1603,8 @@ namespace MINER_HORIZONTAL_A9
                     case "to_base": { InitMode(mode.to_base); break; }
                     case "to_drill": { InitMode(mode.to_drill); break; }
                     case "drill_shift": { InitMode(mode.drill_shift); break; }
-                    case "drill_align": { InitMode(mode.drill_align); break; }
-                    case "drill_pozition": { InitMode(mode.drill_pozition); break; }
+                    case "drill_start": { InitMode(mode.drill_start); break; }
+                    case "drill_pozition": { ShaftC++; InitMode(mode.drill_pozition); break; }
                     case "fly_base": { curent_programm = programm.fly_connect_base; strg.SaveToStorage(); break; }
                     case "fly_drill": { curent_programm = programm.fly_drill; strg.SaveToStorage(); break; }
                     case "start_drill": { curent_programm = programm.start_drill; strg.SaveToStorage(); break; }
@@ -1663,7 +1664,7 @@ namespace MINER_HORIZONTAL_A9
                         {
                             InitMode(mode.none); //strg.SaveToStorage();
                         }
-                        if (curent_mode == mode.drill_align && !paused && DrillAlign())
+                        if (curent_mode == mode.drill_start && !paused && ToDrillStartPoint())
                         {
                             InitMode(mode.none); //strg.SaveToStorage();
                         }
