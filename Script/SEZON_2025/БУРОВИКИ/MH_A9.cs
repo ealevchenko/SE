@@ -1293,42 +1293,24 @@ namespace MINER_HORIZONTAL_A9
                 return Complete;
             }
             public bool ToDrillShiftPoint() { return TP(DrillShiftPoint, DrillMatrix); }
-            public bool ToDrillStartPoint() { return TP(DrillPoint, DrillMatrix); }
-            public Vector3D GetNewPosition(int ShaftC)
+            public bool ToDrillStartPoint() { return TP(DrillPoint, DrillMatrixCount); }
+            public double DegreesToRadians(float degrees) {
+                return degrees * Math.PI / 180;
+            }
+            public void RotationY(int ShaftC)
             {
-                switch (ShaftC)
-                {
-                    case 0: return new Vector3D(0, 0, 2);
-                    case 1: return new Vector3D(1, 0, 2);
-                    case 2: return new Vector3D(2, 0, 2);
-                    case 3: return new Vector3D(2, 0, 1);
-                    case 4: return new Vector3D(2, 0, 0);
-                    case 5: return new Vector3D(2, 0, -1);
-                    case 6: return new Vector3D(2, 0, -2);
-                    case 7: return new Vector3D(1, 0, -2);
-                    case 8: return new Vector3D(0, 0, -2);
-                    case 9: return new Vector3D(-1, 0, -2);
-                    case 10: return new Vector3D(-2, 0, -2);
-                    case 11: return new Vector3D(-2, 0, -1);
-                    case 12: return new Vector3D(-2, 0, 0);
-                    case 13: return new Vector3D(-2, 0, 1);
-                    case 14: return new Vector3D(-2, 0, 2);
-                    case 15: return new Vector3D(-1, 0, 2);
-                    default: return new Vector3D(0, 0, 2);
-                }
+                float degrees = (15 * ShaftC); 
+                if (degrees > 360) degrees = 0;
+                double radians = DegreesToRadians(degrees);
+                MatrixD DM = DrillMatrix;
+                MatrixD.CreateRotationY(radians, out DM);
+                DrillMatrixCount = DM;
             }
             public bool PozitionDrill()
             {
                 bool Complete = false;
-                //Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix);
-                //Vector3D gyrAng = GetNavAngles(MyPosDrill + GetNewPosition(ShaftC), DrillMatrix, 0, 0);
-                Vector3D gyrAng = GetNavAngles(GetNewPosition(ShaftC), DrillMatrix, 0, 0);
-                gyros.SetOverride(BlockNav, true, gyrAng * DrillGyroMult, 1);
-                if (Math.Abs(gyros.getYaw()) < 0.01f)
-                {
-                    DrillMatrixCount = GetNormTransMatrixFromMyPos(cockpit.obj);
-                    Complete = true;
-                }
+                RotationY(ShaftC);
+                //return TP(DrillPoint, DrillMatrixCount);
                 return Complete;
             }
             public bool Drill(out bool Emergency)
@@ -1769,3 +1751,24 @@ namespace MINER_HORIZONTAL_A9
 /*
     общение с базой
 */
+
+//switch (ShaftC)
+//{
+//    case 0: return new Vector3D(0, 0, 2);
+//    case 1: return new Vector3D(1, 0, 2);
+//    case 2: return new Vector3D(2, 0, 2);
+//    case 3: return new Vector3D(2, 0, 1);
+//    case 4: return new Vector3D(2, 0, 0);
+//    case 5: return new Vector3D(2, 0, -1);
+//    case 6: return new Vector3D(2, 0, -2);
+//    case 7: return new Vector3D(1, 0, -2);
+//    case 8: return new Vector3D(0, 0, -2);
+//    case 9: return new Vector3D(-1, 0, -2);
+//    case 10: return new Vector3D(-2, 0, -2);
+//    case 11: return new Vector3D(-2, 0, -1);
+//    case 12: return new Vector3D(-2, 0, 0);
+//    case 13: return new Vector3D(-2, 0, 1);
+//    case 14: return new Vector3D(-2, 0, 2);
+//    case 15: return new Vector3D(-1, 0, 2);
+//    default: return new Vector3D(0, 0, 2);
+//}
