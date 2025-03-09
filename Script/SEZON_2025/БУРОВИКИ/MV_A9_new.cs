@@ -48,7 +48,7 @@ namespace MINER_VERTICAL_A9_new
         static float DrillSpeedLimit = 0.5f;
         static float DrillAccel = 0.5f;
         static float DrillDepth = 35;           // глубина шахты
-        static int MaxShafts = 25;              // макс кол дыр
+        static int MaxShafts = 20;              // макс кол дыр
         static float DrillFrameWidth = 8f;     // размеры буровика
         static float DrillFrameLength = 7f;
         static int CriticalMass = 150000;       // Критическая масса
@@ -805,6 +805,7 @@ namespace MINER_VERTICAL_A9_new
             public MatrixD DrillMatrix { get; set; }
             public double FlyHeight { get; set; }
             public int ShaftN { get; set; }
+            public bool ShaftType { get; set; } = false;
             public bool StoneDumpNeeded { get; private set; } // Признак нужно сбросить груз
             public bool PullUpNeeded { get; private set; } // Требуется подтянуть
             public bool CriticalMassReached { get; private set; }// Признак критической массы
@@ -1030,7 +1031,7 @@ namespace MINER_VERTICAL_A9_new
                     }
                     else
                     {
-                        if (curent_mode == mode.to_drill && ToDrillPoint()) { InitMode(mode.drill_align); }
+                        if (curent_mode == mode.to_drill && ToDrillPoint()) { InitMode(mode.drill_align); DrillPoint = GetDrillPoint(); }
                         if (curent_mode == mode.drill_align && DrillAlign()) { InitMode(mode.drill); }
                         if (curent_mode == mode.drill && Drill(out EmergencyReturn))
                         {
@@ -1356,7 +1357,8 @@ namespace MINER_VERTICAL_A9_new
                 return Complete;
             }
             //-------------------------------------------------
-            public int SetNewShaft() { ShaftN++; DrillPoint = GetSpiralXY(ShaftN, DrillFrameWidth, DrillFrameLength); return ShaftN; }
+            public Vector3D GetDrillPoint() { return !ShaftType ? GetSpiralXY(nav.ShaftN, DrillFrameWidth, DrillFrameLength) : Get4shaftXY(nav.ShaftN, DrillFrameWidth, DrillFrameLength); }
+            public int SetNewShaft() { ShaftN++; DrillPoint = GetDrillPoint(); return ShaftN; }
             public Vector3D GetSpiralXY(int p, float W, float L, int n = 20)
             {
                 int positionX = 0, positionY = 0, direction = 0, stepsCount = 1, stepPosition = 0, stepChange = 0;
@@ -1393,11 +1395,12 @@ namespace MINER_VERTICAL_A9_new
             }
             public Vector3D Get4shaftXY(int p, float W, float L)
             {
-                switch (p) {
-                    case 0: { return new Vector3D(-W/2, 0, L/2); }
-                    case 1: { return new Vector3D(W/2, 0, L/2); }
-                    case 2: { return new Vector3D(-W/2, 0, -L/2); }
-                    case 3: { return new Vector3D(W/2, 0, -L/2); }
+                switch (p)
+                {
+                    case 0: { return new Vector3D(-W / 2, 0, L / 2); }
+                    case 1: { return new Vector3D(W / 2, 0, L / 2); }
+                    case 2: { return new Vector3D(-W / 2, 0, -L / 2); }
+                    case 3: { return new Vector3D(W / 2, 0, -L / 2); }
                     default: { return new Vector3D(0, 0, 0); }
                 }
             }
@@ -1449,9 +1452,10 @@ namespace MINER_VERTICAL_A9_new
                 values.Append("|-БАТАРЕЯ %          : " + PText.GetPersent(bats.CurrentPersent) + " " + (CriticalBatteryCharge ? ired.ToString() : igreen.ToString()) + "\n");
                 //values.Append("|-ТОПЛИВО H2 %      : " + PText.GetPersent(hydrogen_tanks_nav.AverageFilledRatio) + " " + (CriticalHydrogenSupply ? ired.ToString() : igreen.ToString()) + "\n");
                 values.Append("--------------------------------------\n");
-                values.Append("Камень               :" + cargos.StoneAmount + "\n");
-                values.Append("Глубина шахты        : " + DrillDepth + ", кол. шахт : " + MaxShafts + "\n");
-                values.Append("ПОДНЯТЬ              : " + (PullUpNeeded ? igreen.ToString() : iyellow.ToString()) + "\n");
+                values.Append("Камень        :" + cargos.StoneAmount + "\n");
+                values.Append("Глубина шахты : " + DrillDepth + ", кол. шахт : " + MaxShafts + "\n");
+                values.Append("Бурение для БУ: " + ShaftType + ", тек. дырка : " + ShaftN + "\n");
+                values.Append("ПОДНЯТЬ       : " + (PullUpNeeded ? igreen.ToString() : iyellow.ToString()) + "\n");
                 values.Append("--------------------------------------\n");
                 values.Append("ПРОГРАММА : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП      : " + name_mode[(int)curent_mode] + "\n");
@@ -1467,8 +1471,9 @@ namespace MINER_VERTICAL_A9_new
                     case "save_height": SetFlyHeight(); break;
                     case "depth+": DrillDepth++; if (DrillDepth > 150) DrillDepth = 150; strg.SaveToStorage(); break;
                     case "depth-": DrillDepth--; if (DrillDepth < 5) DrillDepth = 5; strg.SaveToStorage(); break;
-                    case "ms+": MaxShafts++; if (MaxShafts > 50) MaxShafts = 50; strg.SaveToStorage(); break;
-                    case "ms-": MaxShafts--; if (MaxShafts < 4) MaxShafts = 4; strg.SaveToStorage(); break;
+                    case "ms+": MaxShafts++; if (MaxShafts > (!ShaftType ? 20 : 4)) MaxShafts = (!ShaftType ? 20 : 4); strg.SaveToStorage(); break;
+                    case "ms-": MaxShafts--; if (MaxShafts < 0) MaxShafts = 0; strg.SaveToStorage(); break;
+                    case "st": ShaftType = !ShaftType; strg.SaveToStorage(); break;
                     case "horizont": if (curent_programm == programm.none && curent_mode == mode.none) { if (horizont) { horizont = false; } else { horizont = true; } } break;
                     case "stop": Stop(); break;
                     case "pause": Pause(!paused); break;
@@ -1569,6 +1574,7 @@ namespace MINER_VERTICAL_A9_new
                 nav.go_home = GetValBool("go_home", str.ToString());
                 nav.FlyHeight = GetValDouble("FlyHeight", str.ToString());
                 nav.ShaftN = GetValInt("ShaftN", str.ToString());
+                nav.ShaftType = GetValBool("ShaftType", str.ToString());
                 nav.EmergencyReturn = GetValBool("EmergencyReturn", str.ToString());
                 DrillDepth = (float)GetValDouble("DrillDepth", str.ToString());
                 MaxShafts = GetValInt("MaxShafts", str.ToString());
@@ -1576,7 +1582,7 @@ namespace MINER_VERTICAL_A9_new
                 //nav.BaseDockPoint = GetValVector3D("BDP", str.ToString());
                 nav.PlanetCenter = GetValVector3D("PC", str.ToString());
                 nav.DrillMatrix = GetValMatrixD("DRM", str.ToString());
-                nav.DrillPoint = nav.GetSpiralXY(nav.ShaftN, DrillFrameWidth, DrillFrameLength);
+                nav.DrillPoint = !nav.ShaftType ? nav.GetSpiralXY(nav.ShaftN, DrillFrameWidth, DrillFrameLength) : nav.Get4shaftXY(nav.ShaftN, DrillFrameWidth, DrillFrameLength);
                 if (nav.curent_mode == Nav.mode.dock || nav.curent_mode == Nav.mode.un_dock || nav.curent_mode == Nav.mode.base_operation)
                 {
                     nav.InitBlock(connector.obj);
@@ -1596,6 +1602,7 @@ namespace MINER_VERTICAL_A9_new
                 values.Append("go_home: " + nav.go_home.ToString() + ";\n");
                 values.Append("FlyHeight: " + Math.Round(nav.FlyHeight, 0) + ";\n");
                 values.Append("ShaftN: " + nav.ShaftN.ToString() + ";\n");
+                values.Append("ShaftType: " + nav.ShaftType.ToString() + ";\n");
                 values.Append("EmergencyReturn: " + nav.EmergencyReturn.ToString() + ";\n");
                 values.Append("DrillDepth: " + Math.Round(DrillDepth, 0) + ";\n");
                 values.Append("MaxShafts: " + MaxShafts.ToString() + ";\n");
