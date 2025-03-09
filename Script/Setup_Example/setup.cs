@@ -554,7 +554,7 @@ namespace SETUP
             //info_lcd.WriteText("", false);
         }
 
-        //info:[BT]-Антенна
+        //info:КПТ
         //replace:[KLEPA_H18-01]-|[KLEPA_H18_01]-
         //add:[KLEPA-H18-01]-
         //replace:[KROTIK-H76-01]-|[KROTIK-H74]-
