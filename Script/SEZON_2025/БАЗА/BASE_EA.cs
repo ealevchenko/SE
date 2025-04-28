@@ -19,6 +19,7 @@ using System.Text;
 using System.Threading.Tasks;
 using VRage.Game;
 using VRage.Game.ModAPI.Ingame;
+using VRage.Noise.Combiners;
 using VRage.Scripting;
 using VRageMath;
 
@@ -56,10 +57,11 @@ namespace BASE_EA
         static LCD lcd_storage;
         static LCD lcd_debug;
         static LCD lcd_info1;
+        static LCD lcd_refinery;
+        static Lighting led_ref1, led_ref2, led_ref3, led_ref4;
+        static Refinery ref1, ref2, ref3, ref4;
         static Batterys bats;
         static Upr upr;
-        static PistonsBase pst;
-        static MotorStator mst;
 
         static MyStorage storage;
 
@@ -67,7 +69,7 @@ namespace BASE_EA
 
         class Help
         {
-
+            
         }
         public class PText
         {
@@ -109,6 +111,37 @@ namespace BASE_EA
             public void Off() { if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_Off"); }
             public void On() { if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_On"); }
         }
+        public class Lighting : BaseTerminalBlock<IMyLightingBlock>
+        {
+            public Lighting(string name_obj) : base(name_obj) { }
+        }
+        public class Refinery : BaseTerminalBlock<IMyRefinery>
+        {
+            public Refinery(string name_obj) : base(name_obj) { }
+
+            public string TextInfo(string name)
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append((!String.IsNullOrWhiteSpace(name) ? name : "Оч. завод") + "\n");
+                values.Append("РАБОТАЕТ : " + (base.obj.IsProducing ? igreen.ToString() : ired.ToString()) + ", ");
+                values.Append("СВОБОДЕН : " + (base.obj.IsQueueEmpty ? igreen.ToString() : ired.ToString()) + "\n");
+                var inpItems = new List<MyInventoryItem>();
+                var outItems = new List<MyInventoryItem>();
+                base.obj.InputInventory.GetItems(inpItems);
+                base.obj.OutputInventory.GetItems(outItems);
+                values.Append("ВХОД : " + (base.obj.IsQueueEmpty ? igreen.ToString() : ired.ToString()) + "\n");
+                foreach (MyInventoryItem itm in inpItems)
+                {
+                    values.Append(" - " + itm.Type.SubtypeId + ":" + itm.Amount + "\n");
+                }
+                values.Append("ВЫХОД : " + (base.obj.IsQueueEmpty ? igreen.ToString() : ired.ToString()) + "\n");
+                foreach (MyInventoryItem itm in outItems)
+                {
+                    values.Append(" - " + itm.Type.SubtypeId + ":" + itm.Amount + "\n");
+                }
+                return values.ToString();
+            }
+        }
         public Program()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
@@ -116,9 +149,17 @@ namespace BASE_EA
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
             lcd_info1 = new LCD(NameObj + "-LCD-INFO-O2");
+            lcd_refinery = new LCD(NameObj + "-LCD-Refinery");
             bats = new Batterys(NameObj);
-            pst = new PistonsBase(NameObj, "[p-test]");
-            mst = new MotorStator(NameObj + "-MotorStator");
+            ref1 = new Refinery(NameObj + "-Oч. завод 1");
+            ref2 = new Refinery(NameObj + "-Oч. завод 2");
+            ref3 = new Refinery(NameObj + "-Oч. завод 3");
+            ref4 = new Refinery(NameObj + "-Oч. завод 4");
+            led_ref1 = new Lighting(NameObj + "-Инд. Очиститель1");
+            led_ref2 = new Lighting(NameObj + "-Инд. Очиститель2");
+            led_ref3 = new Lighting(NameObj + "-Инд. Очиститель3");
+            led_ref4 = new Lighting(NameObj + "-Инд. Очиститель4");
+
             storage = new MyStorage();
             storage.LoadFromStorage();
         }
@@ -168,196 +209,6 @@ namespace BASE_EA
                 return values.ToString();
             }
         }
-        public class PistonsBase : BaseListTerminalBlock<IMyPistonBase>
-        {
-            public float? task { get; set; } = null;
-            private float tolerance = 0.1f;
-            private float multiply_speed = 0.5f;
-            public float Position { get { return base.list_obj.Select(b => b.CurrentPosition).Sum(); } }
-            public float Velocity { get { return base.list_obj.Select(b => b.Velocity).Sum(); } }
-            public float LowestPosition { get { return base.list_obj.Select(b => b.LowestPosition).Sum(); } }
-            public float HighestPosition { get { return base.list_obj.Select(b => b.HighestPosition).Sum(); } }
-            public PistonsBase(string name_obj, string tag) : base(name_obj)
-            {
-                if (!String.IsNullOrWhiteSpace(tag))
-                {
-                    list_obj = list_obj.Where(n => n.CustomName.Contains(tag)).ToList();
-                }
-                _scr.Echo("Найдено PistonBase:[" + tag + "]: " + list_obj.Count());
-            }
-            public void Open()
-            {
-                foreach (IMyPistonBase p in base.list_obj)
-                {
-                    p.Velocity = speed_piston_wg;
-                    p.Extend();
-                }
-            }
-            public void Close()
-            {
-                foreach (IMyPistonBase p in base.list_obj)
-                {
-                    p.Velocity = speed_piston_wg;
-                    p.Retract();
-                }
-            }
-            public void SetVelocity(float speed)
-            {
-                foreach (IMyPistonBase p in base.list_obj)
-                {
-                    p.Velocity = speed / base.list_obj.Count();
-                }
-            }
-            public bool SetPosition(float position)
-            {
-                task = position;
-                if (base.list_obj == null || base.list_obj.Count == 0) return false;
-                float speed = 0f;
-                double curennt_position = this.Position;
-                double difference = (position - curennt_position);
-                if (Math.Abs(difference) > tolerance)
-                {
-                    speed = (float)(difference * this.multiply_speed);
-                    this.SetVelocity(speed);
-                    return false;
-                    //if (curennt_position > (position + tolerance))
-                    //{
-                    //    speed = -(float)(Math.Abs(curennt_position - (float)position) * multiply_speed);
-                    //    this.SetVelocity(speed);
-                    //    return false;
-                    //}
-                    //else if (curennt_position < (position - tolerance))
-                    //{
-                    //    speed = (float)(Math.Abs((float)position - curennt_position) * multiply_speed);
-                    //    this.SetVelocity(speed);
-                    //    return false;
-                    //}
-                    //else
-                    //{
-                    //    this.SetVelocity(speed);
-                    //    return true;
-                    //    //this.task_position = null;
-                    //}
-                }
-                else
-                {
-                    this.SetVelocity(speed);
-                    return true;
-                }
-            }
-            public string TextInfo(string name)
-            {
-                if (base.list_obj == null || base.list_obj.Count == 0) return "";
-                StringBuilder values = new StringBuilder();
-                values.Append("ПОРШЕНЬ  : " + name + " [" + base.list_obj.Count + "] \n");
-                values.Append("НИЗ      : " + Math.Round(this.LowestPosition, 1) + " ВЕРХ: " + Math.Round(this.HighestPosition, 1) + "\n");
-                values.Append("ПОЛОЖ    : " + Math.Round(this.Position, 1) + " СКОРОСТЬ : " + Math.Round(this.Velocity, 3) + " ЗАД : " + this.task + "\n");
-                return values.ToString();
-            }
-        }
-        public class MotorStator : BaseTerminalBlock<IMyMotorStator>
-        {
-            public float? task { get; set; } = null;
-            private float tolerance = 0.1f;
-            private float multiply_speed = 0.1f;
-
-            public double Degrees { get { return this.obj != null ? (this.obj.Angle * 180 / Math.PI) : 0; } }
-            public MotorStator(string name_obj) : base(name_obj)
-            {
-
-            }
-            //public double RadToGradus(float rad)
-            //{
-            //    return rad * 180 / Math.PI;
-            //}
-
-            public bool SetDegrees(float degrees)
-            {
-                float speed = 0f;
-                double curennt_degrees = this.Degrees;
-                double difference = ((degrees + 90.0f) - (curennt_degrees + 90.0f));
-                if (Math.Abs(difference) > tolerance)
-                {
-                    speed = (float)(difference * this.multiply_speed);
-                    this.obj.TargetVelocityRPM = speed;
-                    return false;
-                }
-                else
-                {
-                    this.obj.TargetVelocityRPM = speed;
-                    return true;
-                }
-            }
-            public void RotateToGradus(float degr)
-            {
-                if (this.obj == null) return;
-                float speed = 0f;
-                // Текущее положение
-                double curennt_degr = this.Degrees;
-                if (curennt_degr > (degr + tolerance))
-                {
-                    double dist = curennt_degr - degr;
-                    if (Math.Abs(dist) <= 180.1f)
-                    {
-                        speed = -(float)(Math.Abs(dist) * multiply_speed);
-                    }
-                    else
-                    {
-                        speed = (float)(Math.Abs(dist) * multiply_speed);
-                    }
-
-                    this.obj.TargetVelocityRPM = speed;
-                }
-                else if (curennt_degr < (degr - tolerance))
-                {
-                    double dist = (degr - curennt_degr);
-                    if (Math.Abs(dist) <= 180.1f)
-                    {
-                        speed = (float)(Math.Abs(degr - curennt_degr) * multiply_speed);
-                    }
-                    else
-                    {
-                        speed = -(float)(Math.Abs(degr - curennt_degr) * multiply_speed);
-                    }
-
-                    this.obj.TargetVelocityRPM = speed;
-                }
-                else
-                {
-                    this.obj.TargetVelocityRPM = speed;
-                    this.task = null;
-                }
-            }
-            //public double GetCurrentGradus()
-            //{
-            //    if (this.obj == null) return 0;
-            //    return RadToGradus(this.obj.Angle);
-            //}
-            //public void Logic(string argument, UpdateType updateSource)
-            //{
-            //    switch (argument)
-            //    {
-            //        default:
-            //            break;
-            //    }
-            //    if (updateSource == UpdateType.Update10)
-            //    {
-            //        if (task_degr != null)
-            //        {
-            //            RotateToGradus((float)task_degr);
-            //        }
-            //    }
-            //}
-            public string TextInfo()
-            {
-                if (this.obj == null) return "";
-                StringBuilder values = new StringBuilder();
-                values.Append("ШАРНИР : " + this.obj.CustomName + "\n");
-                values.Append("БЛОК : " + (this.obj.RotorLock ? ired.ToString() : igreen.ToString()) + " НИЗ: " + Math.Round(this.obj.LowerLimitDeg, 1) + " ВЕРХ: " + Math.Round(this.obj.UpperLimitDeg, 1) + "\n");
-                values.Append("УГОЛ : " + Math.Round(this.Degrees, 1) + " СКОРОСТЬ : " + Math.Round(this.obj.TargetVelocityRPM, 3) + " ЗАД : " + this.task + "\n");
-                return values.ToString();
-            }
-        }
         public class MyStorage
         {
             public MyStorage() { }
@@ -401,41 +252,25 @@ namespace BASE_EA
         }
         public class Upr
         {
-            bool pos_15 = false;
-            bool pos_5 = false;
-            bool pos_20 = false;
-            bool pos_0 = false;
-            bool ms_0 = false;
-            bool ms_45 = false;
-            bool ms_m45 = false;
-
             public void Logic(string argument, UpdateType updateSource)
             {
                 switch (argument)
                 {
-                    case "pos_15": pos_15 = true; break;
-                    case "pos_5": pos_5 = true; break;
-                    case "pos_20": pos_20 = true; break;
-                    case "pos_0": pos_0 = true; break;
-                    case "ms_0": ms_0 = true; break;
-                    case "ms_45": ms_45 = true; break;
-                    case "ms_m45": ms_m45 = true; break;
+                    case "ref1_on": ref1.On(); break; case "ref1_off": ref1.Off(); break;
                     default: break;
                 }
                 if (updateSource == UpdateType.Update10)
                 {
-                    if (pos_15 && pst.SetPosition(15)) { pos_15 = false; }
-                    if (pos_5 && pst.SetPosition(5)) { pos_5 = false; }
-                    if (pos_20 && pst.SetPosition(20)) { pos_20 = false; }
-                    if (pos_0 && pst.SetPosition(0)) { pos_0 = false; }
-                    if (ms_0 && mst.SetDegrees(0)) { ms_0 = false; }
-                    if (ms_45 && mst.SetDegrees(45)) { ms_45 = false; }
-                    if (ms_m45 && mst.SetDegrees(-45)) { ms_m45 = false; }
+                    //if (pos_15 && pst.SetPosition(15)) { pos_15 = false; }
                 }
+                StringBuilder values_ref = new StringBuilder();
+                values_ref.Append(ref1.TextInfo("ОЧИСТИТЕЛЬ-1"));
+                lcd_refinery.OutText(values_ref);
+
                 StringBuilder values = new StringBuilder();
-                values.Append(pst.TextInfo("[p-test]"));
-                values.Append(pst.TextInfo("---------------"));
-                values.Append(mst.TextInfo());
+                //values.Append(pst.TextInfo("[p-test]"));
+                //values.Append(pst.TextInfo("---------------"));
+                //values.Append(mst.TextInfo());
                 lcd_debug.OutText(values);
             }
         }
