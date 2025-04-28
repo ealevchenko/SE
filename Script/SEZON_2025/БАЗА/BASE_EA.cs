@@ -1,4 +1,5 @@
-﻿using Sandbox.Definitions;
+﻿using Newtonsoft.Json.Linq;
+using Sandbox.Definitions;
 using Sandbox.Game.EntityComponents;
 using Sandbox.Game.GameSystems;
 using Sandbox.ModAPI.Ingame;
@@ -33,7 +34,7 @@ namespace BASE_EA
     public sealed class Program : MyGridProgram
     {
         // v1.
-        static string NameObj = "[BEA-01]";
+        static string NameObj = "[BER-01]";
         public enum room : int
         {
             none = 0,
@@ -78,7 +79,8 @@ namespace BASE_EA
             static public string GetCurrentOfMax(float cur, float max, string units) { return "[ " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]"; }
             static public string GetCurrentOfMinMax(float min, float cur, float max, string units) { return "[ " + Math.Round(min, 1) + units + " / " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]"; }
             static public string GetThrust(float value) { return Math.Round(value / 1000000, 1) + "МН"; }
-            static public string GetFarm(float value) { return Math.Round(value, 1) + "L"; }
+            static public string GetFarm(float value) { return Math.Round(value,  1) + "L"; }
+            static public string GetMass(float value, string units) { return value.ToString() + units; }
             static public string GetGPS(string name, Vector3D target) { return "GPS:" + name + ":" + target.GetDim(0) + ":" + target.GetDim(1) + ":" + target.GetDim(2) + ":\n"; }
             static public string GetGPSMatrixD(string name, MatrixD target) { return "MatrixD:" + name + "\n" + "M11:" + target.M11 + "M12:" + target.M12 + "M13:" + target.M13 + "M14:" + target.M14 + ":\n" + "M21:" + target.M21 + "M22:" + target.M22 + "M23:" + target.M23 + "M24:" + target.M24 + ":\n" + "M31:" + target.M31 + "M32:" + target.M32 + "M33:" + target.M33 + "M34:" + target.M34 + ":\n" + "M41:" + target.M41 + "M42:" + target.M42 + "M43:" + target.M43 + "M44:" + target.M44 + ":\n"; }
         }
@@ -123,21 +125,22 @@ namespace BASE_EA
             {
                 StringBuilder values = new StringBuilder();
                 values.Append((!String.IsNullOrWhiteSpace(name) ? name : "Оч. завод") + "\n");
+                values.Append("ВКЛЮЧЕН : " + (base.obj.IsWorking ? igreen.ToString() : ired.ToString()) + ", ");
                 values.Append("РАБОТАЕТ : " + (base.obj.IsProducing ? igreen.ToString() : ired.ToString()) + ", ");
-                values.Append("СВОБОДЕН : " + (base.obj.IsQueueEmpty ? igreen.ToString() : ired.ToString()) + "\n");
+                values.Append("СВОБОДЕН : " + (base.obj.IsQueueEmpty ? igreen.ToString() : iyellow.ToString()) + "\n");
                 var inpItems = new List<MyInventoryItem>();
                 var outItems = new List<MyInventoryItem>();
                 base.obj.InputInventory.GetItems(inpItems);
                 base.obj.OutputInventory.GetItems(outItems);
-                values.Append("ВХОД : " + (base.obj.IsQueueEmpty ? igreen.ToString() : ired.ToString()) + "\n");
+                values.Append("ВХОД :\n");
                 foreach (MyInventoryItem itm in inpItems)
                 {
-                    values.Append(" - " + itm.Type.SubtypeId + ":" + itm.Amount + "\n");
+                    values.Append(" - " + itm.Type.SubtypeId + ":" + PText.GetMass((float)itm.Amount,"кг") + "\n");
                 }
-                values.Append("ВЫХОД : " + (base.obj.IsQueueEmpty ? igreen.ToString() : ired.ToString()) + "\n");
+                values.Append("ВЫХОД : \n");
                 foreach (MyInventoryItem itm in outItems)
                 {
-                    values.Append(" - " + itm.Type.SubtypeId + ":" + itm.Amount + "\n");
+                    values.Append(" - " + itm.Type.SubtypeId + ":" + PText.GetMass((float)itm.Amount, "кг") + "\n");
                 }
                 return values.ToString();
             }
@@ -148,10 +151,10 @@ namespace BASE_EA
             _scr = this;
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
-            lcd_info1 = new LCD(NameObj + "-LCD-INFO-O2");
+            lcd_info1 = new LCD(NameObj + "-LCD-INFO");
             lcd_refinery = new LCD(NameObj + "-LCD-Refinery");
             bats = new Batterys(NameObj);
-            ref1 = new Refinery(NameObj + "-Oч. завод 1");
+            ref1 = new Refinery(NameObj + "-Оч. завод 1");
             ref2 = new Refinery(NameObj + "-Oч. завод 2");
             ref3 = new Refinery(NameObj + "-Oч. завод 3");
             ref4 = new Refinery(NameObj + "-Oч. завод 4");
@@ -159,7 +162,7 @@ namespace BASE_EA
             led_ref2 = new Lighting(NameObj + "-Инд. Очиститель2");
             led_ref3 = new Lighting(NameObj + "-Инд. Очиститель3");
             led_ref4 = new Lighting(NameObj + "-Инд. Очиститель4");
-
+            upr = new Upr();
             storage = new MyStorage();
             storage.LoadFromStorage();
         }
@@ -252,6 +255,10 @@ namespace BASE_EA
         }
         public class Upr
         {
+            public Upr()
+            {
+;
+            }
             public void Logic(string argument, UpdateType updateSource)
             {
                 switch (argument)

@@ -85,6 +85,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="OCTOPUS\LCD.cs" />
     <Compile Include="OCTOPUS\PMP.cs" />
     <Compile Include="Setup_Example\Ship_TH.cs" />
     <Compile Include="Setup_Example\Ship_Test.cs" />
