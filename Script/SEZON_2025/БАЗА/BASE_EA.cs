@@ -18,11 +18,13 @@ using System.Runtime.Remoting.Messaging;
 using System.Security.AccessControl;
 using System.Text;
 using System.Threading.Tasks;
+using VRage;
 using VRage.Game;
 using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
 using VRage.Scripting;
 using VRageMath;
+using static СORVETTE_H1_DOOR.Program;
 
 
 /// <summary>
@@ -35,6 +37,8 @@ namespace BASE_EA
     {
         // v1.
         static string NameObj = "[BER-01]";
+        static string tag_ref = "ref"; // [ref1]
+        static string tag_led = "led"; // [led] [ref1]
         public enum room : int
         {
             none = 0,
@@ -59,8 +63,9 @@ namespace BASE_EA
         static LCD lcd_debug;
         static LCD lcd_info1;
         static LCD lcd_refinery;
-        static Lighting led_ref1, led_ref2, led_ref3, led_ref4;
-        static Refinery ref1, ref2, ref3, ref4;
+        //static Lighting led_ref1, led_ref2, led_ref3, led_ref4;
+        static Lightings leds;
+        static Refinerys refs;
         static Batterys bats;
         static Upr upr;
 
@@ -68,9 +73,120 @@ namespace BASE_EA
 
         static Program _scr;
 
-        class Help
+        public class PItem
         {
-            
+            public class ItN
+            {
+                public string SubtypeId { get; }
+                public string mainType { get; }
+                public string Name { get; }
+                public ItN() { }
+                public ItN(string SubtypeId, string mainType, string Name) { this.SubtypeId = SubtypeId; this.mainType = mainType; this.Name = Name; }
+            }
+
+            static public List<ItN> lcn = new List<ItN>() {
+                new ItN("Stone" ,"Ore"  ,"Камень"),
+                new ItN("Iron"  ,"Ore"  ,"Железо"),
+                new ItN("Nickel","Ore"  ,"Никель"),
+                new ItN("Cobalt","Ore"  ,"Кобальт"  ),
+                new ItN("Magnesium" ,"Ore"  ,"Магний"),
+                new ItN("Silicon","Ore"  ,"Кремний"  ),
+                new ItN("Silver","Ore"  ,"Серебро"  ),
+                new ItN("Gold"  ,"Ore"  ,"Золото"),
+                new ItN("Platinum"  ,"Ore"  ,"Платина"  ),
+                new ItN("Uranium","Ore"  ,"Уран" ),
+                new ItN("Ice","Ore"  ,"Лед"  ),
+                new ItN("Scrap" ,"Ore"  ,"Металлолом"),
+                new ItN("Stone" ,"Ingot","Гравий"),
+                new ItN("Iron"  ,"Ingot","Железо"),
+                new ItN("Nickel","Ingot","Никель"),
+                new ItN("Cobalt","Ingot","Кобальт"  ),
+                new ItN("Magnesium" ,"Ingot","Магний"),
+                new ItN("Silicon","Ingot","Кремний"  ),
+                new ItN("Silver","Ingot","Серебро"  ),
+                new ItN("Gold"  ,"Ingot","Золото"),
+                new ItN("Platinum"  ,"Ingot","Платина"  ),
+                new ItN("Uranium","Ingot","Уран" ),
+                new ItN("SemiAutoPistolItem","Tool" ,"S-10 Пистолет"),
+                new ItN("ElitePistolItem","Tool" ,"S-10E Пистолет"),
+                new ItN("FullAutoPistolItem","Tool" ,"S-20A Пистолет"),
+                new ItN("AutomaticRifleItem","Tool" ,"MR-20 Винтовка"),
+                new ItN("PreciseAutomaticRifleItem" ,"Tool" ,"MR-8P Винтовка"),
+                new ItN("RapidFireAutomaticRifleItem","Tool" ,"MR-50A Винтовка"  ),
+                new ItN("UltimateAutomaticRifleItem","Tool" ,"MR-30E Винтовка"  ),
+                new ItN("BasicHandHeldLauncherItem" ,"Tool" ,"RO-1 Ракетница"),
+                new ItN("AdvancedHandHeldLauncherItem"  ,"Tool" ,"PRO-1 Ракетница"  ),
+                new ItN("WelderItem","Tool" ,"Сварщик"  ),
+                new ItN("Welder2Item","Tool" ,"* Улучшенный сварщик" ),
+                new ItN("Welder3Item","Tool" ,"** Продинутый сварщик"),
+                new ItN("Welder4Item","Tool" ,"*** Элитный сварщик"  ),
+                new ItN("AngleGrinderItem"  ,"Tool" ,"Резак"),
+                new ItN("AngleGrinder2Item" ,"Tool" ,"* Улучшенная болгарка"),
+                new ItN("AngleGrinder3Item" ,"Tool" ,"** Продинутая болгарка"),
+                new ItN("AngleGrinder4Item" ,"Tool" ,"*** Элитная болгарка" ),
+                new ItN("HandDrillItem" ,"Tool" ,"Ручной бур"),
+                new ItN("HandDrill2Item","Tool" ,"* Улучшенный ручной бур"  ),
+                new ItN("HandDrill3Item","Tool" ,"** Продинутый ручной бур" ),
+                new ItN("HandDrill4Item","Tool" ,"*** Элитный ручной бур"),
+                new ItN("FlareGunItem"  ,"Tool" ,"Flare Gun"),
+                new ItN("Construction"  ,"Component","Стройкомпоненты"  ),
+                new ItN("MetalGrid" ,"Component","Компонет решётки" ),
+                new ItN("InteriorPlate" ,"Component","Внутренная пластина"  ),
+                new ItN("SteelPlate","Component","Стальная пластина"),
+                new ItN("Girder","Component","Балка"),
+                new ItN("SmallTube" ,"Component","Малая труба"  ),
+                new ItN("LargeTube" ,"Component","Большая труба"),
+                new ItN("Motor" ,"Component","Мотор"),
+                new ItN("Display","Component","Экран"),
+                new ItN("BulletproofGlass"  ,"Component","Бронированное стекло" ),
+                new ItN("Computer"  ,"Component","Компьютер"),
+                new ItN("Reactor","Component","Компоненты реактора"  ),
+                new ItN("Thrust","Component","Детали ускорителя"),
+                new ItN("GravityGenerator"  ,"Component","Гравикомпоненты"  ),
+                new ItN("Medical","Component","Медкомпоненты"),
+                new ItN("RadioCommunication","Component","Радиокомпоненты"  ),
+                new ItN("Detector"  ,"Component","Компоненты детектора" ),
+                new ItN("Explosives","Component","Взырвчатка"),
+                new ItN("SolarCell" ,"Component","Солнечная ячейка" ),
+                new ItN("PowerCell" ,"Component","Энергоячека"  ),
+                new ItN("Superconductor","Component","Сверхпроводник"),
+                new ItN("Canvas","Component","Полотно парашюта" ),
+                new ItN("EngineerPlushie","Component","Плюшевый Инженер" ),
+                new ItN("SabiroidPlushie","Component","Плюшевый Сабироид"),
+                new ItN("ZoneChip"  ,"Component","Чип"  ),
+                new ItN("Datapad","Datapad"  ,"Инфопланшет"  ),
+                new ItN("Package","Package"  ,"Упаковка" ),
+                new ItN("Medkit","ConsumableItem","Аптечка"  ),
+                new ItN("Powerkit"  ,"ConsumableItem","Внешний аккумулятор " ),
+                new ItN("ClangCola" ,"ConsumableItem","Кола" ),
+                new ItN("CosmicCoffee"  ,"ConsumableItem","Кофе" ),
+                new ItN("SpaceCredit","PhysicalObject","Кредиты"  ),
+                new ItN("NATO_5p56x45mm","Ammo" ,"5.56x45mm"),
+                new ItN("SemiAutoPistolMagazine","Ammo" ,"S-10 Mag" ),
+                new ItN("ElitePistolMagazine","Ammo" ,"S-10E Mag"),
+                new ItN("FullAutoPistolMagazine","Ammo" ,"S-20A Mag"),
+                new ItN("AutomaticRifleGun_Mag_20rd","Ammo" ,"MR-20 Mag"),
+                new ItN("PreciseAutomaticRifleGun_Mag_5rd"  ,"Ammo" ,"MR-8P Mag"),
+                new ItN("RapidFireAutomaticRifleGun_Mag_50rd","Ammo" ,"MR-50A Mag"),
+                new ItN("UltimateAutomaticRifleGun_Mag_30rd","Ammo" ,"MR-30E Mag"),
+                new ItN("NATO_25x184mm" ,"Ammo" ,"Гатлинг патроны"  ),
+                new ItN("Missile200mm"  ,"Ammo" ,"200мм ракета" ),
+                new ItN("AutocannonClip","Ammo" ,"М-н автопушки"),
+                new ItN("MediumCalibreAmmo" ,"Ammo" ,"Снаряд ШП"),
+                new ItN("SmallRailgunAmmo"  ,"Ammo" ,"МС Рельсотрон"),
+                new ItN("LargeRailgunAmmo"  ,"Ammo" ,"БС Рельсотрон"),
+                new ItN("LargeCalibreAmmo"  ,"Ammo" ,"АРТ Снаряд"),
+                new ItN("FlareClip" ,"Ammo" ,"Flare Clip"),
+                new ItN("OxygenBottle"  ,"OxygenContainerObject","Кислородные баллоны"  ),
+                new ItN("HydrogenBottle","GasContainerObject","Водородные баллоны"),
+                new ItN("AzimuthSupercharger","Component","Supercharger" ),
+                new ItN("OKI23mmAmmo","Ammo" ,"23x180mm" ),
+                new ItN("OKI50mmAmmo","Ammo" ,"50x450mm" ),
+                new ItN("OKI122mmAmmo"  ,"Ammo" ,"122x640mm"),
+                new ItN("OKI230mmAmmo"  ,"Ammo" ,"230x920mm")
+            };
+            static public string getName(string SubtypeId) { ItN res = PItem.lcn.Find(n => n.SubtypeId == SubtypeId); return res != null ? res.Name : ""; }
+            static public List<ItN> getListType(string mainType) { return PItem.lcn.Where(t => t.mainType == mainType).ToList(); }
         }
         public class PText
         {
@@ -79,7 +195,7 @@ namespace BASE_EA
             static public string GetCurrentOfMax(float cur, float max, string units) { return "[ " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]"; }
             static public string GetCurrentOfMinMax(float min, float cur, float max, string units) { return "[ " + Math.Round(min, 1) + units + " / " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]"; }
             static public string GetThrust(float value) { return Math.Round(value / 1000000, 1) + "МН"; }
-            static public string GetFarm(float value) { return Math.Round(value,  1) + "L"; }
+            static public string GetFarm(float value) { return Math.Round(value, 1) + "L"; }
             static public string GetMass(float value, string units) { return value.ToString() + units; }
             static public string GetGPS(string name, Vector3D target) { return "GPS:" + name + ":" + target.GetDim(0) + ":" + target.GetDim(1) + ":" + target.GetDim(2) + ":\n"; }
             static public string GetGPSMatrixD(string name, MatrixD target) { return "MatrixD:" + name + "\n" + "M11:" + target.M11 + "M12:" + target.M12 + "M13:" + target.M13 + "M14:" + target.M14 + ":\n" + "M21:" + target.M21 + "M22:" + target.M22 + "M23:" + target.M23 + "M24:" + target.M24 + ":\n" + "M31:" + target.M31 + "M32:" + target.M32 + "M33:" + target.M33 + "M34:" + target.M34 + ":\n" + "M41:" + target.M41 + "M42:" + target.M42 + "M43:" + target.M43 + "M44:" + target.M44 + ":\n"; }
@@ -113,38 +229,6 @@ namespace BASE_EA
             public void Off() { if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_Off"); }
             public void On() { if (obj != null) ((IMyTerminalBlock)obj).ApplyAction("OnOff_On"); }
         }
-        public class Lighting : BaseTerminalBlock<IMyLightingBlock>
-        {
-            public Lighting(string name_obj) : base(name_obj) { }
-        }
-        public class Refinery : BaseTerminalBlock<IMyRefinery>
-        {
-            public Refinery(string name_obj) : base(name_obj) { }
-
-            public string TextInfo(string name)
-            {
-                StringBuilder values = new StringBuilder();
-                values.Append((!String.IsNullOrWhiteSpace(name) ? name : "Оч. завод") + "\n");
-                values.Append("ВКЛЮЧЕН : " + (base.obj.IsWorking ? igreen.ToString() : ired.ToString()) + ", ");
-                values.Append("РАБОТАЕТ : " + (base.obj.IsProducing ? igreen.ToString() : ired.ToString()) + ", ");
-                values.Append("СВОБОДЕН : " + (base.obj.IsQueueEmpty ? igreen.ToString() : iyellow.ToString()) + "\n");
-                var inpItems = new List<MyInventoryItem>();
-                var outItems = new List<MyInventoryItem>();
-                base.obj.InputInventory.GetItems(inpItems);
-                base.obj.OutputInventory.GetItems(outItems);
-                values.Append("ВХОД :\n");
-                foreach (MyInventoryItem itm in inpItems)
-                {
-                    values.Append(" - " + itm.Type.SubtypeId + ":" + PText.GetMass((float)itm.Amount,"кг") + "\n");
-                }
-                values.Append("ВЫХОД : \n");
-                foreach (MyInventoryItem itm in outItems)
-                {
-                    values.Append(" - " + itm.Type.SubtypeId + ":" + PText.GetMass((float)itm.Amount, "кг") + "\n");
-                }
-                return values.ToString();
-            }
-        }
         public Program()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
@@ -154,14 +238,16 @@ namespace BASE_EA
             lcd_info1 = new LCD(NameObj + "-LCD-INFO");
             lcd_refinery = new LCD(NameObj + "-LCD-Refinery");
             bats = new Batterys(NameObj);
-            ref1 = new Refinery(NameObj + "-Оч. завод 1");
-            ref2 = new Refinery(NameObj + "-Oч. завод 2");
-            ref3 = new Refinery(NameObj + "-Oч. завод 3");
-            ref4 = new Refinery(NameObj + "-Oч. завод 4");
-            led_ref1 = new Lighting(NameObj + "-Инд. Очиститель1");
-            led_ref2 = new Lighting(NameObj + "-Инд. Очиститель2");
-            led_ref3 = new Lighting(NameObj + "-Инд. Очиститель3");
-            led_ref4 = new Lighting(NameObj + "-Инд. Очиститель4");
+            refs = new Refinerys(NameObj);
+            //ref1 = new Refinery(NameObj + "-Оч. завод 1");
+            //ref2 = new Refinery(NameObj + "-Oч. завод 2");
+            //ref3 = new Refinery(NameObj + "-Oч. завод 3");
+            //ref4 = new Refinery(NameObj + "-Oч. завод 4");
+            leds = new Lightings(NameObj, tag_led);
+            //led_ref1 = new Lighting(NameObj + "-Инд. Очиститель1");
+            //led_ref2 = new Lighting(NameObj + "-Инд. Очиститель2");
+            //led_ref3 = new Lighting(NameObj + "-Инд. Очиститель3");
+            //led_ref4 = new Lighting(NameObj + "-Инд. Очиститель4");
             upr = new Upr();
             storage = new MyStorage();
             storage.LoadFromStorage();
@@ -190,6 +276,49 @@ namespace BASE_EA
             public void OutText(StringBuilder values) { if (base.obj != null) { base.obj.WriteText(values, false); } }
             public void OutText(string text, bool append) { if (base.obj != null) { base.obj.WriteText(text, append); } }
             public StringBuilder GetText() { StringBuilder values = new StringBuilder(); if (base.obj != null) { base.obj.ReadText(values); } return values; }
+        }
+        public class Lighting : BaseTerminalBlock<IMyLightingBlock>
+        {
+            public Lighting(string name_obj) : base(name_obj) { }
+        }
+        public class Lightings : BaseListTerminalBlock<IMyLightingBlock>
+        {
+            public Lightings(string name_obj) : base(name_obj) { }
+            public Lightings(string name_obj, string tag) : base(name_obj, tag) { }
+        }
+        public class Refinerys : BaseListTerminalBlock<IMyRefinery>
+        {
+            public Refinerys(string name_obj) : base(name_obj) { }
+            public Refinerys(string name_obj, string tag) : base(name_obj, tag) { }
+            public string TextInfo(string tag)
+            {
+                StringBuilder values = new StringBuilder();
+                IMyRefinery obj = base.list_obj.Find(r => r.CustomName.Contains(tag));
+                if (obj != null)
+                {
+                    values.Append(obj.CustomName + "\n");
+                    values.Append("ВКЛ.: " + (obj.IsWorking ? igreen.ToString() : ired.ToString()) + ", ");
+                    values.Append("РАБ.: " + (obj.IsProducing ? igreen.ToString() : ired.ToString()) + ", ");
+                    values.Append("ПУСТ: " + (obj.IsQueueEmpty ? igreen.ToString() : iyellow.ToString()) + "\n");
+                    var inpItems = new List<MyInventoryItem>();
+                    var outItems = new List<MyInventoryItem>();
+                    obj.InputInventory.GetItems(inpItems);
+                    obj.OutputInventory.GetItems(outItems);
+                    values.Append("ВХОД :\n");
+                    foreach (MyInventoryItem itm in inpItems)
+                    {
+                        values.Append(" - " + PItem.getName(itm.Type.SubtypeId) + ": " + PText.GetMass((float)itm.Amount, " кг.") + "\n");
+                    }
+                    values.Append("ВЫХОД : \n");
+                    foreach (MyInventoryItem itm in outItems)
+                    {
+                        values.Append(" - " + PItem.getName(itm.Type.SubtypeId) + ": " + PText.GetMass((float)itm.Amount, " кг.") + "\n");
+                    }
+                }
+
+
+                return values.ToString();
+            }
         }
         public class Batterys : BaseListTerminalBlock<IMyBatteryBlock>
         {
@@ -255,28 +384,73 @@ namespace BASE_EA
         }
         public class Upr
         {
-            public Upr()
+            int cur_ref = 1;
+            int max_ref = refs.list_obj.Count();
+            public Upr() { }
+            public string GetNameOfTemplate(string str, string tmp)
             {
-;
+                int istart = str.IndexOf("[" + tmp);
+                string result = null;
+                if (istart > 0)
+                {
+                    for (var i = istart; i < str.Length; i++)
+                    {
+                        result += str[i];
+                        if (str[i] == ']') return result;
+                    }
+                }
+                return result;
             }
             public void Logic(string argument, UpdateType updateSource)
             {
                 switch (argument)
                 {
-                    case "ref1_on": ref1.On(); break; case "ref1_off": ref1.Off(); break;
+                    case "ref_n": cur_ref = cur_ref >= max_ref ? cur_ref + 1 : 1; break;
+                    case "ref_p": cur_ref = cur_ref <= 1 ? cur_ref - 1 : max_ref; break;
                     default: break;
                 }
                 if (updateSource == UpdateType.Update10)
                 {
-                    //if (pos_15 && pst.SetPosition(15)) { pos_15 = false; }
+                    foreach (IMyRefinery rf in refs.list_obj)
+                    {
+                        string tag = GetNameOfTemplate(rf.CustomName, "ref");
+                        List<IMyLightingBlock> led_ref = leds.list_obj.Where(l => l.DisplayName.Contains(tag)).ToList();
+                        foreach (IMyLightingBlock led in led_ref)
+                        {
+                            if (!rf.IsWorking)
+                            {
+                                led.Color = Color.Red;
+                            }
+                            else
+                            {
+                                if (!rf.IsQueueEmpty)
+                                {
+                                    led.Color = Color.Yellow;
+                                }
+                                else
+                                {
+                                    if (rf.IsProducing)
+                                    {
+                                        led.Color = Color.Green;
+                                    }
+                                    else
+                                    {
+                                        led.Color = Color.Blue;
+                                    }
+                                }
+                            }
+
+
+                        }
+                    }
+
                 }
                 StringBuilder values_ref = new StringBuilder();
-                values_ref.Append(ref1.TextInfo("ОЧИСТИТЕЛЬ-1"));
+                refs.TextInfo(tag_ref + cur_ref.ToString());
+                values_ref.Append(refs.TextInfo(tag_ref + cur_ref.ToString()));
                 lcd_refinery.OutText(values_ref);
 
                 StringBuilder values = new StringBuilder();
-                //values.Append(pst.TextInfo("[p-test]"));
-                //values.Append(pst.TextInfo("---------------"));
                 //values.Append(mst.TextInfo());
                 lcd_debug.OutText(values);
             }
