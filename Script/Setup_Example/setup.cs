@@ -563,7 +563,7 @@ namespace SETUP
         //add:[TRUCK-HO-01]-
         //add:[BER-01]-
         //add:[SHATL-S2-01]-
-        //replace:[MOLE-H2]-|[MOLE-H2-01]-
+        //replace:[Lobster]|[KLEPA-А2-01]-
         //[OS-E1]
         void Main(string argument, UpdateType updateSource)
         {

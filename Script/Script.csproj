@@ -98,6 +98,7 @@
     <Compile Include="SEZON_2025\БУРОВИКИ\MV_A9_new.cs" />
     <Compile Include="SEZON_2025\БУРОВИКИ\MV_A9.cs" />
     <Compile Include="SEZON_2025\СВАРШИКИ\KLEPA_H2.cs" />
+    <Compile Include="SEZON_2025\СВАРШИКИ\KLEPA_A2.cs" />
     <Compile Include="БАЗЫ\MinerHub\MINER_HUB_UPR_V2.cs" />
     <Compile Include="БАЗЫ\MinerHub\MINER_HUB_UPR.cs" />
     <Compile Include="БАЗЫ\MPB\MPB_NAV.cs" />

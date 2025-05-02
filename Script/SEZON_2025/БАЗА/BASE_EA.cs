@@ -239,15 +239,7 @@ namespace BASE_EA
             lcd_refinery = new LCD(NameObj + "-LCD-Refinery");
             bats = new Batterys(NameObj);
             refs = new Refinerys(NameObj);
-            //ref1 = new Refinery(NameObj + "-Оч. завод 1");
-            //ref2 = new Refinery(NameObj + "-Oч. завод 2");
-            //ref3 = new Refinery(NameObj + "-Oч. завод 3");
-            //ref4 = new Refinery(NameObj + "-Oч. завод 4");
             leds = new Lightings(NameObj, tag_led);
-            //led_ref1 = new Lighting(NameObj + "-Инд. Очиститель1");
-            //led_ref2 = new Lighting(NameObj + "-Инд. Очиститель2");
-            //led_ref3 = new Lighting(NameObj + "-Инд. Очиститель3");
-            //led_ref4 = new Lighting(NameObj + "-Инд. Очиститель4");
             upr = new Upr();
             storage = new MyStorage();
             storage.LoadFromStorage();
@@ -405,8 +397,8 @@ namespace BASE_EA
             {
                 switch (argument)
                 {
-                    case "ref_n": cur_ref = cur_ref >= max_ref ? cur_ref + 1 : 1; break;
-                    case "ref_p": cur_ref = cur_ref <= 1 ? cur_ref - 1 : max_ref; break;
+                    case "ref_n": cur_ref = (cur_ref < max_ref ? cur_ref + 1 : 1); break;
+                    case "ref_p": cur_ref = (cur_ref > 1 ? cur_ref - 1 : max_ref); break;
                     default: break;
                 }
                 if (updateSource == UpdateType.Update10)
@@ -414,45 +406,44 @@ namespace BASE_EA
                     foreach (IMyRefinery rf in refs.list_obj)
                     {
                         string tag = GetNameOfTemplate(rf.CustomName, "ref");
-                        List<IMyLightingBlock> led_ref = leds.list_obj.Where(l => l.DisplayName.Contains(tag)).ToList();
+                        List<IMyLightingBlock> led_ref = new List<IMyLightingBlock>();
+                        led_ref = leds.list_obj.Where(l => l.CustomName.Contains(tag)).ToList();
+                        //StringBuilder values = new StringBuilder();
+                        //values.Append(led_ref != null ? led_ref.Count().ToString() : "null");
+                        //values.Append(tag);
+                        //lcd_debug.OutText(values);
                         foreach (IMyLightingBlock led in led_ref)
                         {
-                            if (!rf.IsWorking)
+                            if (rf.IsWorking)
                             {
-                                led.Color = Color.Red;
-                            }
-                            else
-                            {
-                                if (!rf.IsQueueEmpty)
+                                if (rf.IsProducing)
                                 {
-                                    led.Color = Color.Yellow;
-                                }
-                                else
-                                {
-                                    if (rf.IsProducing)
+                                    if (rf.IsQueueEmpty)
                                     {
                                         led.Color = Color.Green;
                                     }
                                     else
                                     {
-                                        led.Color = Color.Blue;
+                                        led.Color = Color.Yellow;
+
                                     }
                                 }
+                                else
+                                {
+                                    led.Color = Color.Blue;
+                                }
                             }
-
-
+                            else
+                            {
+                                led.Color = Color.Red;
+                            }
                         }
                     }
-
                 }
                 StringBuilder values_ref = new StringBuilder();
                 refs.TextInfo(tag_ref + cur_ref.ToString());
                 values_ref.Append(refs.TextInfo(tag_ref + cur_ref.ToString()));
                 lcd_refinery.OutText(values_ref);
-
-                StringBuilder values = new StringBuilder();
-                //values.Append(mst.TextInfo());
-                lcd_debug.OutText(values);
             }
         }
     }
