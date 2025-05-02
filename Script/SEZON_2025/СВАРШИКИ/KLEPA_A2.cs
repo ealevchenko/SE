@@ -68,6 +68,49 @@ namespace KLEPA_A2_2025
         static Nav nav;
         static MyStorage strg;
         static Program _scr;
+
+        public class PItem
+        {
+            public class ItN
+            {
+                public string SubtypeId { get; }
+                public string mainType { get; }
+                public string Name { get; }
+                public ItN() { }
+                public ItN(string SubtypeId, string mainType, string Name) { this.SubtypeId = SubtypeId; this.mainType = mainType; this.Name = Name; }
+            }
+
+            static public List<ItN> lcn = new List<ItN>() {
+                new ItN("Construction"  ,"Component","Стройкомпоненты"  ),
+                new ItN("MetalGrid" ,"Component","Компонет решётки" ),
+                new ItN("InteriorPlate" ,"Component","Внутренная пластина"  ),
+                new ItN("SteelPlate","Component","Стальная пластина"),
+                new ItN("Girder","Component","Балка"),
+                new ItN("SmallTube" ,"Component","Малая труба"  ),
+                new ItN("LargeTube" ,"Component","Большая труба"),
+                new ItN("Motor" ,"Component","Мотор"),
+                new ItN("Display","Component","Экран"),
+                new ItN("BulletproofGlass"  ,"Component","Бронированное стекло" ),
+                new ItN("Computer"  ,"Component","Компьютер"),
+                new ItN("Reactor","Component","Компоненты реактора"  ),
+                new ItN("Thrust","Component","Детали ускорителя"),
+                new ItN("GravityGenerator"  ,"Component","Гравикомпоненты"  ),
+                new ItN("Medical","Component","Медкомпоненты"),
+                new ItN("RadioCommunication","Component","Радиокомпоненты"  ),
+                new ItN("Detector"  ,"Component","Компоненты детектора" ),
+                new ItN("Explosives","Component","Взырвчатка"),
+                new ItN("SolarCell" ,"Component","Солнечная ячейка" ),
+                new ItN("PowerCell" ,"Component","Энергоячека"  ),
+                new ItN("Superconductor","Component","Сверхпроводник"),
+                new ItN("Canvas","Component","Полотно парашюта" ),
+                new ItN("EngineerPlushie","Component","Плюшевый Инженер" ),
+                new ItN("SabiroidPlushie","Component","Плюшевый Сабироид"),
+                new ItN("ZoneChip"  ,"Component","Чип"  ),
+                new ItN("AzimuthSupercharger","Component","Supercharger" ),
+            };
+            static public string getName(string SubtypeId) { ItN res = PItem.lcn.Find(n => n.SubtypeId == SubtypeId); return res != null ? res.Name : SubtypeId; }
+            static public List<ItN> getListType(string mainType) { return PItem.lcn.Where(t => t.mainType == mainType).ToList(); }
+        }
         public class PText
         {
             static public string GetPersent(double perse) { return " - " + Math.Round((perse * 100), 1) + "%"; }
@@ -76,6 +119,7 @@ namespace KLEPA_A2_2025
             static public string GetCurrentOfMinMax(float min, float cur, float max, string units) { return "[ " + Math.Round(min, 1) + units + " / " + Math.Round(cur, 1) + units + " / " + Math.Round(max, 1) + units + " ]"; }
             static public string GetThrust(float value) { return Math.Round(value / 1000000, 1) + "МН"; }
             static public string GetFarm(float value) { return Math.Round(value, 1) + "L"; }
+            static public string GetMass(float value, string units) { return value.ToString() + units; }
             static public string GetGPS(string name, Vector3D target) { return "GPS:" + name + ":" + target.GetDim(0) + ":" + target.GetDim(1) + ":" + target.GetDim(2) + ":\n"; }
             static public string GetGPSMatrixD(string name, MatrixD target) { return "MatrixD:" + name + "\n" + "M11:" + target.M11 + "M12:" + target.M12 + "M13:" + target.M13 + "M14:" + target.M14 + ":\n" + "M21:" + target.M21 + "M22:" + target.M22 + "M23:" + target.M23 + "M24:" + target.M24 + ":\n" + "M31:" + target.M31 + "M32:" + target.M32 + "M33:" + target.M33 + "M34:" + target.M34 + ":\n" + "M41:" + target.M41 + "M42:" + target.M42 + "M43:" + target.M43 + "M44:" + target.M44 + ":\n"; }
         }
@@ -125,8 +169,6 @@ namespace KLEPA_A2_2025
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
             lcd_name = new LCD(NameObj + "-LCD-Name");
-            lcd_work1 = new LCD(NameObj + "-LCD-Work 1");
-            lcd_work2 = new LCD(NameObj + "-LCD-Work 2");
             lcd_test1 = new LCD(NameObj + "-test1");
             lcd_test2 = new LCD(NameObj + "-test2");
             lcd_test3 = new LCD(NameObj + "-test3");
@@ -158,12 +200,15 @@ namespace KLEPA_A2_2025
             }
             values_info.Append(bats.TextInfo(null));
             values_info.Append(connector.TextInfo("К:Base"));
-            values_info.Append(drill.TextInfo(null));
+            values_info.Append(shw.TextInfo());
             values_info.Append(nav.TextInfo1());
             cockpit.OutText(values_info, 0);
             StringBuilder values_info1 = new StringBuilder();
             values_info1.Append(nav.TextCritical());
             cockpit.OutText(values_info1, 1);
+            StringBuilder values_info2 = new StringBuilder();
+            values_info2.Append(cargos.TextInfo());
+            cockpit.OutText(values_info2, 2);
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
@@ -594,31 +639,28 @@ namespace KLEPA_A2_2025
         }
         public class Cargos
         {
+            public class ListComp
+            {
+                public string SubtypeId { get; set; }
+                public long Amount { get; set; }
+            }
+
             private List<IMyTerminalBlock> list = new List<IMyTerminalBlock>();
             public List<IMyTerminalBlock> cargos = new List<IMyTerminalBlock>();
             public string name_obj;
             public int MaxVolume { get; private set; }
             public int CurrentVolume { get; private set; }
             public int CurrentMass { get; private set; }
+
+            public List<ListComp> components = new List<ListComp>();
             //--
-            public int FeAmount { get; private set; }
-            public int CbAmount { get; private set; }
-            public int NiAmount { get; private set; }
-            public int MgAmount { get; private set; }
-            public int AuAmount { get; private set; }
-            public int AgAmount { get; private set; }
-            public int PtAmount { get; private set; }
-            public int SiAmount { get; private set; }
-            public int UAmount { get; private set; }
-            public int StoneAmount { get; private set; }
-            public int IceAmount { get; private set; }
             public Cargos(string name_obj)
             {
                 this.name_obj = name_obj;
                 _scr.GridTerminalSystem.GetBlocksOfType(list, r => r.CustomName.Contains(name_obj));
                 foreach (IMyTerminalBlock cargo in list)
                 {
-                    if ((cargo is IMyShipDrill) || (cargo is IMyCargoContainer) || (cargo is IMyShipConnector))
+                    if ((cargo is IMyShipWelder) || (cargo is IMyCargoContainer) || (cargo is IMyShipConnector))
                     {
                         MaxVolume += (int)cargo.GetInventory(0).MaxVolume;
                         CurrentVolume += (int)(cargo.GetInventory(0).CurrentVolume * 1000);
@@ -632,17 +674,7 @@ namespace KLEPA_A2_2025
             {
                 CurrentVolume = 0;
                 CurrentMass = 0;
-                FeAmount = 0;
-                CbAmount = 0;
-                NiAmount = 0;
-                MgAmount = 0;
-                AuAmount = 0;
-                AgAmount = 0;
-                PtAmount = 0;
-                SiAmount = 0;
-                UAmount = 0;
-                StoneAmount = 0;
-                IceAmount = 0;
+                components.Clear();
                 foreach (IMyTerminalBlock cargo in cargos)
                 {
                     if (cargo != null)
@@ -653,28 +685,15 @@ namespace KLEPA_A2_2025
                         cargo.GetInventory(0).GetItems(crateItems);
                         for (int j = crateItems.Count - 1; j >= 0; j--)
                         {
-                            if (crateItems[j].Type.SubtypeId == "Iron")
-                                FeAmount += (int)crateItems[j].Amount;
-                            else if (crateItems[j].Type.SubtypeId == "Cobalt")
-                                CbAmount += (int)crateItems[j].Amount;
-                            else if (crateItems[j].Type.SubtypeId == "Nickel")
-                                NiAmount += (int)crateItems[j].Amount;
-                            else if (crateItems[j].Type.SubtypeId == "Magnesium")
-                                MgAmount += (int)crateItems[j].Amount;
-                            else if (crateItems[j].Type.SubtypeId == "Gold")
-                                AuAmount += (int)crateItems[j].Amount;
-                            else if (crateItems[j].Type.SubtypeId == "Silver")
-                                AgAmount += (int)crateItems[j].Amount;
-                            else if (crateItems[j].Type.SubtypeId == "Platinum")
-                                PtAmount += (int)crateItems[j].Amount;
-                            else if (crateItems[j].Type.SubtypeId == "Silicon")
-                                SiAmount += (int)crateItems[j].Amount;
-                            else if (crateItems[j].Type.SubtypeId == "Uranium")
-                                UAmount += (int)crateItems[j].Amount;
-                            else if (crateItems[j].Type.SubtypeId == "Stone")
-                                StoneAmount += (int)crateItems[j].Amount;
-                            else if (crateItems[j].Type.SubtypeId == "Ice")
-                                IceAmount += (int)crateItems[j].Amount;
+                            ListComp comp = this.components.Find(c => c.SubtypeId == crateItems[j].Type.SubtypeId);
+                            if (comp != null)
+                            {
+                                comp.Amount += (int)crateItems[j].Amount;
+                            }
+                            else
+                            {
+                                components.Add(new ListComp() { SubtypeId = crateItems[j].Type.SubtypeId, Amount = (long)crateItems[j].Amount });
+                            }
                         }
                     }
                 }
@@ -698,6 +717,18 @@ namespace KLEPA_A2_2025
                     }
                 }
                 Update();
+            }
+            public string TextInfo()
+            {
+                StringBuilder values = new StringBuilder();
+                values.Append("ТЕК.МАССА: " + CurrentMass.ToString() + "\n");
+                values.Append("|- ЗАГРУЖ:  " + PText.GetScalePersent(((float)CurrentVolume / (float)MaxVolume), 20) + "\n");
+                values.Append("|- КОМПОНЕНТЫ " + "\n");
+                foreach (ListComp cmp in components)
+                {
+                    values.Append(PItem.getName(cmp.SubtypeId) + " : " + cmp.Amount + "кг" + "\n");
+                }
+                return values.ToString();
             }
         }
         public class HydrogenEngines : BaseListTerminalBlock<IMyPowerProducer>
@@ -737,10 +768,8 @@ namespace KLEPA_A2_2025
             {
                 none = 0,
                 fly_connect_base = 1,   // лететь на базу
-                fly_drill = 2,          // лететь к шахте
-                start_drill = 3,        // начать бурение
             };
-            public static string[] name_programm = { "", "ПОЛЕТ НА БАЗУ", "ПОЛЕТ К ШАХТЕ", "СТАРТ ДОБЫЧИ" };
+            public static string[] name_programm = { "", "ПОЛЕТ НА БАЗУ" };
             public programm curent_programm = programm.none;
             public enum mode : int
             {
@@ -749,13 +778,9 @@ namespace KLEPA_A2_2025
                 un_dock = 2,
                 to_base = 3,
                 dock = 4,
-                to_drill = 5,
-                drill_align = 6,
-                drill = 7,
-                pull_up = 8,
-                pull_out = 9,
+                to_work = 5,
             };
-            public static string[] name_mode = { "", "БАЗА", "РАСТЫКОВКА", "К БАЗЕ", "СТЫКОВКА", "К ШАХТЕ", "НА ТОЧКУ БУРЕНИЯ", "БУРИМ", "ОСТАНОВИТЬ БУР", "ВЫТАЩИТЬ БУР" };
+            public static string[] name_mode = { "", "БАЗА", "РАСТЫКОВКА", "К БАЗЕ", "СТЫКОВКА", "К ОБЪЕКТУ" };
             public mode curent_mode = mode.none;
             public string name_ship { get; set; }
             public Vector3D MyPos { get; private set; }
@@ -781,13 +806,9 @@ namespace KLEPA_A2_2025
             public Vector3D ConnectorPoint { get; set; } = new Vector3D(0, 0, 5);
             public Vector3D BaseDockPoint { get; set; } = new Vector3D(0, 0, 0);
             public MatrixD DockMatrix { get; set; }
-            public Vector3D DrillPoint { get; set; } = new Vector3D(0, 0, 0);
-            public MatrixD DrillMatrix { get; set; }
+            public Vector3D WorkPoint { get; set; } = new Vector3D(0, 0, 0);
+            public MatrixD WorkMatrix { get; set; }
             public double FlyHeight { get; set; }
-            public int ShaftN { get; set; }
-            public bool ShaftType { get; set; } = false;
-            public bool StoneDumpNeeded { get; private set; } // Признак нужно сбросить груз
-            public bool PullUpNeeded { get; private set; } // Требуется подтянуть
             public bool CriticalMassReached { get; private set; }// Признак критической массы
             public bool CriticalBatteryCharge { get; private set; }// Признак критического заряда
             public bool CriticalHydrogenSupply { get; private set; }// Признак критического запаса водорода
@@ -796,7 +817,6 @@ namespace KLEPA_A2_2025
             public bool EmergencyReturn = false;
             public bool horizont { get; set; } = false;  // держим горизонтальное направление
             public Vector3D? TackVector { get; set; } = null;
-            public bool go_home { get; set; } = false; // вернутся домой и остатся
             public bool paused { get; set; } = false;
             public IMyTerminalBlock BlockNav { get; set; }
             public Nav(string name)
@@ -831,10 +851,10 @@ namespace KLEPA_A2_2025
                 FlyHeight = (MyPos - PlanetCenter).Length();
                 strg.SaveToStorage();
             }
-            public void SetDrillMatrixDepo()
+            public void SetWorkMatrix()
             {
-                DrillMatrix = GetNormTransMatrixFromMyPos(cockpit.obj);
-                ShaftN = 0; DrillPoint = new Vector3D(0, 0, 0);
+                WorkMatrix = GetNormTransMatrixFromMyPos(cockpit.obj);
+                WorkPoint = new Vector3D(0, 0, 0);
                 strg.SaveToStorage();
             }
             public void InitBlock(IMyTerminalBlock block)
@@ -937,19 +957,15 @@ namespace KLEPA_A2_2025
                 else
                 {
                     gas_gen.Off(); h2_engines.Off();
-                };
+                }
+                ;
                 // Критические уставки
                 if (PhysicalMass > CriticalMass) { CriticalMassReached = true; }
                 else
                 {
                     CriticalMassReached = false;
-                    if (cargos.StoneAmount > StoneDumpOn)
-                        StoneDumpNeeded = true;
-                    if (cargos.StoneAmount < 100)
-                        StoneDumpNeeded = false;
                 }
                 CriticalBatteryCharge = connector.Connected ? bats.CurrentPersent < MaxOffCharge : bats.CurrentPersent <= MinOnCharge;
-                if (CriticalBatteryCharge) { reactors.On(); } else { reactors.Off(); }
                 EmergencySetpoint = (!connector.Connected ? CriticalMassReached : false) || CriticalBatteryCharge;
                 //ТЕСТИРОВАНИЕ
                 StringBuilder values1 = new StringBuilder();
@@ -965,9 +981,9 @@ namespace KLEPA_A2_2025
                 values2.Append("IceAmount :" + cargos.IceAmount + "\n");
                 lcd_test2.OutText(values2);
                 StringBuilder values3 = new StringBuilder();
-                Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
+                Vector3D MyPosDrill = Vector3D.Transform(MyPos, WorkMatrix) - WorkPoint;
                 values3.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
-                values3.Append("StoneDumpNeeded :" + StoneDumpNeeded.ToString() + "\n");
+                //values3.Append("StoneDumpNeeded :" + StoneDumpNeeded.ToString() + "\n");
                 values3.Append("MyDrill_Length   : " + Math.Round(MyPosDrill.Length(), 2) + "\n");
                 values3.Append("MyDrillPos_X_[0]   : " + Math.Round(MyPosDrill.GetDim(0), 2) + "\n");
                 values3.Append("MyDrillPos_Y_[1]   : " + Math.Round(MyPosDrill.GetDim(1), 2) + "\n");
@@ -985,99 +1001,6 @@ namespace KLEPA_A2_2025
                     InitMode(mode.none);
                 }
             }
-            public void FlyDrill()
-            {
-                if (curent_mode == mode.none) { if (connector.Connected) { InitMode(mode.un_dock); } else { InitMode(mode.to_drill); } }
-                if (curent_mode == mode.un_dock && UnDock()) { InitMode(mode.to_drill); }
-                if (curent_mode == mode.to_drill && ToDrillPoint())
-                {
-                    curent_programm = programm.none;
-                    InitMode(mode.none);
-                }
-            }
-            public void StartDrill()
-            {
-                if (curent_mode == mode.none)
-                {
-                    go_home = false;
-                    if (connector.Connected) { InitMode(mode.un_dock); } else { InitMode(mode.to_drill); }
-                }
-                else
-                {
-                    if (go_home)
-                    {
-                        if (curent_mode == mode.to_drill || curent_mode == mode.drill_align) { InitMode(mode.to_base); }
-                        if (curent_mode == mode.drill) { InitMode(mode.pull_out); }
-                    }
-                    else
-                    {
-                        if (curent_mode == mode.to_drill && ToDrillPoint()) { InitMode(mode.drill_align); DrillPoint = GetDrillPoint(); }
-                        if (curent_mode == mode.drill_align && DrillAlign()) { InitMode(mode.drill); }
-                        if (curent_mode == mode.drill && Drill(out EmergencyReturn))
-                        {
-                            if (PullUpNeeded) InitMode(mode.pull_up); else InitMode(mode.pull_out);
-                        }
-                    }
-                    if (curent_mode == mode.un_dock && UnDock())
-                    {
-                        InitMode(mode.to_drill);
-                    }
-                    if (curent_mode == mode.pull_up && PullUp())
-                    {
-                        InitMode(mode.drill);
-                    }
-                    if (curent_mode == mode.pull_out && PullOut())
-                    {
-                        if (EmergencyReturn || go_home)
-                        {
-                            InitMode(mode.to_base);
-                        }
-                        else
-                        {
-                            SetNewShaft(); if (ShaftN >= MaxShafts) InitMode(mode.to_base); else InitMode(mode.drill_align);
-                        }
-                    }
-                    if (curent_mode == mode.to_base && ToBase())
-                    {
-                        InitMode(mode.dock);
-                    }
-                    if (curent_mode == mode.dock && Dock())
-                    {
-                        InitMode(mode.base_operation);
-                    }
-                    if (curent_mode == mode.base_operation)
-                    {
-                        if (connector.Connected)
-                        {
-                            //ejector.ThrowOut(false);
-                            sorter.Off();
-                            cargos.UnLoad();
-                            // Если сидим в кокпите батарея не заряжается
-                            if (cockpit.obj.IsUnderControl) { bats.Auto(); } else { bats.Charger(); }
-                            //bats.Charger();
-                            thrusts.Off();
-                            thrusts.ClearThrustOverridePersent();
-                            if (go_home || ShaftN >= MaxShafts)
-                            {
-                                Stop();
-                            }
-                            else
-                            {
-                                if (!EmergencySetpoint && cargos.CurrentMass == 0f)
-                                {
-                                    bats.Auto();
-                                    thrusts.On();
-                                    //ejector.ThrowOut(true);
-                                    sorter.On();
-                                    InitMode(mode.un_dock);
-                                }
-                            }
-
-                        }
-
-                    }
-                }
-            }
             //-----------------------------------------------
             public void Stop()
             {
@@ -1086,7 +1009,6 @@ namespace KLEPA_A2_2025
                 curent_mode = mode.none;
                 curent_programm = programm.none;
                 paused = false;
-                go_home = false;
                 strg.SaveToStorage();
             }
             public void Pause(bool enable)
@@ -1169,39 +1091,7 @@ namespace KLEPA_A2_2025
                 return Complete;
             }
             public bool ToBase() { return FP(BaseDockPoint, DockMatrix, safe_base_distance); }
-            public bool ToDrillPoint() { return FP(DrillPoint, DrillMatrix, safe_point_distance); }
-            public bool TP(Vector3D Point, MatrixD Matrix)
-            {
-                bool Complete = false;
-                float MaxUSpeed, MaxLSpeed, MaxFSpeed;
-                float UpAccel = 0;
-                thrusts.On();
-                Vector3D MyPosCcp = Vector3D.Transform(MyPos, Matrix) - Point;
-                Vector3D gyrAng = GetNavAngles(MyPosCcp + Point + new Vector3D(0, 0, 5), Matrix);
-                gyros.SetOverride(BlockNav, true, gyrAng * GyroMult, 1);
-                MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCcp.GetDim(0)) * XMaxA) / 2;
-                MaxUSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCcp.GetDim(1)) * YMaxA) / 2;
-                MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosCcp.GetDim(2)) * ZMaxA) / 2;
-                if (double.IsNaN(MaxUSpeed)) MaxUSpeed = MinUDAccel;
-                if (Math.Abs(MyPosCcp.GetDim(1)) < 1) MaxUSpeed = MinUDAccel;
-                if (LeftVelocityVector.Length() < MaxLSpeed)
-                    thrusts.SetOverrideAccel("R", (float)(MyPosCcp.GetDim(0) * AlignAccelMult));
-                else { thrusts.SetOverridePercent("R", 0); thrusts.SetOverridePercent("L", 0); }
-                if (ForwVelocityVector.Length() < MaxFSpeed) thrusts.SetOverrideAccel("B", (float)(MyPosCcp.GetDim(2) * AlignAccelMult));
-                else { thrusts.SetOverridePercent("F", 0); thrusts.SetOverridePercent("B", 0); }
-                UpAccel = getAccel(-(float)(MyPosCcp.GetDim(1) * AlignAccelMult), MinUDAccel);
-                if (UpVelocityVector.Length() < MaxUSpeed) { thrusts.SetOverrideAccel("U", UpAccel); }
-                else { thrusts.SetOverridePercent("U", 0); thrusts.SetOverridePercent("D", 0); }
-                if (MyPosCcp.Length() < 0.5f)
-                {
-                    thrusts.ClearThrustOverridePersent();
-                    gyros.SetOverride(false, 1);
-                    Complete = true;
-                }
-                //OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel);
-                return Complete;
-            }
-            public bool DrillAlign() { return TP(DrillPoint, DrillMatrix); }
+            public bool ToWorkPoint() { return FP(WorkPoint, WorkMatrix, safe_point_distance); }
             public bool Dock()
             {
                 bool Complete = false;
@@ -1233,156 +1123,6 @@ namespace KLEPA_A2_2025
                 }
                 //OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel);
                 return Complete;
-            }
-            public bool Drill(out bool Emergency)
-            {
-                thrusts.On();
-                //ejector.ThrowOut(true);
-                sorter.On();
-                bool Complete = false;
-                Emergency = false;
-                float MaxLSpeed, MaxFSpeed;
-                Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
-                double shiftX = MyPosDrill.GetDim(0) / 2;
-                if (shiftX < 0) shiftX = Math.Max(shiftX, -0.1);
-                else shiftX = Math.Min(shiftX, 0.1);
-                double shiftZ = MyPosDrill.GetDim(2) / 2;
-                if (shiftZ < 0) shiftZ = Math.Max(shiftZ, -0.1);
-                else shiftZ = Math.Min(shiftZ, 0.1);
-                Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrix, shiftX, shiftZ);
-                gyros.SetOverride(BlockNav, true, gyrAng * DrillGyroMult, 1);
-                MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 5;
-                MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(2)) * ZMaxA) / 5;
-                if (LeftVelocityVector.Length() < MaxLSpeed)
-                    thrusts.SetOverrideAccel("R", (float)(MyPosDrill.GetDim(0) * 5));
-                else
-                {
-                    thrusts.SetOverridePercent("R", 0);
-                    thrusts.SetOverridePercent("L", 0);
-                }
-                if (ForwVelocityVector.Length() < MaxFSpeed)
-                    thrusts.SetOverrideAccel("B", (float)(MyPosDrill.GetDim(2) * 5));
-                else
-                {
-                    thrusts.SetOverridePercent("F", 0);
-                    thrusts.SetOverridePercent("B", 0);
-                }
-                if (StoneDumpNeeded && drill.Enabled())
-                    drill.Off();
-                else if (!StoneDumpNeeded && !drill.Enabled())
-                    drill.On();
-                if ((UpVelocityVector.Length() < DrillSpeedLimit) && (!StoneDumpNeeded))
-                {
-                    if ((Math.Abs(MyPosDrill.GetDim(0)) < 0.8f) && (Math.Abs(MyPosDrill.GetDim(2)) < 0.8f))
-                        thrusts.SetOverrideAccel("D", (DrillAccel));
-                    else
-                    {
-                        thrusts.SetOverrideAccel("U", (DrillAccel));
-                        PullUpNeeded = true;
-                        Complete = true;
-                    }
-                }
-                else
-                {
-                    thrusts.SetOverridePercent("U", 0);
-                    thrusts.SetOverridePercent("D", 0);
-                }
-                if (MyPosDrill.GetDim(1) < -DrillDepth) // растояние
-                {
-                    Complete = true;
-                }
-                else if (EmergencySetpoint) //  аварийный выход
-                {
-                    Complete = true;
-                    Emergency = true;
-                }
-                OutStatusMode(MaxFSpeed, 0, MaxLSpeed, DrillAccel); // DrillAccel
-                return Complete;
-            }
-            public bool PullUp()
-            {
-                bool Complete = false;
-                float MaxLSpeed, MaxFSpeed;
-                Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
-                Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrix);
-                gyros.SetOverride(BlockNav, true, gyrAng * DrillGyroMult, 1);
-                MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 4;
-                MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(2)) * ZMaxA) / 4;
-                if (LeftVelocityVector.Length() < MaxLSpeed) thrusts.SetOverrideAccel("R", (float)(MyPosDrill.GetDim(0) * 0.5));
-                else { thrusts.SetOverridePercent("R", 0); thrusts.SetOverridePercent("L", 0); }
-                if (ForwVelocityVector.Length() < MaxFSpeed) thrusts.SetOverrideAccel("B", (float)(MyPosDrill.GetDim(2) * 0.5));
-                else { thrusts.SetOverridePercent("F", 0); thrusts.SetOverridePercent("B", 0); }
-                if (UpVelocityVector.Length() < DrillSpeedLimit * 5) thrusts.SetOverrideAccel("U", (DrillAccel * 2));
-                else { thrusts.SetOverridePercent("U", 0); thrusts.SetOverridePercent("D", 0); }
-                if ((MyPosDrill.GetDim(1) > 0) || ((MyPosDrill.GetDim(0) < 0.15) && (MyPosDrill.GetDim(2) < 0.15))) { Complete = true; PullUpNeeded = false; }
-                return Complete;
-            }
-            public bool PullOut()
-            {
-                bool Complete = false;
-                float MaxLSpeed, MaxFSpeed;
-                Vector3D MyPosDrill = Vector3D.Transform(MyPos, DrillMatrix) - DrillPoint;
-                Vector3D gyrAng = GetNavAngles(MyPosDrill + DrillPoint + new Vector3D(0, 0, 1), DrillMatrix);
-                gyros.SetOverride(BlockNav, true, gyrAng * DrillGyroMult, 1);
-                drill.Off();
-                MaxLSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(0)) * XMaxA) / 2;
-                MaxFSpeed = (float)Math.Sqrt(2 * Math.Abs(MyPosDrill.GetDim(2)) * ZMaxA) / 2;
-                if (LeftVelocityVector.Length() < MaxLSpeed) thrusts.SetOverrideAccel("R", (float)(MyPosDrill.GetDim(0) * 1));
-                else { thrusts.SetOverridePercent("R", 0); thrusts.SetOverridePercent("L", 0); }
-                if (ForwVelocityVector.Length() < MaxFSpeed) thrusts.SetOverrideAccel("B", (float)(MyPosDrill.GetDim(2) * 1));
-                else { thrusts.SetOverridePercent("F", 0); thrusts.SetOverridePercent("B", 0); }
-                if ((UpVelocityVector.Length() < DrillSpeedLimit * 5) && (MyPosDrill.GetDim(0) < 0.5) && (MyPosDrill.GetDim(2) < 0.5)) thrusts.SetOverrideAccel("U", (DrillAccel * 2));
-                else { thrusts.SetOverridePercent("U", 0); thrusts.SetOverridePercent("D", 0); }
-                if (MyPosDrill.GetDim(1) > 0) Complete = true;
-                return Complete;
-            }
-            //-------------------------------------------------
-            public Vector3D GetDrillPoint() { return !ShaftType ? GetSpiralXY(nav.ShaftN, DrillFrameWidth, DrillFrameLength) : Get4shaftXY(nav.ShaftN, DrillFrameWidth, DrillFrameLength); }
-            public int SetNewShaft() { ShaftN++; DrillPoint = GetDrillPoint(); return ShaftN; }
-            public Vector3D GetSpiralXY(int p, float W, float L, int n = 20)
-            {
-                int positionX = 0, positionY = 0, direction = 0, stepsCount = 1, stepPosition = 0, stepChange = 0;
-                int X = 0;
-                int Y = 0;
-                for (int i = 0; i < n * n; i++)
-                {
-                    if (i == p)
-                    {
-                        X = positionX;
-                        Y = positionY;
-                        break;
-                    }
-                    if (stepPosition < stepsCount)
-                    {
-                        stepPosition++;
-                    }
-                    else
-                    {
-                        stepPosition = 1;
-                        if (stepChange == 1)
-                        {
-                            stepsCount++;
-                        }
-                        stepChange = (stepChange + 1) % 2;
-                        direction = (direction + 1) % 4;
-                    }
-                    if (direction == 0) { positionY++; }
-                    else if (direction == 1) { positionX--; }
-                    else if (direction == 2) { positionY--; }
-                    else if (direction == 3) { positionX++; }
-                }
-                return new Vector3D(X * W, 0, Y * L);
-            }
-            public Vector3D Get4shaftXY(int p, float W, float L)
-            {
-                switch (p)
-                {
-                    case 0: { return new Vector3D(-W / 2, 0, L / 2); }
-                    case 1: { return new Vector3D(W / 2, 0, L / 2); }
-                    case 2: { return new Vector3D(-W / 2, 0, -L / 2); }
-                    case 3: { return new Vector3D(W / 2, 0, -L / 2); }
-                    default: { return new Vector3D(0, 0, 0); }
-                }
             }
             //-------------------------------------------------
             public void OutStatusMode(float MaxFSpeed, float MaxUSpeed, float MaxLSpeed, float UpAccel)
@@ -1417,7 +1157,6 @@ namespace KLEPA_A2_2025
                 values.Append("--------------------------------------\n");
                 values.Append("ГОРИЗОНТ : " + (horizont ? igreen.ToString() : ired.ToString()) + ", ");
                 values.Append("ПАУЗА : " + (paused ? igreen.ToString() : ired.ToString()) + ", ");
-                values.Append("ДОМОЙ : " + (go_home ? igreen.ToString() : ired.ToString()) + "\n");
                 values.Append("--------------------------------------\n");
                 values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
@@ -1430,12 +1169,6 @@ namespace KLEPA_A2_2025
                 values.Append("АВАРИЙНЫЕ УСТАВКИ    : " + (EmergencySetpoint ? ired.ToString() : igreen.ToString()) + "\n");
                 values.Append("|-ФИЗ./КРИТ.(МАССА)  : " + Math.Round(PhysicalMass).ToString() + " / " + CriticalMass + " " + (CriticalMassReached ? ired.ToString() : igreen.ToString()) + "\n");
                 values.Append("|-БАТАРЕЯ %          : " + PText.GetPersent(bats.CurrentPersent) + " " + (CriticalBatteryCharge ? ired.ToString() : igreen.ToString()) + "\n");
-                //values.Append("|-ТОПЛИВО H2 %      : " + PText.GetPersent(hydrogen_tanks_nav.AverageFilledRatio) + " " + (CriticalHydrogenSupply ? ired.ToString() : igreen.ToString()) + "\n");
-                values.Append("--------------------------------------\n");
-                values.Append("Камень        :" + cargos.StoneAmount + "\n");
-                values.Append("Глубина шахты : " + DrillDepth + ", кол. шахт : " + MaxShafts + "\n");
-                values.Append("Бурение для БУ: " + ShaftType + ", тек. дырка : " + ShaftN + "\n");
-                values.Append("ПОДНЯТЬ       : " + (PullUpNeeded ? igreen.ToString() : iyellow.ToString()) + "\n");
                 values.Append("--------------------------------------\n");
                 values.Append("ПРОГРАММА : " + name_programm[(int)curent_programm] + "\n");
                 values.Append("ЭТАП      : " + name_mode[(int)curent_mode] + "\n");
@@ -1447,24 +1180,15 @@ namespace KLEPA_A2_2025
                 switch (argument)
                 {
                     case "save_dock": SetDockMatrix(connector.obj); break;
-                    case "save_drill": SetDrillMatrixDepo(); break;
+                    case "save_drill": SetWorkMatrix(); break;
                     case "save_height": SetFlyHeight(); break;
-                    case "depth+": DrillDepth++; if (DrillDepth > 150) DrillDepth = 150; strg.SaveToStorage(); break;
-                    case "depth-": DrillDepth--; if (DrillDepth < 5) DrillDepth = 5; strg.SaveToStorage(); break;
-                    case "ms+": MaxShafts++; if (MaxShafts > (!ShaftType ? 20 : 4)) MaxShafts = (!ShaftType ? 20 : 4); strg.SaveToStorage(); break;
-                    case "ms-": MaxShafts--; if (MaxShafts < 0) MaxShafts = 0; strg.SaveToStorage(); break;
-                    case "st": ShaftType = !ShaftType; strg.SaveToStorage(); break;
                     case "horizont": if (curent_programm == programm.none && curent_mode == mode.none) { if (horizont) { horizont = false; } else { horizont = true; } } break;
                     case "stop": Stop(); break;
                     case "pause": Pause(!paused); break;
                     case "un_dock": { InitMode(mode.un_dock); break; }
                     case "dock": { InitMode(mode.dock); break; }
                     case "to_base": { InitMode(mode.to_base); break; }
-                    case "to_drill": { InitMode(mode.to_drill); break; }
-                    case "drill_align": { InitMode(mode.drill_align); break; }
-                    case "fly_base": { curent_programm = programm.fly_connect_base; strg.SaveToStorage(); break; }
-                    case "fly_drill": { curent_programm = programm.fly_drill; strg.SaveToStorage(); break; }
-                    case "start_drill": { curent_programm = programm.start_drill; strg.SaveToStorage(); break; }
+                    case "to_drill": { InitMode(mode.to_work); break; }
                     default: break;
                 }
                 if (updateSource == UpdateType.Update10)
@@ -1481,7 +1205,7 @@ namespace KLEPA_A2_2025
                     else
                     {
                         // Припаркован
-                        drill.Off();
+                        shw.Off();
                         reflectors_light.Off();
                         if ((curent_mode == mode.none && curent_programm == programm.none))
                         {
@@ -1513,11 +1237,7 @@ namespace KLEPA_A2_2025
                         {
                             curent_mode = mode.none; InitMode(mode.none); //strg.SaveToStorage();
                         }
-                        if (curent_mode == mode.to_drill && !paused && ToDrillPoint())
-                        {
-                            curent_mode = mode.none; InitMode(mode.none); //strg.SaveToStorage();
-                        }
-                        if (curent_mode == mode.drill_align && !paused && DrillAlign())
+                        if (curent_mode == mode.to_work && !paused && ToWorkPoint())
                         {
                             curent_mode = mode.none; InitMode(mode.none); //strg.SaveToStorage();
                         }
@@ -1528,14 +1248,6 @@ namespace KLEPA_A2_2025
                         if (curent_programm == programm.fly_connect_base && !paused)
                         {
                             FlyConnectBase();
-                        }
-                        if (curent_programm == programm.fly_drill && !paused)
-                        {
-                            FlyDrill();
-                        }
-                        if (curent_programm == programm.start_drill && !paused)
-                        {
-                            StartDrill();
                         }
                     }
                 }
@@ -1551,18 +1263,12 @@ namespace KLEPA_A2_2025
                 nav.curent_mode = (Nav.mode)GetValInt("curent_mode", str.ToString());
                 nav.horizont = GetValBool("horizont", str.ToString());
                 nav.paused = GetValBool("pause", str.ToString());
-                nav.go_home = GetValBool("go_home", str.ToString());
                 nav.FlyHeight = GetValDouble("FlyHeight", str.ToString());
-                nav.ShaftN = GetValInt("ShaftN", str.ToString());
-                nav.ShaftType = GetValBool("ShaftType", str.ToString());
                 nav.EmergencyReturn = GetValBool("EmergencyReturn", str.ToString());
-                DrillDepth = (float)GetValDouble("DrillDepth", str.ToString());
-                MaxShafts = GetValInt("MaxShafts", str.ToString());
                 nav.DockMatrix = GetValMatrixD("DM", str.ToString());
                 //nav.BaseDockPoint = GetValVector3D("BDP", str.ToString());
                 nav.PlanetCenter = GetValVector3D("PC", str.ToString());
-                nav.DrillMatrix = GetValMatrixD("DRM", str.ToString());
-                nav.DrillPoint = !nav.ShaftType ? nav.GetSpiralXY(nav.ShaftN, DrillFrameWidth, DrillFrameLength) : nav.Get4shaftXY(nav.ShaftN, DrillFrameWidth, DrillFrameLength);
+                nav.WorkMatrix = GetValMatrixD("DWM", str.ToString());
                 if (nav.curent_mode == Nav.mode.dock || nav.curent_mode == Nav.mode.un_dock || nav.curent_mode == Nav.mode.base_operation)
                 {
                     nav.InitBlock(connector.obj);
@@ -1579,17 +1285,12 @@ namespace KLEPA_A2_2025
                 values.Append("curent_mode: " + ((int)nav.curent_mode).ToString() + ";\n");
                 values.Append("horizont: " + nav.horizont.ToString() + ";\n");
                 values.Append("pause: " + nav.paused.ToString() + ";\n");
-                values.Append("go_home: " + nav.go_home.ToString() + ";\n");
                 values.Append("FlyHeight: " + Math.Round(nav.FlyHeight, 0) + ";\n");
-                values.Append("ShaftN: " + nav.ShaftN.ToString() + ";\n");
-                values.Append("ShaftType: " + nav.ShaftType.ToString() + ";\n");
                 values.Append("EmergencyReturn: " + nav.EmergencyReturn.ToString() + ";\n");
-                values.Append("DrillDepth: " + Math.Round(DrillDepth, 0) + ";\n");
-                values.Append("MaxShafts: " + MaxShafts.ToString() + ";\n");
                 values.Append(SetValMatrixD("DM", nav.DockMatrix) + ";\n");
                 //values.Append(SetValVector3D("BDP", nav.BaseDockPoint) + ";\n");
                 values.Append(SetValVector3D("PC", nav.PlanetCenter) + ";\n");
-                values.Append(SetValMatrixD("DRM", nav.DrillMatrix) + ";\n");
+                values.Append(SetValMatrixD("DWM", nav.WorkMatrix) + ";\n");
                 lcd_storage.OutText(values);
             }
             private string GetVal(string Key, string str, string val) { string pattern = @"(" + Key + "):([^:^;]+);"; System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(str.Replace("\n", ""), pattern); if (match.Success) { val = match.Groups[2].Value; } return val; }
