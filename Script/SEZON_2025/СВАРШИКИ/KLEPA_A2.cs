@@ -20,6 +20,7 @@ using VRage.Game.ModAPI.Ingame;
 using VRage.Noise.Combiners;
 using VRage.Scripting;
 using VRageMath;
+using static DrillingRig.Program;
 
 /// <summary>
 ///  СВАРЩИК АТМОСФЕРНЫЙ (v1.0) - сезон 2025
@@ -52,8 +53,8 @@ namespace KLEPA_A2_2025
         const char idarkGrey = '\uE00F';
         static LCD lcd_storage;
         static LCD lcd_debug;
-        static LCD lcd_name;
-        static LCD lcd_work1, lcd_work2;
+        //static LCD lcd_name;
+        //static LCD lcd_work1, lcd_work2;
         static LCD lcd_test1, lcd_test2, lcd_test3;
         static Batterys bats;
         static Connector connector;
@@ -65,6 +66,7 @@ namespace KLEPA_A2_2025
         static Cargos cargos;
         static GasGenerator gas_gen;
         static HydrogenEngines h2_engines;
+        static Joint jn_l, jn_r;
         static Nav nav;
         static MyStorage strg;
         static Program _scr;
@@ -168,7 +170,7 @@ namespace KLEPA_A2_2025
             _scr = this;
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
-            lcd_name = new LCD(NameObj + "-LCD-Name");
+            //lcd_name = new LCD(NameObj + "-LCD-Name");
             lcd_test1 = new LCD(NameObj + "-test1");
             lcd_test2 = new LCD(NameObj + "-test2");
             lcd_test3 = new LCD(NameObj + "-test3");
@@ -184,6 +186,8 @@ namespace KLEPA_A2_2025
             cargos = new Cargos(NameObj);
             gas_gen = new GasGenerator(NameObj); gas_gen.Off();
             h2_engines = new HydrogenEngines(NameObj); h2_engines.Off();
+            jn_l = new Joint(NameObj + "-Шарнир [sw-l]");
+            jn_r = new Joint(NameObj + "-Шарнир [sw-r]");
             nav = new Nav(NameObj);
             strg = new MyStorage();
             strg.LoadFromStorage();
@@ -194,10 +198,10 @@ namespace KLEPA_A2_2025
             StringBuilder values_info = new StringBuilder();
             nav.Logic(argument, updateSource);
             switch (argument) { default: break; }
-            if (updateSource == UpdateType.Update10)
-            {
-                lcd_name.OutText(NameObj, false);
-            }
+            //if (updateSource == UpdateType.Update10)
+            //{
+            //    lcd_name.OutText(NameObj, false);
+            //}
             values_info.Append(bats.TextInfo(null));
             values_info.Append(connector.TextInfo("К:Base"));
             values_info.Append(shw.TextInfo());
@@ -762,14 +766,51 @@ namespace KLEPA_A2_2025
                 return values.ToString();
             }
         }
+        public class Joint : BaseTerminalBlock<IMyMotorStator>
+        {
+            public float? task { get; set; } = null;
+            private float tolerance = 0.1f;
+            private float multiply_speed = 0.1f;
+            private float max_speed = 5f;
+            public double Degrees { get { return this.obj != null ? (this.obj.Angle * 180 / Math.PI) : 0; } }
+            public Joint(string name_obj) : base(name_obj) { }
+            public bool SetDegrees(float degrees)
+            {
+                float speed = 0f;
+                double curennt_degrees = this.Degrees;
+                double difference = ((degrees + 90f) - (curennt_degrees + 90f));
+                if (Math.Abs(difference) > tolerance)
+                {
+                    speed = (float)(difference * this.multiply_speed);
+                    if ((speed < 0f) && (speed < -5f)) speed = -5f; if ((speed > 0f) && (speed > 5f)) speed = 5f;
+                    this.obj.TargetVelocityRPM = speed;
+                    return false;
+                }
+                else
+                {
+                    this.obj.TargetVelocityRPM = speed;
+                    return true;
+                }
+            }
+            public string TextInfo()
+            {
+                if (this.obj == null) return "";
+                StringBuilder values = new StringBuilder();
+                values.Append("ШАРНИР : " + this.obj.CustomName + "\n");
+                values.Append("БЛОК : " + (this.obj.RotorLock ? ired.ToString() : igreen.ToString()) + " НИЗ: " + Math.Round(this.obj.LowerLimitDeg, 2) + " ВЕРХ: " + Math.Round(this.obj.UpperLimitDeg, 2) + "\n");
+                values.Append("УГОЛ : " + Math.Round(this.Degrees, 1) + " СКОРОСТЬ : " + Math.Round(this.obj.TargetVelocityRPM, 3) + " ЗАД : " + this.task + "\n");
+                return values.ToString();
+            }
+        }
         public class Nav
         {
             public enum programm : int
             {
                 none = 0,
                 fly_connect_base = 1,   // лететь на базу
+                fly_work = 2,   // лететь на базу
             };
-            public static string[] name_programm = { "", "ПОЛЕТ НА БАЗУ" };
+            public static string[] name_programm = { "", "ПОЛЕТ НА БАЗУ", "ПОЛЕТ НА ОБЪЕКТ" };
             public programm curent_programm = programm.none;
             public enum mode : int
             {
@@ -818,6 +859,8 @@ namespace KLEPA_A2_2025
             public bool horizont { get; set; } = false;  // держим горизонтальное направление
             public Vector3D? TackVector { get; set; } = null;
             public bool paused { get; set; } = false;
+
+            public float degrees_sw { get; set; } = 0f;// Угол сварщиков
             public IMyTerminalBlock BlockNav { get; set; }
             public Nav(string name)
             {
@@ -950,14 +993,14 @@ namespace KLEPA_A2_2025
                 ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
                 XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
                 cargos.Update();
-                if (cargos.IceAmount > 100)
-                {
-                    gas_gen.On(); h2_engines.On();
-                }
-                else
-                {
-                    gas_gen.Off(); h2_engines.Off();
-                }
+                //if (cargos.IceAmount > 100)
+                //{
+                //    gas_gen.On(); h2_engines.On();
+                //}
+                //else
+                //{
+                //    gas_gen.Off(); h2_engines.Off();
+                //}
                 ;
                 // Критические уставки
                 if (PhysicalMass > CriticalMass) { CriticalMassReached = true; }
@@ -978,7 +1021,7 @@ namespace KLEPA_A2_2025
                 values1.Append("MyPos_Z_[2]   : " + Math.Round(MyPosPoint.GetDim(2), 2) + "\n");
                 lcd_test1.OutText(values1);
                 StringBuilder values2 = new StringBuilder();
-                values2.Append("IceAmount :" + cargos.IceAmount + "\n");
+                //values2.Append("IceAmount :" + cargos.IceAmount + "\n");
                 lcd_test2.OutText(values2);
                 StringBuilder values3 = new StringBuilder();
                 Vector3D MyPosDrill = Vector3D.Transform(MyPos, WorkMatrix) - WorkPoint;
@@ -996,6 +1039,16 @@ namespace KLEPA_A2_2025
                 if (curent_mode == mode.none) { InitMode(mode.to_base); }
                 if (curent_mode == mode.to_base && ToBase()) { InitMode(mode.dock); }
                 if (curent_mode == mode.dock && Dock())
+                {
+                    curent_programm = programm.none;
+                    InitMode(mode.none);
+                }
+            }
+            public void FlyWork()
+            {
+                if (curent_mode == mode.none) { InitMode(mode.un_dock); }
+                if (curent_mode == mode.un_dock && UnDock()) { InitMode(mode.to_work); }
+                if (curent_mode == mode.to_work && ToWorkPoint())
                 {
                     curent_programm = programm.none;
                     InitMode(mode.none);
@@ -1180,7 +1233,7 @@ namespace KLEPA_A2_2025
                 switch (argument)
                 {
                     case "save_dock": SetDockMatrix(connector.obj); break;
-                    case "save_drill": SetWorkMatrix(); break;
+                    case "save_work": SetWorkMatrix(); break;
                     case "save_height": SetFlyHeight(); break;
                     case "horizont": if (curent_programm == programm.none && curent_mode == mode.none) { if (horizont) { horizont = false; } else { horizont = true; } } break;
                     case "stop": Stop(); break;
@@ -1188,12 +1241,17 @@ namespace KLEPA_A2_2025
                     case "un_dock": { InitMode(mode.un_dock); break; }
                     case "dock": { InitMode(mode.dock); break; }
                     case "to_base": { InitMode(mode.to_base); break; }
-                    case "to_drill": { InitMode(mode.to_work); break; }
+                    case "to_work": { InitMode(mode.to_work); break; }
+                    case "fly_base": { curent_programm = programm.fly_connect_base; strg.SaveToStorage(); break; }
+                    case "fly_work": { curent_programm = programm.fly_work; strg.SaveToStorage(); break; }
+                    case "degrees": { if (degrees_sw == 0) { degrees_sw = 45; break;} if (degrees_sw == 45) { degrees_sw = -45; break;} if (degrees_sw == -45) { degrees_sw = 0; break;}  break;}
                     default: break;
                 }
                 if (updateSource == UpdateType.Update10)
                 {
                     UpdateCalc();
+                    bool lp = jn_l.SetDegrees(degrees_sw);
+                    bool rp = jn_r.SetDegrees(degrees_sw);
                     if (!connector.Connected)
                     {
                         if (cockpit.GetCurrentHeight() > 5.0f)
@@ -1216,7 +1274,7 @@ namespace KLEPA_A2_2025
                     }
                     if (curent_programm == programm.none)
                     {
-                        lcd_work1.Off(); lcd_work2.Off(); lcd_debug.Off();
+                        //lcd_work1.Off(); lcd_work2.Off(); lcd_debug.Off();
                         if (horizont)
                         {
                             Horizon();
@@ -1244,10 +1302,14 @@ namespace KLEPA_A2_2025
                     }
                     else
                     {
-                        lcd_work1.On(); lcd_work2.On(); lcd_debug.On();
+                        //lcd_work1.On(); lcd_work2.On(); lcd_debug.On();
                         if (curent_programm == programm.fly_connect_base && !paused)
                         {
                             FlyConnectBase();
+                        }
+                        if (curent_programm == programm.fly_work && !paused)
+                        {
+                            FlyWork();
                         }
                     }
                 }
