@@ -185,7 +185,7 @@ namespace BASE_EA
                 new ItN("OKI122mmAmmo"  ,"Ammo" ,"122x640mm"),
                 new ItN("OKI230mmAmmo"  ,"Ammo" ,"230x920mm")
             };
-            static public string getName(string SubtypeId) { ItN res = PItem.lcn.Find(n => n.SubtypeId == SubtypeId); return res != null ? res.Name : ""; }
+            static public string getName(string SubtypeId) { ItN res = PItem.lcn.Find(n => n.SubtypeId == SubtypeId); return res != null ? res.Name : SubtypeId; }
             static public List<ItN> getListType(string mainType) { return PItem.lcn.Where(t => t.mainType == mainType).ToList(); }
         }
         public class PText
