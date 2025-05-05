@@ -51,9 +51,9 @@ namespace KLEPA_A2_2025
         const char ired = '\uE003';
         const char iyellow = '\uE004';
         const char idarkGrey = '\uE00F';
+        static int upd100 = 0;
         static LCD lcd_storage;
         static LCD lcd_debug;
-        //static LCD lcd_name;
         //static LCD lcd_work1, lcd_work2;
         static LCD lcd_test1, lcd_test2, lcd_test3;
         static Batterys bats;
@@ -70,7 +70,6 @@ namespace KLEPA_A2_2025
         static Nav nav;
         static MyStorage strg;
         static Program _scr;
-
         public class PItem
         {
             public class ItN
@@ -83,6 +82,50 @@ namespace KLEPA_A2_2025
             }
 
             static public List<ItN> lcn = new List<ItN>() {
+                new ItN("Stone" ,"Ore"  ,"Камень"),
+                new ItN("Iron"  ,"Ore"  ,"Железо"),
+                new ItN("Nickel","Ore"  ,"Никель"),
+                new ItN("Cobalt","Ore"  ,"Кобальт"  ),
+                new ItN("Magnesium" ,"Ore"  ,"Магний"),
+                new ItN("Silicon","Ore"  ,"Кремний"  ),
+                new ItN("Silver","Ore"  ,"Серебро"  ),
+                new ItN("Gold"  ,"Ore"  ,"Золото"),
+                new ItN("Platinum"  ,"Ore"  ,"Платина"  ),
+                new ItN("Uranium","Ore"  ,"Уран" ),
+                new ItN("Ice","Ore"  ,"Лед"  ),
+                new ItN("Scrap" ,"Ore"  ,"Металлолом"),
+                new ItN("Stone" ,"Ingot","Гравий"),
+                new ItN("Iron"  ,"Ingot","Железо"),
+                new ItN("Nickel","Ingot","Никель"),
+                new ItN("Cobalt","Ingot","Кобальт"  ),
+                new ItN("Magnesium" ,"Ingot","Магний"),
+                new ItN("Silicon","Ingot","Кремний"  ),
+                new ItN("Silver","Ingot","Серебро"  ),
+                new ItN("Gold"  ,"Ingot","Золото"),
+                new ItN("Platinum"  ,"Ingot","Платина"  ),
+                new ItN("Uranium","Ingot","Уран" ),
+                new ItN("SemiAutoPistolItem","Tool" ,"S-10 Пистолет"),
+                new ItN("ElitePistolItem","Tool" ,"S-10E Пистолет"),
+                new ItN("FullAutoPistolItem","Tool" ,"S-20A Пистолет"),
+                new ItN("AutomaticRifleItem","Tool" ,"MR-20 Винтовка"),
+                new ItN("PreciseAutomaticRifleItem" ,"Tool" ,"MR-8P Винтовка"),
+                new ItN("RapidFireAutomaticRifleItem","Tool" ,"MR-50A Винтовка"  ),
+                new ItN("UltimateAutomaticRifleItem","Tool" ,"MR-30E Винтовка"  ),
+                new ItN("BasicHandHeldLauncherItem" ,"Tool" ,"RO-1 Ракетница"),
+                new ItN("AdvancedHandHeldLauncherItem"  ,"Tool" ,"PRO-1 Ракетница"  ),
+                new ItN("WelderItem","Tool" ,"Сварщик"  ),
+                new ItN("Welder2Item","Tool" ,"* Улучшенный сварщик" ),
+                new ItN("Welder3Item","Tool" ,"** Продинутый сварщик"),
+                new ItN("Welder4Item","Tool" ,"*** Элитный сварщик"  ),
+                new ItN("AngleGrinderItem"  ,"Tool" ,"Резак"),
+                new ItN("AngleGrinder2Item" ,"Tool" ,"* Улучшенная болгарка"),
+                new ItN("AngleGrinder3Item" ,"Tool" ,"** Продинутая болгарка"),
+                new ItN("AngleGrinder4Item" ,"Tool" ,"*** Элитная болгарка" ),
+                new ItN("HandDrillItem" ,"Tool" ,"Ручной бур"),
+                new ItN("HandDrill2Item","Tool" ,"* Улучшенный ручной бур"  ),
+                new ItN("HandDrill3Item","Tool" ,"** Продинутый ручной бур" ),
+                new ItN("HandDrill4Item","Tool" ,"*** Элитный ручной бур"),
+                new ItN("FlareGunItem"  ,"Tool" ,"Flare Gun"),
                 new ItN("Construction"  ,"Component","Стройкомпоненты"  ),
                 new ItN("MetalGrid" ,"Component","Компонет решётки" ),
                 new ItN("InteriorPlate" ,"Component","Внутренная пластина"  ),
@@ -108,7 +151,36 @@ namespace KLEPA_A2_2025
                 new ItN("EngineerPlushie","Component","Плюшевый Инженер" ),
                 new ItN("SabiroidPlushie","Component","Плюшевый Сабироид"),
                 new ItN("ZoneChip"  ,"Component","Чип"  ),
+                new ItN("Datapad","Datapad"  ,"Инфопланшет"  ),
+                new ItN("Package","Package"  ,"Упаковка" ),
+                new ItN("Medkit","ConsumableItem","Аптечка"  ),
+                new ItN("Powerkit"  ,"ConsumableItem","Внешний аккумулятор " ),
+                new ItN("ClangCola" ,"ConsumableItem","Кола" ),
+                new ItN("CosmicCoffee"  ,"ConsumableItem","Кофе" ),
+                new ItN("SpaceCredit","PhysicalObject","Кредиты"  ),
+                new ItN("NATO_5p56x45mm","Ammo" ,"5.56x45mm"),
+                new ItN("SemiAutoPistolMagazine","Ammo" ,"S-10 Mag" ),
+                new ItN("ElitePistolMagazine","Ammo" ,"S-10E Mag"),
+                new ItN("FullAutoPistolMagazine","Ammo" ,"S-20A Mag"),
+                new ItN("AutomaticRifleGun_Mag_20rd","Ammo" ,"MR-20 Mag"),
+                new ItN("PreciseAutomaticRifleGun_Mag_5rd"  ,"Ammo" ,"MR-8P Mag"),
+                new ItN("RapidFireAutomaticRifleGun_Mag_50rd","Ammo" ,"MR-50A Mag"),
+                new ItN("UltimateAutomaticRifleGun_Mag_30rd","Ammo" ,"MR-30E Mag"),
+                new ItN("NATO_25x184mm" ,"Ammo" ,"Гатлинг патроны"  ),
+                new ItN("Missile200mm"  ,"Ammo" ,"200мм ракета" ),
+                new ItN("AutocannonClip","Ammo" ,"М-н автопушки"),
+                new ItN("MediumCalibreAmmo" ,"Ammo" ,"Снаряд ШП"),
+                new ItN("SmallRailgunAmmo"  ,"Ammo" ,"МС Рельсотрон"),
+                new ItN("LargeRailgunAmmo"  ,"Ammo" ,"БС Рельсотрон"),
+                new ItN("LargeCalibreAmmo"  ,"Ammo" ,"АРТ Снаряд"),
+                new ItN("FlareClip" ,"Ammo" ,"Flare Clip"),
+                new ItN("OxygenBottle"  ,"OxygenContainerObject","Кислородные баллоны"  ),
+                new ItN("HydrogenBottle","GasContainerObject","Водородные баллоны"),
                 new ItN("AzimuthSupercharger","Component","Supercharger" ),
+                new ItN("OKI23mmAmmo","Ammo" ,"23x180mm" ),
+                new ItN("OKI50mmAmmo","Ammo" ,"50x450mm" ),
+                new ItN("OKI122mmAmmo"  ,"Ammo" ,"122x640mm"),
+                new ItN("OKI230mmAmmo"  ,"Ammo" ,"230x920mm")
             };
             static public string getName(string SubtypeId) { ItN res = PItem.lcn.Find(n => n.SubtypeId == SubtypeId); return res != null ? res.Name : SubtypeId; }
             static public List<ItN> getListType(string mainType) { return PItem.lcn.Where(t => t.mainType == mainType).ToList(); }
@@ -170,7 +242,6 @@ namespace KLEPA_A2_2025
             _scr = this;
             lcd_storage = new LCD(NameObj + "-LCD [storage]");
             lcd_debug = new LCD(NameObj + "-LCD-DEBUG");
-            //lcd_name = new LCD(NameObj + "-LCD-Name");
             lcd_test1 = new LCD(NameObj + "-test1");
             lcd_test2 = new LCD(NameObj + "-test2");
             lcd_test3 = new LCD(NameObj + "-test3");
@@ -195,6 +266,7 @@ namespace KLEPA_A2_2025
         public void Save() { }
         public void Main(string argument, UpdateType updateSource)
         {
+
             StringBuilder values_info = new StringBuilder();
             nav.Logic(argument, updateSource);
             switch (argument) { default: break; }
@@ -211,8 +283,10 @@ namespace KLEPA_A2_2025
             values_info1.Append(nav.TextCritical());
             cockpit.OutText(values_info1, 1);
             StringBuilder values_info2 = new StringBuilder();
-            values_info2.Append(cargos.TextInfo());
+            values_info2.Append(cargos.TextInfo(true, true, true, true));
             cockpit.OutText(values_info2, 2);
+            upd100++; if (upd100 >= 6) upd100 = 0;
+
         }
         public class LCD : BaseTerminalBlock<IMyTextPanel>
         {
@@ -643,11 +717,14 @@ namespace KLEPA_A2_2025
         }
         public class Cargos
         {
-            public class ListComp
+            public class LI
             {
                 public string SubtypeId { get; set; }
                 public long Amount { get; set; }
+                public LI() { }
+                public LI(string SubtypeId, long Amount) { this.SubtypeId = SubtypeId; this.Amount = Amount; }
             }
+            public List<LI> armors = new List<LI>() { new LI("SteelPlate", 10000), new LI("MetalGrid",5000) };
 
             private List<IMyTerminalBlock> list = new List<IMyTerminalBlock>();
             public List<IMyTerminalBlock> cargos = new List<IMyTerminalBlock>();
@@ -656,7 +733,10 @@ namespace KLEPA_A2_2025
             public int CurrentVolume { get; private set; }
             public int CurrentMass { get; private set; }
 
-            public List<ListComp> components = new List<ListComp>();
+            public List<LI> components = new List<LI>();
+            public List<LI> ores = new List<LI>();
+            public List<LI> ingots = new List<LI>();
+            public List<LI> all = new List<LI>();
             //--
             public Cargos(string name_obj)
             {
@@ -664,7 +744,8 @@ namespace KLEPA_A2_2025
                 _scr.GridTerminalSystem.GetBlocksOfType(list, r => r.CustomName.Contains(name_obj));
                 foreach (IMyTerminalBlock cargo in list)
                 {
-                    if ((cargo is IMyShipWelder) || (cargo is IMyCargoContainer) || (cargo is IMyShipConnector))
+                    //if ((cargo is IMyShipWelder) || (cargo is IMyCargoContainer) || (cargo is IMyShipConnector))
+                    if (cargo is IMyEntity && cargo.HasInventory)
                     {
                         MaxVolume += (int)cargo.GetInventory(0).MaxVolume;
                         CurrentVolume += (int)(cargo.GetInventory(0).CurrentVolume * 1000);
@@ -672,13 +753,13 @@ namespace KLEPA_A2_2025
                         cargos.Add(cargo);
                     }
                 }
-                _scr.Echo("Найдено Cargos : " + cargos.Count());
+                _scr.Echo("Найдено CargosInventory : " + cargos.Count());
             }
             public void Update()
             {
                 CurrentVolume = 0;
                 CurrentMass = 0;
-                components.Clear();
+                components.Clear(); ores.Clear(); ingots.Clear(); all.Clear();
                 foreach (IMyTerminalBlock cargo in cargos)
                 {
                     if (cargo != null)
@@ -689,14 +770,32 @@ namespace KLEPA_A2_2025
                         cargo.GetInventory(0).GetItems(crateItems);
                         for (int j = crateItems.Count - 1; j >= 0; j--)
                         {
-                            ListComp comp = this.components.Find(c => c.SubtypeId == crateItems[j].Type.SubtypeId);
-                            if (comp != null)
+                            switch (crateItems[j].Type.TypeId)
                             {
-                                comp.Amount += (int)crateItems[j].Amount;
-                            }
-                            else
-                            {
-                                components.Add(new ListComp() { SubtypeId = crateItems[j].Type.SubtypeId, Amount = (long)crateItems[j].Amount });
+                                case "Component":
+                                    {
+                                        LI itm = this.components.Find(c => c.SubtypeId == crateItems[j].Type.SubtypeId);
+                                        if (itm != null) { itm.Amount += (int)crateItems[j].Amount; } else { this.components.Add(new LI() { SubtypeId = crateItems[j].Type.SubtypeId, Amount = (long)crateItems[j].Amount }); }
+                                        break;
+                                    }
+                                case "Ore":
+                                    {
+                                        LI itm = this.ores.Find(c => c.SubtypeId == crateItems[j].Type.SubtypeId);
+                                        if (itm != null) { itm.Amount += (int)crateItems[j].Amount; } else { this.ores.Add(new LI() { SubtypeId = crateItems[j].Type.SubtypeId, Amount = (long)crateItems[j].Amount }); }
+                                        break;
+                                    }
+                                case "Ingot":
+                                    {
+                                        LI itm = this.ingots.Find(c => c.SubtypeId == crateItems[j].Type.SubtypeId);
+                                        if (itm != null) { itm.Amount += (int)crateItems[j].Amount; } else { this.ingots.Add(new LI() { SubtypeId = crateItems[j].Type.SubtypeId, Amount = (long)crateItems[j].Amount }); }
+                                        break;
+                                    }
+                                default:
+                                    {
+                                        LI itm = this.all.Find(c => c.SubtypeId == crateItems[j].Type.SubtypeId);
+                                        if (itm != null) { itm.Amount += (int)crateItems[j].Amount; } else { this.all.Add(new LI() { SubtypeId = crateItems[j].Type.SubtypeId, Amount = (long)crateItems[j].Amount }); }
+                                        break;
+                                    }
                             }
                         }
                     }
@@ -722,15 +821,47 @@ namespace KLEPA_A2_2025
                 }
                 Update();
             }
-            public string TextInfo()
+            public void Load(List<LI> list)
+            {
+
+            }
+
+            public string TextInfo(bool cp, bool or, bool ig, bool al)
             {
                 StringBuilder values = new StringBuilder();
                 values.Append("ТЕК.МАССА: " + CurrentMass.ToString() + "\n");
                 values.Append("|- ЗАГРУЖ:  " + PText.GetScalePersent(((float)CurrentVolume / (float)MaxVolume), 20) + "\n");
-                values.Append("|- КОМПОНЕНТЫ " + "\n");
-                foreach (ListComp cmp in components)
+                if (cp)
                 {
-                    values.Append(PItem.getName(cmp.SubtypeId) + " : " + cmp.Amount + "кг" + "\n");
+                    values.Append("|- КОМПОНЕНТЫ " + "\n");
+                    foreach (LI cmp in components)
+                    {
+                        values.Append("   |-" + PItem.getName(cmp.SubtypeId) + " : " + cmp.Amount + "кг" + "\n");
+                    }
+                }
+                if (or)
+                {
+                    values.Append("|- РУДЫ " + "\n");
+                    foreach (LI cmp in ores)
+                    {
+                        values.Append("   |-" + PItem.getName(cmp.SubtypeId) + " : " + cmp.Amount + "кг" + "\n");
+                    }
+                }
+                if (ig)
+                {
+                    values.Append("|- СЛИТКИ " + "\n");
+                    foreach (LI cmp in ingots)
+                    {
+                        values.Append("   |-" + PItem.getName(cmp.SubtypeId) + " : " + cmp.Amount + "кг" + "\n");
+                    }
+                }
+                if (al)
+                {
+                    values.Append("|- ОСТАЛЬНОЕ " + "\n");
+                    foreach (LI cmp in all)
+                    {
+                        values.Append("   |-" + PItem.getName(cmp.SubtypeId) + " : " + cmp.Amount + "кг" + "\n");
+                    }
                 }
                 return values.ToString();
             }
@@ -992,16 +1123,12 @@ namespace KLEPA_A2_2025
                 YMaxA = Math.Abs((float)Math.Min(thrusts.UpThrMax / PhysicalMass - GravVector.Length(), thrusts.DownThrMax / PhysicalMass + GravVector.Length()));
                 ZMaxA = (float)Math.Min(thrusts.ForwardThrMax, thrusts.BackwardThrMax) / PhysicalMass;
                 XMaxA = (float)Math.Min(thrusts.RightThrMax, thrusts.LeftThrMax) / PhysicalMass;
-                cargos.Update();
-                //if (cargos.IceAmount > 100)
-                //{
-                //    gas_gen.On(); h2_engines.On();
-                //}
-                //else
-                //{
-                //    gas_gen.Off(); h2_engines.Off();
-                //}
-                ;
+                if (upd100 == 0)
+                {
+                    cargos.Update();
+                    Cargos.LI ice = cargos.ores.Find(c => c.SubtypeId == "Ice");
+                    if (ice != null && ice.Amount > 100) { gas_gen.On(); h2_engines.On(); } else { gas_gen.Off(); h2_engines.Off(); }
+                }
                 // Критические уставки
                 if (PhysicalMass > CriticalMass) { CriticalMassReached = true; }
                 else
@@ -1244,7 +1371,7 @@ namespace KLEPA_A2_2025
                     case "to_work": { InitMode(mode.to_work); break; }
                     case "fly_base": { curent_programm = programm.fly_connect_base; strg.SaveToStorage(); break; }
                     case "fly_work": { curent_programm = programm.fly_work; strg.SaveToStorage(); break; }
-                    case "degrees": { if (degrees_sw == 0) { degrees_sw = 45; break;} if (degrees_sw == 45) { degrees_sw = -45; break;} if (degrees_sw == -45) { degrees_sw = 0; break;}  break;}
+                    case "degrees": { if (degrees_sw == 0) { degrees_sw = 45; break; } if (degrees_sw == 45) { degrees_sw = -45; break; } if (degrees_sw == -45) { degrees_sw = 0; break; } break; }
                     default: break;
                 }
                 if (updateSource == UpdateType.Update10)
@@ -1252,23 +1379,19 @@ namespace KLEPA_A2_2025
                     UpdateCalc();
                     bool lp = jn_l.SetDegrees(degrees_sw);
                     bool rp = jn_r.SetDegrees(degrees_sw);
+
                     if (!connector.Connected)
                     {
-                        if (cockpit.GetCurrentHeight() > 5.0f)
-                        {
-                            bats.Auto();
-                            thrusts.On();
-                        }
+                        if (!cockpit.obj.IsUnderControl) { shw.Off(); }
+                        if (cockpit.GetCurrentHeight() > 5.0f) { bats.Auto(); thrusts.On(); }
                     }
                     else
                     {
                         // Припаркован
-                        shw.Off();
-                        reflectors_light.Off();
+                        shw.Off(); reflectors_light.Off();
                         if ((curent_mode == mode.none && curent_programm == programm.none))
                         {
-                            // Если сидим в кокпите батарея не заряжается
-                            if (cockpit.obj.IsUnderControl) { bats.Auto(); } else { bats.Charger(); }
+                            if (cockpit.obj.IsUnderControl) { bats.Auto(); } else { bats.Charger(); }// Если сидим в кокпите батарея не заряжается
                         }
                         thrusts.Off();
                     }
