@@ -724,7 +724,7 @@ namespace KLEPA_A2_2025
                 public LI() { }
                 public LI(string SubtypeId, long Amount) { this.SubtypeId = SubtypeId; this.Amount = Amount; }
             }
-            public List<LI> armors = new List<LI>() { new LI("SteelPlate", 10000), new LI("MetalGrid",5000) };
+            public List<LI> armors = new List<LI>() { new LI("SteelPlate", 10000), new LI("MetalGrid", 5000) };
 
             private List<IMyTerminalBlock> list = new List<IMyTerminalBlock>();
             public List<IMyTerminalBlock> cargos = new List<IMyTerminalBlock>();
@@ -770,21 +770,24 @@ namespace KLEPA_A2_2025
                         cargo.GetInventory(0).GetItems(crateItems);
                         for (int j = crateItems.Count - 1; j >= 0; j--)
                         {
+                            //StringBuilder values = new StringBuilder();
+                            //values.Append(crateItems[j].Type.TypeId + " - "+crateItems[j].Type.SubtypeId);
+                            //lcd_debug.OutText(values);
                             switch (crateItems[j].Type.TypeId)
                             {
-                                case "Component":
+                                case "MyObjectBuilder_Component":
                                     {
                                         LI itm = this.components.Find(c => c.SubtypeId == crateItems[j].Type.SubtypeId);
                                         if (itm != null) { itm.Amount += (int)crateItems[j].Amount; } else { this.components.Add(new LI() { SubtypeId = crateItems[j].Type.SubtypeId, Amount = (long)crateItems[j].Amount }); }
                                         break;
                                     }
-                                case "Ore":
+                                case "MyObjectBuilder_Ore":
                                     {
                                         LI itm = this.ores.Find(c => c.SubtypeId == crateItems[j].Type.SubtypeId);
                                         if (itm != null) { itm.Amount += (int)crateItems[j].Amount; } else { this.ores.Add(new LI() { SubtypeId = crateItems[j].Type.SubtypeId, Amount = (long)crateItems[j].Amount }); }
                                         break;
                                     }
-                                case "Ingot":
+                                case "MyObjectBuilder_Ingot":
                                     {
                                         LI itm = this.ingots.Find(c => c.SubtypeId == crateItems[j].Type.SubtypeId);
                                         if (itm != null) { itm.Amount += (int)crateItems[j].Amount; } else { this.ingots.Add(new LI() { SubtypeId = crateItems[j].Type.SubtypeId, Amount = (long)crateItems[j].Amount }); }
@@ -1126,8 +1129,11 @@ namespace KLEPA_A2_2025
                 if (upd100 == 0)
                 {
                     cargos.Update();
-                    Cargos.LI ice = cargos.ores.Find(c => c.SubtypeId == "Ice");
-                    if (ice != null && ice.Amount > 100) { gas_gen.On(); h2_engines.On(); } else { gas_gen.Off(); h2_engines.Off(); }
+                    if (!connector.Connected)
+                    {
+                        Cargos.LI ice = cargos.ores.Find(c => c.SubtypeId == "Ice");
+                        if (ice != null && ice.Amount > 100) { gas_gen.On(); h2_engines.On(); } else { gas_gen.Off(); h2_engines.Off(); }
+                    }
                 }
                 // Критические уставки
                 if (PhysicalMass > CriticalMass) { CriticalMassReached = true; }
@@ -1299,7 +1305,7 @@ namespace KLEPA_A2_2025
                 if (HDistance < 6)
                 {
                     if (connector.Status == MyShipConnectorStatus.Connectable) { connector.Connect(); }
-                    if (connector.Status == MyShipConnectorStatus.Connected) { thrusts.ClearThrustOverridePersent(); gyros.SetOverride(false, 1); Complete = true; }
+                    if (connector.Status == MyShipConnectorStatus.Connected) { thrusts.ClearThrustOverridePersent(); gyros.SetOverride(false, 1); Complete = true; gas_gen.Off(); h2_engines.Off(); }
                 }
                 //OutStatusMode(MaxFSpeed, MaxUSpeed, MaxLSpeed, UpAccel);
                 return Complete;
@@ -1383,6 +1389,7 @@ namespace KLEPA_A2_2025
                     if (!connector.Connected)
                     {
                         if (!cockpit.obj.IsUnderControl) { shw.Off(); }
+                        if (shw.Enabled()) { reflectors_light.On(); }
                         if (cockpit.GetCurrentHeight() > 5.0f) { bats.Auto(); thrusts.On(); }
                     }
                     else
