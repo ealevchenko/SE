@@ -402,17 +402,17 @@ namespace IGC_Antena_Basa
                 UpdateCall();
 
 
-                // To unicast a message to our friend, we need an address for his Programmable Block.
-                // We'll pretend here that he has copied it and sent it to us via Steam chat.
+                // Чтобы отправить сообщение нашему другу, нам нужен адрес для его программируемого блока.
+                // Мы сделаем вид, что он скопировал его и отправил нам через чат Steam.
                 long friendAddress = 3672132753819237;
 
-                //// Here, we'll use the tag to convey information about what we're sending to our friend.
+                // Здесь мы будем использовать тег для передачи информации о том, что мы отправляем нашему другу.
                 //string tagUni = "Int";
 
-                //// We're sending a number instead of a string.
+                // Мы отправляем число вместо строки
                 //int number = 1337;
 
-                //// We access the unicast method through IGC and input our address, tag and data.
+                // Мы получаем доступ к методу unicast через IGC и вводим наш адрес, тег и данные.
                 //_scr.IGC.SendUnicastMessage(friendAddress, tagUni, number);
                 //_scr.IGC.SendUnicastMessage(friendAddress, "Int", "hhhhhhhh");
 

@@ -92,6 +92,7 @@
     <Compile Include="Setup_Example\Basa_Test.cs" />
     <Compile Include="Setup_Example\IGC_Antena_Ship.cs" />
     <Compile Include="Setup_Example\IGC_Antena_Basa.cs" />
+    <Compile Include="SEZON_2025\БАЗА\BASE_EA_ANTENA.cs" />
     <Compile Include="SEZON_2025\БАЗА\BASE_EA.cs" />
     <Compile Include="SEZON_2025\БУРОВИКИ\MH_A9.cs" />
     <Compile Include="SEZON_2025\БУРОВИКИ\DRA.cs" />
