@@ -36,6 +36,7 @@ namespace BASE_EA
     public sealed class Program : MyGridProgram
     {
         // v1.
+        //IMyExtendedPistonBase
         static string NameObj = "[BER-01]";
         static string tag_ref = "ref"; // [ref1]
         static string tag_led = "led"; // [led] [ref1]
