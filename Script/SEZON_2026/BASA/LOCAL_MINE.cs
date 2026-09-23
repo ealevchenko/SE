@@ -60,6 +60,9 @@ namespace LOCAL_MINE
         const char iyellow = '\uE004';
         const char idarkGrey = '\uE00F';
 
+        static float DrillDepth = 10.0f;    // глубина бурения
+        static float DrillSpeed = 2.5f;     // скорость бурения
+
         static LCD lcd_storage;
         static LCD lcd_debug;
         static LCD lcd_info1;
@@ -340,7 +343,85 @@ namespace LOCAL_MINE
             public string SetValVector3D(string Key, Vector3D val) { return val.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("X", Key + "X").Replace("Y", Key + "Y").Replace("Z", Key + "Z"); }
             public string SetValMatrixD(string Key, MatrixD val) { return val.ToString().Replace("}", "").Replace("{", "").Replace(" ", " ").Replace(" ", ";\n").Replace("M", Key); }
         }
+        public class MotorStator : BaseTerminalBlock<IMyMotorStator>
+        {
+            public float? task { get; set; } = null;
+            private float tolerance = 0.1f;
+            private float multiply_speed = 0.1f;
+            private float max_speed = 5f;
+            public double Degrees { get { return this.obj != null ? (this.obj.Angle * 180 / Math.PI) : 0; } }
+            public MotorStator(string name_obj) : base(name_obj)
+            {
 
+            }
+            public bool SetDegrees(float degrees)
+            {
+                float speed = 0f;
+                double curennt_degrees = this.Degrees;
+                double difference = (degrees - curennt_degrees);
+                if (Math.Abs(difference) > 180f)
+                {
+                    difference *= -1;
+                }
+                if (Math.Abs(difference) > tolerance)
+                {
+                    speed = (float)(difference * this.multiply_speed);
+                    if ((speed < 0f) && (speed < -max_speed)) speed = -max_speed; if ((speed > 0f) && (speed > max_speed)) speed = max_speed;
+                    this.obj.TargetVelocityRPM = speed;
+                    return false;
+                }
+                else
+                {
+                    this.obj.TargetVelocityRPM = speed;
+                    return true;
+                }
+            }
+            public string TextInfo()
+            {
+                if (this.obj == null) return "";
+                StringBuilder values = new StringBuilder();
+                values.Append("ШАРНИР : " + this.obj.CustomName + "\n");
+                values.Append("БЛОК : " + (this.obj.RotorLock ? ired.ToString() : igreen.ToString()) + " НИЗ: " + Math.Round(this.obj.LowerLimitDeg, 2) + " ВЕРХ: " + Math.Round(this.obj.UpperLimitDeg, 2) + "\n");
+                values.Append("УГОЛ : " + Math.Round(this.Degrees, 1) + " СКОРОСТЬ : " + Math.Round(this.obj.TargetVelocityRPM, 3) + " ЗАД : " + this.task + "\n");
+                return values.ToString();
+            }
+        }
+        public class Joint : BaseTerminalBlock<IMyMotorStator>
+        {
+            public float? task { get; set; } = null;
+            private float tolerance = 0.1f;
+            private float multiply_speed = 0.1f;
+            private float max_speed = 5f;
+            public double Degrees { get { return this.obj != null ? (this.obj.Angle * 180 / Math.PI) : 0; } }
+            public Joint(string name_obj) : base(name_obj) { }
+            public bool SetDegrees(float degrees)
+            {
+                float speed = 0f;
+                double curennt_degrees = this.Degrees;
+                double difference = ((degrees + 90f) - (curennt_degrees + 90f));
+                if (Math.Abs(difference) > tolerance)
+                {
+                    speed = (float)(difference * this.multiply_speed);
+                    if ((speed < 0f) && (speed < -5f)) speed = -5f; if ((speed > 0f) && (speed > 5f)) speed = 5f;
+                    this.obj.TargetVelocityRPM = speed;
+                    return false;
+                }
+                else
+                {
+                    this.obj.TargetVelocityRPM = speed;
+                    return true;
+                }
+            }
+            public string TextInfo()
+            {
+                if (this.obj == null) return "";
+                StringBuilder values = new StringBuilder();
+                values.Append("ШАРНИР : " + this.obj.CustomName + "\n");
+                values.Append("БЛОК : " + (this.obj.RotorLock ? ired.ToString() : igreen.ToString()) + " НИЗ: " + Math.Round(this.obj.LowerLimitDeg, 2) + " ВЕРХ: " + Math.Round(this.obj.UpperLimitDeg, 2) + "\n");
+                values.Append("УГОЛ : " + Math.Round(this.Degrees, 1) + " СКОРОСТЬ : " + Math.Round(this.obj.TargetVelocityRPM, 3) + " ЗАД : " + this.task + "\n");
+                return values.ToString();
+            }
+        }
         public class Pistons : BaseListTerminalBlock<IMyExtendedPistonBase>
         {
             private float tolerance = 0.1f;
@@ -404,8 +485,36 @@ namespace LOCAL_MINE
         }
         public class Upr
         {
-            float? position = null;
-            //int max_ref = refs.list_obj.Count();
+            public enum programm : int
+            {
+                none = 0,
+                start_drill = 1,        // начать бурение
+            };
+            public static string[] name_programm = { "", "СТАРТ ДОБЫЧИ" };
+            public programm curent_programm = programm.none;
+            public enum mode : int
+            {
+                none = 0,
+                set_pos = 1,
+                set_pos_speed = 2,
+            };
+            public static string[] name_mode = { "", "УСТ. ПОРШЕНЬ (пер. скор.)", "УСТ. ПОРШЕНЬ (Пост. скор.)" };
+            public mode curent_mode = mode.none;
+            public bool paused { get; set; } = false;
+
+            public void Pause(bool enable)
+            {
+                if (enable) { paused = true; }
+                else { paused = false; }
+                //strg.SaveToStorage();
+            }
+            public void Stop()
+            {
+                curent_mode = mode.none;
+                curent_programm = programm.none;
+                paused = false;
+                //strg.SaveToStorage();
+            }
             public Upr() { }
             public string GetNameOfTemplate(string str, string tmp)
             {
@@ -425,24 +534,40 @@ namespace LOCAL_MINE
             {
                 switch (argument)
                 {
-                    case "pos-9": position = 9.0f; break;
-                    case "pos-1": position = 1.0f; break;
-                    case "pos-9-s": position = 9.0f; break;
-                    case "pos-1-s": position = 1.0f; break;
+                    case "stop": Stop(); break;
+                    case "pause": Pause(!paused); break;
+                    case "dr_depth+": DrillDepth++; if (DrillDepth > 20.0f) DrillDepth = 20.0f; break; // strg.SaveToStorage();
+                    case "dr_depth-": DrillDepth--; if (DrillDepth < 0) DrillDepth = 0; break; // strg.SaveToStorage();
+                    case "dr_speed+": DrillSpeed += 0.1f; if (DrillSpeed > 2.0f) DrillSpeed = 2.0f; break; // strg.SaveToStorage();
+                    case "dr_speed-": DrillSpeed -= 0.1f; if (DrillSpeed < 0) DrillSpeed = 0; break; // strg.SaveToStorage();
+                    case "set_pos": curent_mode = mode.set_pos; break;
+                    case "set_pos_speed": curent_mode = mode.set_pos_speed; break;
                     default: break;
                 }
                 if (updateSource == UpdateType.Update10)
                 {
-                    if (position != null)
+                    if (curent_programm == programm.none)
                     {
-                        bool pos = pist.SetPosition((float)position);
-                        position = pos ? null : position;
+                        if (curent_mode == mode.set_pos && !paused && pist.SetPosition(DrillDepth))
+                        {
+                            curent_mode = mode.none;
+                        }
+                        if (curent_mode == mode.set_pos_speed && !paused && pist.SetPosition(DrillDepth, DrillSpeed))
+                        {
+                            curent_mode = mode.none;
+                        }
+                    }
+                    else
+                    {
+
                     }
                 }
-                StringBuilder values_pis = new StringBuilder();
-                //pist.TextInfo("Порш");
-                values_pis.Append(pist.TextInfo("Порш"));
-                lcd_pistons.OutText(values_pis);
+                StringBuilder values = new StringBuilder();
+                values.Append("ПРОГРАММА   : " + name_programm[(int)curent_programm] + "\n");
+                values.Append("ЭТАП        : " + name_mode[(int)curent_mode] + "\n");
+                values.Append("Глуб. бурения : " + DrillDepth + ", скор. бурения : " + DrillSpeed + "\n");
+                values.Append(pist.TextInfo("Порш"));
+                lcd_pistons.OutText(values);
             }
         }
     }
